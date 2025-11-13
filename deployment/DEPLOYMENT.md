@@ -5,11 +5,12 @@ Complete guide to deploying the bot-team application with gunicorn and nginx on 
 ## Architecture Overview
 
 - **5 Flask bots** running independently as systemd services
-- **Gunicorn** as the WSGI server for each bot
+- **Gunicorn** as the WSGI server for each bot (3 workers per bot)
 - **Nginx** as reverse proxy with SSL termination
 - **Let's Encrypt** for SSL certificates
-- Each bot runs on localhost with its own port (8001-8005)
-- Nginx proxies external traffic to the appropriate bot
+- **Unix sockets** for nginx ↔ gunicorn communication (faster than TCP)
+- Each bot has its own socket at `/run/gunicorn-*/gunicorn.sock`
+- Nginx proxies external HTTPS traffic to the appropriate bot via unix socket
 
 ## Prerequisites
 
@@ -425,9 +426,10 @@ sudo journalctl -u gunicorn-bot-team-fred -n 100 --no-pager
 
 ### 502 Bad Gateway
 
-- Bot service is not running: `sudo systemctl start <bot-name>`
-- Check nginx can connect to gunicorn: `curl http://127.0.0.1:800X`
-- Check firewall isn't blocking localhost connections
+- Bot service is not running: `sudo systemctl start gunicorn-bot-team-<bot-name>`
+- Check unix socket exists: `ls -l /run/gunicorn-*/gunicorn.sock`
+- Check socket permissions: `ls -l /run/gunicorn-pam/` (should be owned by www-data)
+- Check systemd logs: `sudo journalctl -u gunicorn-bot-team-pam -n 50`
 
 ### SSL certificate issues
 
@@ -458,7 +460,7 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
 
-# The bots run on localhost only - no need to open ports 8001-8005
+# The bots communicate via unix sockets - no need to open additional ports
 ```
 
 ## Backup
@@ -537,11 +539,11 @@ ps aux | grep gunicorn
 ## Quick Reference
 
 ### Service names
-- `gunicorn-bot-team-fred` - User management bot (port 8001)
-- `gunicorn-bot-team-iris` - Reporting bot (port 8002)
-- `gunicorn-bot-team-peter` - Phone directory manager (port 8003)
-- `gunicorn-bot-team-pam` - Phone directory presenter (port 8004)
-- `gunicorn-bot-team-quinn` - External staff access manager (port 8005)
+- `gunicorn-bot-team-fred` - User management bot
+- `gunicorn-bot-team-iris` - Reporting bot
+- `gunicorn-bot-team-peter` - Phone directory manager
+- `gunicorn-bot-team-pam` - Phone directory presenter
+- `gunicorn-bot-team-quinn` - External staff access manager
 
 ### URLs
 - https://fred.watsonblinds.com.au
