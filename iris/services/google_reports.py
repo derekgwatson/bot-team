@@ -106,10 +106,12 @@ class GoogleReportsService:
 
             if param_name in ['gmail_used_quota_in_mb', 'drive_used_quota_in_mb',
                             'total_quota_in_mb', 'used_quota_in_mb']:
-                # These are reported as integers in MB
+                # These are reported as integers in MB, but may come as strings or ints
                 value_key = 'intValue' if 'intValue' in param else None
                 if value_key:
-                    params[param_name] = param.get(value_key, 0)
+                    # Convert to int in case it's a string
+                    value = param.get(value_key, 0)
+                    params[param_name] = int(value) if value else 0
 
         # Convert MB to GB for readability
         gmail_gb = params.get('gmail_used_quota_in_mb', 0) / 1024
