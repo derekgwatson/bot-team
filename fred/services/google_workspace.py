@@ -199,13 +199,31 @@ class GoogleWorkspaceService:
 
     def _format_user(self, user):
         """Format user data for API responses"""
+        # Debug: Print available keys to see what Google returns
+        print(f"DEBUG: User data keys for {user.get('primaryEmail')}: {list(user.keys())}")
+
         # Get storage quota info
         storage_used_bytes = 0
         storage_limit_bytes = 0
 
-        # Check if user has quota information
+        # Check various possible fields for storage quota
+        # Google might return this in different fields depending on the API version
         if 'quotaBytesUsed' in user:
             storage_used_bytes = int(user.get('quotaBytesUsed', 0))
+            print(f"DEBUG: Found quotaBytesUsed: {storage_used_bytes}")
+
+        # Check if there's an emails field with quota info
+        if 'emails' in user:
+            print(f"DEBUG: Found emails field: {user.get('emails')}")
+
+        # Check if there's organizations with storage info
+        if 'organizations' in user:
+            print(f"DEBUG: Found organizations field: {user.get('organizations')}")
+
+        # Print entire user object for debugging (first user only)
+        if not hasattr(self, '_debug_printed'):
+            print(f"DEBUG: Full user object sample: {user}")
+            self._debug_printed = True
 
         # Note: Storage limit is typically set at organization level
         # Individual users don't have their own limit in the API response
