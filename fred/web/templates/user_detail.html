@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>User Details</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    <a href="/" class="btn">Back to Users</a>
+    {% elif user %}
+    <table>
+        <tr>
+            <th style="width: 200px;">Email</th>
+            <td>{{ user.email }}</td>
+        </tr>
+        <tr>
+            <th>First Name</th>
+            <td>{{ user.first_name }}</td>
+        </tr>
+        <tr>
+            <th>Last Name</th>
+            <td>{{ user.last_name }}</td>
+        </tr>
+        <tr>
+            <th>Full Name</th>
+            <td>{{ user.full_name }}</td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                {% if user.archived %}
+                    <span class="badge badge-danger">Archived</span>
+                {% elif user.suspended %}
+                    <span class="badge badge-warning">Suspended</span>
+                {% else %}
+                    <span class="badge badge-success">Active</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Created</th>
+            <td>{{ user.created_time if user.created_time else 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Last Login</th>
+            <td>{{ user.last_login if user.last_login else 'Never' }}</td>
+        </tr>
+    </table>
+
+    <div style="margin-top: 20px;">
+        <a href="/" class="btn">Back to Users</a>
+        {% if not user.archived %}
+        <form method="POST" action="/users/{{ user.email }}/archive" style="display: inline; margin-left: 10px;">
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('Archive {{ user.email }}?')">
+                Archive User
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

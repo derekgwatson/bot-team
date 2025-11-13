@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>{% if archived %}Archived Users{% else %}Active Users{% endif %}</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>
+                    <a href="/users/{{ user.email }}" style="color: #3498db; text-decoration: none;">
+                        {{ user.email }}
+                    </a>
+                </td>
+                <td>{{ user.full_name }}</td>
+                <td>
+                    {% if user.archived %}
+                        <span class="badge badge-danger">Archived</span>
+                    {% elif user.suspended %}
+                        <span class="badge badge-warning">Suspended</span>
+                    {% else %}
+                        <span class="badge badge-success">Active</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_time[:10] if user.created_time else 'N/A' }}</td>
+                <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
+                <td>
+                    {% if not user.archived %}
+                    <form method="POST" action="/users/{{ user.email }}/archive" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('Archive {{ user.email }}?')">
+                            Archive
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>No users found</h3>
+        <p>{% if archived %}No archived users yet.{% else %}Get started by adding a user.{% endif %}</p>
+        {% if not archived %}
+        <a href="/users/new" class="btn" style="margin-top: 20px;">Add Your First User</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

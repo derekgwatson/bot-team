@@ -1,0 +1,25 @@
+# Fred's Configuration
+name: fred
+description: "Google Workspace user management bot"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8001
+
+# Google Workspace configuration
+google_workspace:
+  # Path to service account credentials JSON file
+  credentials_file: "credentials.json"
+  # Your Google Workspace domain
+  domain: "example.com"
+  # Admin email for domain-wide delegation
+  admin_email: "admin@example.com"
+
+# Other bots Fred knows about (for future bot-to-bot communication)
+bots:
+  # Example:
+  # iris:
+  #   url: "http://localhost:8002"
+  #   description: "Email notification bot"
