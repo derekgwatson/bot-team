@@ -45,7 +45,8 @@ def request_access():
     """Public page to request access"""
     success = False
     error = None
-    email = None
+    # Pre-fill email from query parameter if provided
+    email = request.args.get('email', '')
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
