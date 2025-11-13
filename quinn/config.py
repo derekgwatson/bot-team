@@ -38,6 +38,11 @@ class Config:
         # Auth config - secrets come from environment variables
         self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-        self.admin_emails = data['auth'].get('admin_emails', [])
+        # Admin emails from env (comma-separated list) or fallback to config file
+        env_emails = os.environ.get('ADMIN_EMAILS', '')
+        if env_emails:
+            self.admin_emails = [email.strip() for email in env_emails.split(',') if email.strip()]
+        else:
+            self.admin_emails = data['auth'].get('admin_emails', [])
 
 config = Config()
