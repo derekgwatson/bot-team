@@ -13,8 +13,8 @@ timeout = 30
 keepalive = 2
 
 # Logging
-accesslog = "/var/log/peter/access.log"
-errorlog = "/var/log/peter/error.log"
+accesslog = "/var/log/gunicorn-peter/access.log"
+errorlog = "/var/log/gunicorn-peter/error.log"
 loglevel = "info"
 
 # Process naming
@@ -22,7 +22,7 @@ proc_name = "peter"
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/peter/peter.pid"
+pidfile = "/var/run/gunicorn-peter/peter.pid"
 umask = 0
 user = None
 group = None

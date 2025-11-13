@@ -13,8 +13,8 @@ timeout = 30
 keepalive = 2
 
 # Logging
-accesslog = "/var/log/fred/access.log"
-errorlog = "/var/log/fred/error.log"
+accesslog = "/var/log/gunicorn-fred/access.log"
+errorlog = "/var/log/gunicorn-fred/error.log"
 loglevel = "info"
 
 # Process naming
@@ -22,7 +22,7 @@ proc_name = "fred"
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/fred/fred.pid"
+pidfile = "/var/run/gunicorn-fred/fred.pid"
 umask = 0
 user = None
 group = None

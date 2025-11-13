@@ -13,8 +13,8 @@ timeout = 30
 keepalive = 2
 
 # Logging
-accesslog = "/var/log/iris/access.log"
-errorlog = "/var/log/iris/error.log"
+accesslog = "/var/log/gunicorn-iris/access.log"
+errorlog = "/var/log/gunicorn-iris/error.log"
 loglevel = "info"
 
 # Process naming
@@ -22,7 +22,7 @@ proc_name = "iris"
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/iris/iris.pid"
+pidfile = "/var/run/gunicorn-iris/iris.pid"
 umask = 0
 user = None
 group = None

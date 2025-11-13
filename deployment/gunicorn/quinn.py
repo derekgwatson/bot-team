@@ -13,8 +13,8 @@ timeout = 30
 keepalive = 2
 
 # Logging
-accesslog = "/var/log/quinn/access.log"
-errorlog = "/var/log/quinn/error.log"
+accesslog = "/var/log/gunicorn-quinn/access.log"
+errorlog = "/var/log/gunicorn-quinn/error.log"
 loglevel = "info"
 
 # Process naming
@@ -22,7 +22,7 @@ proc_name = "quinn"
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/quinn/quinn.pid"
+pidfile = "/var/run/gunicorn-quinn/quinn.pid"
 umask = 0
 user = None
 group = None

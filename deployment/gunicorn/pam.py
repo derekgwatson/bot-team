@@ -13,8 +13,8 @@ timeout = 30
 keepalive = 2
 
 # Logging
-accesslog = "/var/log/pam/access.log"
-errorlog = "/var/log/pam/error.log"
+accesslog = "/var/log/gunicorn-pam/access.log"
+errorlog = "/var/log/gunicorn-pam/error.log"
 loglevel = "info"
 
 # Process naming
@@ -22,7 +22,7 @@ proc_name = "pam"
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/pam/pam.pid"
+pidfile = "/var/run/gunicorn-pam/pam.pid"
 umask = 0
 user = None
 group = None

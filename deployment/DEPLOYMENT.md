@@ -49,17 +49,40 @@ sudo -u www-data git clone <your-repo-url> bot-team
 cd bot-team
 ```
 
-### Create virtual environment
+### Create virtual environments
+
+Each bot gets its own virtual environment:
 
 ```bash
-sudo -u www-data python3.9 -m venv venv
-sudo -u www-data venv/bin/pip install --upgrade pip
-sudo -u www-data venv/bin/pip install -r fred/requirements.txt
-sudo -u www-data venv/bin/pip install -r iris/requirements.txt
-sudo -u www-data venv/bin/pip install -r peter/requirements.txt
-sudo -u www-data venv/bin/pip install -r pam/requirements.txt
-sudo -u www-data venv/bin/pip install -r quinn/requirements.txt
-sudo -u www-data venv/bin/pip install gunicorn
+# Fred
+sudo -u www-data python3.9 -m venv fred/.venv
+sudo -u www-data fred/.venv/bin/pip install --upgrade pip
+sudo -u www-data fred/.venv/bin/pip install -r fred/requirements.txt
+sudo -u www-data fred/.venv/bin/pip install gunicorn
+
+# Iris
+sudo -u www-data python3.9 -m venv iris/.venv
+sudo -u www-data iris/.venv/bin/pip install --upgrade pip
+sudo -u www-data iris/.venv/bin/pip install -r iris/requirements.txt
+sudo -u www-data iris/.venv/bin/pip install gunicorn
+
+# Peter
+sudo -u www-data python3.9 -m venv peter/.venv
+sudo -u www-data peter/.venv/bin/pip install --upgrade pip
+sudo -u www-data peter/.venv/bin/pip install -r peter/requirements.txt
+sudo -u www-data peter/.venv/bin/pip install gunicorn
+
+# Pam
+sudo -u www-data python3.9 -m venv pam/.venv
+sudo -u www-data pam/.venv/bin/pip install --upgrade pip
+sudo -u www-data pam/.venv/bin/pip install -r pam/requirements.txt
+sudo -u www-data pam/.venv/bin/pip install gunicorn
+
+# Quinn
+sudo -u www-data python3.9 -m venv quinn/.venv
+sudo -u www-data quinn/.venv/bin/pip install --upgrade pip
+sudo -u www-data quinn/.venv/bin/pip install -r quinn/requirements.txt
+sudo -u www-data quinn/.venv/bin/pip install gunicorn
 ```
 
 ## Step 3: Setup Google Service Account Credentials
@@ -319,11 +342,11 @@ sudo tail -f /var/log/nginx/pam.error.log
 sudo tail -f /var/log/nginx/quinn.error.log
 
 # Application logs
-sudo tail -f /var/log/fred/error.log
-sudo tail -f /var/log/iris/error.log
-sudo tail -f /var/log/peter/error.log
-sudo tail -f /var/log/pam/error.log
-sudo tail -f /var/log/quinn/error.log
+sudo tail -f /var/log/gunicorn-fred/error.log
+sudo tail -f /var/log/gunicorn-iris/error.log
+sudo tail -f /var/log/gunicorn-peter/error.log
+sudo tail -f /var/log/gunicorn-pam/error.log
+sudo tail -f /var/log/gunicorn-quinn/error.log
 ```
 
 ## Ongoing Management
@@ -334,12 +357,12 @@ sudo tail -f /var/log/quinn/error.log
 cd /var/www/bot-team
 sudo -u www-data git pull
 
-# Install any new dependencies
-sudo -u www-data venv/bin/pip install -r fred/requirements.txt
-sudo -u www-data venv/bin/pip install -r iris/requirements.txt
-sudo -u www-data venv/bin/pip install -r peter/requirements.txt
-sudo -u www-data venv/bin/pip install -r pam/requirements.txt
-sudo -u www-data venv/bin/pip install -r quinn/requirements.txt
+# Install any new dependencies for each bot
+sudo -u www-data fred/.venv/bin/pip install -r fred/requirements.txt
+sudo -u www-data iris/.venv/bin/pip install -r iris/requirements.txt
+sudo -u www-data peter/.venv/bin/pip install -r peter/requirements.txt
+sudo -u www-data pam/.venv/bin/pip install -r pam/requirements.txt
+sudo -u www-data quinn/.venv/bin/pip install -r quinn/requirements.txt
 
 # Restart services
 sudo systemctl restart gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
