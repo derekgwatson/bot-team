@@ -14,58 +14,66 @@
         {% for section_name, contacts in sections.items() %}
         <div class="section-header">{{ section_name }}</div>
 
-        <div class="contacts-grid">
-            {% for contact in contacts %}
-            <div class="contact-card">
-                <div class="contact-header">
-                    <div class="contact-name-section">
-                        <div class="contact-name">{{ contact.name }}</div>
-                        {% if contact.position %}
-                        <div class="contact-position">{{ contact.position }}</div>
-                        {% endif %}
-                    </div>
-                    {% if contact.extension %}
-                    <div class="contact-ext">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ext</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Fixed Line</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td>
+                        {% if contact.extension %}
                         <span class="badge">{{ contact.extension }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="contact-details">
-                    {% if contact.fixed_line %}
-                    <div class="contact-detail-line">
-                        <span class="icon">📞</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ contact.name }}</td>
+                    <td>{{ contact.position if contact.position else '-' }}</td>
+                    <td>
+                        {% if contact.fixed_line %}
                         <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
-                    </div>
-                    {% endif %}
-                    {% if contact.mobile %}
-                    <div class="contact-detail-line">
-                        <span class="icon">📱</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.mobile %}
                         <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
-                    </div>
-                    {% endif %}
-                    {% if contact.email %}
-                    <div class="contact-detail-line">
-                        <span class="icon">✉️</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.email %}
                         <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="contact-actions">
-                    <a href="/edit/{{ contact.row }}" class="btn btn-small" style="background: #3498db;">
-                        Edit
-                    </a>
-                    <form method="POST" action="/delete/{{ contact.row }}" style="flex: 1;">
-                        <button type="submit" class="btn btn-danger btn-small" style="width: 100%;"
-                                onclick="return confirm('Delete {{ contact.name }}?')">
-                            Delete
-                        </button>
-                    </form>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/edit/{{ contact.row }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
+                            Edit
+                        </a>
+                        <form method="POST" action="/delete/{{ contact.row }}" style="display: inline;">
+                            <button type="submit" class="btn btn-danger btn-small"
+                                    onclick="return confirm('Delete {{ contact.name }}?')">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
     {% else %}
     <div class="empty-state">

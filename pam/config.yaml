@@ -1,0 +1,27 @@
+# Pam's Configuration
+name: pam
+description: "Phone directory presenter - Beautiful public-facing directory"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8004
+
+# Peter's API endpoint (where Pam gets contact data)
+peter_api:
+  url: "http://localhost:8003"
+  contacts_endpoint: "/api/contacts"
+  search_endpoint: "/api/contacts/search"
+
+# Other bots Pam knows about
+bots:
+  peter:
+    url: "http://localhost:8003"
+    description: "Phone directory manager"
+  fred:
+    url: "http://localhost:8001"
+    description: "User management bot"
+  iris:
+    url: "http://localhost:8002"
+    description: "Reporting bot"
