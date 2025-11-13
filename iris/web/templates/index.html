@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Storage Usage Overview</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+        <p style="margin-top: 10px; font-size: 14px;">Note: Usage data is typically available with a 1-2 day delay. The Reports API may not have data for today or yesterday yet.</p>
+    </div>
+    {% endif %}
+
+    {% if usage %}
+    {% set total_users = usage|length %}
+    {% set total_storage = usage|sum(attribute='total_used_gb') %}
+    {% set avg_storage = (total_storage / total_users)|round(2) if total_users > 0 else 0 %}
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Users</h3>
+            <div class="value">{{ total_users }}</div>
+        </div>
+        <div class="stat-card">
+            <h3>Total Storage Used</h3>
+            <div class="value">{{ total_storage|round(1) }} GB</div>
+        </div>
+        <div class="stat-card">
+            <h3>Average per User</h3>
+            <div class="value">{{ avg_storage }} GB</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Total Used</th>
+                <th>Gmail</th>
+                <th>Drive</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in usage %}
+            <tr>
+                <td>
+                    <a href="/user/{{ user.email }}" style="color: #8e44ad; text-decoration: none;">
+                        {{ user.email }}
+                    </a>
+                </td>
+                <td>
+                    <strong>{{ user.total_used_gb }} GB</strong>
+                    {% if user.total_used_gb > 10 %}
+                        <span class="badge badge-warning">High</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.gmail_used_gb }} GB</td>
+                <td>{{ user.drive_used_gb }} GB</td>
+                <td>{{ user.date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>No usage data available</h3>
+        <p>Usage data is typically available with a 1-2 day delay from Google's Reports API.</p>
+        <p style="margin-top: 10px;">Make sure you've set up the credentials and enabled the Reports API scopes.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Storage Details: {{ email }}</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    <a href="/" class="btn">Back to Overview</a>
+    {% elif usage %}
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Storage</h3>
+            <div class="value">{{ usage.total_used_gb }} GB</div>
+        </div>
+        <div class="stat-card">
+            <h3>Gmail</h3>
+            <div class="value">{{ usage.gmail_used_gb }} GB</div>
+            {% set gmail_pct = (usage.gmail_used_gb / usage.total_used_gb * 100)|round(0) if usage.total_used_gb > 0 else 0 %}
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ gmail_pct }}%"></div>
+            </div>
+            <small style="color: #7f8c8d;">{{ gmail_pct }}% of total</small>
+        </div>
+        <div class="stat-card">
+            <h3>Drive</h3>
+            <div class="value">{{ usage.drive_used_gb }} GB</div>
+            {% set drive_pct = (usage.drive_used_gb / usage.total_used_gb * 100)|round(0) if usage.total_used_gb > 0 else 0 %}
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ drive_pct }}%"></div>
+            </div>
+            <small style="color: #7f8c8d;">{{ drive_pct }}% of total</small>
+        </div>
+    </div>
+
+    <table>
+        <tr>
+            <th style="width: 200px;">Email</th>
+            <td>{{ usage.email }}</td>
+        </tr>
+        <tr>
+            <th>Report Date</th>
+            <td>{{ usage.date }}</td>
+        </tr>
+        <tr>
+            <th>Total Used</th>
+            <td>{{ usage.total_used_gb }} GB ({{ usage.total_used_mb }} MB)</td>
+        </tr>
+        <tr>
+            <th>Gmail Used</th>
+            <td>{{ usage.gmail_used_gb }} GB ({{ usage.gmail_used_mb }} MB)</td>
+        </tr>
+        <tr>
+            <th>Drive Used</th>
+            <td>{{ usage.drive_used_gb }} GB ({{ usage.drive_used_mb }} MB)</td>
+        </tr>
+        {% if usage.total_quota_gb %}
+        <tr>
+            <th>Total Quota</th>
+            <td>{{ usage.total_quota_gb }} GB</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <div style="margin-top: 20px;">
+        <a href="/" class="btn">Back to Overview</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

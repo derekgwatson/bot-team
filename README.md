@@ -13,7 +13,18 @@ Following the Unix principle: **do one thing and do it well.** Each bot in this 
 
 Fred handles onboarding and offboarding for your Google Workspace account. He can create users, archive users, and provide visibility into your organization's accounts.
 
-[Read Fred's documentation →](fred/README.md)
+- Port: 8001
+- API: http://localhost:8001/api/
+- [Read Fred's documentation →](fred/README.md)
+
+### 🔍 Iris
+**Google Workspace Reporting & Analytics**
+
+Iris keeps an eye on how your Google Workspace is being used. She tracks storage quotas, usage patterns, and provides insights into Gmail vs Drive consumption. Perfect for identifying who's using the most space and understanding your organization's storage trends.
+
+- Port: 8002
+- API: http://localhost:8002/api/
+- [Read Iris's documentation →](iris/README.md)
 
 ## How Bots Work Together
 
@@ -24,9 +35,15 @@ Each bot:
 - Can **call other bots** via their APIs
 - Has a **personality** (name) to make the system more approachable
 
-Example workflow:
+Example workflows:
 ```
-Onboarding bot → Fred (create user) → Iris (send welcome email)
+# Onboarding
+Onboarding bot → Fred (create user) → Notification bot (send welcome email)
+
+# Cleanup
+Analytics bot → Iris (find heavy storage users)
+              → Fred (check last login)
+              → Fred (archive inactive users)
 ```
 
 ## Adding New Bots
@@ -39,8 +56,9 @@ Onboarding bot → Fred (create user) → Iris (send welcome email)
 ## Running Bots
 
 Each bot runs on its own port:
-- Fred: `http://localhost:8001`
-- (Future bots will use 8002, 8003, etc.)
+- **Fred** (User Management): `http://localhost:8001`
+- **Iris** (Reporting): `http://localhost:8002`
+- (Future bots will use 8003, 8004, etc.)
 
 For production deployment, use nginx to route domains/paths to different bots.
 

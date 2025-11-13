@@ -1,0 +1,24 @@
+# Iris's Configuration
+name: iris
+description: "Google Workspace reporting and analytics bot"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8002
+
+# Google Workspace configuration
+google_workspace:
+  # Path to service account credentials JSON file
+  credentials_file: "credentials.json"
+  # Your Google Workspace domain
+  domain: "example.com"
+  # Admin email for domain-wide delegation
+  admin_email: "admin@example.com"
+
+# Other bots Iris knows about
+bots:
+  fred:
+    url: "http://localhost:8001"
+    description: "User management bot"
