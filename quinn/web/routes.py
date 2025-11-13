@@ -27,7 +27,8 @@ def index():
 
     # Find members in group but not in database
     staff_emails = {s['email'].lower() for s in staff}
-    other_members = [m for m in group_members if m['email'].lower() not in staff_emails]
+    other_members = [m for m in group_members
+                    if m.get('email') and m['email'].lower() not in staff_emails]
 
     return render_template('index.html',
                          staff=staff,
