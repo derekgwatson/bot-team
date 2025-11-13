@@ -38,10 +38,13 @@ class GoogleReportsService:
                 self.credentials = credentials
 
             # Build the Reports API service
-            self.service = build('reports', 'reports_v1', credentials=self.credentials)
+            # Use 'admin' service with 'reports_v1' like the Directory API
+            self.service = build('admin', 'reports_v1', credentials=self.credentials)
 
         except Exception as e:
             print(f"Error initializing Google Reports service: {e}")
+            import traceback
+            traceback.print_exc()
             self.service = None
 
     def get_user_usage(self, email=None, date=None):
