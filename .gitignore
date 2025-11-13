@@ -1,2 +1,21 @@
 .idea/
 __pycache__/
+
+# Environment variables and secrets
+.env
+*.env
+!.env.example
+
+# Google API credentials
+credentials.json
+**/credentials.json
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
