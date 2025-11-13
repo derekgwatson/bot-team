@@ -16,6 +16,8 @@ auth:
   # Allow any email from these domains
   allowed_domains:
     - "watsonblinds.com.au"
+    - "watsoncommercial.com.au"
+    - "designerdrapes.com.au"
 
 # Peter's API endpoint (where Pam gets contact data)
 peter_api:
