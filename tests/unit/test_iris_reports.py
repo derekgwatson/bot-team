@@ -12,16 +12,30 @@ from googleapiclient.errors import HttpError
 import importlib.util
 
 # Add iris directory to path for imports
-iris_path = Path(__file__).parent.parent.parent / 'iris'
+project_root = Path(__file__).parent.parent.parent
+iris_path = project_root / 'iris'
+
 if str(iris_path) not in sys.path:
     sys.path.insert(0, str(iris_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Also add parent to ensure config can be imported
-if str(iris_path.parent) not in sys.path:
-    sys.path.insert(0, str(iris_path.parent))
-
-# Import the service
-from services.google_reports import GoogleReportsService
+# Import the service - use importlib for Windows compatibility
+try:
+    from services.google_reports import GoogleReportsService
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "google_reports",
+        iris_path / "services" / "google_reports.py"
+    )
+    if spec and spec.loader:
+        google_reports_module = importlib.util.module_from_spec(spec)
+        sys.modules['google_reports'] = google_reports_module
+        spec.loader.exec_module(google_reports_module)
+        GoogleReportsService = google_reports_module.GoogleReportsService
+    else:
+        raise ImportError(f"Could not import GoogleReportsService: {e}")
 
 
 # ==============================================================================

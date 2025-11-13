@@ -12,9 +12,25 @@ from pathlib import Path
 
 # Add quinn directory to path
 quinn_path = Path(__file__).parent.parent.parent / 'quinn'
-sys.path.insert(0, str(quinn_path))
+if str(quinn_path) not in sys.path:
+    sys.path.insert(0, str(quinn_path))
 
+# Need to handle module-level database instantiation
+# Import config first and mock it before database module loads
+import config as quinn_config
+from unittest.mock import patch, Mock
+
+# Create a temporary mock config to prevent errors during module import
+original_config = quinn_config.config
+temp_mock = Mock()
+temp_mock.database_path = ':memory:'
+quinn_config.config = temp_mock
+
+# Now safe to import database module
 from database.db import ExternalStaffDB
+
+# Restore original (will be mocked properly in fixtures)
+quinn_config.config = original_config
 
 
 @pytest.fixture

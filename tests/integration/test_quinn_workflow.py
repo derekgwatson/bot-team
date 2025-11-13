@@ -20,7 +20,21 @@ if str(quinn_path) not in sys.path:
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Need to handle module-level database instantiation
+from unittest.mock import Mock
+import config as quinn_config
+
+# Create a temporary mock config to prevent errors during module import
+original_config = quinn_config.config
+temp_mock = Mock()
+temp_mock.database_path = ':memory:'
+quinn_config.config = temp_mock
+
+# Now safe to import database module
 from database.db import ExternalStaffDB
+
+# Restore original (will be mocked properly in fixtures)
+quinn_config.config = original_config
 
 
 @pytest.fixture

@@ -12,16 +12,30 @@ import requests
 import importlib.util
 
 # Add pam directory to path for imports
-pam_path = Path(__file__).parent.parent.parent / 'pam'
+project_root = Path(__file__).parent.parent.parent
+pam_path = project_root / 'pam'
+
 if str(pam_path) not in sys.path:
     sys.path.insert(0, str(pam_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Also add parent to ensure config can be imported
-if str(pam_path.parent) not in sys.path:
-    sys.path.insert(0, str(pam_path.parent))
-
-# Import the service
-from services.peter_client import PeterClient
+# Import the service - use importlib for Windows compatibility
+try:
+    from services.peter_client import PeterClient
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "peter_client",
+        pam_path / "services" / "peter_client.py"
+    )
+    if spec and spec.loader:
+        peter_client_module = importlib.util.module_from_spec(spec)
+        sys.modules['peter_client'] = peter_client_module
+        spec.loader.exec_module(peter_client_module)
+        PeterClient = peter_client_module.PeterClient
+    else:
+        raise ImportError(f"Could not import PeterClient: {e}")
 
 
 # ==============================================================================

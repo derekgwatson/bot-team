@@ -12,16 +12,30 @@ from googleapiclient.errors import HttpError
 import importlib.util
 
 # Add peter directory to path for imports
-peter_path = Path(__file__).parent.parent.parent / 'peter'
+project_root = Path(__file__).parent.parent.parent
+peter_path = project_root / 'peter'
+
 if str(peter_path) not in sys.path:
     sys.path.insert(0, str(peter_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Also add parent to ensure config can be imported
-if str(peter_path.parent) not in sys.path:
-    sys.path.insert(0, str(peter_path.parent))
-
-# Import the service
-from services.google_sheets import GoogleSheetsService
+# Import the service - use importlib for Windows compatibility
+try:
+    from services.google_sheets import GoogleSheetsService
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "google_sheets",
+        peter_path / "services" / "google_sheets.py"
+    )
+    if spec and spec.loader:
+        google_sheets_module = importlib.util.module_from_spec(spec)
+        sys.modules['google_sheets'] = google_sheets_module
+        spec.loader.exec_module(google_sheets_module)
+        GoogleSheetsService = google_sheets_module.GoogleSheetsService
+    else:
+        raise ImportError(f"Could not import GoogleSheetsService: {e}")
 
 
 # ==============================================================================
