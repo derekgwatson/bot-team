@@ -12,12 +12,14 @@ class ExternalStaffDB:
     Database handler for external staff management
     """
 
-    def __init__(self):
+    def __init__(self, db_path=None):
         """Initialize database connection and create tables if needed"""
-        self.db_path = config.database_path
+        self.db_path = db_path or config.database_path
 
         # Ensure database directory exists
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:  # Only create directory if path has a directory component
+            os.makedirs(db_dir, exist_ok=True)
 
         # Initialize database
         self._init_db()
@@ -455,4 +457,22 @@ class ExternalStaffDB:
 
 
 # Global database instance
-db = ExternalStaffDB()
+# Only instantiate if not in testing mode (tests will create their own instances)
+db = None
+if not os.environ.get('TESTING'):
+    try:
+        db = ExternalStaffDB()
+    except Exception as e:
+        print(f"Warning: Could not initialize database: {e}")
+        print("Database will need to be manually initialized.")
+
+
+def get_db():
+    """
+    Get the database instance, initializing it if necessary.
+    This is useful for lazy initialization in production.
+    """
+    global db
+    if db is None:
+        db = ExternalStaffDB()
+    return db

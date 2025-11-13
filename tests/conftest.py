@@ -12,6 +12,13 @@ import pytest
 from unittest.mock import MagicMock, Mock
 from pathlib import Path
 
+# Set TESTING environment variable FIRST, before any bot modules are imported
+# This prevents module-level database instantiation in quinn/database/db.py
+os.environ['TESTING'] = '1'
+os.environ['FLASK_SECRET_KEY'] = 'test-secret-key-for-testing-only'
+os.environ['GOOGLE_OAUTH_CLIENT_ID'] = 'test-client-id'
+os.environ['GOOGLE_OAUTH_CLIENT_SECRET'] = 'test-client-secret'
+
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -23,17 +30,13 @@ sys.path.insert(0, str(project_root))
 
 @pytest.fixture(scope='session')
 def test_env():
-    """Set up test environment variables."""
-    os.environ['TESTING'] = '1'
-    os.environ['FLASK_SECRET_KEY'] = 'test-secret-key-for-testing-only'
-    os.environ['GOOGLE_OAUTH_CLIENT_ID'] = 'test-client-id'
-    os.environ['GOOGLE_OAUTH_CLIENT_SECRET'] = 'test-client-secret'
+    """
+    Test environment variables fixture.
+    Note: Environment variables are already set at module load time above.
+    This fixture exists for backward compatibility with tests that reference it.
+    """
     yield
-    # Cleanup
-    os.environ.pop('TESTING', None)
-    os.environ.pop('FLASK_SECRET_KEY', None)
-    os.environ.pop('GOOGLE_OAUTH_CLIENT_ID', None)
-    os.environ.pop('GOOGLE_OAUTH_CLIENT_SECRET', None)
+    # Cleanup happens automatically when pytest exits
 
 
 @pytest.fixture
