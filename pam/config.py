@@ -32,8 +32,11 @@ class Config:
         self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
 
-        # Peter API config
-        self.peter_api_url = data['peter_api']['url']
+        # Bot URLs - use environment variables with localhost fallback for development
+        self.quinn_api_url = os.environ.get('QUINN_API_URL', 'http://localhost:8005')
+        self.peter_api_url = os.environ.get('PETER_API_URL', 'http://localhost:8003')
+
+        # Peter API config (keep endpoints from yaml)
         self.peter_contacts_endpoint = data['peter_api']['contacts_endpoint']
         self.peter_search_endpoint = data['peter_api']['search_endpoint']
 

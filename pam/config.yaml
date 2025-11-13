@@ -18,12 +18,13 @@ auth:
   # See .env.example for required environment variables:
   #   GOOGLE_OAUTH_CLIENT_ID
   #   GOOGLE_OAUTH_CLIENT_SECRET
-  # Quinn API for external staff approval
-  quinn_api_url: "http://localhost:8005"
 
-# Peter's API endpoint (where Pam gets contact data)
+# Bot URLs are configured via environment variables (see .env.example)
+# Development defaults: Quinn=http://localhost:8005, Peter=http://localhost:8003
+# Production: Set QUINN_API_URL and PETER_API_URL in .env
+
+# Peter's API endpoint paths (where Pam gets contact data)
 peter_api:
-  url: "http://localhost:8003"
   contacts_endpoint: "/api/contacts"
   search_endpoint: "/api/contacts/search"
 
