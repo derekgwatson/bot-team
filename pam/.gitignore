@@ -8,3 +8,5 @@ ENV/
 .venv
 *.log
 .DS_Store
+.env
+credentials.json

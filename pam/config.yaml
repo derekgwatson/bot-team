@@ -10,9 +10,10 @@ server:
 
 # Authentication configuration
 auth:
-  # Google OAuth credentials - get these from Google Cloud Console
-  oauth_client_id: "YOUR_GOOGLE_CLIENT_ID"
-  oauth_client_secret: "YOUR_GOOGLE_CLIENT_SECRET"
+  # Google OAuth credentials - stored in .env file (not in git!)
+  # See .env.example for required environment variables:
+  #   GOOGLE_OAUTH_CLIENT_ID
+  #   GOOGLE_OAUTH_CLIENT_SECRET
   # Allow any email from these domains
   allowed_domains:
     - "watsonblinds.com.au"

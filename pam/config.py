@@ -1,5 +1,9 @@
 import yaml
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
     def __init__(self):
@@ -16,9 +20,9 @@ class Config:
         self.server_host = data['server']['host']
         self.server_port = data['server']['port']
 
-        # Auth config
-        self.oauth_client_id = data['auth']['oauth_client_id']
-        self.oauth_client_secret = data['auth']['oauth_client_secret']
+        # Auth config - secrets come from environment variables
+        self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
+        self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
         self.allowed_domains = data['auth'].get('allowed_domains', [])
 
         # Peter API config
