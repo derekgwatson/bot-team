@@ -24,7 +24,7 @@
 
         <div class="contacts-grid">
             {% for contact in contacts %}
-            <div class="contact-card" data-searchable="{{ contact.section|lower }} {{ contact.name|lower }} {{ contact.position|lower }} {{ contact.extension }} {{ contact.fixed_line }} {{ contact.mobile }} {{ contact.email|lower }}">
+            <div class="contact-card" data-searchable="{{ section_name|lower }} {{ contact.name|lower }} {{ contact.position|lower }} {{ contact.extension }} {{ contact.fixed_line }} {{ contact.mobile }} {{ contact.email|lower }}">
                 <div class="contact-header">
                     <div class="contact-name-section">
                         <div class="contact-name">{{ contact.name }}</div>
