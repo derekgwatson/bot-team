@@ -8,6 +8,10 @@ server:
   host: "0.0.0.0"
   port: 8003
 
+# Shared organization config
+# See ../shared/config/organization.yaml for domain definitions
+shared_config: "../shared/config/organization.yaml"
+
 # Google Sheets configuration
 google_sheets:
   # Path to service account credentials JSON file
@@ -16,6 +20,13 @@ google_sheets:
   spreadsheet_id: "1ESrvIP52ThLQkOxpWcLWrPMeHcaerYQf6lHkUIC7DcA"
   # Sheet/tab name
   sheet_name: "Phone List"
+
+# Authentication configuration
+auth:
+  # Google OAuth credentials - stored in .env file (not in git!)
+  # See .env.example for required environment variables
+  admin_emails:
+    - "derek@watsonblinds.com.au"  # Only admins can manage phone directory
 
 # Other bots Peter knows about
 bots:

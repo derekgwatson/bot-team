@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if company_staff %}
+<div class="card" style="background: #d1ecf1; border-left: 4px solid #17a2b8;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #0c5460;">🏢 Company Staff ({{ company_staff|length }})</h2>
+    </div>
+    <div style="margin-bottom: 15px; color: #0c5460;">
+        <p>These company employees are in the <strong>all-staff@watsonblinds.com.au</strong> Google Group (managed by Fred, not Quinn).</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in company_staff %}
+            <tr>
+                <td>{{ member.email }}</td>
+                <td><span class="badge badge-active">{{ member.role }}</span></td>
+                <td>{{ member.type }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if unmanaged_external %}
+<div class="card" style="background: #fff3cd; border-left: 4px solid #ff9800;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #856404;">⚠️ Unmanaged External Staff ({{ unmanaged_external|length }})</h2>
+        <button id="importSelectedBtn" class="btn" style="background: #27ae60; display: none;">
+            📥 Import Selected (<span id="selectedCount">0</span>)
+        </button>
+    </div>
+    <div style="margin-bottom: 15px; color: #856404;">
+        <p><strong>Warning:</strong> These external staff members are in the Google Group but NOT in Quinn's database. Select and import them to Quinn's registry.</p>
+    </div>
+
+    <form id="bulkImportForm" method="POST" action="/admin/bulk-import-from-group">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="selectAll" style="cursor: pointer;">
+                    </th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in unmanaged_external %}
+                <tr>
+                    <td>
+                        <input type="checkbox" name="emails" value="{{ member.email }}" class="member-checkbox" style="cursor: pointer;">
+                    </td>
+                    <td>{{ member.email }}</td>
+                    <td><span class="badge badge-active">{{ member.role }}</span></td>
+                    <td>{{ member.type }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+        <h3 style="margin-bottom: 15px; color: #2c3e50;">Confirm Import</h3>
+        <p style="margin-bottom: 20px; color: #555;">
+            Are you sure you want to import <strong id="confirmCount">0</strong> staff member(s) into Quinn's database?
+        </p>
+        <div id="confirmEmailList" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 14px;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" id="cancelImport" class="btn" style="background: #95a5a6;">Cancel</button>
+            <button type="button" id="confirmImport" class="btn" style="background: #27ae60;">Import</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const memberCheckboxes = document.querySelectorAll('.member-checkbox');
+    const importBtn = document.getElementById('importSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const confirmModal = document.getElementById('confirmModal');
+    const bulkImportForm = document.getElementById('bulkImportForm');
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.member-checkbox:checked');
+        const count = selected.length;
+        selectedCountSpan.textContent = count;
+        importBtn.style.display = count > 0 ? 'block' : 'none';
+    }
+
+    selectAllCheckbox.addEventListener('change', function() {
+        memberCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectedCount();
+    });
+
+    memberCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    importBtn.addEventListener('click', function() {
+        const selected = document.querySelectorAll('.member-checkbox:checked');
+        const emails = Array.from(selected).map(cb => cb.value);
+
+        document.getElementById('confirmCount').textContent = emails.length;
+        document.getElementById('confirmEmailList').innerHTML = emails.map(e =>
+            `<div style="padding: 4px 0;">• ${e}</div>`
+        ).join('');
+
+        confirmModal.style.display = 'flex';
+    });
+
+    document.getElementById('cancelImport').addEventListener('click', function() {
+        confirmModal.style.display = 'none';
+    });
+
+    document.getElementById('confirmImport').addEventListener('click', function() {
+        bulkImportForm.submit();
+    });
+
+    // Close modal on background click
+    confirmModal.addEventListener('click', function(e) {
+        if (e.target === confirmModal) {
+            confirmModal.style.display = 'none';
+        }
+    });
+</script>
+{% endif %}
+
+{% if pending_requests %}
+<div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #856404;">⏳ Pending Access Requests ({{ pending_requests|length }})</h2>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Reason</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in pending_requests %}
+            <tr>
+                <td><strong>{{ req.name }}</strong></td>
+                <td>{{ req.email }}</td>
+                <td>{{ req.phone if req.phone else '-' }}</td>
+                <td style="max-width: 200px; font-size: 12px;">{{ req.reason if req.reason else '-' }}</td>
+                <td>{{ req.request_date[:10] }}</td>
+                <td style="white-space: nowrap;">
+                    <form method="POST" action="/admin/approve-request/{{ req.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-small"
+                                style="background: #27ae60;"
+                                onclick="return confirm('Approve access for {{ req.name }} ({{ req.email }})?')">
+                            ✓ Approve
+                        </button>
+                    </form>
+                    <form method="POST" action="/admin/deny-request/{{ req.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('Deny access for {{ req.name }} ({{ req.email }})?')">
+                            ✗ Deny
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>External Staff Registry</h2>
+        <a href="/admin/add" class="btn">Add New Staff</a>
+    </div>
+
+    <div class="filter-bar">
+        <form method="GET" action="/admin">
+            <label for="status">Filter by status:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </form>
+    </div>
+
+    {% if staff %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Added Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in staff %}
+            <tr>
+                <td><strong>{{ person.name }}</strong></td>
+                <td>{{ person.email }}</td>
+                <td>{{ person.phone if person.phone else '-' }}</td>
+                <td>{{ person.role if person.role else '-' }}</td>
+                <td>
+                    <span class="badge badge-{{ person.status }}">
+                        {{ person.status|upper }}
+                    </span>
+                </td>
+                <td>{{ person.added_date[:10] }}</td>
+                <td>
+                    <a href="/admin/edit/{{ person.id }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
+                        Edit
+                    </a>
+                    {% if person.status == 'active' %}
+                    <form method="POST" action="/admin/delete/{{ person.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('Deactivate {{ person.name }}?')">
+                            Deactivate
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>No external staff found</h3>
+        <p>Add your first external staff member to get started.</p>
+        <a href="/add" class="btn" style="margin-top: 20px;">Add Staff Member</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
