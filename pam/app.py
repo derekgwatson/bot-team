@@ -33,6 +33,12 @@ def info():
     })
 
 if __name__ == '__main__':
+    print("\n" + "="*50)
+    print("📞 Hi! I'm Pam")
+    print("   Your Friendly Phone Directory")
+    print(f"   Running on http://localhost:{config.server_port}")
+    print("="*50 + "\n")
+
     app.run(
         host=config.server_host,
         port=config.server_port,
