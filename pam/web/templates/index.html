@@ -2,10 +2,12 @@
 
 {% block content %}
 <div class="search-bar">
-    <form action="/search" method="GET">
-        <input type="text" name="q" placeholder="Search by name, position, or extension..." autocomplete="off">
-        <button type="submit">Search</button>
-    </form>
+    <input type="text" id="searchInput" placeholder="Start typing to search by name, position, or extension..." autocomplete="off">
+</div>
+
+<div id="noResults" class="empty-state" style="display: none;">
+    <h3>No contacts found</h3>
+    <p>Try a different search term.</p>
 </div>
 
 {% if error %}
@@ -14,49 +16,52 @@
 </div>
 {% endif %}
 
+<div id="directory">
 {% if sections %}
     {% for section_name, contacts in sections.items() %}
-    <div class="section-header">{{ section_name }}</div>
+    <div class="section-container" data-section="{{ section_name }}">
+        <div class="section-header">{{ section_name }}</div>
 
-    <div class="contacts-grid">
-        {% for contact in contacts %}
-        <div class="contact-card">
-            <div class="contact-header">
-                <div class="contact-name-section">
-                    <div class="contact-name">{{ contact.name }}</div>
-                    {% if contact.position %}
-                    <div class="contact-position">{{ contact.position }}</div>
+        <div class="contacts-grid">
+            {% for contact in contacts %}
+            <div class="contact-card" data-searchable="{{ contact.name|lower }} {{ contact.position|lower }} {{ contact.extension }} {{ contact.fixed_line }} {{ contact.mobile }} {{ contact.email|lower }}">
+                <div class="contact-header">
+                    <div class="contact-name-section">
+                        <div class="contact-name">{{ contact.name }}</div>
+                        {% if contact.position %}
+                        <div class="contact-position">{{ contact.position }}</div>
+                        {% endif %}
+                    </div>
+                    {% if contact.extension %}
+                    <div class="contact-ext">
+                        <span class="badge">{{ contact.extension }}</span>
+                    </div>
                     {% endif %}
                 </div>
-                {% if contact.extension %}
-                <div class="contact-ext">
-                    <span class="badge">{{ contact.extension }}</span>
-                </div>
-                {% endif %}
-            </div>
 
-            <div class="contact-details">
-                {% if contact.fixed_line %}
-                <div class="contact-detail-line">
-                    <span class="icon">📞</span>
-                    <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
+                <div class="contact-details">
+                    {% if contact.fixed_line %}
+                    <div class="contact-detail-line">
+                        <span class="icon">📞</span>
+                        <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
+                    </div>
+                    {% endif %}
+                    {% if contact.mobile %}
+                    <div class="contact-detail-line">
+                        <span class="icon">📱</span>
+                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
+                    </div>
+                    {% endif %}
+                    {% if contact.email %}
+                    <div class="contact-detail-line">
+                        <span class="icon">✉️</span>
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {% if contact.mobile %}
-                <div class="contact-detail-line">
-                    <span class="icon">📱</span>
-                    <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
-                </div>
-                {% endif %}
-                {% if contact.email %}
-                <div class="contact-detail-line">
-                    <span class="icon">✉️</span>
-                    <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
-                </div>
-                {% endif %}
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% endfor %}
 {% else %}
@@ -65,4 +70,63 @@
     <p>The phone directory appears to be empty.</p>
 </div>
 {% endif %}
+</div>
+
+<script>
+    // Live search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const directory = document.getElementById('directory');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+
+        // Get all contact cards and sections
+        const cards = document.querySelectorAll('.contact-card');
+        const sections = document.querySelectorAll('.section-container');
+
+        let visibleCount = 0;
+
+        if (query === '') {
+            // Show everything if search is empty
+            cards.forEach(card => card.style.display = '');
+            sections.forEach(section => section.style.display = '');
+            noResults.style.display = 'none';
+            return;
+        }
+
+        // Filter cards
+        cards.forEach(card => {
+            const searchable = card.getAttribute('data-searchable');
+            if (searchable.includes(query)) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Hide sections that have no visible cards
+        sections.forEach(section => {
+            const visibleCards = section.querySelectorAll('.contact-card[style=""]');
+            if (visibleCards.length === 0) {
+                section.style.display = 'none';
+            } else {
+                section.style.display = '';
+            }
+        });
+
+        // Show/hide no results message
+        if (visibleCount === 0) {
+            noResults.style.display = 'block';
+            directory.style.display = 'none';
+        } else {
+            noResults.style.display = 'none';
+            directory.style.display = 'block';
+        }
+    });
+
+    // Focus search input on page load
+    searchInput.focus();
+</script>
 {% endblock %}

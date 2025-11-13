@@ -25,7 +25,7 @@
         }
 
         header {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);
             color: white;
             padding: 30px 0;
             margin-bottom: 30px;
@@ -38,7 +38,7 @@
         }
 
         header p {
-            color: #fadbd8;
+            color: #d5f4e6;
             margin-top: 8px;
             font-size: 16px;
         }
@@ -75,46 +75,25 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }
 
-        .search-bar form {
-            display: flex;
-            gap: 12px;
-        }
-
         .search-bar input {
-            flex: 1;
-            max-width: 600px;
+            width: 100%;
             padding: 14px 18px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
             border-radius: 6px;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .search-bar input:focus {
             outline: none;
-            border-color: #e74c3c;
-        }
-
-        .search-bar button {
-            padding: 14px 28px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .search-bar button:hover {
-            background: #c0392b;
+            border-color: #1abc9c;
+            box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.1);
         }
 
         .btn {
             display: inline-block;
             padding: 10px 20px;
-            background: #e74c3c;
+            background: #1abc9c;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -125,7 +104,7 @@
         }
 
         .btn:hover {
-            background: #c0392b;
+            background: #16a085;
         }
 
         .error {
@@ -137,8 +116,8 @@
         }
 
         .info-box {
-            background: #ffe5e0;
-            border-left: 4px solid #e74c3c;
+            background: #d5f4e6;
+            border-left: 4px solid #1abc9c;
             padding: 18px 22px;
             margin-bottom: 25px;
             border-radius: 6px;
@@ -155,14 +134,14 @@
         }
 
         .section-header {
-            background: #e74c3c;
+            background: #1abc9c;
             color: white;
             padding: 12px 18px;
             margin: 30px 0 20px 0;
             border-radius: 6px;
             font-weight: 600;
             font-size: 16px;
-            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+            box-shadow: 0 2px 4px rgba(26, 188, 156, 0.2);
         }
 
         .section-header:first-of-type {
@@ -188,8 +167,8 @@
         }
 
         .contact-card:hover {
-            box-shadow: 0 6px 16px rgba(231, 76, 60, 0.15);
-            border-color: #e74c3c;
+            box-shadow: 0 6px 16px rgba(26, 188, 156, 0.15);
+            border-color: #1abc9c;
             transform: translateY(-2px);
         }
 
@@ -213,7 +192,7 @@
 
         .contact-position {
             font-size: 14px;
-            color: #e74c3c;
+            color: #1abc9c;
             margin-top: 3px;
             font-weight: 500;
         }
@@ -229,9 +208,9 @@
             border-radius: 5px;
             font-size: 13px;
             font-weight: 600;
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);
             color: white;
-            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+            box-shadow: 0 2px 4px rgba(26, 188, 156, 0.2);
         }
 
         .contact-details {
@@ -254,13 +233,13 @@
         }
 
         .contact-detail-line a {
-            color: #e74c3c;
+            color: #1abc9c;
             text-decoration: none;
             transition: color 0.2s;
         }
 
         .contact-detail-line a:hover {
-            color: #c0392b;
+            color: #16a085;
             text-decoration: underline;
         }
 
@@ -299,10 +278,6 @@
         <div class="container">
             <h1>📞 Pam</h1>
             <p>Your Friendly Phone Directory</p>
-            <nav>
-                <a href="/" class="active">Directory</a>
-                <a href="/search">Search</a>
-            </nav>
         </div>
     </header>
 
