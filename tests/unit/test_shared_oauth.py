@@ -51,7 +51,7 @@ def flask_app(test_env):
 @pytest.fixture
 def mock_config_domain():
     """Mock config with domain-based authorization."""
-    config = Mock()
+    config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'allowed_domains'])
     config.oauth_client_id = 'test-client-id'
     config.oauth_client_secret = 'test-client-secret'
     config.allowed_domains = ['company.com', 'example.org']
@@ -61,7 +61,7 @@ def mock_config_domain():
 @pytest.fixture
 def mock_config_whitelist():
     """Mock config with admin whitelist authorization."""
-    config = Mock()
+    config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'admin_emails'])
     config.oauth_client_id = 'test-client-id'
     config.oauth_client_secret = 'test-client-secret'
     config.admin_emails = ['admin@company.com', 'superuser@company.com']
@@ -71,7 +71,7 @@ def mock_config_whitelist():
 @pytest.fixture
 def mock_config_quinn():
     """Mock config with Quinn API authorization."""
-    config = Mock()
+    config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url'])
     config.oauth_client_id = 'test-client-id'
     config.oauth_client_secret = 'test-client-secret'
     config.quinn_api_url = 'http://localhost:8004'
@@ -81,7 +81,7 @@ def mock_config_quinn():
 @pytest.fixture
 def mock_config_minimal():
     """Mock config with minimal settings (no authorization)."""
-    config = Mock()
+    config = Mock(spec=['oauth_client_id', 'oauth_client_secret'])
     config.oauth_client_id = 'test-client-id'
     config.oauth_client_secret = 'test-client-secret'
     return config
@@ -313,9 +313,11 @@ def test_callback_route_success(flask_app, mock_config_domain):
     """Test successful OAuth callback."""
     auth = GoogleAuth(flask_app, mock_config_domain)
 
-    with flask_app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['next_url'] = '/dashboard'
+    with flask_app.test_request_context('/auth/callback'):
+        # Set up session
+        with flask_app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['next_url'] = '/dashboard'
 
         # Mock the OAuth token exchange
         with patch.object(auth.google, 'authorize_access_token') as mock_token:
@@ -327,6 +329,7 @@ def test_callback_route_success(flask_app, mock_config_domain):
                 }
             }
 
+            session['next_url'] = '/dashboard'
             response = auth.callback_route()
 
             # Should redirect to next_url
@@ -340,7 +343,7 @@ def test_callback_route_unauthorized_user(flask_app, mock_config_domain):
     """Test OAuth callback with unauthorized user."""
     auth = GoogleAuth(flask_app, mock_config_domain)
 
-    with flask_app.test_client() as client:
+    with flask_app.test_request_context('/auth/callback'):
         # Mock the OAuth token exchange with unauthorized email
         with patch.object(auth.google, 'authorize_access_token') as mock_token:
             mock_token.return_value = {
@@ -389,7 +392,7 @@ def test_callback_route_oauth_error(flask_app, mock_config_domain):
     """Test OAuth callback handles errors gracefully."""
     auth = GoogleAuth(flask_app, mock_config_domain)
 
-    with flask_app.test_client() as client:
+    with flask_app.test_request_context('/auth/callback'):
         # Mock OAuth error
         with patch.object(auth.google, 'authorize_access_token') as mock_token:
             mock_token.side_effect = Exception('OAuth error')
@@ -466,7 +469,7 @@ def test_logout_route_redirects_to_login(flask_app, mock_config_domain):
     """Test that logout redirects to login page."""
     auth = GoogleAuth(flask_app, mock_config_domain)
 
-    with flask_app.test_client() as client:
+    with flask_app.test_request_context('/logout'):
         response = auth.logout_route()
 
         assert response.status_code == 302
