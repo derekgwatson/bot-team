@@ -45,6 +45,9 @@ class GoogleAuth:
 
     def login_route(self):
         """OAuth login route"""
+        # Store the page the user was trying to access (if not already set by require_auth)
+        if 'next_url' not in session:
+            session['next_url'] = request.args.get('next') or request.referrer or '/'
         redirect_uri = url_for('auth_callback', _external=True)
         return self.google.authorize_redirect(redirect_uri)
 
@@ -66,8 +69,9 @@ class GoogleAuth:
                     session.clear()
                     return redirect(url_for('access_denied'))
 
-                # Redirect to home page after successful login
-                return redirect('/')
+                # Redirect to the page user was trying to access
+                next_url = session.pop('next_url', '/')
+                return redirect(next_url)
 
             return redirect(url_for('login'))
 
@@ -127,6 +131,8 @@ class GoogleAuth:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user' not in session:
+                # Store the current URL to redirect back after login
+                session['next_url'] = request.url
                 return redirect(url_for('login'))
             return f(*args, **kwargs)
         return decorated_function

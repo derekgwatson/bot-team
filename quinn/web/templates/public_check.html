@@ -197,7 +197,7 @@
                     <h3>✗ Not Approved</h3>
                     <p>Your email <strong>{{ result.email }}</strong> is not currently approved.</p>
                     <p>Would you like to request access?</p>
-                    <a href="/request-access">Request Access</a>
+                    <a href="/request-access?email={{ result.email }}">Request Access</a>
                 </div>
                 {% endif %}
             {% endif %}
