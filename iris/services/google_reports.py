@@ -68,6 +68,8 @@ class GoogleReportsService:
                 three_days_ago = datetime.now() - timedelta(days=3)
                 date = three_days_ago.strftime('%Y-%m-%d')
 
+            print(f"DEBUG: Requesting usage data for date: {date}, email: {email if email else 'all'}")
+
             params = {
                 'userKey': email if email else 'all',
                 'date': date,
@@ -77,14 +79,22 @@ class GoogleReportsService:
             results = self.service.userUsageReport().get(**params).execute()
 
             usage_reports = results.get('usageReports', [])
+            print(f"DEBUG: Got {len(usage_reports)} usage reports")
 
             return [self._format_usage_report(report) for report in usage_reports]
 
         except HttpError as e:
+            print(f"DEBUG: HttpError status: {e.resp.status}")
+            print(f"DEBUG: HttpError content: {e.content}")
             if e.resp.status == 400:
                 return {'error': 'Invalid date or user. Usage data may not be available yet.'}
+            if e.resp.status == 403:
+                return {'error': 'Permission denied. Make sure Reports API scopes are authorized in Workspace Admin.'}
             return {'error': f'API error: {e}'}
         except Exception as e:
+            print(f"DEBUG: Exception: {e}")
+            import traceback
+            traceback.print_exc()
             return {'error': f'Unexpected error: {e}'}
 
     def _format_usage_report(self, report):
