@@ -170,6 +170,29 @@ def deny_request(request_id):
     return redirect(url_for('web.index'))
 
 
+@web_bp.route('/import-from-group/<path:email>', methods=['POST'])
+@require_auth
+def import_from_group(email):
+    """Import an existing group member into Quinn's database"""
+    added_by = session.get('user', {}).get('email', 'unknown')
+
+    # Add to database - use email username as placeholder name
+    name = email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
+
+    result = db.add_staff(
+        name=name,
+        email=email,
+        phone='',
+        role='',
+        added_by=added_by,
+        notes='Auto-imported from existing Google Group membership'
+    )
+
+    # No need to add to Google Group - they're already in it!
+
+    return redirect(url_for('web.index'))
+
+
 # Public routes (no authentication required)
 
 @web_bp.route('/public/check', methods=['GET', 'POST'])
