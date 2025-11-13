@@ -53,7 +53,7 @@ class GoogleReportsService:
 
         Args:
             email: Optional specific user email
-            date: Optional date (YYYY-MM-DD format), defaults to yesterday
+            date: Optional date (YYYY-MM-DD format), defaults to 3 days ago
 
         Returns:
             List of user usage dictionaries or error
@@ -63,10 +63,10 @@ class GoogleReportsService:
 
         try:
             # Reports API requires date format: YYYY-MM-DD
-            # Data is usually available for yesterday
+            # Data is usually available with 2-3 day delay
             if not date:
-                yesterday = datetime.now() - timedelta(days=1)
-                date = yesterday.strftime('%Y-%m-%d')
+                three_days_ago = datetime.now() - timedelta(days=3)
+                date = three_days_ago.strftime('%Y-%m-%d')
 
             params = {
                 'userKey': email if email else 'all',
