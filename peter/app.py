@@ -12,9 +12,9 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24).hex())
 
 # Initialize Google OAuth
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from shared.auth.google_oauth import GoogleOAuth
+from shared.auth.google_oauth import GoogleAuth
 
-oauth = GoogleOAuth(app, config)
+oauth = GoogleAuth(app, config)
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
