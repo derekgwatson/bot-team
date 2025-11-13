@@ -17,11 +17,12 @@ def require_auth(f):
 @web_bp.route('/')
 @require_auth
 def index():
-    """Display all external staff"""
+    """Display all external staff and pending requests"""
     status_filter = request.args.get('status', 'active')
     staff = db.get_all_staff(status=status_filter if status_filter != 'all' else None)
+    pending_requests = db.get_pending_requests(status='pending')
 
-    return render_template('index.html', staff=staff, status_filter=status_filter)
+    return render_template('index.html', staff=staff, status_filter=status_filter, pending_requests=pending_requests)
 
 @web_bp.route('/add', methods=['GET', 'POST'])
 @require_auth
@@ -106,3 +107,84 @@ def delete_staff(staff_id):
         groups_service.remove_member(staff['email'])
 
     return redirect(url_for('web.index'))
+
+
+@web_bp.route('/approve-request/<int:request_id>', methods=['POST'])
+@require_auth
+def approve_request(request_id):
+    """Approve a pending access request"""
+    reviewed_by = session.get('user', {}).get('email', 'unknown')
+    request_info = db.get_request_by_id(request_id)
+
+    if request_info:
+        result = db.approve_request(request_id, reviewed_by)
+
+        if 'error' not in result:
+            # Add to Google Group
+            groups_service.add_member(request_info['email'])
+
+    return redirect(url_for('web.index'))
+
+
+@web_bp.route('/deny-request/<int:request_id>', methods=['POST'])
+@require_auth
+def deny_request(request_id):
+    """Deny a pending access request"""
+    reviewed_by = session.get('user', {}).get('email', 'unknown')
+    notes = request.form.get('notes', '')
+
+    db.deny_request(request_id, reviewed_by, notes)
+
+    return redirect(url_for('web.index'))
+
+
+# Public routes (no authentication required)
+
+@web_bp.route('/public/check', methods=['GET', 'POST'])
+def public_check():
+    """Public page to check if an email is approved"""
+    result = None
+    email = None
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+
+        if email:
+            approval = db.is_approved(email)
+            result = {
+                'email': email,
+                'approved': approval.get('approved', False)
+            }
+
+    return render_template('public_check.html', result=result, email=email)
+
+
+@web_bp.route('/public/request-access', methods=['GET', 'POST'])
+def public_request():
+    """Public page to request access"""
+    success = False
+    error = None
+    email = None
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        phone = request.form.get('phone', '').strip()
+        reason = request.form.get('reason', '').strip()
+
+        if not name or not email:
+            error = 'Name and email are required'
+        else:
+            result = db.submit_request(name, email, phone, reason)
+
+            if 'error' in result:
+                if result.get('already_approved'):
+                    error = 'This email is already approved. You should be able to access the system.'
+                elif result.get('already_pending'):
+                    error = 'A request for this email is already pending review.'
+                else:
+                    error = result['error']
+            else:
+                success = True
+
+    return render_template('public_request.html', success=success, error=error, email=email)

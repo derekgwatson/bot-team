@@ -243,6 +243,216 @@ class ExternalStaffDB:
         # We don't actually delete, we deactivate
         return self.update_staff(staff_id, status='inactive')
 
+    def submit_request(self, name, email, phone='', reason=''):
+        """
+        Submit a new access request
+
+        Args:
+            name: Full name
+            email: Email address
+            phone: Phone number (optional)
+            reason: Reason for access request (optional)
+
+        Returns:
+            Dict with success status and request ID, or error
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Check if already approved
+            existing = self.is_approved(email)
+            if existing.get('approved'):
+                conn.close()
+                return {
+                    'error': 'This email is already approved',
+                    'already_approved': True
+                }
+
+            # Check for existing pending request
+            cursor.execute(
+                "SELECT id FROM pending_requests WHERE email = ? AND status = 'pending'",
+                (email.lower(),)
+            )
+            if cursor.fetchone():
+                conn.close()
+                return {
+                    'error': 'A pending request already exists for this email',
+                    'already_pending': True
+                }
+
+            cursor.execute(
+                """INSERT INTO pending_requests
+                   (name, email, phone, reason)
+                   VALUES (?, ?, ?, ?)""",
+                (name, email.lower(), phone, reason)
+            )
+            conn.commit()
+            request_id = cursor.lastrowid
+            conn.close()
+
+            return {
+                'success': True,
+                'id': request_id,
+                'message': f'Access request submitted for {email}'
+            }
+
+        except Exception as e:
+            conn.close()
+            return {
+                'error': f'Database error: {str(e)}'
+            }
+
+    def get_pending_requests(self, status='pending'):
+        """
+        Get pending access requests
+
+        Args:
+            status: Filter by status ('pending', 'approved', 'denied', or None for all)
+
+        Returns:
+            List of request dictionaries
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        if status:
+            cursor.execute(
+                "SELECT * FROM pending_requests WHERE status = ? ORDER BY request_date DESC",
+                (status,)
+            )
+        else:
+            cursor.execute("SELECT * FROM pending_requests ORDER BY request_date DESC")
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_request_by_id(self, request_id):
+        """Get a pending request by ID"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM pending_requests WHERE id = ?", (request_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
+
+    def approve_request(self, request_id, reviewed_by):
+        """
+        Approve an access request and add to external_staff
+
+        Args:
+            request_id: Request ID
+            reviewed_by: Email of person approving
+
+        Returns:
+            Dict with success status or error
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get the request
+            request = self.get_request_by_id(request_id)
+            if not request:
+                return {'error': 'Request not found'}
+
+            if request['status'] != 'pending':
+                return {'error': 'Request has already been processed'}
+
+            # Add to external_staff table
+            result = self.add_staff(
+                name=request['name'],
+                email=request['email'],
+                phone=request['phone'],
+                role='',
+                added_by=reviewed_by,
+                notes=f"Approved from access request (ID: {request_id})"
+            )
+
+            if 'error' in result:
+                # If already exists, that's okay - they're already approved
+                if 'already exists' in result['error']:
+                    pass
+                else:
+                    return result
+
+            # Update request status
+            cursor.execute(
+                """UPDATE pending_requests
+                   SET status = 'approved',
+                       reviewed_by = ?,
+                       reviewed_date = ?
+                   WHERE id = ?""",
+                (reviewed_by, datetime.now().isoformat(), request_id)
+            )
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'message': f"Approved access for {request['email']}"
+            }
+
+        except Exception as e:
+            conn.close()
+            return {
+                'error': f'Database error: {str(e)}'
+            }
+
+    def deny_request(self, request_id, reviewed_by, notes=''):
+        """
+        Deny an access request
+
+        Args:
+            request_id: Request ID
+            reviewed_by: Email of person denying
+            notes: Reason for denial (optional)
+
+        Returns:
+            Dict with success status or error
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get the request
+            request = self.get_request_by_id(request_id)
+            if not request:
+                return {'error': 'Request not found'}
+
+            if request['status'] != 'pending':
+                return {'error': 'Request has already been processed'}
+
+            # Update request status
+            cursor.execute(
+                """UPDATE pending_requests
+                   SET status = 'denied',
+                       reviewed_by = ?,
+                       reviewed_date = ?,
+                       notes = ?
+                   WHERE id = ?""",
+                (reviewed_by, datetime.now().isoformat(), notes, request_id)
+            )
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'message': f"Denied access for {request['email']}"
+            }
+
+        except Exception as e:
+            conn.close()
+            return {
+                'error': f'Database error: {str(e)}'
+            }
+
 
 # Global database instance
 db = ExternalStaffDB()

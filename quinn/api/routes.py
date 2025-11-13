@@ -1,8 +1,27 @@
 from flask import Blueprint, jsonify, request
+from functools import wraps
 from database.db import db
 from services.google_groups import groups_service
+import os
 
 api_bp = Blueprint('api', __name__)
+
+def require_api_key(f):
+    """Decorator to require API key for bot-to-bot communication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+        expected_key = os.environ.get('BOT_API_KEY')
+
+        if not expected_key:
+            # If no API key is configured, allow (for initial setup)
+            return f(*args, **kwargs)
+
+        if api_key != expected_key:
+            return jsonify({'error': 'Invalid or missing API key'}), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 @api_bp.route('/intro', methods=['GET'])
 def intro():
@@ -25,9 +44,11 @@ def intro():
     })
 
 @api_bp.route('/is-approved', methods=['GET'])
+@require_api_key
 def is_approved():
     """
     GET /api/is-approved?email=xxx
+    Header: X-API-Key: <api_key>
 
     Check if an email address is approved
 

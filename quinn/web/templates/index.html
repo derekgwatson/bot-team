@@ -1,6 +1,54 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+{% if pending_requests %}
+<div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #856404;">⏳ Pending Access Requests ({{ pending_requests|length }})</h2>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Reason</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in pending_requests %}
+            <tr>
+                <td><strong>{{ req.name }}</strong></td>
+                <td>{{ req.email }}</td>
+                <td>{{ req.phone if req.phone else '-' }}</td>
+                <td style="max-width: 200px; font-size: 12px;">{{ req.reason if req.reason else '-' }}</td>
+                <td>{{ req.request_date[:10] }}</td>
+                <td style="white-space: nowrap;">
+                    <form method="POST" action="/approve-request/{{ req.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-small"
+                                style="background: #27ae60;"
+                                onclick="return confirm('Approve access for {{ req.name }} ({{ req.email }})?')">
+                            ✓ Approve
+                        </button>
+                    </form>
+                    <form method="POST" action="/deny-request/{{ req.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('Deny access for {{ req.name }} ({{ req.email }})?')">
+                            ✗ Deny
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2>External Staff Registry</h2>
