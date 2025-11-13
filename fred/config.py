@@ -1,6 +1,10 @@
 import os
 import yaml
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
     """Configuration loader for Fred"""
@@ -45,11 +49,13 @@ class Config:
 
     @property
     def google_domain(self):
-        return self._config.get('google_workspace', {}).get('domain', 'example.com')
+        # Read from environment variable first, fallback to config file
+        return os.environ.get('GOOGLE_WORKSPACE_DOMAIN') or self._config.get('google_workspace', {}).get('domain', 'example.com')
 
     @property
     def google_admin_email(self):
-        return self._config.get('google_workspace', {}).get('admin_email', '')
+        # Read from environment variable first, fallback to config file
+        return os.environ.get('GOOGLE_WORKSPACE_ADMIN_EMAIL') or self._config.get('google_workspace', {}).get('admin_email', '')
 
     @property
     def bots(self):
