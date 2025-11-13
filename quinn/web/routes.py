@@ -22,7 +22,18 @@ def index():
     staff = db.get_all_staff(status=status_filter if status_filter != 'all' else None)
     pending_requests = db.get_pending_requests(status='pending')
 
-    return render_template('index.html', staff=staff, status_filter=status_filter, pending_requests=pending_requests)
+    # Get all members from Google Group
+    group_members = groups_service.get_all_members()
+
+    # Find members in group but not in database
+    staff_emails = {s['email'].lower() for s in staff}
+    other_members = [m for m in group_members if m['email'].lower() not in staff_emails]
+
+    return render_template('index.html',
+                         staff=staff,
+                         status_filter=status_filter,
+                         pending_requests=pending_requests,
+                         other_members=other_members)
 
 @web_bp.route('/add', methods=['GET', 'POST'])
 @require_auth

@@ -2,6 +2,36 @@
 
 {% block content %}
 
+{% if other_members %}
+<div class="card" style="background: #d1ecf1; border-left: 4px solid #17a2b8;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #0c5460;">ℹ️ Other Group Members ({{ other_members|length }})</h2>
+    </div>
+    <div style="margin-bottom: 15px; color: #0c5460;">
+        <p>These members are in the <strong>all-staff@watsonblinds.com.au</strong> Google Group but not managed by Quinn (likely company employees with Watson email addresses).</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in other_members %}
+            <tr>
+                <td>{{ member.email }}</td>
+                <td><span class="badge badge-active">{{ member.role }}</span></td>
+                <td>{{ member.type }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 {% if pending_requests %}
 <div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">

@@ -161,6 +161,45 @@ class GoogleGroupsService:
             print(f"Unexpected error checking membership: {e}")
             return False
 
+    def get_all_members(self):
+        """
+        Get all members of the allstaff group
+
+        Returns:
+            List of member dictionaries with email and role
+        """
+        if not self.service:
+            return []
+
+        try:
+            members = []
+            page_token = None
+
+            while True:
+                result = self.service.members().list(
+                    groupKey=config.allstaff_group,
+                    pageToken=page_token
+                ).execute()
+
+                if 'members' in result:
+                    for member in result['members']:
+                        members.append({
+                            'email': member.get('email'),
+                            'role': member.get('role'),
+                            'type': member.get('type')
+                        })
+
+                page_token = result.get('nextPageToken')
+                if not page_token:
+                    break
+
+            return members
+
+        except Exception as e:
+            print(f"Error fetching group members: {e}")
+            traceback.print_exc()
+            return []
+
 
 # Global service instance
 groups_service = GoogleGroupsService()
