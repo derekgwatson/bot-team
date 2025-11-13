@@ -16,9 +16,3 @@ google_workspace:
   domain: "example.com"
   # Admin email for domain-wide delegation
   admin_email: "admin@example.com"
-
-# Other bots Iris knows about
-bots:
-  fred:
-    url: "http://localhost:8001"
-    description: "User management bot"

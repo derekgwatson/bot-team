@@ -16,10 +16,3 @@ google_workspace:
   domain: "example.com"
   # Admin email for domain-wide delegation
   admin_email: "admin@example.com"
-
-# Other bots Fred knows about (for future bot-to-bot communication)
-bots:
-  # Example:
-  # iris:
-  #   url: "http://localhost:8002"
-  #   description: "Email notification bot"

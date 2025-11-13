@@ -27,18 +27,3 @@ auth:
 peter_api:
   contacts_endpoint: "/api/contacts"
   search_endpoint: "/api/contacts/search"
-
-# Other bots Pam knows about
-bots:
-  peter:
-    url: "http://localhost:8003"
-    description: "Phone directory manager"
-  fred:
-    url: "http://localhost:8001"
-    description: "User management bot"
-  iris:
-    url: "http://localhost:8002"
-    description: "Reporting bot"
-  quinn:
-    url: "http://localhost:8005"
-    description: "External staff access manager"

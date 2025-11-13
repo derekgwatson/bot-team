@@ -27,12 +27,3 @@ auth:
   # See .env.example for required environment variables
   admin_emails:
     - "derek@watsonblinds.com.au"  # Only admins can manage phone directory
-
-# Other bots Peter knows about
-bots:
-  fred:
-    url: "http://localhost:8001"
-    description: "User management bot"
-  iris:
-    url: "http://localhost:8002"
-    description: "Reporting bot"

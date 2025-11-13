@@ -40,7 +40,4 @@ class Config:
         self.peter_contacts_endpoint = data['peter_api']['contacts_endpoint']
         self.peter_search_endpoint = data['peter_api']['search_endpoint']
 
-        # Other bots
-        self.bots = data.get('bots', {})
-
 config = Config()

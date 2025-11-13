@@ -40,7 +40,4 @@ class Config:
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
         self.admin_emails = data['auth'].get('admin_emails', [])
 
-        # Other bots
-        self.bots = data.get('bots', {})
-
 config = Config()
