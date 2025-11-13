@@ -21,7 +21,7 @@ google_groups:
   # Path to service account credentials JSON file
   credentials_file: "credentials.json"
   # Email address of the group to manage
-  allstaff_group: "allstaff@watsonblinds.com.au"
+  allstaff_group: "all-staff@watsonblinds.com.au"
 
 # Authentication configuration
 auth:
