@@ -53,7 +53,7 @@ class GoogleReportsService:
 
         Args:
             email: Optional specific user email
-            date: Optional date (YYYY-MM-DD format), defaults to 3 days ago
+            date: Optional date (YYYY-MM-DD format), defaults to 5 days ago
 
         Returns:
             List of user usage dictionaries or error
@@ -63,10 +63,10 @@ class GoogleReportsService:
 
         try:
             # Reports API requires date format: YYYY-MM-DD
-            # Data is usually available with 2-3 day delay
+            # Data is usually available with 3-5 day delay
             if not date:
-                three_days_ago = datetime.now() - timedelta(days=3)
-                date = three_days_ago.strftime('%Y-%m-%d')
+                five_days_ago = datetime.now() - timedelta(days=5)
+                date = five_days_ago.strftime('%Y-%m-%d')
 
             print(f"DEBUG: Requesting usage data for date: {date}, email: {email if email else 'all'}")
 
