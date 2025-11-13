@@ -154,11 +154,11 @@ sudo chown www-data:www-data /var/www/bot-team/*/.env
 ### Install service files
 
 ```bash
-sudo cp deployment/systemd/fred.service /etc/systemd/system/
-sudo cp deployment/systemd/iris.service /etc/systemd/system/
-sudo cp deployment/systemd/peter.service /etc/systemd/system/
-sudo cp deployment/systemd/pam.service /etc/systemd/system/
-sudo cp deployment/systemd/quinn.service /etc/systemd/system/
+sudo cp deployment/systemd/gunicorn-bot-team-fred.service /etc/systemd/system/
+sudo cp deployment/systemd/gunicorn-bot-team-iris.service /etc/systemd/system/
+sudo cp deployment/systemd/gunicorn-bot-team-peter.service /etc/systemd/system/
+sudo cp deployment/systemd/gunicorn-bot-team-pam.service /etc/systemd/system/
+sudo cp deployment/systemd/gunicorn-bot-team-quinn.service /etc/systemd/system/
 ```
 
 ### Create required directories
@@ -174,17 +174,17 @@ sudo systemctl daemon-reload
 
 ```bash
 # Enable services to start on boot
-sudo systemctl enable fred iris peter pam quinn
+sudo systemctl enable gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 
 # Start all services
-sudo systemctl start fred iris peter pam quinn
+sudo systemctl start gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 
 # Check status
-sudo systemctl status fred
-sudo systemctl status iris
-sudo systemctl status peter
-sudo systemctl status pam
-sudo systemctl status quinn
+sudo systemctl status gunicorn-bot-team-fred
+sudo systemctl status gunicorn-bot-team-iris
+sudo systemctl status gunicorn-bot-team-peter
+sudo systemctl status gunicorn-bot-team-pam
+sudo systemctl status gunicorn-bot-team-quinn
 ```
 
 ### Verify bots are running
@@ -236,18 +236,18 @@ sudo systemctl status certbot.timer
 
 ```bash
 # Copy config files to sites-available
-sudo cp deployment/nginx/fred.conf /etc/nginx/sites-available/
-sudo cp deployment/nginx/iris.conf /etc/nginx/sites-available/
-sudo cp deployment/nginx/peter.conf /etc/nginx/sites-available/
-sudo cp deployment/nginx/pam.conf /etc/nginx/sites-available/
-sudo cp deployment/nginx/quinn.conf /etc/nginx/sites-available/
+sudo cp deployment/nginx/bot-team-fred.conf /etc/nginx/sites-available/
+sudo cp deployment/nginx/bot-team-iris.conf /etc/nginx/sites-available/
+sudo cp deployment/nginx/bot-team-peter.conf /etc/nginx/sites-available/
+sudo cp deployment/nginx/bot-team-pam.conf /etc/nginx/sites-available/
+sudo cp deployment/nginx/bot-team-quinn.conf /etc/nginx/sites-available/
 
 # Enable sites by creating symlinks
-sudo ln -s /etc/nginx/sites-available/fred.conf /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/iris.conf /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/peter.conf /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/pam.conf /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/quinn.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/bot-team-fred.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/bot-team-iris.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/bot-team-peter.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/bot-team-pam.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/bot-team-quinn.conf /etc/nginx/sites-enabled/
 
 # Remove default site if present
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -305,11 +305,11 @@ sudo -u www-data ../venv/bin/python -c "from models.external_staff import init_d
 
 ```bash
 # Systemd service logs
-sudo journalctl -u fred -n 50 --no-pager
-sudo journalctl -u iris -n 50 --no-pager
-sudo journalctl -u peter -n 50 --no-pager
-sudo journalctl -u pam -n 50 --no-pager
-sudo journalctl -u quinn -n 50 --no-pager
+sudo journalctl -u gunicorn-bot-team-fred -n 50 --no-pager
+sudo journalctl -u gunicorn-bot-team-iris -n 50 --no-pager
+sudo journalctl -u gunicorn-bot-team-peter -n 50 --no-pager
+sudo journalctl -u gunicorn-bot-team-pam -n 50 --no-pager
+sudo journalctl -u gunicorn-bot-team-quinn -n 50 --no-pager
 
 # Nginx logs
 sudo tail -f /var/log/nginx/fred.error.log
@@ -342,36 +342,36 @@ sudo -u www-data venv/bin/pip install -r pam/requirements.txt
 sudo -u www-data venv/bin/pip install -r quinn/requirements.txt
 
 # Restart services
-sudo systemctl restart fred iris peter pam quinn
+sudo systemctl restart gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 ```
 
 ### Restart individual bot
 
 ```bash
-sudo systemctl restart fred
+sudo systemctl restart gunicorn-bot-team-fred
 # or
-sudo systemctl restart iris
+sudo systemctl restart gunicorn-bot-team-iris
 # or
-sudo systemctl restart peter
+sudo systemctl restart gunicorn-bot-team-peter
 # etc.
 ```
 
 ### View service status
 
 ```bash
-sudo systemctl status fred iris peter pam quinn
+sudo systemctl status gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 ```
 
 ### Stop all bots
 
 ```bash
-sudo systemctl stop fred iris peter pam quinn
+sudo systemctl stop gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 ```
 
 ### Start all bots
 
 ```bash
-sudo systemctl start fred iris peter pam quinn
+sudo systemctl start gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 ```
 
 ## Troubleshooting
@@ -380,10 +380,10 @@ sudo systemctl start fred iris peter pam quinn
 
 ```bash
 # Check service status
-sudo systemctl status fred
+sudo systemctl status gunicorn-bot-team-fred
 
 # Check detailed logs
-sudo journalctl -u fred -n 100 --no-pager
+sudo journalctl -u gunicorn-bot-team-fred -n 100 --no-pager
 
 # Common issues:
 # - Missing .env file
@@ -505,7 +505,7 @@ sudo systemctl restart <bot-name>
 
 ```bash
 # CPU and memory per service
-systemctl status fred iris peter pam quinn
+systemctl status gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 
 # Detailed resource monitoring
 htop
@@ -517,11 +517,11 @@ ps aux | grep gunicorn
 ## Quick Reference
 
 ### Service names
-- `fred` - User management bot (port 8001)
-- `iris` - Reporting bot (port 8002)
-- `peter` - Phone directory manager (port 8003)
-- `pam` - Phone directory presenter (port 8004)
-- `quinn` - External staff access manager (port 8005)
+- `gunicorn-bot-team-fred` - User management bot (port 8001)
+- `gunicorn-bot-team-iris` - Reporting bot (port 8002)
+- `gunicorn-bot-team-peter` - Phone directory manager (port 8003)
+- `gunicorn-bot-team-pam` - Phone directory presenter (port 8004)
+- `gunicorn-bot-team-quinn` - External staff access manager (port 8005)
 
 ### URLs
 - https://fred.watsonblinds.com.au
@@ -533,11 +533,11 @@ ps aux | grep gunicorn
 ### Common commands
 ```bash
 # Restart all bots
-sudo systemctl restart fred iris peter pam quinn
+sudo systemctl restart gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 
 # View all logs
-sudo journalctl -u fred -u iris -u peter -u pam -u quinn -f
+sudo journalctl -u gunicorn-bot-team-fred -u gunicorn-bot-team-iris -u gunicorn-bot-team-peter -u gunicorn-bot-team-pam -u gunicorn-bot-team-quinn -f
 
 # Update code and restart
-cd /var/www/bot-team && sudo -u www-data git pull && sudo systemctl restart fred iris peter pam quinn
+cd /var/www/bot-team && sudo -u www-data git pull && sudo systemctl restart gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 ```
