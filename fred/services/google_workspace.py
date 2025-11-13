@@ -64,8 +64,7 @@ class GoogleWorkspaceService:
                 customer='my_customer',
                 maxResults=max_results,
                 orderBy='email',
-                query=query,
-                projection='full'  # Get full user data including storage quota
+                query=query
             ).execute()
 
             users = results.get('users', [])
@@ -92,10 +91,7 @@ class GoogleWorkspaceService:
             return {'error': 'Google Workspace service not initialized'}
 
         try:
-            user = self.service.users().get(
-                userKey=email,
-                projection='full'  # Get full user data including storage quota
-            ).execute()
+            user = self.service.users().get(userKey=email).execute()
             return self._format_user(user)
 
         except HttpError as e:
@@ -199,38 +195,6 @@ class GoogleWorkspaceService:
 
     def _format_user(self, user):
         """Format user data for API responses"""
-        # Debug: Print available keys to see what Google returns
-        print(f"DEBUG: User data keys for {user.get('primaryEmail')}: {list(user.keys())}")
-
-        # Get storage quota info
-        storage_used_bytes = 0
-        storage_limit_bytes = 0
-
-        # Check various possible fields for storage quota
-        # Google might return this in different fields depending on the API version
-        if 'quotaBytesUsed' in user:
-            storage_used_bytes = int(user.get('quotaBytesUsed', 0))
-            print(f"DEBUG: Found quotaBytesUsed: {storage_used_bytes}")
-
-        # Check if there's an emails field with quota info
-        if 'emails' in user:
-            print(f"DEBUG: Found emails field: {user.get('emails')}")
-
-        # Check if there's organizations with storage info
-        if 'organizations' in user:
-            print(f"DEBUG: Found organizations field: {user.get('organizations')}")
-
-        # Print entire user object for debugging (first user only)
-        if not hasattr(self, '_debug_printed'):
-            print(f"DEBUG: Full user object sample: {user}")
-            self._debug_printed = True
-
-        # Note: Storage limit is typically set at organization level
-        # Individual users don't have their own limit in the API response
-
-        # Convert bytes to GB for readability
-        storage_used_gb = storage_used_bytes / (1024 ** 3) if storage_used_bytes > 0 else 0
-
         return {
             'email': user.get('primaryEmail'),
             'first_name': user.get('name', {}).get('givenName', ''),
@@ -239,9 +203,7 @@ class GoogleWorkspaceService:
             'suspended': user.get('suspended', False),
             'archived': user.get('archived', False),
             'created_time': user.get('creationTime', ''),
-            'last_login': user.get('lastLoginTime', ''),
-            'storage_used_bytes': storage_used_bytes,
-            'storage_used_gb': round(storage_used_gb, 2)
+            'last_login': user.get('lastLoginTime', '')
         }
 
 # Singleton instance

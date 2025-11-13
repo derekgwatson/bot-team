@@ -6,14 +6,15 @@ Fred is a purpose-built bot that handles user onboarding and offboarding in Goog
 
 ## What Fred Does
 
-- **List active users** - See all current Google Workspace users with storage usage
+- **List active users** - See all current Google Workspace users
 - **List archived users** - View users who have been offboarded
 - **Create new users** - Add users with email, name, and temporary password
 - **Archive users** - Suspend and archive users when they leave (keeps data)
 - **Delete users** - Permanently remove users and all their data
-- **Storage visibility** - See how much storage each user is consuming
 - **API access** - All functionality available via REST API for bot-to-bot communication
 - **Web interface** - Simple UI for manual operations
+
+**Note:** For storage usage and other analytics, see **Iris** (the reporting bot).
 
 ## Setup
 
@@ -136,7 +137,7 @@ DELETE /api/users/user@example.com
 Visit `http://localhost:8001/` to access Fred's web interface where you can:
 
 - View all active and archived users
-- See user details (creation date, last login, status, **storage usage**)
+- See user details (creation date, last login, status)
 - Add new users with a simple form
 - Archive users (keeps data) or permanently delete users
 

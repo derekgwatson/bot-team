@@ -17,7 +17,6 @@
                 <th>Email</th>
                 <th>Name</th>
                 <th>Status</th>
-                <th>Storage</th>
                 <th>Created</th>
                 <th>Last Login</th>
                 <th>Actions</th>
@@ -41,7 +40,6 @@
                         <span class="badge badge-success">Active</span>
                     {% endif %}
                 </td>
-                <td>{{ user.storage_used_gb }} GB</td>
                 <td>{{ user.created_time[:10] if user.created_time else 'N/A' }}</td>
                 <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
                 <td>
