@@ -1,0 +1,25 @@
+[Unit]
+Description=Iris - Google Workspace Reporting Bot
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=iris
+LogsDirectory=iris
+WorkingDirectory=/var/www/bot-team/iris
+Environment="PATH=/var/www/bot-team/venv/bin"
+EnvironmentFile=/var/www/bot-team/iris/.env
+ExecStart=/var/www/bot-team/venv/bin/gunicorn \
+    --config /var/www/bot-team/deployment/gunicorn/iris.py \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

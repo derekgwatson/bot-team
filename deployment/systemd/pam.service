@@ -1,0 +1,25 @@
+[Unit]
+Description=Pam - Phone Directory Presenter Bot
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=pam
+LogsDirectory=pam
+WorkingDirectory=/var/www/bot-team/pam
+Environment="PATH=/var/www/bot-team/venv/bin"
+EnvironmentFile=/var/www/bot-team/pam/.env
+ExecStart=/var/www/bot-team/venv/bin/gunicorn \
+    --config /var/www/bot-team/deployment/gunicorn/pam.py \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

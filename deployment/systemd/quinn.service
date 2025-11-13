@@ -1,0 +1,25 @@
+[Unit]
+Description=Quinn - External Staff Access Manager Bot
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=quinn
+LogsDirectory=quinn
+WorkingDirectory=/var/www/bot-team/quinn
+Environment="PATH=/var/www/bot-team/venv/bin"
+EnvironmentFile=/var/www/bot-team/quinn/.env
+ExecStart=/var/www/bot-team/venv/bin/gunicorn \
+    --config /var/www/bot-team/deployment/gunicorn/quinn.py \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
