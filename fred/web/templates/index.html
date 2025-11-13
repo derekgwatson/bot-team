@@ -17,6 +17,7 @@
                 <th>Email</th>
                 <th>Name</th>
                 <th>Status</th>
+                <th>Storage</th>
                 <th>Created</th>
                 <th>Last Login</th>
                 <th>Actions</th>
@@ -40,14 +41,28 @@
                         <span class="badge badge-success">Active</span>
                     {% endif %}
                 </td>
+                <td>{{ user.storage_used_gb }} GB</td>
                 <td>{{ user.created_time[:10] if user.created_time else 'N/A' }}</td>
                 <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
                 <td>
                     {% if not user.archived %}
-                    <form method="POST" action="/users/{{ user.email }}/archive" style="display: inline;">
-                        <button type="submit" class="btn btn-danger btn-small"
-                                onclick="return confirm('Archive {{ user.email }}?')">
+                    <form method="POST" action="/users/{{ user.email }}/archive" style="display: inline; margin-right: 5px;">
+                        <button type="submit" class="btn btn-warning btn-small"
+                                onclick="return confirm('Archive {{ user.email }}? They will be suspended but data will be retained.')">
                             Archive
+                        </button>
+                    </form>
+                    <form method="POST" action="/users/{{ user.email }}/delete" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('⚠️ PERMANENTLY DELETE {{ user.email }}? This cannot be undone!')">
+                            Delete
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="/users/{{ user.email }}/delete" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('⚠️ PERMANENTLY DELETE {{ user.email }}? This cannot be undone!')">
+                            Delete
                         </button>
                     </form>
                     {% endif %}

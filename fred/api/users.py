@@ -91,3 +91,18 @@ def archive_user(email):
         return jsonify(result), status_code
 
     return jsonify(result)
+
+@api_bp.route('/users/<email>', methods=['DELETE'])
+def delete_user(email):
+    """
+    DELETE /api/users/<email>
+
+    Permanently deletes a user (cannot be undone)
+    """
+    result = workspace_service.delete_user(email)
+
+    if isinstance(result, dict) and 'error' in result:
+        status_code = 404 if result['error'] == 'User not found' else 500
+        return jsonify(result), status_code
+
+    return jsonify(result)

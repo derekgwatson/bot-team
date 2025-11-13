@@ -6,10 +6,12 @@ Fred is a purpose-built bot that handles user onboarding and offboarding in Goog
 
 ## What Fred Does
 
-- **List active users** - See all current Google Workspace users
+- **List active users** - See all current Google Workspace users with storage usage
 - **List archived users** - View users who have been offboarded
 - **Create new users** - Add users with email, name, and temporary password
-- **Archive users** - Suspend and archive users when they leave
+- **Archive users** - Suspend and archive users when they leave (keeps data)
+- **Delete users** - Permanently remove users and all their data
+- **Storage visibility** - See how much storage each user is consuming
 - **API access** - All functionality available via REST API for bot-to-bot communication
 - **Web interface** - Simple UI for manual operations
 
@@ -111,20 +113,31 @@ Content-Type: application/json
 POST /api/users/user@example.com/archive
 ```
 
+Suspends and archives the user. Data is retained.
+
+### Delete User
+
+```bash
+DELETE /api/users/user@example.com
+```
+
+**WARNING:** Permanently deletes the user and all their data. This cannot be undone.
+
 ## Web Interface
 
 Visit `http://localhost:8001/` to access Fred's web interface where you can:
 
 - View all active and archived users
-- See user details (creation date, last login, status)
+- See user details (creation date, last login, status, **storage usage**)
 - Add new users with a simple form
-- Archive users with one click
+- Archive users (keeps data) or permanently delete users
 
 ## Security Notes
 
 - **Credentials file** (`credentials.json`) should NEVER be committed to git
 - Users are created with `changePasswordAtNextLogin: true` for security
-- Archiving a user both suspends and marks them as archived
+- Archiving a user both suspends and marks them as archived (data is retained)
+- **Deleting a user is permanent and cannot be undone** - use with caution
 - Fred requires admin-level Google Workspace access
 
 ## Bot-to-Bot Communication

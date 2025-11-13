@@ -64,7 +64,8 @@ class GoogleWorkspaceService:
                 customer='my_customer',
                 maxResults=max_results,
                 orderBy='email',
-                query=query
+                query=query,
+                projection='full'  # Get full user data including storage quota
             ).execute()
 
             users = results.get('users', [])
@@ -91,7 +92,10 @@ class GoogleWorkspaceService:
             return {'error': 'Google Workspace service not initialized'}
 
         try:
-            user = self.service.users().get(userKey=email).execute()
+            user = self.service.users().get(
+                userKey=email,
+                projection='full'  # Get full user data including storage quota
+            ).execute()
             return self._format_user(user)
 
         except HttpError as e:
@@ -169,8 +173,46 @@ class GoogleWorkspaceService:
         except Exception as e:
             return {'error': f'Unexpected error: {e}'}
 
+    def delete_user(self, email):
+        """
+        Permanently delete a user
+
+        Args:
+            email: User's email address
+
+        Returns:
+            Success message or error
+        """
+        if not self.service:
+            return {'error': 'Google Workspace service not initialized'}
+
+        try:
+            self.service.users().delete(userKey=email).execute()
+            return {'success': True, 'message': f'User {email} deleted successfully'}
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                return {'error': 'User not found'}
+            return {'error': f'API error: {e}'}
+        except Exception as e:
+            return {'error': f'Unexpected error: {e}'}
+
     def _format_user(self, user):
         """Format user data for API responses"""
+        # Get storage quota info
+        storage_used_bytes = 0
+        storage_limit_bytes = 0
+
+        # Check if user has quota information
+        if 'quotaBytesUsed' in user:
+            storage_used_bytes = int(user.get('quotaBytesUsed', 0))
+
+        # Note: Storage limit is typically set at organization level
+        # Individual users don't have their own limit in the API response
+
+        # Convert bytes to GB for readability
+        storage_used_gb = storage_used_bytes / (1024 ** 3) if storage_used_bytes > 0 else 0
+
         return {
             'email': user.get('primaryEmail'),
             'first_name': user.get('name', {}).get('givenName', ''),
@@ -179,7 +221,9 @@ class GoogleWorkspaceService:
             'suspended': user.get('suspended', False),
             'archived': user.get('archived', False),
             'created_time': user.get('creationTime', ''),
-            'last_login': user.get('lastLoginTime', '')
+            'last_login': user.get('lastLoginTime', ''),
+            'storage_used_bytes': storage_used_bytes,
+            'storage_used_gb': round(storage_used_gb, 2)
         }
 
 # Singleton instance

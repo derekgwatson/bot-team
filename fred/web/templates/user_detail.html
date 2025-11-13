@@ -47,18 +47,28 @@
             <th>Last Login</th>
             <td>{{ user.last_login if user.last_login else 'Never' }}</td>
         </tr>
+        <tr>
+            <th>Storage Used</th>
+            <td>{{ user.storage_used_gb }} GB</td>
+        </tr>
     </table>
 
     <div style="margin-top: 20px;">
         <a href="/" class="btn">Back to Users</a>
         {% if not user.archived %}
         <form method="POST" action="/users/{{ user.email }}/archive" style="display: inline; margin-left: 10px;">
-            <button type="submit" class="btn btn-danger"
-                    onclick="return confirm('Archive {{ user.email }}?')">
+            <button type="submit" class="btn btn-warning"
+                    onclick="return confirm('Archive {{ user.email }}? They will be suspended but data will be retained.')">
                 Archive User
             </button>
         </form>
         {% endif %}
+        <form method="POST" action="/users/{{ user.email }}/delete" style="display: inline; margin-left: 10px;">
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('⚠️ PERMANENTLY DELETE {{ user.email }}? This cannot be undone!')">
+                Delete User
+            </button>
+        </form>
     </div>
     {% endif %}
 </div>

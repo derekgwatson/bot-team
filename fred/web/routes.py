@@ -75,3 +75,14 @@ def archive_user_action(email):
         pass
 
     return redirect(url_for('web.index'))
+
+@web_bp.route('/users/<email>/delete', methods=['POST'])
+def delete_user_action(email):
+    """Delete user action"""
+    result = workspace_service.delete_user(email)
+
+    if isinstance(result, dict) and 'error' in result:
+        # In a real app, you'd want flash messages
+        pass
+
+    return redirect(url_for('web.index'))
