@@ -9,11 +9,18 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 from googleapiclient.errors import HttpError
+import importlib.util
 
-# Add iris directory to path
+# Add iris directory to path for imports
 iris_path = Path(__file__).parent.parent.parent / 'iris'
-sys.path.insert(0, str(iris_path))
+if str(iris_path) not in sys.path:
+    sys.path.insert(0, str(iris_path))
 
+# Also add parent to ensure config can be imported
+if str(iris_path.parent) not in sys.path:
+    sys.path.insert(0, str(iris_path.parent))
+
+# Import the service
 from services.google_reports import GoogleReportsService
 
 

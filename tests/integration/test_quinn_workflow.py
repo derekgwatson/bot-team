@@ -10,8 +10,15 @@ import tempfile
 from pathlib import Path
 
 # Add quinn directory to path
-quinn_path = Path(__file__).parent.parent.parent / 'quinn'
-sys.path.insert(0, str(quinn_path))
+project_root = Path(__file__).parent.parent.parent
+quinn_path = project_root / 'quinn'
+
+if str(quinn_path) not in sys.path:
+    sys.path.insert(0, str(quinn_path))
+
+# Add project root for imports
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from database.db import ExternalStaffDB
 
