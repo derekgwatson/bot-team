@@ -89,9 +89,13 @@
 
         if (query === '') {
             // Show everything if search is empty
-            cards.forEach(card => card.style.display = '');
+            cards.forEach(card => {
+                card.style.display = '';
+                card.classList.remove('hidden');
+            });
             sections.forEach(section => section.style.display = '');
             noResults.style.display = 'none';
+            directory.style.display = 'block';
             return;
         }
 
@@ -100,15 +104,17 @@
             const searchable = card.getAttribute('data-searchable');
             if (searchable.includes(query)) {
                 card.style.display = '';
+                card.classList.remove('hidden');
                 visibleCount++;
             } else {
                 card.style.display = 'none';
+                card.classList.add('hidden');
             }
         });
 
         // Hide sections that have no visible cards
         sections.forEach(section => {
-            const visibleCards = section.querySelectorAll('.contact-card[style=""]');
+            const visibleCards = section.querySelectorAll('.contact-card:not(.hidden)');
             if (visibleCards.length === 0) {
                 section.style.display = 'none';
             } else {
