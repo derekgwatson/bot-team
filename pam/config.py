@@ -16,6 +16,11 @@ class Config:
         self.server_host = data['server']['host']
         self.server_port = data['server']['port']
 
+        # Auth config
+        self.oauth_client_id = data['auth']['oauth_client_id']
+        self.oauth_client_secret = data['auth']['oauth_client_secret']
+        self.allowed_domains = data['auth'].get('allowed_domains', [])
+
         # Peter API config
         self.peter_api_url = data['peter_api']['url']
         self.peter_contacts_endpoint = data['peter_api']['contacts_endpoint']

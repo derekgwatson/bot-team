@@ -1,9 +1,20 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, session, redirect, url_for
+from functools import wraps
 from services.peter_client import peter_client
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
+def require_auth(f):
+    """Decorator to require authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @web_bp.route('/')
+@require_auth
 def index():
     """Display the phone directory"""
     contacts = peter_client.get_all_contacts()
@@ -17,6 +28,7 @@ def index():
     return render_template('index.html', sections=sections, error=None)
 
 @web_bp.route('/search')
+@require_auth
 def search():
     """Search for contacts"""
     query = request.args.get('q', '')

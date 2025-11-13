@@ -8,6 +8,15 @@ server:
   host: "0.0.0.0"
   port: 8004
 
+# Authentication configuration
+auth:
+  # Google OAuth credentials - get these from Google Cloud Console
+  oauth_client_id: "YOUR_GOOGLE_CLIENT_ID"
+  oauth_client_secret: "YOUR_GOOGLE_CLIENT_SECRET"
+  # Allow any email from these domains
+  allowed_domains:
+    - "watsonblinds.com.au"
+
 # Peter's API endpoint (where Pam gets contact data)
 peter_api:
   url: "http://localhost:8003"
