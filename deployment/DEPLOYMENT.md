@@ -29,7 +29,7 @@ Complete guide to deploying the bot-team application with gunicorn and nginx on 
 
 ```bash
 sudo apt update
-sudo apt install -y python3.9 python3.9-venv python3-pip nginx certbot python3-certbot-nginx git
+sudo apt install -y python3 python3-venv python3-pip nginx certbot python3-certbot-nginx git
 ```
 
 ### Create deployment user and directory
@@ -46,7 +46,7 @@ sudo chown www-data:www-data /var/www/bot-team
 
 ```bash
 cd /var/www
-sudo -u www-data git clone <your-repo-url> bot-team
+sudo -u www-data git clone git@github.com:derekgwatson/bot-team
 cd bot-team
 ```
 
@@ -56,31 +56,31 @@ Each bot gets its own virtual environment:
 
 ```bash
 # Fred
-sudo -u www-data python3.9 -m venv fred/.venv
+sudo -u www-data python3 -m venv fred/.venv
 sudo -u www-data fred/.venv/bin/pip install --upgrade pip
 sudo -u www-data fred/.venv/bin/pip install -r fred/requirements.txt
 sudo -u www-data fred/.venv/bin/pip install gunicorn
 
 # Iris
-sudo -u www-data python3.9 -m venv iris/.venv
+sudo -u www-data python3 -m venv iris/.venv
 sudo -u www-data iris/.venv/bin/pip install --upgrade pip
 sudo -u www-data iris/.venv/bin/pip install -r iris/requirements.txt
 sudo -u www-data iris/.venv/bin/pip install gunicorn
 
 # Peter
-sudo -u www-data python3.9 -m venv peter/.venv
+sudo -u www-data python3 -m venv peter/.venv
 sudo -u www-data peter/.venv/bin/pip install --upgrade pip
 sudo -u www-data peter/.venv/bin/pip install -r peter/requirements.txt
 sudo -u www-data peter/.venv/bin/pip install gunicorn
 
 # Pam
-sudo -u www-data python3.9 -m venv pam/.venv
+sudo -u www-data python3 -m venv pam/.venv
 sudo -u www-data pam/.venv/bin/pip install --upgrade pip
 sudo -u www-data pam/.venv/bin/pip install -r pam/requirements.txt
 sudo -u www-data pam/.venv/bin/pip install gunicorn
 
 # Quinn
-sudo -u www-data python3.9 -m venv quinn/.venv
+sudo -u www-data python3 -m venv quinn/.venv
 sudo -u www-data quinn/.venv/bin/pip install --upgrade pip
 sudo -u www-data quinn/.venv/bin/pip install -r quinn/requirements.txt
 sudo -u www-data quinn/.venv/bin/pip install gunicorn
@@ -92,10 +92,10 @@ sudo -u www-data quinn/.venv/bin/pip install gunicorn
 
 ```bash
 # Replace with your actual credentials.json file
-sudo -u www-data cp /path/to/credentials.json /var/www/bot-team/fred/
-sudo -u www-data cp /path/to/credentials.json /var/www/bot-team/iris/
-sudo -u www-data cp /path/to/credentials.json /var/www/bot-team/peter/
-sudo -u www-data cp /path/to/credentials.json /var/www/bot-team/quinn/
+sudo -u www-data cp /var/www/bot-team/pam/credentials.json /var/www/bot-team/fred/
+sudo -u www-data cp /var/www/bot-team/pam/credentials.json /var/www/bot-team/iris/
+sudo -u www-data cp /var/www/bot-team/pam/credentials.json /var/www/bot-team/peter/
+sudo -u www-data cp /var/www/bot-team/pam/credentials.json /var/www/bot-team/quinn/
 ```
 
 ### Set proper permissions
