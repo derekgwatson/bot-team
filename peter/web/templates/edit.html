@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit Contact</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if contact %}
+    <form method="POST" action="/edit/{{ contact.row }}">
+        <div class="form-group">
+            <label for="extension">Extension</label>
+            <input type="text" id="extension" name="extension" value="{{ contact.extension }}" maxlength="4">
+        </div>
+
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" value="{{ contact.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="fixed_line">Fixed Line</label>
+            <input type="text" id="fixed_line" name="fixed_line" value="{{ contact.fixed_line }}" placeholder="e.g., 02 1234 5678">
+        </div>
+
+        <div class="form-group">
+            <label for="mobile">Mobile</label>
+            <input type="text" id="mobile" name="mobile" value="{{ contact.mobile }}" placeholder="e.g., 0412 345 678">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ contact.email }}" placeholder="e.g., john@example.com">
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn">Save Changes</button>
+            <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+    {% else %}
+    <p>Contact not found.</p>
+    <a href="/" class="btn">Back to Directory</a>
+    {% endif %}
+</div>
+{% endblock %}

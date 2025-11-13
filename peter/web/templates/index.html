@@ -52,6 +52,9 @@
                         {% endif %}
                     </td>
                     <td>
+                        <a href="/edit/{{ contact.row }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
+                            Edit
+                        </a>
                         <form method="POST" action="/delete/{{ contact.row }}" style="display: inline;">
                             <button type="submit" class="btn btn-danger btn-small"
                                     onclick="return confirm('Delete {{ contact.name }}?')">
