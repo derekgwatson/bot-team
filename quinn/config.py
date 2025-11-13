@@ -27,6 +27,9 @@ class Config:
         self.credentials_file = os.path.join(os.path.dirname(__file__), data['google_groups']['credentials_file'])
         self.allstaff_group = data['google_groups']['allstaff_group']
 
+        # Organization config
+        self.organization_domains = data['organization']['domains']
+
         # Auth config - secrets come from environment variables
         self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')

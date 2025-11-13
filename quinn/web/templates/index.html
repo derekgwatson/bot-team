@@ -2,13 +2,13 @@
 
 {% block content %}
 
-{% if other_members %}
+{% if company_staff %}
 <div class="card" style="background: #d1ecf1; border-left: 4px solid #17a2b8;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2 style="color: #0c5460;">ℹ️ Other Group Members ({{ other_members|length }})</h2>
+        <h2 style="color: #0c5460;">🏢 Company Staff ({{ company_staff|length }})</h2>
     </div>
     <div style="margin-bottom: 15px; color: #0c5460;">
-        <p>These members are in the <strong>all-staff@watsonblinds.com.au</strong> Google Group but not managed by Quinn (likely company employees with Watson email addresses).</p>
+        <p>These company employees are in the <strong>all-staff@watsonblinds.com.au</strong> Google Group (managed by Fred, not Quinn).</p>
     </div>
 
     <table>
@@ -20,7 +20,37 @@
             </tr>
         </thead>
         <tbody>
-            {% for member in other_members %}
+            {% for member in company_staff %}
+            <tr>
+                <td>{{ member.email }}</td>
+                <td><span class="badge badge-active">{{ member.role }}</span></td>
+                <td>{{ member.type }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if unmanaged_external %}
+<div class="card" style="background: #fff3cd; border-left: 4px solid #ff9800;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: #856404;">⚠️ Unmanaged External Staff ({{ unmanaged_external|length }})</h2>
+    </div>
+    <div style="margin-bottom: 15px; color: #856404;">
+        <p><strong>Warning:</strong> These external staff members are in the Google Group but NOT in Quinn's database. Consider adding them to Quinn's registry for proper management.</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in unmanaged_external %}
             <tr>
                 <td>{{ member.email }}</td>
                 <td><span class="badge badge-active">{{ member.role }}</span></td>

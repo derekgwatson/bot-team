@@ -19,6 +19,13 @@ google_groups:
   # Email address of the group to manage
   allstaff_group: "allstaff@watsonblinds.com.au"
 
+# Organization domains
+organization:
+  domains:
+    - "watsonblinds.com.au"
+    - "watsoncommercial.com.au"
+    - "designerdrapes.com.au"
+
 # Authentication configuration
 auth:
   # Google OAuth credentials - stored in .env file (not in git!)
