@@ -12,6 +12,10 @@ server:
 database:
   path: "database/external_staff.db"
 
+# Shared organization config
+# See ../shared/config/organization.yaml for domain definitions
+shared_config: "../shared/config/organization.yaml"
+
 # Google Groups configuration
 google_groups:
   # Path to service account credentials JSON file

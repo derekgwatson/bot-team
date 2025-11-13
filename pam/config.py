@@ -20,10 +20,17 @@ class Config:
         self.server_host = data['server']['host']
         self.server_port = data['server']['port']
 
+        # Load shared organization config
+        shared_config_path = os.path.join(os.path.dirname(__file__), data['shared_config'])
+        with open(shared_config_path, 'r') as f:
+            shared_data = yaml.safe_load(f)
+
+        # Organization config
+        self.allowed_domains = shared_data['organization']['domains']
+
         # Auth config - secrets come from environment variables
         self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-        self.allowed_domains = data['auth'].get('allowed_domains', [])
 
         # Peter API config
         self.peter_api_url = data['peter_api']['url']

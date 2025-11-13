@@ -8,17 +8,16 @@ server:
   host: "0.0.0.0"
   port: 8004
 
+# Shared organization config
+# See ../shared/config/organization.yaml for domain definitions
+shared_config: "../shared/config/organization.yaml"
+
 # Authentication configuration
 auth:
   # Google OAuth credentials - stored in .env file (not in git!)
   # See .env.example for required environment variables:
   #   GOOGLE_OAUTH_CLIENT_ID
   #   GOOGLE_OAUTH_CLIENT_SECRET
-  # Allow any email from these domains
-  allowed_domains:
-    - "watsonblinds.com.au"
-    - "watsoncommercial.com.au"
-    - "designerdrapes.com.au"
   # Quinn API for external staff approval
   quinn_api_url: "http://localhost:8005"
 

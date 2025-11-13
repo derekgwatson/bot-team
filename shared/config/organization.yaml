@@ -1,0 +1,15 @@
+# Organization-wide configuration
+# Single source of truth for organization identity
+# Used by multiple bots for domain validation and access control
+
+organization:
+  name: "Watson Blinds Group"
+
+  # All organization-owned email domains
+  domains:
+    - "watsonblinds.com.au"
+    - "watsoncommercial.com.au"
+    - "designerdrapes.com.au"
+
+  # Primary Google Workspace domain
+  primary_domain: "watsonblinds.com.au"

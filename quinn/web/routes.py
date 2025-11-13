@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from functools import wraps
 from database.db import db
 from services.google_groups import groups_service
+from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
@@ -27,14 +28,33 @@ def index():
 
     # Find members in group but not in database
     staff_emails = {s['email'].lower() for s in staff}
-    other_members = [m for m in group_members
-                    if m.get('email') and m['email'].lower() not in staff_emails]
+
+    # Categorize other members
+    company_staff = []
+    unmanaged_external = []
+
+    for member in group_members:
+        if not member.get('email'):
+            continue
+
+        email = member['email'].lower()
+        if email in staff_emails:
+            continue  # Already in Quinn's database
+
+        # Check if email is from company domain
+        is_company = any(email.endswith(f'@{domain}') for domain in config.organization_domains)
+
+        if is_company:
+            company_staff.append(member)
+        else:
+            unmanaged_external.append(member)
 
     return render_template('index.html',
                          staff=staff,
                          status_filter=status_filter,
                          pending_requests=pending_requests,
-                         other_members=other_members)
+                         company_staff=company_staff,
+                         unmanaged_external=unmanaged_external)
 
 @web_bp.route('/add', methods=['GET', 'POST'])
 @require_auth
