@@ -193,6 +193,35 @@ def import_from_group(email):
     return redirect(url_for('web.index'))
 
 
+@web_bp.route('/bulk-import-from-group', methods=['POST'])
+@require_auth
+def bulk_import_from_group():
+    """Import multiple existing group members into Quinn's database"""
+    added_by = session.get('user', {}).get('email', 'unknown')
+    emails = request.form.getlist('emails')
+
+    imported_count = 0
+    for email in emails:
+        # Add to database - use email username as placeholder name
+        name = email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
+
+        result = db.add_staff(
+            name=name,
+            email=email,
+            phone='',
+            role='',
+            added_by=added_by,
+            notes='Auto-imported from existing Google Group membership'
+        )
+
+        if 'success' in result:
+            imported_count += 1
+
+    # No need to add to Google Group - they're already in it!
+
+    return redirect(url_for('web.index'))
+
+
 # Public routes (no authentication required)
 
 @web_bp.route('/public/check', methods=['GET', 'POST'])
