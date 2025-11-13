@@ -24,7 +24,14 @@ class GoogleAuth:
         self.config = config
 
         # Set up Flask session
-        self.app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(24).hex())
+        # Use a consistent secret key - either from env or generate and store one
+        if not self.app.config.get('SECRET_KEY'):
+            secret_key = os.environ.get('FLASK_SECRET_KEY')
+            if not secret_key:
+                # Generate a stable secret key (you should set FLASK_SECRET_KEY in production!)
+                import hashlib
+                secret_key = hashlib.sha256(b'bot-team-default-secret').hexdigest()
+            self.app.config['SECRET_KEY'] = secret_key
 
         # Initialize OAuth
         self.oauth = OAuth(app)
@@ -59,7 +66,8 @@ class GoogleAuth:
                     session.clear()
                     return redirect(url_for('access_denied'))
 
-                return redirect(url_for('index'))
+                # Redirect to home page after successful login
+                return redirect('/')
 
             return redirect(url_for('login'))
 
