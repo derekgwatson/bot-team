@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Phone Directory</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if sections %}
+        {% for section_name, contacts in sections.items() %}
+        <div class="section-header">{{ section_name }}</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Ext</th>
+                    <th>Name</th>
+                    <th>Fixed Line</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td><span class="badge">{{ contact.extension }}</span></td>
+                    <td>{{ contact.name }}</td>
+                    <td>
+                        {% if contact.fixed_line %}
+                        <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.mobile %}
+                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.email %}
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="/delete/{{ contact.row }}" style="display: inline;">
+                            <button type="submit" class="btn btn-danger btn-small"
+                                    onclick="return confirm('Delete {{ contact.name }}?')">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <h3>No contacts found</h3>
+        <p>The phone directory is empty.</p>
+        <a href="/add" class="btn" style="margin-top: 20px;">Add Your First Contact</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -26,6 +26,15 @@ Iris keeps an eye on how your Google Workspace is being used. She tracks storage
 - API: http://localhost:8002/api/
 - [Read Iris's documentation →](iris/README.md)
 
+### 📱 Peter
+**Phone Directory Manager**
+
+Peter manages your organization's phone directory. He syncs with your Google Sheets phone list and makes it easy to search for extensions, mobile numbers, and emails. Perfect for bot-to-bot integration when other bots need contact information.
+
+- Port: 8003
+- API: http://localhost:8003/api/
+- [Read Peter's documentation →](peter/README.md)
+
 ## How Bots Work Together
 
 Each bot:
@@ -58,7 +67,8 @@ Analytics bot → Iris (find heavy storage users)
 Each bot runs on its own port:
 - **Fred** (User Management): `http://localhost:8001`
 - **Iris** (Reporting): `http://localhost:8002`
-- (Future bots will use 8003, 8004, etc.)
+- **Peter** (Phone Directory): `http://localhost:8003`
+- (Future bots will use 8004, 8005, etc.)
 
 For production deployment, use nginx to route domains/paths to different bots.
 

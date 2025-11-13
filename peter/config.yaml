@@ -1,0 +1,27 @@
+# Peter's Configuration
+name: peter
+description: "Phone directory manager"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8003
+
+# Google Sheets configuration
+google_sheets:
+  # Path to service account credentials JSON file
+  credentials_file: "credentials.json"
+  # Spreadsheet ID (from URL)
+  spreadsheet_id: "1ESrvIP52ThLQkOxpWcLWrPMeHcaerYQf6lHkUIC7DcA"
+  # Sheet/tab name
+  sheet_name: "Phone List"
+
+# Other bots Peter knows about
+bots:
+  fred:
+    url: "http://localhost:8001"
+    description: "User management bot"
+  iris:
+    url: "http://localhost:8002"
+    description: "Reporting bot"

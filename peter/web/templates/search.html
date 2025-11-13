@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Search Contacts</h2>
+
+    <form method="GET" action="/search" class="search-bar">
+        <input type="text" name="q" placeholder="Search by name, extension, or phone number..." value="{{ query }}" autofocus>
+    </form>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if query %}
+        {% if results %}
+        <p style="margin-bottom: 15px;">Found {{ results|length }} result(s) for "{{ query }}"</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Ext</th>
+                    <th>Name</th>
+                    <th>Section</th>
+                    <th>Fixed Line</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in results %}
+                <tr>
+                    <td><span class="badge">{{ contact.extension }}</span></td>
+                    <td>{{ contact.name }}</td>
+                    <td>{{ contact.section }}</td>
+                    <td>
+                        {% if contact.fixed_line %}
+                        <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.mobile %}
+                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contact.email %}
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <h3>No results found</h3>
+            <p>No contacts match "{{ query }}"</p>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
