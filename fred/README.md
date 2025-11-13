@@ -74,6 +74,14 @@ Fred will be available at:
 
 ## API Reference
 
+### Introduction
+
+```bash
+GET /api/intro
+```
+
+Returns Fred's introduction, description, and capabilities. Useful for discovering what Fred can do.
+
 ### List Users
 
 ```bash

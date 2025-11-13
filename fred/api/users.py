@@ -3,6 +3,27 @@ from services.google_workspace import workspace_service
 
 api_bp = Blueprint('api', __name__)
 
+@api_bp.route('/intro', methods=['GET'])
+def intro():
+    """
+    GET /api/intro
+
+    Returns Fred's introduction
+    """
+    return jsonify({
+        'name': 'Fred',
+        'greeting': "Hi! I'm Fred, your Google Workspace user management bot.",
+        'description': "I handle all the user account stuff for your Google Workspace - creating accounts when people join, archiving them when they leave, and keeping track of who's using how much storage. Think of me as your friendly neighborhood account manager. I can work through my web interface if you want to do things manually, or you can call my API if you want to automate things. Either way, I've got you covered!",
+        'capabilities': [
+            'Create new user accounts with temporary passwords',
+            'List all active and archived users',
+            'Show storage usage for each account',
+            'Archive users (suspends them but keeps their data)',
+            'Permanently delete users (use carefully!)',
+            'Provide both web UI and REST API access'
+        ]
+    })
+
 @api_bp.route('/users', methods=['GET'])
 def list_users():
     """
