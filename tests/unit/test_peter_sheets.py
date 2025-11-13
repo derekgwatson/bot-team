@@ -9,11 +9,18 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 from googleapiclient.errors import HttpError
+import importlib.util
 
-# Add peter directory to path
+# Add peter directory to path for imports
 peter_path = Path(__file__).parent.parent.parent / 'peter'
-sys.path.insert(0, str(peter_path))
+if str(peter_path) not in sys.path:
+    sys.path.insert(0, str(peter_path))
 
+# Also add parent to ensure config can be imported
+if str(peter_path.parent) not in sys.path:
+    sys.path.insert(0, str(peter_path.parent))
+
+# Import the service
 from services.google_sheets import GoogleSheetsService
 
 

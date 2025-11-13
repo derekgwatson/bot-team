@@ -12,13 +12,22 @@ from flask import Flask
 import responses
 
 # Add paths for multiple bots
-quinn_path = Path(__file__).parent.parent.parent / 'quinn'
-pam_path = Path(__file__).parent.parent.parent / 'pam'
-shared_path = Path(__file__).parent.parent.parent / 'shared'
+project_root = Path(__file__).parent.parent.parent
+quinn_path = project_root / 'quinn'
+pam_path = project_root / 'pam'
+shared_path = project_root / 'shared'
 
-sys.path.insert(0, str(quinn_path))
-sys.path.insert(0, str(pam_path))
-sys.path.insert(0, str(shared_path))
+# Add bot directories
+if str(quinn_path) not in sys.path:
+    sys.path.insert(0, str(quinn_path))
+if str(pam_path) not in sys.path:
+    sys.path.insert(0, str(pam_path))
+if str(shared_path) not in sys.path:
+    sys.path.insert(0, str(shared_path))
+
+# Add project root for imports
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 
 # ==============================================================================

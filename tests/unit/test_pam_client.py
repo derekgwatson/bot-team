@@ -9,11 +9,18 @@ import pytest
 from unittest.mock import Mock, patch
 from pathlib import Path
 import requests
+import importlib.util
 
-# Add pam directory to path
+# Add pam directory to path for imports
 pam_path = Path(__file__).parent.parent.parent / 'pam'
-sys.path.insert(0, str(pam_path))
+if str(pam_path) not in sys.path:
+    sys.path.insert(0, str(pam_path))
 
+# Also add parent to ensure config can be imported
+if str(pam_path.parent) not in sys.path:
+    sys.path.insert(0, str(pam_path.parent))
+
+# Import the service
 from services.peter_client import PeterClient
 
 
