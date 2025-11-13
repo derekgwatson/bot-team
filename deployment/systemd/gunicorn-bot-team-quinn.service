@@ -7,13 +7,18 @@ Type=notify
 User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn-quinn
-LogsDirectory=gunicorn-quinn
 WorkingDirectory=/var/www/bot-team/quinn
 Environment="PATH=/var/www/bot-team/quinn/.venv/bin:$PATH"
 EnvironmentFile=/var/www/bot-team/quinn/.env
 ExecStart=/var/www/bot-team/quinn/.venv/bin/gunicorn \
-    --config /var/www/bot-team/deployment/gunicorn/quinn.py \
-    app:app
+  --workers 3 \
+  --worker-tmp-dir /dev/shm \
+  --bind unix:/run/gunicorn-quinn/gunicorn.sock \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=30

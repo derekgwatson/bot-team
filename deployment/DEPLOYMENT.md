@@ -184,18 +184,12 @@ sudo cp deployment/systemd/gunicorn-bot-team-pam.service /etc/systemd/system/
 sudo cp deployment/systemd/gunicorn-bot-team-quinn.service /etc/systemd/system/
 ```
 
-### Create required directories
-
-```bash
-# Log directories (created automatically by systemd LogsDirectory)
-# Runtime directories (created automatically by systemd RuntimeDirectory)
-# Just reload systemd to recognize new services
-sudo systemctl daemon-reload
-```
-
 ### Enable and start services
 
 ```bash
+# Reload systemd to recognize new services
+sudo systemctl daemon-reload
+
 # Enable services to start on boot
 sudo systemctl enable gunicorn-bot-team-fred gunicorn-bot-team-iris gunicorn-bot-team-peter gunicorn-bot-team-pam gunicorn-bot-team-quinn
 
@@ -213,12 +207,15 @@ sudo systemctl status gunicorn-bot-team-quinn
 ### Verify bots are running
 
 ```bash
-# Check if each bot is responding on localhost
-curl http://127.0.0.1:8001  # Fred
-curl http://127.0.0.1:8002  # Iris
-curl http://127.0.0.1:8003  # Peter
-curl http://127.0.0.1:8004  # Pam
-curl http://127.0.0.1:8005  # Quinn
+# Check if unix sockets exist
+ls -l /run/gunicorn-*/gunicorn.sock
+
+# Check systemd logs for any startup errors
+sudo journalctl -u gunicorn-bot-team-fred -n 20 --no-pager
+sudo journalctl -u gunicorn-bot-team-iris -n 20 --no-pager
+sudo journalctl -u gunicorn-bot-team-peter -n 20 --no-pager
+sudo journalctl -u gunicorn-bot-team-pam -n 20 --no-pager
+sudo journalctl -u gunicorn-bot-team-quinn -n 20 --no-pager
 ```
 
 ## Step 7: Setup SSL Certificates
@@ -341,12 +338,12 @@ sudo tail -f /var/log/nginx/peter.error.log
 sudo tail -f /var/log/nginx/pam.error.log
 sudo tail -f /var/log/nginx/quinn.error.log
 
-# Application logs
-sudo tail -f /var/log/gunicorn-fred/error.log
-sudo tail -f /var/log/gunicorn-iris/error.log
-sudo tail -f /var/log/gunicorn-peter/error.log
-sudo tail -f /var/log/gunicorn-pam/error.log
-sudo tail -f /var/log/gunicorn-quinn/error.log
+# Application logs (logs go to systemd journal)
+# View logs for all bots in real-time:
+sudo journalctl -u gunicorn-bot-team-fred -u gunicorn-bot-team-iris -u gunicorn-bot-team-peter -u gunicorn-bot-team-pam -u gunicorn-bot-team-quinn -f
+
+# Or individual bot:
+sudo journalctl -u gunicorn-bot-team-pam -f
 ```
 
 ## Ongoing Management

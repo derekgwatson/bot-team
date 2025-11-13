@@ -7,13 +7,18 @@ Type=notify
 User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn-iris
-LogsDirectory=gunicorn-iris
 WorkingDirectory=/var/www/bot-team/iris
 Environment="PATH=/var/www/bot-team/iris/.venv/bin:$PATH"
 EnvironmentFile=/var/www/bot-team/iris/.env
 ExecStart=/var/www/bot-team/iris/.venv/bin/gunicorn \
-    --config /var/www/bot-team/deployment/gunicorn/iris.py \
-    app:app
+  --workers 3 \
+  --worker-tmp-dir /dev/shm \
+  --bind unix:/run/gunicorn-iris/gunicorn.sock \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=30

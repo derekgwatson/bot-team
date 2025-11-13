@@ -7,13 +7,18 @@ Type=notify
 User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn-peter
-LogsDirectory=gunicorn-peter
 WorkingDirectory=/var/www/bot-team/peter
 Environment="PATH=/var/www/bot-team/peter/.venv/bin:$PATH"
 EnvironmentFile=/var/www/bot-team/peter/.env
 ExecStart=/var/www/bot-team/peter/.venv/bin/gunicorn \
-    --config /var/www/bot-team/deployment/gunicorn/peter.py \
-    app:app
+  --workers 3 \
+  --worker-tmp-dir /dev/shm \
+  --bind unix:/run/gunicorn-peter/gunicorn.sock \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=30

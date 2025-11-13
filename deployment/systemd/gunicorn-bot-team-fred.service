@@ -7,13 +7,18 @@ Type=notify
 User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn-fred
-LogsDirectory=gunicorn-fred
 WorkingDirectory=/var/www/bot-team/fred
 Environment="PATH=/var/www/bot-team/fred/.venv/bin:$PATH"
 EnvironmentFile=/var/www/bot-team/fred/.env
 ExecStart=/var/www/bot-team/fred/.venv/bin/gunicorn \
-    --config /var/www/bot-team/deployment/gunicorn/fred.py \
-    app:app
+  --workers 3 \
+  --worker-tmp-dir /dev/shm \
+  --bind unix:/run/gunicorn-fred/gunicorn.sock \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=30
