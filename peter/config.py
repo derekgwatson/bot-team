@@ -1,6 +1,10 @@
 import os
 import yaml
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
     """Configuration loader for Peter"""
@@ -9,6 +13,11 @@ class Config:
         self.base_dir = Path(__file__).parent
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
+
+        # Load shared organization config
+        shared_config_path = self.base_dir / self._config['shared_config']
+        with open(shared_config_path, 'r') as f:
+            self._shared_config = yaml.safe_load(f)
 
     def _load_config(self):
         """Load configuration from YAML file"""
@@ -50,6 +59,22 @@ class Config:
     @property
     def sheet_name(self):
         return self._config.get('google_sheets', {}).get('sheet_name', 'Phone List')
+
+    @property
+    def organization_domains(self):
+        return self._shared_config['organization']['domains']
+
+    @property
+    def oauth_client_id(self):
+        return os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
+
+    @property
+    def oauth_client_secret(self):
+        return os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
+
+    @property
+    def admin_emails(self):
+        return self._config.get('auth', {}).get('admin_emails', [])
 
     @property
     def bots(self):

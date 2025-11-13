@@ -2,8 +2,19 @@ from flask import Flask, jsonify
 from config import config
 from api.contacts import api_bp
 from web.routes import web_bp
+import os
+import sys
 
 app = Flask(__name__)
+
+# Session configuration
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24).hex())
+
+# Initialize Google OAuth
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from shared.auth.google_oauth import GoogleOAuth
+
+oauth = GoogleOAuth(app, config)
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
