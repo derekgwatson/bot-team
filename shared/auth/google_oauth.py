@@ -101,6 +101,23 @@ class GoogleAuth:
             if email.lower() in [e.lower() for e in self.config.admin_emails]:
                 return True
 
+        # Check with Quinn for external staff approval (if Quinn URL is configured)
+        if hasattr(self.config, 'quinn_api_url'):
+            try:
+                import requests
+                response = requests.get(
+                    f"{self.config.quinn_api_url}/api/is-approved",
+                    params={'email': email},
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('approved'):
+                        return True
+            except Exception as e:
+                print(f"Error checking with Quinn: {e}")
+                # Fail closed - if we can't reach Quinn, deny access
+
         return False
 
     def require_auth(self, f):

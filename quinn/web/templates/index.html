@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>External Staff Registry</h2>
+        <a href="/add" class="btn">Add New Staff</a>
+    </div>
+
+    <div class="filter-bar">
+        <form method="GET" action="/">
+            <label for="status">Filter by status:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </form>
+    </div>
+
+    {% if staff %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Added Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in staff %}
+            <tr>
+                <td><strong>{{ person.name }}</strong></td>
+                <td>{{ person.email }}</td>
+                <td>{{ person.phone if person.phone else '-' }}</td>
+                <td>{{ person.role if person.role else '-' }}</td>
+                <td>
+                    <span class="badge badge-{{ person.status }}">
+                        {{ person.status|upper }}
+                    </span>
+                </td>
+                <td>{{ person.added_date[:10] }}</td>
+                <td>
+                    <a href="/edit/{{ person.id }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
+                        Edit
+                    </a>
+                    {% if person.status == 'active' %}
+                    <form method="POST" action="/delete/{{ person.id }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('Deactivate {{ person.name }}?')">
+                            Deactivate
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>No external staff found</h3>
+        <p>Add your first external staff member to get started.</p>
+        <a href="/add" class="btn" style="margin-top: 20px;">Add Staff Member</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Add External Staff Member</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/add">
+        <div class="form-group">
+            <label for="name">Full Name *</label>
+            <input type="text" id="name" name="name" required placeholder="e.g., John Doe">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address *</label>
+            <input type="email" id="email" name="email" required placeholder="e.g., john@personal.com">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                This email will be added to the allstaff Google Group
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="text" id="phone" name="phone" placeholder="e.g., 0412 345 678">
+        </div>
+
+        <div class="form-group">
+            <label for="role">Role/Position</label>
+            <input type="text" id="role" name="role" placeholder="e.g., Contractor, Consultant">
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" placeholder="Any additional information..."></textarea>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn">Add Staff Member</button>
+            <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

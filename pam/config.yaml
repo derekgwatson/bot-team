@@ -19,6 +19,8 @@ auth:
     - "watsonblinds.com.au"
     - "watsoncommercial.com.au"
     - "designerdrapes.com.au"
+  # Quinn API for external staff approval
+  quinn_api_url: "http://localhost:8005"
 
 # Peter's API endpoint (where Pam gets contact data)
 peter_api:
@@ -37,3 +39,6 @@ bots:
   iris:
     url: "http://localhost:8002"
     description: "Reporting bot"
+  quinn:
+    url: "http://localhost:8005"
+    description: "External staff access manager"

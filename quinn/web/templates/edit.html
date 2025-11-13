@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit Staff Member</h2>
+
+    {% if error %}
+    <div class="error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if staff %}
+    <form method="POST" action="/edit/{{ staff.id }}">
+        <div class="form-group">
+            <label for="name">Full Name *</label>
+            <input type="text" id="name" name="name" value="{{ staff.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address *</label>
+            <input type="email" id="email" name="email" value="{{ staff.email }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="text" id="phone" name="phone" value="{{ staff.phone }}">
+        </div>
+
+        <div class="form-group">
+            <label for="role">Role/Position</label>
+            <input type="text" id="role" name="role" value="{{ staff.role }}">
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="active" {% if staff.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if staff.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                Changing to inactive will remove them from the allstaff Google Group
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes">{{ staff.notes }}</textarea>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn">Update Staff Member</button>
+            <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;">
+        <small style="color: #7f8c8d;">
+            Added by {{ staff.added_by }} on {{ staff.added_date[:10] }}
+            {% if staff.modified_date %}
+            <br>Last modified: {{ staff.modified_date[:10] }}
+            {% endif %}
+        </small>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

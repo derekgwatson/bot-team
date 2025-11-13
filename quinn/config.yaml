@@ -1,0 +1,42 @@
+# Quinn's Configuration
+name: quinn
+description: "External staff access manager"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8005
+
+# Database configuration
+database:
+  path: "database/external_staff.db"
+
+# Google Groups configuration
+google_groups:
+  # Path to service account credentials JSON file
+  credentials_file: "credentials.json"
+  # Email address of the group to manage
+  allstaff_group: "allstaff@watsonblinds.com.au"
+
+# Authentication configuration
+auth:
+  # Google OAuth credentials - stored in .env file (not in git!)
+  # See .env.example for required environment variables
+  admin_emails:
+    - "derek@watsonblinds.com.au"  # Only admins can manage external staff
+
+# Other bots Quinn knows about
+bots:
+  fred:
+    url: "http://localhost:8001"
+    description: "User management bot"
+  iris:
+    url: "http://localhost:8002"
+    description: "Reporting bot"
+  peter:
+    url: "http://localhost:8003"
+    description: "Phone directory manager"
+  pam:
+    url: "http://localhost:8004"
+    description: "Phone directory presenter"
