@@ -2,17 +2,37 @@
 
 Quick reference for deploying changes to production.
 
+## Prerequisites
+
+### Configure sudoers for www-data
+
+To allow www-data to restart services without a password, add this to sudoers:
+
+```bash
+sudo visudo
+```
+
+Add these lines:
+```
+# Allow www-data to restart gunicorn services
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart gunicorn-bot-team-*
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl status gunicorn-bot-team-*
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl is-active gunicorn-bot-team-*
+```
+
+This allows the deployment script to restart services while running as www-data.
+
 ## Quick Deploy (Recommended)
 
 Use the deployment script for automated deployment:
 
 ```bash
-# Deploy all bots
+# Deploy all bots (run as www-data to avoid permission issues)
 cd /var/www/bot-team
-sudo ./deployment/deploy.sh all
+sudo -u www-data ./deployment/deploy.sh all
 
 # Deploy a specific bot
-sudo ./deployment/deploy.sh pam
+sudo -u www-data ./deployment/deploy.sh pam
 ```
 
 The script automatically:
@@ -29,6 +49,8 @@ If you need to deploy manually:
 ### 1. Pull Latest Changes
 
 ```bash
+# Run as www-data to avoid permission issues
+sudo -u www-data bash
 cd /var/www/bot-team
 git pull origin main  # or your branch name
 ```
@@ -93,6 +115,10 @@ sudo journalctl -u "gunicorn-bot-team-*" -f
 ## Check What Changed
 
 ```bash
+# Run as www-data to see git status
+sudo -u www-data bash
+cd /var/www/bot-team
+
 # See recent commits
 git log -5 --oneline
 
@@ -102,11 +128,17 @@ git show --stat
 # Compare with remote
 git fetch
 git log HEAD..origin/main --oneline
+
+exit
 ```
 
 ## Rollback to Previous Version
 
 ```bash
+# Run as www-data
+sudo -u www-data bash
+cd /var/www/bot-team
+
 # See recent commits
 git log --oneline
 
@@ -114,7 +146,8 @@ git log --oneline
 git reset --hard <commit-hash>
 
 # Then restart services
-sudo ./deployment/deploy.sh all
+exit  # exit www-data shell
+sudo -u www-data ./deployment/deploy.sh all
 ```
 
 ## Emergency: Quick Restart All Services
@@ -219,12 +252,14 @@ cd /var/www/bot-team/pam
 ### Fixing a bug in Pam
 
 ```bash
-# 1. Pull latest changes (includes your fix)
+# 1. Pull latest changes as www-data (includes your fix)
+sudo -u www-data bash
 cd /var/www/bot-team
 git pull
+exit
 
 # 2. Deploy just Pam
-sudo ./deployment/deploy.sh pam
+sudo -u www-data ./deployment/deploy.sh pam
 
 # 3. Watch logs to verify fix
 sudo journalctl -u gunicorn-bot-team-pam -f
@@ -233,12 +268,14 @@ sudo journalctl -u gunicorn-bot-team-pam -f
 ### Adding a new dependency
 
 ```bash
-# 1. Pull changes (includes updated requirements.txt)
+# 1. Pull changes as www-data (includes updated requirements.txt)
+sudo -u www-data bash
 cd /var/www/bot-team
 git pull
+exit
 
 # 2. Deploy (script will detect requirements.txt change)
-sudo ./deployment/deploy.sh pam
+sudo -u www-data ./deployment/deploy.sh pam
 
 # Script automatically installs new dependencies
 ```
@@ -247,6 +284,9 @@ sudo ./deployment/deploy.sh pam
 
 ```bash
 # Pull and deploy all at once
+sudo -u www-data bash
 cd /var/www/bot-team
-sudo ./deployment/deploy.sh all
+git pull
+exit
+sudo -u www-data ./deployment/deploy.sh all
 ```

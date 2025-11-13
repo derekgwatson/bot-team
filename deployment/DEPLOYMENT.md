@@ -221,24 +221,33 @@ sudo journalctl -u gunicorn-bot-team-quinn -n 20 --no-pager
 
 ## Step 7: Setup SSL Certificates
 
-### Get certificates with certbot
+### Get certificates and configure HTTPS with certbot
+
+Certbot will automatically:
+- Obtain SSL certificates from Let's Encrypt
+- Add HTTPS (443) server blocks to your nginx configs
+- Configure HTTP to HTTPS redirects
+- Set up auto-renewal
 
 ```bash
-# Get certificates for all domains (interactive)
-sudo certbot certonly --nginx -d fred.watsonblinds.com.au
-sudo certbot certonly --nginx -d iris.watsonblinds.com.au
-sudo certbot certonly --nginx -d peter.watsonblinds.com.au
-sudo certbot certonly --nginx -d pam.watsonblinds.com.au
-sudo certbot certonly --nginx -d quinn.watsonblinds.com.au
+# Get certificates for each bot (interactive)
+# Certbot will modify the nginx configs to enable HTTPS
+sudo certbot --nginx -d fred.watsonblinds.com.au
+sudo certbot --nginx -d iris.watsonblinds.com.au
+sudo certbot --nginx -d peter.watsonblinds.com.au
+sudo certbot --nginx -d pam.watsonblinds.com.au
+sudo certbot --nginx -d quinn.watsonblinds.com.au
 
-# Or all at once (if DNS is configured)
-sudo certbot certonly --nginx \
+# Or get all certificates at once (if DNS is already configured for all domains)
+sudo certbot --nginx \
   -d fred.watsonblinds.com.au \
   -d iris.watsonblinds.com.au \
   -d peter.watsonblinds.com.au \
   -d pam.watsonblinds.com.au \
   -d quinn.watsonblinds.com.au
 ```
+
+**Note:** The nginx configs are intentionally HTTP-only initially. Certbot will add all the HTTPS configuration automatically.
 
 ### Setup auto-renewal
 

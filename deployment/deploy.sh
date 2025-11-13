@@ -1,8 +1,9 @@
 #!/bin/bash
 # Production deployment script for bot-team
-# Usage: ./deploy.sh [bot-name|all]
-# Example: ./deploy.sh pam
-# Example: ./deploy.sh all
+# Run as www-data user to avoid permission issues
+# Usage: sudo -u www-data ./deploy.sh [bot-name|all]
+# Example: sudo -u www-data ./deploy.sh pam
+# Example: sudo -u www-data ./deploy.sh all
 
 set -e  # Exit on error
 
