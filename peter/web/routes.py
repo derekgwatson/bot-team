@@ -50,14 +50,16 @@ def add_contact():
         section = request.form.get('section')
         extension = request.form.get('extension')
         name = request.form.get('name')
+        position = request.form.get('position')
         fixed_line = request.form.get('fixed_line')
         mobile = request.form.get('mobile')
         email = request.form.get('email')
 
         result = sheets_service.add_contact(
             section=section,
-            extension=extension,
+            extension=extension or '',
             name=name,
+            position=position or '',
             fixed_line=fixed_line or '',
             mobile=mobile or '',
             email=email or ''
@@ -76,14 +78,16 @@ def edit_contact(row):
     if request.method == 'POST':
         extension = request.form.get('extension')
         name = request.form.get('name')
+        position = request.form.get('position')
         fixed_line = request.form.get('fixed_line')
         mobile = request.form.get('mobile')
         email = request.form.get('email')
 
         result = sheets_service.update_contact(
             row_number=row,
-            extension=extension,
+            extension=extension or '',
             name=name,
+            position=position or '',
             fixed_line=fixed_line or '',
             mobile=mobile or '',
             email=email or ''

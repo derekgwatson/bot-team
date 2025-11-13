@@ -15,11 +15,19 @@
         <div class="form-group">
             <label for="extension">Extension</label>
             <input type="text" id="extension" name="extension" value="{{ contact.extension }}" maxlength="4">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                Optional. Must match last 4 digits of fixed line if provided.
+            </small>
         </div>
 
         <div class="form-group">
             <label for="name">Name *</label>
             <input type="text" id="name" name="name" value="{{ contact.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="position">Position</label>
+            <input type="text" id="position" name="position" value="{{ contact.position }}">
         </div>
 
         <div class="form-group">

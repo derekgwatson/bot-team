@@ -98,15 +98,37 @@ class GoogleSheetsService:
                 if not name:
                     continue
 
+                # Parse name and position (position is in brackets)
+                parsed_name = name.strip()
+                position = ''
+                if '(' in parsed_name and ')' in parsed_name:
+                    # Extract position from brackets
+                    start = parsed_name.index('(')
+                    end = parsed_name.index(')')
+                    position = parsed_name[start+1:end].strip()
+                    parsed_name = parsed_name[:start].strip()
+
+                # Validate extension matches last 4 digits of fixed line
+                ext_warning = ''
+                if extension and fixed:
+                    # Extract digits only from fixed line
+                    fixed_digits = ''.join(c for c in fixed if c.isdigit())
+                    if len(fixed_digits) >= 4:
+                        last_four = fixed_digits[-4:]
+                        if extension.strip() != last_four:
+                            ext_warning = f'Extension {extension.strip()} does not match last 4 digits of fixed line ({last_four})'
+
                 # This is a contact row
                 contact = {
                     'row': row_index,
                     'extension': extension.strip() if extension else '',
-                    'name': name.strip(),
+                    'name': parsed_name,
+                    'position': position,
                     'fixed_line': fixed.strip() if fixed else '',
                     'mobile': mobile.strip() if mobile else '',
                     'email': email.strip() if email else '',
-                    'section': current_section['name'] if current_section else 'Unknown'
+                    'section': current_section['name'] if current_section else 'Unknown',
+                    'extension_warning': ext_warning
                 }
 
                 contacts.append(contact)
@@ -148,14 +170,15 @@ class GoogleSheetsService:
 
         return results
 
-    def add_contact(self, section, extension, name, fixed_line='', mobile='', email=''):
+    def add_contact(self, section, extension, name, position='', fixed_line='', mobile='', email=''):
         """
         Add a new contact to the phone list
 
         Args:
             section: Section name to add contact under
-            extension: 4-digit extension
+            extension: 4-digit extension (optional)
             name: Contact name
+            position: Position/role (optional, will be added in brackets)
             fixed_line: Fixed line number (optional)
             mobile: Mobile number (optional)
             email: Email address (optional)
@@ -193,8 +216,23 @@ class GoogleSheetsService:
             else:
                 insert_row = len(all_data)
 
+            # Combine name and position (position in brackets if present)
+            display_name = name
+            if position:
+                display_name = f"{name} ({position})"
+
+            # Validate extension matches fixed line
+            if extension and fixed_line:
+                fixed_digits = ''.join(c for c in fixed_line if c.isdigit())
+                if len(fixed_digits) >= 4:
+                    last_four = fixed_digits[-4:]
+                    if extension != last_four:
+                        return {
+                            'error': f'Extension {extension} does not match last 4 digits of fixed line ({last_four}). Please fix this.'
+                        }
+
             # Insert the new contact
-            new_row = [[extension, name, fixed_line, mobile, email]]
+            new_row = [[extension, display_name, fixed_line, mobile, email]]
 
             result = self.service.spreadsheets().values().update(
                 spreadsheetId=config.spreadsheet_id,
@@ -205,7 +243,7 @@ class GoogleSheetsService:
 
             return {
                 'success': True,
-                'message': f'Added {name} to {section}',
+                'message': f'Added {display_name} to {section}',
                 'row': insert_row + 1
             }
 
@@ -216,17 +254,18 @@ class GoogleSheetsService:
             traceback.print_exc()
             return {'error': f'Unexpected error: {e}'}
 
-    def update_contact(self, row_number, extension='', name='', fixed_line='', mobile='', email=''):
+    def update_contact(self, row_number, extension='', name='', position='', fixed_line='', mobile='', email=''):
         """
         Update an existing contact
 
         Args:
             row_number: Row number in the sheet
-            extension: New extension (optional, keeps existing if empty)
-            name: New name (optional, keeps existing if empty)
-            fixed_line: New fixed line (optional, keeps existing if empty)
-            mobile: New mobile (optional, keeps existing if empty)
-            email: New email (optional, keeps existing if empty)
+            extension: New extension (optional)
+            name: New name
+            position: New position (optional, will be added in brackets)
+            fixed_line: New fixed line (optional)
+            mobile: New mobile (optional)
+            email: New email (optional)
 
         Returns:
             Success message or error
@@ -235,28 +274,32 @@ class GoogleSheetsService:
             return {'error': 'Google Sheets service not initialized'}
 
         try:
-            # Build the update row with only provided values
-            update_data = []
-            if extension: update_data.append(extension)
-            if name: update_data.append(name)
-            if fixed_line: update_data.append(fixed_line)
-            if mobile: update_data.append(mobile)
-            if email: update_data.append(email)
+            # Combine name and position (position in brackets if present)
+            display_name = name
+            if position:
+                display_name = f"{name} ({position})"
 
-            if not update_data:
-                return {'error': 'No fields to update'}
+            # Validate extension matches fixed line if both provided
+            if extension and fixed_line:
+                fixed_digits = ''.join(c for c in fixed_line if c.isdigit())
+                if len(fixed_digits) >= 4:
+                    last_four = fixed_digits[-4:]
+                    if extension != last_four:
+                        return {
+                            'error': f'Extension {extension} does not match last 4 digits of fixed line ({last_four}). Please fix this.'
+                        }
 
             # Update the row
             result = self.service.spreadsheets().values().update(
                 spreadsheetId=config.spreadsheet_id,
                 range=f"{config.sheet_name}!A{row_number}:E{row_number}",
                 valueInputOption='RAW',
-                body={'values': [[extension, name, fixed_line, mobile, email]]}
+                body={'values': [[extension, display_name, fixed_line, mobile, email]]}
             ).execute()
 
             return {
                 'success': True,
-                'message': f'Updated contact in row {row_number}'
+                'message': f'Updated {display_name}'
             }
 
         except HttpError as e:
