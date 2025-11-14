@@ -435,7 +435,7 @@ class DeploymentOrchestrator:
             'description': 'Clone or update the git repository',
             'check_command': f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'",
             'commands': {
-                'if_exists': f"cd {repo_path} && sudo -u www-data git pull",
+                'if_exists': f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data",
                 'if_missing': f"sudo mkdir -p {repo_path} && cd {str(Path(repo_path).parent)} && sudo git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
             }
         })
@@ -444,14 +444,14 @@ class DeploymentOrchestrator:
         plan['steps'].append({
             'name': 'Virtual environment setup',
             'description': 'Create Python virtual environment if needed',
-            'command': f"cd {path} && sudo -u www-data test -d .venv || sudo -u www-data python3 -m venv .venv"
+            'command': f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         })
 
         # Step 3: Install dependencies
         plan['steps'].append({
             'name': 'Install dependencies',
             'description': 'Install Python packages from requirements.txt',
-            'command': f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt"
+            'command': f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
         })
 
         # Step 4: Nginx config (skip for internal-only bots)
@@ -557,7 +557,7 @@ class DeploymentOrchestrator:
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data git pull")
+            result = self._call_sally(server, f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data")
         else:
             # Clone - create parent directory and clone
             parent_path = str(Path(repo_path).parent)
@@ -577,7 +577,18 @@ class DeploymentOrchestrator:
 
         if not result.get('success'):
             deployment['status'] = 'failed'
-            deployment['error'] = 'Repository setup failed'
+            error_parts = []
+            if result.get('stderr'):
+                error_parts.append(f"stderr: {result['stderr']}")
+            if result.get('stdout'):
+                error_parts.append(f"stdout: {result['stdout']}")
+            if result.get('error'):
+                error_parts.append(f"error: {result['error']}")
+            if result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {result['exit_code']}")
+
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Repository setup failed: {error_details}"
             deployment['end_time'] = time.time()
             return deployment
 
@@ -603,7 +614,7 @@ class DeploymentOrchestrator:
         venv_path = f"{path}/.venv"
         venv_result = self._call_sally(
             server,
-            f"cd {path} && sudo -u www-data test -d .venv || sudo -u www-data python3 -m venv .venv"
+            f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
@@ -614,12 +625,29 @@ class DeploymentOrchestrator:
             'exit_code': venv_result.get('exit_code')
         }
 
+        # Stop if venv setup failed
+        if not venv_result.get('success'):
+            deployment['status'] = 'failed'
+            error_parts = []
+            if venv_result.get('stderr'):
+                error_parts.append(f"stderr: {venv_result['stderr']}")
+            if venv_result.get('stdout'):
+                error_parts.append(f"stdout: {venv_result['stdout']}")
+            if venv_result.get('error'):
+                error_parts.append(f"error: {venv_result['error']}")
+            if venv_result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {venv_result['exit_code']}")
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Virtual environment setup failed: {error_details}"
+            deployment['end_time'] = time.time()
+            return deployment
+
         # Step 3: Install dependencies
         deployment['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
 
         install_result = self._call_sally(
             server,
-            f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt",
+            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data",
             timeout=300
         )
 
@@ -630,6 +658,43 @@ class DeploymentOrchestrator:
             'stderr': install_result.get('stderr', ''),
             'exit_code': install_result.get('exit_code')
         }
+
+        # Stop if dependency installation failed
+        if not install_result.get('success'):
+            deployment['status'] = 'failed'
+            error_parts = []
+            if install_result.get('stderr'):
+                error_parts.append(f"stderr: {install_result['stderr']}")
+            if install_result.get('stdout'):
+                error_parts.append(f"stdout: {install_result['stdout']}")
+            if install_result.get('error'):
+                error_parts.append(f"error: {install_result['error']}")
+            if install_result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {install_result['exit_code']}")
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Dependency installation failed: {error_details}"
+            deployment['end_time'] = time.time()
+            return deployment
+
+        # Step 3.5: Create .env from .env.example if it doesn't exist
+        deployment['steps'].append({'name': 'Environment configuration', 'status': 'in_progress'})
+
+        env_result = self._call_sally(
+            server,
+            f"[ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data || echo 'No .env.example found, skipping')"
+        )
+
+        deployment['steps'][-1]['status'] = 'completed' if env_result.get('success') else 'failed'
+        deployment['steps'][-1]['result'] = {
+            'success': env_result.get('success'),
+            'stdout': env_result.get('stdout', ''),
+            'stderr': env_result.get('stderr', ''),
+            'exit_code': env_result.get('exit_code')
+        }
+
+        # Don't fail deployment if .env setup fails - just log it
+        if not env_result.get('success'):
+            deployment['steps'][-1]['result']['warning'] = 'Environment file setup failed, but continuing deployment'
 
         # Step 4: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
@@ -663,6 +728,24 @@ class DeploymentOrchestrator:
                     'stderr': nginx_result.get('stderr', ''),
                     'exit_code': nginx_result.get('exit_code')
                 }
+
+                # Stop if nginx config failed
+                if not nginx_result.get('success'):
+                    deployment['status'] = 'failed'
+                    error_parts = []
+                    if nginx_result.get('stderr'):
+                        error_parts.append(f"stderr: {nginx_result['stderr']}")
+                    if nginx_result.get('stdout'):
+                        error_parts.append(f"stdout: {nginx_result['stdout']}")
+                    if nginx_result.get('error'):
+                        error_parts.append(f"error: {nginx_result['error']}")
+                    if nginx_result.get('exit_code') is not None:
+                        error_parts.append(f"exit_code: {nginx_result['exit_code']}")
+                    error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+                    deployment['error'] = f"Nginx configuration failed: {error_details}"
+                    deployment['end_time'] = time.time()
+                    return deployment
+
             except Exception as e:
                 deployment['steps'][-1]['status'] = 'failed'
                 deployment['steps'][-1]['result'] = {
@@ -670,6 +753,10 @@ class DeploymentOrchestrator:
                     'error': str(e),
                     'stderr': str(e)
                 }
+                deployment['status'] = 'failed'
+                deployment['error'] = f'Nginx configuration failed: {str(e)}'
+                deployment['end_time'] = time.time()
+                return deployment
 
         # Step 5: Create systemd service
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
@@ -702,6 +789,24 @@ class DeploymentOrchestrator:
                 'stderr': service_result.get('stderr', ''),
                 'exit_code': service_result.get('exit_code')
             }
+
+            # Stop if systemd service creation failed
+            if not service_result.get('success'):
+                deployment['status'] = 'failed'
+                error_parts = []
+                if service_result.get('stderr'):
+                    error_parts.append(f"stderr: {service_result['stderr']}")
+                if service_result.get('stdout'):
+                    error_parts.append(f"stdout: {service_result['stdout']}")
+                if service_result.get('error'):
+                    error_parts.append(f"error: {service_result['error']}")
+                if service_result.get('exit_code') is not None:
+                    error_parts.append(f"exit_code: {service_result['exit_code']}")
+                error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+                deployment['error'] = f"Systemd service creation failed: {error_details}"
+                deployment['end_time'] = time.time()
+                return deployment
+
         except Exception as e:
             deployment['steps'][-1]['status'] = 'failed'
             deployment['steps'][-1]['result'] = {
@@ -709,6 +814,10 @@ class DeploymentOrchestrator:
                 'error': str(e),
                 'stderr': str(e)
             }
+            deployment['status'] = 'failed'
+            deployment['error'] = f'Systemd service creation failed: {str(e)}'
+            deployment['end_time'] = time.time()
+            return deployment
 
         # Step 6: SSL certificate (if configured and not skipping nginx)
         if ssl_email and not skip_nginx:

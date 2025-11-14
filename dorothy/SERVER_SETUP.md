@@ -39,6 +39,7 @@ derek ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
 derek ALL=(ALL) NOPASSWD: /bin/systemctl is-active *
 derek ALL=(ALL) NOPASSWD: /bin/systemctl status *
 derek ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
+derek ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/systemd/system/*
 derek ALL=(ALL) NOPASSWD: /bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 derek ALL=(ALL) NOPASSWD: /bin/mkdir -p *
 derek ALL=(ALL) NOPASSWD: /bin/chown -R www-data\:www-data *
@@ -46,10 +47,12 @@ derek ALL=(ALL) NOPASSWD: /usr/bin/git *
 derek ALL=(ALL) NOPASSWD: /usr/bin/test -f *
 derek ALL=(ALL) NOPASSWD: /usr/bin/openssl x509 *
 derek ALL=(ALL) NOPASSWD: /usr/bin/certbot *
-derek ALL=(ALL) NOPASSWD: /bin/su -c * www-data
+derek ALL=(ALL) NOPASSWD: /bin/su -s /bin/bash -c * www-data
 ```
 
 **Security Note:** This configuration grants passwordless sudo only for specific deployment-related commands, not full system access.
+
+**Note on su command:** The `-s /bin/bash` flag is required because the `www-data` user has `/usr/sbin/nologin` as its default shell (standard security practice). This flag tells `su` to use bash instead of the user's login shell.
 
 ## 3. Set Up SSH Key Authentication
 
