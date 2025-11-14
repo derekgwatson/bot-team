@@ -701,6 +701,13 @@ class DeploymentOrchestrator:
         if not skip_nginx:
             deployment['steps'].append({'name': 'DNS resolution check', 'status': 'in_progress'})
 
+            # Get server's public IP address
+            server_ip_result = self._call_sally(
+                server,
+                "curl -s ifconfig.me || curl -s icanhazip.com || curl -s api.ipify.org"
+            )
+            server_ip = server_ip_result.get('stdout', '').strip()
+
             # Check if domain resolves
             dns_result = self._call_sally(
                 server,
@@ -713,7 +720,8 @@ class DeploymentOrchestrator:
                 'stdout': dns_result.get('stdout', ''),
                 'stderr': dns_result.get('stderr', ''),
                 'exit_code': dns_result.get('exit_code'),
-                'domain': domain
+                'domain': domain,
+                'server_ip': server_ip
             }
 
             # Fail fast if DNS doesn't resolve
@@ -730,6 +738,26 @@ class DeploymentOrchestrator:
                 deployment['error'] = '\n'.join(error_parts)
                 deployment['end_time'] = time.time()
                 return deployment
+
+            # Verify domain resolves to this server's IP
+            if server_ip:
+                dns_output = dns_result.get('stdout', '')
+                if server_ip not in dns_output:
+                    deployment['status'] = 'failed'
+                    deployment['steps'][-1]['status'] = 'failed'
+                    error_parts = []
+                    error_parts.append(f"DNS mismatch: '{domain}' does not resolve to this server")
+                    error_parts.append(f"This server's IP: {server_ip}")
+                    error_parts.append(f"Domain resolves to: {dns_output.strip()}")
+                    error_parts.append("")
+                    error_parts.append("This will cause certbot SSL certificate setup to fail.")
+                    error_parts.append("Please update your DNS A record to point to the correct server IP.")
+                    deployment['error'] = '\n'.join(error_parts)
+                    deployment['end_time'] = time.time()
+                    return deployment
+            else:
+                # Couldn't get server IP - log warning but continue
+                deployment['steps'][-1]['result']['warning'] = 'Could not verify server IP match'
 
         # Step 5: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
