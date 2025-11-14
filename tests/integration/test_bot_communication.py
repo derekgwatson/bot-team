@@ -91,11 +91,12 @@ def test_pam_calls_peter_search(mock_responses):
 @pytest.mark.peter
 def test_pam_handles_peter_unavailable(mock_responses):
     """Test Pam handling Peter being unavailable."""
-    # Mock connection error
+    # Mock connection error by raising ConnectionError
+    import requests.exceptions
     mock_responses.add(
         responses.GET,
         'http://localhost:8003/api/contacts/search',
-        body=Exception('Connection refused')
+        body=requests.exceptions.ConnectionError('Connection refused')
     )
 
     class MockConfig:
@@ -106,8 +107,10 @@ def test_pam_handles_peter_unavailable(mock_responses):
     import config as pam_config
     with patch.object(pam_config, 'config', MockConfig()):
         client = PeterClient()
-        # Should handle error gracefully
-        # Actual behavior depends on implementation
+        # Should handle error gracefully and return error dict
+        result = client.search_contacts('test')
+        assert 'error' in result
+        assert 'Could not connect to Peter' in result['error']
 
 
 # ==============================================================================

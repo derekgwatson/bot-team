@@ -58,9 +58,8 @@ def mock_config(monkeypatch, tmp_path):
 
     mock_config_obj = MockConfig()
 
-    # Patch where the config is USED, not where it's defined
-    import services.google_reports
-    monkeypatch.setattr(services.google_reports, 'config', mock_config_obj)
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_reports, 'config', mock_config_obj)
 
     return mock_config_obj
 
@@ -68,9 +67,8 @@ def mock_config(monkeypatch, tmp_path):
 @pytest.fixture
 def reports_service_with_mock(mock_config, mock_google_reports_service):
     """Create a GoogleReportsService instance with mocked Google Reports API."""
-    import services.google_reports
-    with patch.object(services.google_reports, 'service_account'), \
-         patch.object(services.google_reports, 'build', return_value=mock_google_reports_service):
+    with patch.object(google_reports, 'service_account'), \
+         patch.object(google_reports, 'build', return_value=mock_google_reports_service):
         service = GoogleReportsService()
         return service
 
@@ -84,9 +82,8 @@ def reports_service_with_mock(mock_config, mock_google_reports_service):
 @pytest.mark.google_api
 def test_initialization_success(mock_config, mock_google_reports_service):
     """Test successful service initialization."""
-    import services.google_reports
-    with patch.object(services.google_reports, 'service_account') as mock_sa, \
-         patch.object(services.google_reports, 'build', return_value=mock_google_reports_service):
+    with patch.object(google_reports, 'service_account') as mock_sa, \
+         patch.object(google_reports, 'build', return_value=mock_google_reports_service):
         mock_creds = Mock()
         mock_sa.Credentials.from_service_account_file.return_value = mock_creds
         mock_creds.with_subject.return_value = mock_creds
@@ -107,8 +104,7 @@ def test_initialization_missing_credentials(monkeypatch):
         google_domain = 'example.com'
 
     # Patch where the config is USED (using already-imported module)
-    import services.google_reports
-    monkeypatch.setattr(services.google_reports, 'config', MockConfig())
+    monkeypatch.setattr(google_reports, 'config', MockConfig())
 
     service = GoogleReportsService()
     assert service.service is None
@@ -152,8 +148,7 @@ def test_get_usage_service_not_initialized(monkeypatch):
         google_domain = 'example.com'
 
     # Patch where the config is USED (using already-imported module)
-    import services.google_reports
-    monkeypatch.setattr(services.google_reports, 'config', MockConfig())
+    monkeypatch.setattr(google_reports, 'config', MockConfig())
 
     service = GoogleReportsService()
 
