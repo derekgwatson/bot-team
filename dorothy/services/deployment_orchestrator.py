@@ -697,7 +697,41 @@ class DeploymentOrchestrator:
         if not config_result.get('success'):
             deployment['steps'][-1]['result']['warning'] = 'Configuration file setup failed, but continuing deployment'
 
-        # Step 4: Create nginx config (skip for internal-only bots)
+        # Step 4: DNS resolution check (for public domains only)
+        if not skip_nginx:
+            deployment['steps'].append({'name': 'DNS resolution check', 'status': 'in_progress'})
+
+            # Check if domain resolves
+            dns_result = self._call_sally(
+                server,
+                f"host {domain} || nslookup {domain} || dig {domain} +short"
+            )
+
+            deployment['steps'][-1]['status'] = 'completed' if dns_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {
+                'success': dns_result.get('success'),
+                'stdout': dns_result.get('stdout', ''),
+                'stderr': dns_result.get('stderr', ''),
+                'exit_code': dns_result.get('exit_code'),
+                'domain': domain
+            }
+
+            # Fail fast if DNS doesn't resolve
+            if not dns_result.get('success') or not dns_result.get('stdout', '').strip():
+                deployment['status'] = 'failed'
+                error_parts = []
+                error_parts.append(f"Domain '{domain}' does not resolve to any IP address")
+                error_parts.append("Please check:")
+                error_parts.append("1. DNS records are configured correctly")
+                error_parts.append("2. Domain name is spelled correctly in config")
+                error_parts.append("3. DNS propagation has completed (can take up to 48 hours)")
+                if dns_result.get('stderr'):
+                    error_parts.append(f"DNS lookup error: {dns_result['stderr']}")
+                deployment['error'] = '\n'.join(error_parts)
+                deployment['end_time'] = time.time()
+                return deployment
+
+        # Step 5: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
             deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
 
@@ -759,7 +793,7 @@ class DeploymentOrchestrator:
                 deployment['end_time'] = time.time()
                 return deployment
 
-        # Step 5: Create systemd service
+        # Step 6: Create systemd service
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
 
         try:
@@ -830,7 +864,7 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
-        # Step 6: SSL certificate (if configured and not skipping nginx)
+        # Step 7: SSL certificate (if configured and not skipping nginx)
         if ssl_email and not skip_nginx:
             deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
 
@@ -848,7 +882,7 @@ class DeploymentOrchestrator:
                 'exit_code': ssl_result.get('exit_code')
             }
 
-        # Step 7: Reload nginx (skip for internal-only bots)
+        # Step 8: Reload nginx (skip for internal-only bots)
         if not skip_nginx:
             deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
 
@@ -861,7 +895,7 @@ class DeploymentOrchestrator:
                 'exit_code': reload_result.get('exit_code')
             }
 
-        # Step 8: Manual configuration instructions (don't start service yet)
+        # Step 9: Manual configuration instructions (don't start service yet)
         deployment['steps'].append({'name': 'Manual configuration required', 'status': 'completed'})
         deployment['steps'][-1]['result'] = {
             'success': True,
