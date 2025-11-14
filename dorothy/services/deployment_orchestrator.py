@@ -87,7 +87,7 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
 
-        service_name = bot_config.get('service', f"gunicorn-{bot_name}")
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
 
         # Check if service file exists
         check_result = self._call_sally(
@@ -336,7 +336,7 @@ class DeploymentOrchestrator:
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
         repo = bot_config.get('repo', '')
         domain = bot_config.get('domain', f"{bot_name}.example.com")
-        service_name = bot_config.get('service', f"gunicorn-{bot_name}")
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
 
