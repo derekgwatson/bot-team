@@ -59,10 +59,12 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'check': 'nginx_config', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
+        nginx_config_name = bot_config.get('nginx_config_name', bot_name)
+
         # Check if nginx config exists
         check_result = self._call_sally(
             server,
-            f"test -f /etc/nginx/sites-available/{bot_name} && echo 'exists' || echo 'missing'"
+            f"test -f /etc/nginx/sites-available/{nginx_config_name} && echo 'exists' || echo 'missing'"
         )
 
         if not check_result.get('success'):
@@ -80,7 +82,7 @@ class DeploymentOrchestrator:
             'exists': exists,
             'syntax_valid': syntax_result.get('exit_code') == 0,
             'details': f"Config exists: {exists}, Syntax valid: {syntax_result.get('exit_code') == 0}",
-            'path': f"/etc/nginx/sites-available/{bot_name}",
+            'path': f"/etc/nginx/sites-available/{nginx_config_name}",
             'command': check_result.get('command')
         }
 
@@ -335,6 +337,7 @@ class DeploymentOrchestrator:
         repo = bot_config.get('repo', '')
         domain = bot_config.get('domain', f"{bot_name}.example.com")
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
         venv_path = f"{path}/.venv"
@@ -394,8 +397,8 @@ class DeploymentOrchestrator:
                 'description': 'Create nginx site configuration',
                 'config_content': nginx_config,
                 'commands': [
-                    f"# Write config to /etc/nginx/sites-available/{bot_name}",
-                    f"sudo ln -sf /etc/nginx/sites-available/{bot_name} /etc/nginx/sites-enabled/{bot_name}",
+                    f"# Write config to /etc/nginx/sites-available/{nginx_config_name}",
+                    f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name}",
                     f"sudo nginx -t"
                 ]
             })
@@ -492,6 +495,7 @@ class DeploymentOrchestrator:
         repo = bot_config.get('repo', '')
         domain = bot_config.get('domain', f"{bot_name}.example.com")
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
 
@@ -563,8 +567,8 @@ class DeploymentOrchestrator:
             # Write nginx config
             nginx_result = self._call_sally(
                 server,
-                f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{bot_name} > /dev/null && "
-                f"sudo ln -sf /etc/nginx/sites-available/{bot_name} /etc/nginx/sites-enabled/{bot_name} && "
+                f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{nginx_config_name} > /dev/null && "
+                f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name} && "
                 f"sudo nginx -t"
             )
 

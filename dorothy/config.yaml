@@ -28,6 +28,7 @@ defaults:
   path: "/var/www/bot-team/{bot_name}"
   service: "gunicorn-{bot_name}"
   domain: "{bot_name}.example.com"
+  nginx_config_name: "{bot_name}"
   workers: 3
 
 bots:

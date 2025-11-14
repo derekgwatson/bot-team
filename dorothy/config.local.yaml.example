@@ -11,8 +11,9 @@ defaults:
 # Override specific bots if needed
 # bots:
 #   peter:
-#     workers: 5           # Override just Peter's workers
-#     domain: custom.com   # Override just Peter's domain
+#     workers: 5                    # Override just Peter's workers
+#     domain: custom.com            # Override just Peter's domain
+#     nginx_config_name: peter-bot  # Override nginx config filename if different from bot name
 
 # Override deployment settings
 # deployment:
