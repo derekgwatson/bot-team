@@ -310,7 +310,7 @@ def index():
                 <strong>Example for Sally (port 8004):</strong>
             </p>
             <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.85em;">
-                ssh -L 8004:localhost:8004 ubuntu@prod.example.com
+                ssh -L 8004:localhost:8004 ubuntu@watsonblinds.com.au
             </div>
             <p style="color: #666; font-size: 0.85em;">
                 Then access at <code>http://localhost:8004</code> in your browser while the SSH connection is active.
