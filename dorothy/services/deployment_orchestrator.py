@@ -534,46 +534,10 @@ class DeploymentOrchestrator:
 
         return plan
 
-    def deploy_bot(self, server: str, bot_name: str) -> Dict:
-        """
-        Deploy a bot to a server
-
-        Full deployment workflow:
-        - Clone/update repository
-        - Set up virtual environment
-        - Install dependencies
-        - Create nginx config
-        - Create systemd service
-        - Set up SSL with certbot (if ssl_email is configured)
-        - Reload nginx
-        - Start the service
-
-        Args:
-            server: Server name
-            bot_name: Bot to deploy
-
-        Returns:
-            Deployment status
-        """
-        deployment_id = str(uuid.uuid4())[:8]
+    def _run_deployment(self, deployment_id: str, server: str, bot_name: str):
+        """Run deployment in background, updating progress as we go"""
+        deployment = self.deployments[deployment_id]
         bot_config = config.get_bot_config(bot_name)
-
-        if not bot_config:
-            return {
-                'success': False,
-                'error': f"Bot {bot_name} not configured"
-            }
-
-        deployment = {
-            'id': deployment_id,
-            'bot': bot_name,
-            'server': server,
-            'status': 'in_progress',
-            'steps': [],
-            'start_time': time.time()
-        }
-
-        self.deployments[deployment_id] = deployment
 
         repo_path = bot_config.get('repo_path', '/var/www/bot-team')
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
@@ -734,7 +698,61 @@ class DeploymentOrchestrator:
         deployment['end_time'] = time.time()
         deployment['duration'] = deployment['end_time'] - deployment['start_time']
 
-        return deployment
+    def deploy_bot(self, server: str, bot_name: str) -> Dict:
+        """
+        Deploy a bot to a server (non-blocking)
+
+        Full deployment workflow:
+        - Clone/update repository
+        - Set up virtual environment
+        - Install dependencies
+        - Create nginx config
+        - Create systemd service
+        - Set up SSL with certbot (if ssl_email is configured)
+        - Reload nginx
+        - Start the service
+
+        Args:
+            server: Server name
+            bot_name: Bot to deploy
+
+        Returns:
+            Deployment ID and initial status
+        """
+        deployment_id = str(uuid.uuid4())[:8]
+        bot_config = config.get_bot_config(bot_name)
+
+        if not bot_config:
+            return {
+                'success': False,
+                'error': f"Bot {bot_name} not configured"
+            }
+
+        deployment = {
+            'id': deployment_id,
+            'bot': bot_name,
+            'server': server,
+            'status': 'in_progress',
+            'steps': [],
+            'start_time': time.time()
+        }
+
+        self.deployments[deployment_id] = deployment
+
+        # Run deployment in background thread
+        thread = threading.Thread(
+            target=self._run_deployment,
+            args=(deployment_id, server, bot_name)
+        )
+        thread.daemon = True
+        thread.start()
+
+        return {
+            'deployment_id': deployment_id,
+            'status': 'started',
+            'bot': bot_name,
+            'server': server
+        }
 
     def setup_ssl(self, server: str, bot_name: str, email: str) -> Dict:
         """

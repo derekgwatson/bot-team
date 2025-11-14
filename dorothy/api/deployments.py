@@ -175,10 +175,10 @@ def health_check_bot(bot_name):
                 'success': result.get('success')
             })
 
-    # For nginx-routed bots, check via domain
+    # For nginx-routed bots, check via domain (follow redirects for HTTPS)
     result = deployment_orchestrator._call_sally(
         server,
-        f"curl -s http://localhost/health -H 'Host: {domain}' || echo 'not responding'"
+        f"curl -sL http://localhost/health -H 'Host: {domain}' || echo 'not responding'"
     )
 
     is_healthy = 'healthy' in result.get('stdout', '')

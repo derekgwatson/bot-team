@@ -298,61 +298,104 @@ def index():
                 if (!confirm('Deploy ' + botName + ' to production?')) return;
 
                 const resultDiv = document.getElementById('result-' + botName);
-                resultDiv.innerHTML = '<div class="result">🚀 Deploying ' + botName + '...</div>';
+                resultDiv.innerHTML = '<div class="result">🚀 Starting deployment...</div>';
 
                 try {
+                    // Start deployment
                     const response = await fetch('/api/deploy/' + botName, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({})
                     });
 
-                    const data = await response.json();
+                    const startData = await response.json();
 
-                    // Build detailed steps HTML with results
-                    let stepsHtml = '';
-                    if (data.steps && data.steps.length > 0) {
-                        stepsHtml = data.steps.map(step => {
-                            let icon = step.status === 'completed' ? '✅' : '❌';
-                            let statusClass = step.status === 'completed' ? 'passed' : 'failed';
-
-                            let detailsHtml = '';
-                            if (step.result) {
-                                if (step.result.message) {
-                                    detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em;"><strong>Output:</strong> <code>${step.result.message}</code></div>`;
-                                }
-                                if (step.result.error) {
-                                    detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
-                                }
-                            }
-
-                            return `<div class="check-result ${statusClass}" style="margin-bottom: 10px;">
-                                ${icon} <strong>${step.name}</strong>
-                                ${detailsHtml}
-                            </div>`;
-                        }).join('');
-                    }
-
-                    if (data.status === 'completed') {
-                        resultDiv.innerHTML = `
-                            <div class="result success">
-                                <strong>✅ Deployment Completed</strong>
-                                <div>Duration: ${data.duration.toFixed(2)}s</div>
-                                ${stepsHtml}
-                            </div>
-                        `;
-                    } else {
+                    if (startData.error) {
                         resultDiv.innerHTML = `
                             <div class="result error">
                                 <strong>❌ Deployment Failed</strong>
-                                ${data.error ? `<div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px;">${data.error}</div>` : ''}
-                                <div style="margin-top: 15px;">
-                                    <strong>Deployment Steps:</strong>
-                                    ${stepsHtml || '<div>No step information available</div>'}
-                                </div>
+                                <div>${startData.error}</div>
                             </div>
                         `;
+                        return;
                     }
+
+                    const deploymentId = startData.deployment_id;
+
+                    // Poll for updates
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const statusResponse = await fetch('/api/deployments/' + deploymentId);
+                            const data = await statusResponse.json();
+
+                            if (data.error) {
+                                clearInterval(pollInterval);
+                                resultDiv.innerHTML = `
+                                    <div class="result error">
+                                        <strong>❌ Deployment Error</strong>
+                                        <div>${data.error}</div>
+                                    </div>
+                                `;
+                                return;
+                            }
+
+                            // Build detailed steps HTML
+                            let stepsHtml = '';
+                            if (data.steps && data.steps.length > 0) {
+                                stepsHtml = data.steps.map(step => {
+                                    let icon = step.status === 'in_progress' ? '⏳' : (step.status === 'completed' ? '✅' : '❌');
+                                    let statusClass = step.status === 'completed' ? 'passed' : 'failed';
+
+                                    let detailsHtml = '';
+                                    if (step.result) {
+                                        if (step.result.message) {
+                                            detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em;"><strong>Output:</strong> <code>${step.result.message}</code></div>`;
+                                        }
+                                        if (step.result.error) {
+                                            detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
+                                        }
+                                    }
+
+                                    return `<div class="check-result ${statusClass}" style="margin-bottom: 10px;">
+                                        ${icon} <strong>${step.name}</strong>
+                                        ${detailsHtml}
+                                    </div>`;
+                                }).join('');
+                            }
+
+                            if (data.status === 'completed' || data.status === 'partial') {
+                                clearInterval(pollInterval);
+                                const isSuccess = data.status === 'completed';
+                                resultDiv.innerHTML = `
+                                    <div class="result ${isSuccess ? 'success' : 'error'}">
+                                        <strong>${isSuccess ? '✅ Deployment Completed' : '❌ Deployment Failed'}</strong>
+                                        ${data.duration ? `<div>Duration: ${data.duration.toFixed(2)}s</div>` : ''}
+                                        ${data.error ? `<div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px;">${data.error}</div>` : ''}
+                                        <div style="margin-top: 15px;">
+                                            ${stepsHtml}
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                // Still in progress
+                                resultDiv.innerHTML = `
+                                    <div class="result">
+                                        <strong>🚀 Deployment in progress...</strong>
+                                        ${stepsHtml}
+                                    </div>
+                                `;
+                            }
+                        } catch (pollError) {
+                            clearInterval(pollInterval);
+                            resultDiv.innerHTML = `
+                                <div class="result error">
+                                    <strong>❌ Error polling deployment status</strong>
+                                    <div>${pollError.message}</div>
+                                </div>
+                            `;
+                        }
+                    }, 500);  // Poll every 500ms
+
                 } catch (error) {
                     resultDiv.innerHTML = `
                         <div class="result error">
