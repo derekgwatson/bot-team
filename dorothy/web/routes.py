@@ -127,6 +127,9 @@ def index():
                 {% for name, bot in bots.items() %}
                 <div class="bot-card">
                     <h3>{{ name.title() }}</h3>
+                    {% if bot.description %}
+                    <p style="color: #666; font-size: 0.95em; margin: 8px 0 15px 0; font-style: italic;">{{ bot.description }}</p>
+                    {% endif %}
                     <div class="info">🌐 {{ bot.domain }}</div>
                     <div class="info">🖥️ Server: {{ config.default_server }}</div>
                     <div class="info">📁 {{ bot.path }}</div>
