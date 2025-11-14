@@ -23,7 +23,5 @@ google_sheets:
 
 # Authentication configuration
 auth:
-  # Google OAuth credentials - stored in .env file (not in git!)
+  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
   # See .env.example for required environment variables
-  admin_emails:
-    - "derek@watsonblinds.com.au"  # Only admins can manage phone directory

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, current_app
 from functools import wraps
 from services.google_sheets import sheets_service
 
@@ -9,6 +9,8 @@ def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
+            # Store the URL they were trying to access
+            session['next_url'] = request.url
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function

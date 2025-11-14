@@ -74,6 +74,11 @@ class Config:
 
     @property
     def admin_emails(self):
+        # Read from environment variable (comma-separated list)
+        env_emails = os.environ.get('ADMIN_EMAILS', '')
+        if env_emails:
+            return [email.strip() for email in env_emails.split(',') if email.strip()]
+        # Fallback to config file (for backward compatibility)
         return self._config.get('auth', {}).get('admin_emails', [])
 
     @property

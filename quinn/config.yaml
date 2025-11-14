@@ -20,12 +20,10 @@ shared_config: "../shared/config/organization.yaml"
 google_groups:
   # Path to service account credentials JSON file
   credentials_file: "credentials.json"
-  # Email address of the group to manage
-  allstaff_group: "all-staff@watsonblinds.com.au"
+  # Group email address is stored in .env file (not in git!)
+  # See .env.example for required environment variables
 
 # Authentication configuration
 auth:
-  # Google OAuth credentials - stored in .env file (not in git!)
+  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
   # See .env.example for required environment variables
-  admin_emails:
-    - "derek@watsonblinds.com.au"  # Only admins can manage external staff

@@ -12,16 +12,33 @@ from googleapiclient.errors import HttpError
 import importlib.util
 
 # Add iris directory to path for imports
-iris_path = Path(__file__).parent.parent.parent / 'iris'
+project_root = Path(__file__).parent.parent.parent
+iris_path = project_root / 'iris'
+
 if str(iris_path) not in sys.path:
     sys.path.insert(0, str(iris_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Also add parent to ensure config can be imported
-if str(iris_path.parent) not in sys.path:
-    sys.path.insert(0, str(iris_path.parent))
-
-# Import the service
-from services.google_reports import GoogleReportsService
+# Import the service module and class
+try:
+    from services import google_reports
+    from services.google_reports import GoogleReportsService
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "services.google_reports",
+        iris_path / "services" / "google_reports.py"
+    )
+    if spec and spec.loader:
+        google_reports = importlib.util.module_from_spec(spec)
+        sys.modules['services.google_reports'] = google_reports
+        sys.modules['services'] = type(sys)('services')
+        sys.modules['services'].google_reports = google_reports
+        spec.loader.exec_module(google_reports)
+        GoogleReportsService = google_reports.GoogleReportsService
+    else:
+        raise ImportError(f"Could not import GoogleReportsService: {e}")
 
 
 # ==============================================================================
@@ -37,18 +54,21 @@ def mock_config(monkeypatch, tmp_path):
     class MockConfig:
         google_credentials_file = str(creds_file)
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    import config as iris_config
-    monkeypatch.setattr(iris_config, 'config', MockConfig())
+    mock_config_obj = MockConfig()
 
-    return MockConfig()
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_reports, 'config', mock_config_obj)
+
+    return mock_config_obj
 
 
 @pytest.fixture
 def reports_service_with_mock(mock_config, mock_google_reports_service):
     """Create a GoogleReportsService instance with mocked Google Reports API."""
-    with patch('services.google_reports.service_account'), \
-         patch('services.google_reports.build', return_value=mock_google_reports_service):
+    with patch.object(google_reports, 'service_account'), \
+         patch.object(google_reports, 'build', return_value=mock_google_reports_service):
         service = GoogleReportsService()
         return service
 
@@ -62,8 +82,8 @@ def reports_service_with_mock(mock_config, mock_google_reports_service):
 @pytest.mark.google_api
 def test_initialization_success(mock_config, mock_google_reports_service):
     """Test successful service initialization."""
-    with patch('services.google_reports.service_account') as mock_sa, \
-         patch('services.google_reports.build', return_value=mock_google_reports_service):
+    with patch.object(google_reports, 'service_account') as mock_sa, \
+         patch.object(google_reports, 'build', return_value=mock_google_reports_service):
         mock_creds = Mock()
         mock_sa.Credentials.from_service_account_file.return_value = mock_creds
         mock_creds.with_subject.return_value = mock_creds
@@ -81,9 +101,10 @@ def test_initialization_missing_credentials(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    import config as iris_config
-    monkeypatch.setattr(iris_config, 'config', MockConfig())
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_reports, 'config', MockConfig())
 
     service = GoogleReportsService()
     assert service.service is None
@@ -124,9 +145,10 @@ def test_get_usage_service_not_initialized(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    import config as iris_config
-    monkeypatch.setattr(iris_config, 'config', MockConfig())
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_reports, 'config', MockConfig())
 
     service = GoogleReportsService()
 

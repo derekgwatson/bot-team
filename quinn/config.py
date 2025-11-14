@@ -33,11 +33,17 @@ class Config:
 
         # Google Groups config
         self.credentials_file = os.path.join(os.path.dirname(__file__), data['google_groups']['credentials_file'])
-        self.allstaff_group = data['google_groups']['allstaff_group']
+        # Read allstaff group from env first, fallback to config file
+        self.allstaff_group = os.environ.get('GOOGLE_ALLSTAFF_GROUP') or data['google_groups'].get('allstaff_group', '')
 
         # Auth config - secrets come from environment variables
         self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
         self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-        self.admin_emails = data['auth'].get('admin_emails', [])
+        # Admin emails from env (comma-separated list) or fallback to config file
+        env_emails = os.environ.get('ADMIN_EMAILS', '')
+        if env_emails:
+            self.admin_emails = [email.strip() for email in env_emails.split(',') if email.strip()]
+        else:
+            self.admin_emails = data['auth'].get('admin_emails', [])
 
 config = Config()

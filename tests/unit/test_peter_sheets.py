@@ -12,16 +12,33 @@ from googleapiclient.errors import HttpError
 import importlib.util
 
 # Add peter directory to path for imports
-peter_path = Path(__file__).parent.parent.parent / 'peter'
+project_root = Path(__file__).parent.parent.parent
+peter_path = project_root / 'peter'
+
 if str(peter_path) not in sys.path:
     sys.path.insert(0, str(peter_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Also add parent to ensure config can be imported
-if str(peter_path.parent) not in sys.path:
-    sys.path.insert(0, str(peter_path.parent))
-
-# Import the service
-from services.google_sheets import GoogleSheetsService
+# Import the service - use importlib for Windows compatibility
+try:
+    from services import google_sheets
+    from services.google_sheets import GoogleSheetsService
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "services.google_sheets",
+        peter_path / "services" / "google_sheets.py"
+    )
+    if spec and spec.loader:
+        google_sheets = importlib.util.module_from_spec(spec)
+        sys.modules['services.google_sheets'] = google_sheets
+        sys.modules['services'] = type(sys)('services')
+        sys.modules['services'].google_sheets = google_sheets
+        spec.loader.exec_module(google_sheets)
+        GoogleSheetsService = google_sheets.GoogleSheetsService
+    else:
+        raise ImportError(f"Could not import GoogleSheetsService: {e}")
 
 
 # ==============================================================================
@@ -39,17 +56,21 @@ def mock_config(monkeypatch, tmp_path):
         spreadsheet_id = 'test-spreadsheet-id'
         sheet_name = 'Phone List'
 
-    import config as peter_config
-    monkeypatch.setattr(peter_config, 'config', MockConfig())
+    mock_config_obj = MockConfig()
 
-    return MockConfig()
+    # Patch where the config is USED
+    import services.google_sheets
+    monkeypatch.setattr(services.google_sheets, 'config', mock_config_obj)
+
+    return mock_config_obj
 
 
 @pytest.fixture
 def sheets_service_with_mock(mock_config, mock_google_sheets_service):
     """Create a GoogleSheetsService instance with mocked Google Sheets API."""
-    with patch('services.google_sheets.service_account'), \
-         patch('services.google_sheets.build', return_value=mock_google_sheets_service):
+    import services.google_sheets
+    with patch.object(services.google_sheets, 'service_account'), \
+         patch.object(services.google_sheets, 'build', return_value=mock_google_sheets_service):
         service = GoogleSheetsService()
         return service
 
@@ -76,8 +97,9 @@ def sample_sheet_data():
 @pytest.mark.google_api
 def test_initialization_success(mock_config, mock_google_sheets_service):
     """Test successful service initialization."""
-    with patch('services.google_sheets.service_account') as mock_sa, \
-         patch('services.google_sheets.build', return_value=mock_google_sheets_service):
+    import services.google_sheets
+    with patch.object(services.google_sheets, 'service_account') as mock_sa, \
+         patch.object(services.google_sheets, 'build', return_value=mock_google_sheets_service):
         mock_creds = Mock()
         mock_sa.Credentials.from_service_account_file.return_value = mock_creds
 

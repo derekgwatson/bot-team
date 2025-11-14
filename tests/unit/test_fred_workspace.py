@@ -9,12 +9,36 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 from googleapiclient.errors import HttpError
+import importlib.util
 
 # Add fred directory to path
-fred_path = Path(__file__).parent.parent.parent / 'fred'
-sys.path.insert(0, str(fred_path))
+project_root = Path(__file__).parent.parent.parent
+fred_path = project_root / 'fred'
 
-from services.google_workspace import GoogleWorkspaceService
+if str(fred_path) not in sys.path:
+    sys.path.insert(0, str(fred_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Import the service - use importlib for Windows compatibility
+try:
+    from services import google_workspace
+    from services.google_workspace import GoogleWorkspaceService
+except ImportError as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "services.google_workspace",
+        fred_path / "services" / "google_workspace.py"
+    )
+    if spec and spec.loader:
+        google_workspace = importlib.util.module_from_spec(spec)
+        sys.modules['services.google_workspace'] = google_workspace
+        sys.modules['services'] = type(sys)('services')
+        sys.modules['services'].google_workspace = google_workspace
+        spec.loader.exec_module(google_workspace)
+        GoogleWorkspaceService = google_workspace.GoogleWorkspaceService
+    else:
+        raise ImportError(f"Could not import GoogleWorkspaceService: {e}")
 
 
 # ==============================================================================
@@ -31,19 +55,21 @@ def mock_config(monkeypatch, tmp_path):
     class MockConfig:
         google_credentials_file = str(creds_file)
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    # Patch the config module
-    import config as fred_config
-    monkeypatch.setattr(fred_config, 'config', MockConfig())
+    mock_config_obj = MockConfig()
 
-    return MockConfig()
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_workspace, 'config', mock_config_obj)
+
+    return mock_config_obj
 
 
 @pytest.fixture
 def workspace_service_with_mock(mock_config, mock_google_workspace_service):
     """Create a GoogleWorkspaceService instance with mocked Google API."""
-    with patch('services.google_workspace.service_account'), \
-         patch('services.google_workspace.build', return_value=mock_google_workspace_service):
+    with patch.object(google_workspace, 'service_account'), \
+         patch.object(google_workspace, 'build', return_value=mock_google_workspace_service):
         service = GoogleWorkspaceService()
         return service
 
@@ -55,9 +81,10 @@ def workspace_service_uninitialized(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    import config as fred_config
-    monkeypatch.setattr(fred_config, 'config', MockConfig())
+    # Patch where the config is USED (using already-imported module)
+    monkeypatch.setattr(google_workspace, 'config', MockConfig())
 
     service = GoogleWorkspaceService()
     return service

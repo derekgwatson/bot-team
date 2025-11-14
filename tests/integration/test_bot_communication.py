@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 from flask import Flask
 import responses
+import importlib.util
 
 # Add paths for multiple bots
 project_root = Path(__file__).parent.parent.parent
@@ -29,6 +30,23 @@ if str(shared_path) not in sys.path:
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Import Pam's peter_client using importlib for Windows compatibility
+try:
+    from services.peter_client import PeterClient
+except (ImportError, AttributeError) as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "peter_client",
+        pam_path / "services" / "peter_client.py"
+    )
+    if spec and spec.loader:
+        peter_client_module = importlib.util.module_from_spec(spec)
+        sys.modules['peter_client'] = peter_client_module
+        spec.loader.exec_module(peter_client_module)
+        PeterClient = peter_client_module.PeterClient
+    else:
+        raise ImportError(f"Could not import PeterClient: {e}")
+
 
 # ==============================================================================
 # Pam -> Peter Integration Tests
@@ -39,21 +57,25 @@ if str(project_root) not in sys.path:
 @pytest.mark.peter
 def test_pam_calls_peter_search(mock_responses):
     """Test Pam successfully calling Peter's search API."""
-    from services.peter_client import PeterClient
-
-    # Mock Peter API response
+    # Mock Peter API response (proper format with 'results' key)
     mock_responses.add(
         responses.GET,
         'http://localhost:8003/api/contacts/search',
-        json=[
-            {'name': 'John Doe', 'email': 'john@company.com', 'phone': '555-0100'}
-        ],
+        json={
+            'results': [
+                {'name': 'John Doe', 'email': 'john@company.com', 'phone': '555-0100'}
+            ],
+            'count': 1,
+            'query': 'John'
+        },
         status=200
     )
 
     # Mock config
     class MockConfig:
         peter_api_url = 'http://localhost:8003'
+        peter_contacts_endpoint = '/api/contacts'
+        peter_search_endpoint = '/api/contacts/search'
 
     import config as pam_config
     with patch.object(pam_config, 'config', MockConfig()):
@@ -69,23 +91,26 @@ def test_pam_calls_peter_search(mock_responses):
 @pytest.mark.peter
 def test_pam_handles_peter_unavailable(mock_responses):
     """Test Pam handling Peter being unavailable."""
-    from services.peter_client import PeterClient
-
-    # Mock connection error
+    # Mock connection error by raising ConnectionError
+    import requests.exceptions
     mock_responses.add(
         responses.GET,
         'http://localhost:8003/api/contacts/search',
-        body=Exception('Connection refused')
+        body=requests.exceptions.ConnectionError('Connection refused')
     )
 
     class MockConfig:
         peter_api_url = 'http://localhost:8003'
+        peter_contacts_endpoint = '/api/contacts'
+        peter_search_endpoint = '/api/contacts/search'
 
     import config as pam_config
     with patch.object(pam_config, 'config', MockConfig()):
         client = PeterClient()
-        # Should handle error gracefully
-        # Actual behavior depends on implementation
+        # Should handle error gracefully and return error dict
+        result = client.search_contacts('test')
+        assert 'error' in result
+        assert 'Could not connect to Peter' in result['error']
 
 
 # ==============================================================================
@@ -109,10 +134,12 @@ def test_oauth_checks_quinn_for_external_approval(mock_responses, test_env):
         return 'Access Denied'
 
     # Mock config with Quinn URL
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     # Mock Quinn API response - approved
     mock_responses.add(
@@ -139,10 +166,12 @@ def test_oauth_handles_quinn_unavailable(mock_responses, test_env):
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     # Mock Quinn being unavailable
     import requests
@@ -169,10 +198,11 @@ def test_oauth_combines_domain_and_quinn_checks(mock_responses, test_env):
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'allowed_domains', 'admin_emails', 'quinn_api_url'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.allowed_domains = ['company.com']
+    mock_config.admin_emails = []
     mock_config.quinn_api_url = 'http://localhost:8004'
 
     # Mock Quinn response for external user
@@ -206,13 +236,8 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
 
     db_file = tmp_path / 'test_e2e.db'
 
-    class QuinnConfig:
-        database_path = str(db_file)
-
-    import config as quinn_config
-    monkeypatch.setattr(quinn_config, 'config', QuinnConfig())
-
-    db = ExternalStaffDB()
+    # Create database with explicit path (no need to mock config)
+    db = ExternalStaffDB(db_path=str(db_file))
 
     # Step 1: External user submits request
     req_id = db.submit_request(
@@ -239,10 +264,12 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     auth = GoogleAuth(app, mock_config)
 
