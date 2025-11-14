@@ -9,6 +9,8 @@ def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
+            # Store the current URL to redirect back after login
+            session['next_url'] = request.url
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function

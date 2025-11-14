@@ -102,6 +102,18 @@ main() {
     info "Starting deployment process..."
     echo ""
 
+    # Check if running as www-data (recommended)
+    if [ "$(whoami)" != "www-data" ]; then
+        warning "Not running as www-data user. Recommended: sudo -u www-data $0 $@"
+        warning "Configuring git safe.directory to proceed..."
+
+        # Fix git dubious ownership issue
+        if ! git config --global --get-all safe.directory | grep -q "^$PROJECT_ROOT$"; then
+            git config --global --add safe.directory "$PROJECT_ROOT"
+            info "Added $PROJECT_ROOT to git safe.directory"
+        fi
+    fi
+
     # Navigate to project root
     cd "$PROJECT_ROOT"
 

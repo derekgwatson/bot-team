@@ -33,6 +33,17 @@ class GoogleAuth:
                 secret_key = hashlib.sha256(b'bot-team-default-secret').hexdigest()
             self.app.config['SECRET_KEY'] = secret_key
 
+        # Trust proxy headers (nginx sets X-Forwarded-Proto, X-Forwarded-For, etc.)
+        # This MUST be set before session cookie config so Flask knows about HTTPS
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_proto=1, x_host=1)
+
+        # Configure session cookies
+        # Don't set SESSION_COOKIE_SECURE here - let Flask handle it based on the scheme
+        # With ProxyFix, Flask will see https:// requests correctly
+        self.app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+        self.app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
         # Initialize OAuth
         self.oauth = OAuth(app)
         self.google = self.oauth.register(
@@ -47,7 +58,11 @@ class GoogleAuth:
         """OAuth login route"""
         # Store the page the user was trying to access (if not already set by require_auth)
         if 'next_url' not in session:
-            session['next_url'] = request.args.get('next') or request.referrer or '/'
+            next_url = request.args.get('next') or request.referrer or '/'
+            # Don't redirect back to login page after successful auth - go to admin instead
+            if next_url and '/login' in next_url:
+                next_url = '/admin'
+            session['next_url'] = next_url
         redirect_uri = url_for('auth_callback', _external=True)
         return self.google.authorize_redirect(redirect_uri)
 
@@ -82,7 +97,7 @@ class GoogleAuth:
     def logout_route(self):
         """Logout route"""
         session.clear()
-        return redirect(url_for('login'))
+        return redirect('/')
 
     def _is_authorized(self, email):
         """
