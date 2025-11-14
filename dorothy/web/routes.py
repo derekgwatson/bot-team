@@ -187,8 +187,12 @@ def index():
 
                             // Build detailed info
                             let details = [];
-                            if (check.command) details.push(`<strong>Command:</strong> <code>${check.command}</code>`);
+                            if (check.path) details.push(`<strong>Path:</strong> <code>${check.path}</code>`);
+                            if (check.service_name) details.push(`<strong>Service:</strong> ${check.service_name}`);
+                            if (check.domain) details.push(`<strong>Domain:</strong> ${check.domain}`);
+                            if (check.branch) details.push(`<strong>Branch:</strong> ${check.branch}`);
                             if (check.details) details.push(`<strong>Details:</strong> ${check.details}`);
+                            if (check.command) details.push(`<strong>Command:</strong> <code style="font-size: 0.85em;">${check.command}</code>`);
                             if (check.error) details.push(`<strong>Error:</strong><pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107;">${check.error}</pre>`);
                             if (check.stdout) details.push(`<strong>Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #d4edda; border-left: 3px solid #28a745;">${check.stdout}</pre>`);
                             if (check.stderr) details.push(`<strong>Error Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #f8d7da; border-left: 3px solid #dc3545;">${check.stderr}</pre>`);

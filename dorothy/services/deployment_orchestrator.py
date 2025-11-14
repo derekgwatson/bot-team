@@ -79,7 +79,9 @@ class DeploymentOrchestrator:
             'success': exists and syntax_result.get('exit_code') == 0,
             'exists': exists,
             'syntax_valid': syntax_result.get('exit_code') == 0,
-            'details': f"Config exists: {exists}, Syntax valid: {syntax_result.get('exit_code') == 0}"
+            'details': f"Config exists: {exists}, Syntax valid: {syntax_result.get('exit_code') == 0}",
+            'path': f"/etc/nginx/sites-available/{bot_name}",
+            'command': check_result.get('command')
         }
 
     def verify_gunicorn_service(self, server: str, bot_name: str) -> Dict:
@@ -116,7 +118,9 @@ class DeploymentOrchestrator:
             'exists': exists,
             'running': is_running,
             'service_name': service_name,
-            'details': f"Service exists: {exists}, Running: {is_running}"
+            'details': f"Service exists: {exists}, Running: {is_running}",
+            'path': f"/etc/systemd/system/{service_name}.service",
+            'command': check_result.get('command')
         }
 
     def verify_ssl_certificate(self, server: str, bot_name: str) -> Dict:
@@ -154,7 +158,9 @@ class DeploymentOrchestrator:
             'success': exists,
             'exists': exists,
             'domain': domain,
-            'expiry': expiry
+            'expiry': expiry,
+            'path': f"/etc/letsencrypt/live/{domain}/fullchain.pem",
+            'command': check_result.get('command')
         }
 
     def verify_repository(self, server: str, bot_name: str) -> Dict:
@@ -195,7 +201,8 @@ class DeploymentOrchestrator:
             'exists': exists,
             'path': path,
             'branch': branch,
-            'status': status or 'clean'
+            'status': status or 'clean',
+            'command': check_result.get('command')
         }
 
     def verify_virtualenv(self, server: str, bot_name: str) -> Dict:
@@ -235,7 +242,9 @@ class DeploymentOrchestrator:
             'success': exists,
             'exists': exists,
             'venv_path': venv_path,
-            'packages_installed': packages_ok
+            'packages_installed': packages_ok,
+            'path': venv_path,
+            'command': check_result.get('command')
         }
 
     def verify_permissions(self, server: str, bot_name: str) -> Dict:
@@ -259,7 +268,9 @@ class DeploymentOrchestrator:
         return {
             'check': 'permissions',
             'success': check_result.get('success'),
-            'details': check_result.get('stdout', '').strip()
+            'details': check_result.get('stdout', '').strip(),
+            'path': path,
+            'command': check_result.get('command')
         }
 
     def verify_deployment(self, server: str, bot_name: str) -> Dict:
