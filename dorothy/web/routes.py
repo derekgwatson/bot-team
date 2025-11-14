@@ -238,6 +238,32 @@ def index():
             <p>🔗 <a href="{{ config.sally_url }}" target="_blank">Sally (SSH Executor)</a></p>
         </div>
 
+        <div class="card">
+            <h2>Managing Bots</h2>
+
+            <h3 style="margin-top: 15px; color: #f5576c;">➕ Adding a New Bot</h3>
+            <ol style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                <li>Edit <code>dorothy/config.yaml</code> (or <code>config.local.yaml</code> for overrides)</li>
+                <li>Add your bot to the <code>bots:</code> section with port, domain, etc.</li>
+                <li>Restart Dorothy using the button below to load the new config</li>
+                <li>Use the <strong>Deploy</strong> button to deploy the new bot</li>
+            </ol>
+
+            <h3 style="margin-top: 15px; color: #DC3545;">➖ Removing a Bot</h3>
+            <ol style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                <li>Use the <strong>Teardown</strong> button to remove the bot from the server</li>
+                <li>Remove the bot from <code>config.yaml</code> (or <code>config.local.yaml</code>)</li>
+                <li>Restart Dorothy using the button below to update the UI</li>
+            </ol>
+
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button class="btn btn-deploy" onclick="restartDorothy()" style="width: 100%;">
+                    🔄 Restart Dorothy
+                </button>
+                <div id="restart-result"></div>
+            </div>
+        </div>
+
         <!-- Confirmation Modal -->
         <div id="confirmModal" class="modal-overlay">
             <div class="modal-dialog">
@@ -918,6 +944,63 @@ def index():
                         }
                     }
                 );
+            }
+
+            async function restartDorothy() {
+                const resultDiv = document.getElementById('restart-result');
+                resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">🔄 Restarting Dorothy...</div>';
+
+                try {
+                    const response = await fetch('/api/restart-dorothy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Restart Failed</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="result success" style="margin-top: 10px;">
+                                <strong>✅ Dorothy Restarted!</strong>
+                                <div style="margin-top: 5px; color: #666;">Page will reload in 3 seconds...</div>
+                            </div>
+                        `;
+                        // Reload page after 3 seconds to show updated config
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        let errorDetails = '';
+                        if (data.stderr) errorDetails += `<div><strong>Error:</strong> ${data.stderr}</div>`;
+                        if (data.stdout) errorDetails += `<div><strong>Output:</strong> ${data.stdout}</div>`;
+
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Restart Failed</strong>
+                                ${errorDetails}
+                            </div>
+                        `;
+                    }
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Restart Failed</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
             }
         </script>
     </body>

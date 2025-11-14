@@ -225,6 +225,34 @@ def start_service(bot_name):
         'exit_code': result.get('exit_code')
     })
 
+@api_bp.route('/restart-dorothy', methods=['POST'])
+def restart_dorothy():
+    """
+    Restart Dorothy's own service (to reload config changes)
+
+    Body:
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    # Get Dorothy's service name from config
+    bot_config = config.get_bot_config('dorothy')
+    service_name = bot_config.get('service', 'gunicorn-bot-team-dorothy')
+
+    result = deployment_orchestrator._call_sally(
+        server,
+        f"sudo systemctl restart {service_name}"
+    )
+
+    return jsonify({
+        'success': result.get('success'),
+        'service': service_name,
+        'stdout': result.get('stdout', ''),
+        'stderr': result.get('stderr', ''),
+        'exit_code': result.get('exit_code')
+    })
+
 @api_bp.route('/update/<bot_name>', methods=['POST'])
 def update_bot(bot_name):
     """
