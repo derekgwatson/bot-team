@@ -10,13 +10,17 @@ def list_bots():
     bots = config.bots
     bot_list = []
 
-    for name, bot_config in bots.items():
+    for name in bots.keys():
+        # Get full bot config with defaults applied
+        bot_config = config.get_bot_config(name)
         bot_list.append({
             'name': name,
             'port': bot_config.get('port'),
             'domain': bot_config.get('domain'),
             'path': bot_config.get('path'),
-            'service': bot_config.get('service')
+            'service': bot_config.get('service'),
+            'workers': bot_config.get('workers'),
+            'description': bot_config.get('description')
         })
 
     return jsonify({

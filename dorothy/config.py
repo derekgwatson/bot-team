@@ -87,8 +87,44 @@ class Config:
         """Get bot configurations"""
         return self._config.get('bots', {})
 
+    @property
+    def defaults(self):
+        """Get default bot configuration"""
+        return self._config.get('defaults', {})
+
     def get_bot_config(self, bot_name):
-        """Get configuration for a specific bot"""
-        return self.bots.get(bot_name)
+        """
+        Get configuration for a specific bot
+
+        Merges defaults with bot-specific config and replaces {bot_name} placeholders
+        """
+        bot_config = self.bots.get(bot_name)
+        if not bot_config:
+            return None
+
+        # Start with defaults, then merge bot-specific config
+        merged = self._deep_merge(self.defaults.copy(), bot_config)
+
+        # Replace {bot_name} placeholders in all string values
+        merged = self._replace_placeholders(merged, bot_name)
+
+        return merged
+
+    def _replace_placeholders(self, config: dict, bot_name: str) -> dict:
+        """Replace {bot_name} placeholders in config values"""
+        result = {}
+        for key, value in config.items():
+            if isinstance(value, str):
+                result[key] = value.format(bot_name=bot_name)
+            elif isinstance(value, dict):
+                result[key] = self._replace_placeholders(value, bot_name)
+            elif isinstance(value, list):
+                result[key] = [
+                    item.format(bot_name=bot_name) if isinstance(item, str) else item
+                    for item in value
+                ]
+            else:
+                result[key] = value
+        return result
 
 config = Config()
