@@ -71,10 +71,14 @@ def test_search_contacts_success(peter_client, mock_responses):
     mock_responses.add(
         mock_responses.GET,
         'http://localhost:8003/api/contacts/search',
-        json=[
-            {'name': 'John Doe', 'email': 'john@example.com', 'phone': '555-0100'},
-            {'name': 'Jane Doe', 'email': 'jane@example.com', 'phone': '555-0101'}
-        ],
+        json={
+            'results': [
+                {'name': 'John Doe', 'email': 'john@example.com', 'phone': '555-0100'},
+                {'name': 'Jane Doe', 'email': 'jane@example.com', 'phone': '555-0101'}
+            ],
+            'count': 2,
+            'query': 'Doe'
+        },
         status=200
     )
 
@@ -141,10 +145,13 @@ def test_get_all_contacts_success(peter_client, mock_responses):
     mock_responses.add(
         mock_responses.GET,
         'http://localhost:8003/api/contacts',
-        json=[
-            {'name': 'Contact 1', 'email': 'c1@example.com'},
-            {'name': 'Contact 2', 'email': 'c2@example.com'}
-        ],
+        json={
+            'contacts': [
+                {'name': 'Contact 1', 'email': 'c1@example.com'},
+                {'name': 'Contact 2', 'email': 'c2@example.com'}
+            ],
+            'count': 2
+        },
         status=200
     )
 
@@ -160,7 +167,10 @@ def test_get_all_contacts_empty(peter_client, mock_responses):
     mock_responses.add(
         mock_responses.GET,
         'http://localhost:8003/api/contacts',
-        json=[],
+        json={
+            'contacts': [],
+            'count': 0
+        },
         status=200
     )
 

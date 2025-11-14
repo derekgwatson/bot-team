@@ -41,19 +41,25 @@ def test_pam_calls_peter_search(mock_responses):
     """Test Pam successfully calling Peter's search API."""
     from services.peter_client import PeterClient
 
-    # Mock Peter API response
+    # Mock Peter API response (proper format with 'results' key)
     mock_responses.add(
         responses.GET,
         'http://localhost:8003/api/contacts/search',
-        json=[
-            {'name': 'John Doe', 'email': 'john@company.com', 'phone': '555-0100'}
-        ],
+        json={
+            'results': [
+                {'name': 'John Doe', 'email': 'john@company.com', 'phone': '555-0100'}
+            ],
+            'count': 1,
+            'query': 'John'
+        },
         status=200
     )
 
     # Mock config
     class MockConfig:
         peter_api_url = 'http://localhost:8003'
+        peter_contacts_endpoint = '/api/contacts'
+        peter_search_endpoint = '/api/contacts/search'
 
     import config as pam_config
     with patch.object(pam_config, 'config', MockConfig()):
@@ -80,6 +86,8 @@ def test_pam_handles_peter_unavailable(mock_responses):
 
     class MockConfig:
         peter_api_url = 'http://localhost:8003'
+        peter_contacts_endpoint = '/api/contacts'
+        peter_search_endpoint = '/api/contacts/search'
 
     import config as pam_config
     with patch.object(pam_config, 'config', MockConfig()):
@@ -207,13 +215,8 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
 
     db_file = tmp_path / 'test_e2e.db'
 
-    class QuinnConfig:
-        database_path = str(db_file)
-
-    import config as quinn_config
-    monkeypatch.setattr(quinn_config, 'config', QuinnConfig())
-
-    db = ExternalStaffDB()
+    # Create database with explicit path (no need to mock config)
+    db = ExternalStaffDB(db_path=str(db_file))
 
     # Step 1: External user submits request
     req_id = db.submit_request(
