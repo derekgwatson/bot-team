@@ -112,6 +112,80 @@ def index():
             }
             .check-result.passed { border-left-color: #28a745; }
             .check-result.failed { border-left-color: #dc3545; }
+
+            /* Modal styles */
+            .modal-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+            }
+            .modal-overlay.show {
+                display: flex;
+            }
+            .modal-dialog {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                max-width: 500px;
+                width: 90%;
+                animation: modalSlideIn 0.2s ease-out;
+            }
+            @keyframes modalSlideIn {
+                from {
+                    transform: translateY(-50px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            .modal-title {
+                font-size: 1.3em;
+                font-weight: bold;
+                margin: 0 0 15px 0;
+                color: #333;
+            }
+            .modal-message {
+                color: #666;
+                margin-bottom: 25px;
+                line-height: 1.5;
+            }
+            .modal-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }
+            .btn-cancel {
+                background: #6c757d;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.95em;
+            }
+            .btn-confirm {
+                background: #f5576c;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.95em;
+                font-weight: bold;
+            }
+            .btn-cancel:hover, .btn-confirm:hover {
+                opacity: 0.9;
+            }
         </style>
     </head>
     <body>
@@ -157,6 +231,18 @@ def index():
             <p>🔗 <a href="/health">Health Check</a></p>
             <p>🔗 <a href="/info">Bot Info</a></p>
             <p>🔗 <a href="{{ config.sally_url }}" target="_blank">Sally (SSH Executor)</a></p>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="modal-overlay">
+            <div class="modal-dialog">
+                <div class="modal-title" id="modalTitle">Confirm Action</div>
+                <div class="modal-message" id="modalMessage"></div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+                    <button class="btn-confirm" id="modalConfirmBtn">Deploy</button>
+                </div>
+            </div>
         </div>
 
         <script>
@@ -294,10 +380,41 @@ def index():
                 }
             }
 
-            async function deployBot(botName) {
-                if (!confirm('Deploy ' + botName + ' to production?')) return;
+            let confirmModalCallback = null;
 
+            function showConfirmModal(title, message, onConfirm) {
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('show');
+                confirmModalCallback = onConfirm;
+            }
+
+            function closeConfirmModal() {
+                document.getElementById('confirmModal').classList.remove('show');
+                confirmModalCallback = null;
+            }
+
+            document.getElementById('modalConfirmBtn').onclick = function() {
+                if (confirmModalCallback) {
+                    confirmModalCallback();
+                }
+                closeConfirmModal();
+            };
+
+            // Close on outside click
+            document.getElementById('confirmModal').onclick = function(e) {
+                if (e.target.id === 'confirmModal') {
+                    closeConfirmModal();
+                }
+            };
+
+            async function deployBot(botName) {
                 const resultDiv = document.getElementById('result-' + botName);
+
+                showConfirmModal(
+                    '🚀 Deploy ' + botName + '?',
+                    'This will deploy ' + botName + ' to the production server. The deployment process will update code, install dependencies, and restart the service.',
+                    async function() {
                 resultDiv.innerHTML = '<div class="result">🚀 Starting deployment...</div>';
 
                 try {
@@ -435,6 +552,8 @@ def index():
                         </div>
                     `;
                 }
+                    }
+                );
             }
 
             async function showPlan(botName) {
