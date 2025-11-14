@@ -41,6 +41,8 @@ class Config:
         if env_emails:
             self.admin_emails = [email.strip() for email in env_emails.split(',') if email.strip()]
         else:
-            self.admin_emails = data.get('auth', {}).get('admin_emails', [])
+            # Get auth section (may be None if empty in yaml)
+            auth_section = data.get('auth') or {}
+            self.admin_emails = auth_section.get('admin_emails', [])
 
 config = Config()
