@@ -850,16 +850,16 @@ class DeploymentOrchestrator:
                 'exit_code': reload_result.get('exit_code')
             }
 
-        # Step 8: Start/restart service
-        deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})
-
-        start_result = self._call_sally(server, f"sudo systemctl restart {service_name}")
-        deployment['steps'][-1]['status'] = 'completed' if start_result.get('success') else 'failed'
+        # Step 8: Manual configuration instructions (don't start service yet)
+        deployment['steps'].append({'name': 'Manual configuration required', 'status': 'completed'})
         deployment['steps'][-1]['result'] = {
-            'success': start_result.get('success'),
-            'stdout': start_result.get('stdout', ''),
-            'stderr': start_result.get('stderr', ''),
-            'exit_code': start_result.get('exit_code')
+            'success': True,
+            'message': f'Deployment setup complete! Before starting the service:\n'
+                      f'1. SSH to the server: ssh {server}\n'
+                      f'2. Edit the .env file: sudo nano {path}/.env\n'
+                      f'3. Update configuration values (API keys, credentials, etc.)\n'
+                      f'4. Start the service: sudo systemctl start {service_name}\n'
+                      f'5. Check status: sudo systemctl status {service_name}'
         }
 
         # Final status
@@ -876,11 +876,12 @@ class DeploymentOrchestrator:
         - Clone/update repository
         - Set up virtual environment
         - Install dependencies
+        - Create .env from .env.example (if needed)
         - Create nginx config
         - Create systemd service
         - Set up SSL with certbot (if ssl_email is configured)
         - Reload nginx
-        - Start the service
+        - Provide instructions for manual .env configuration and service start
 
         Args:
             server: Server name
