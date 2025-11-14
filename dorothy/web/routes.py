@@ -63,6 +63,7 @@ def index():
             .btn-update { background: #9C27B0; color: white; }
             .btn-start-service { background: #00BCD4; color: white; }
             .btn-health { background: #2196F3; color: white; }
+            .btn-teardown { background: #DC3545; color: white; }
             .btn:hover { opacity: 0.9; }
             .plan-step {
                 background: #f8f9fa;
@@ -217,6 +218,7 @@ def index():
                         <button class="btn btn-deploy" onclick="deployBot('{{ name }}')">Deploy</button>
                         <button class="btn btn-update" onclick="updateBot('{{ name }}')">Update</button>
                         <button class="btn btn-health" onclick="healthCheck('{{ name }}')">Health</button>
+                        <button class="btn btn-teardown" onclick="teardownBot('{{ name }}')">Teardown</button>
                     </div>
                     <div id="result-{{ name }}"></div>
                 </div>
@@ -852,6 +854,70 @@ def index():
                         </div>
                     `;
                 }
+            }
+
+            async function teardownBot(botName) {
+                const resultDiv = document.getElementById('result-' + botName);
+
+                showConfirmModal(
+                    '⚠️ Teardown ' + botName + '?',
+                    'WARNING: This will remove the bot from the server (stop service, remove systemd/nginx configs). The code directory will be kept. This cannot be undone!',
+                    async function() {
+                        resultDiv.innerHTML = '<div class="result">🗑️ Tearing down bot...</div>';
+
+                        try {
+                            const response = await fetch('/api/teardown/' + botName, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ remove_code: false })
+                            });
+
+                            const data = await response.json();
+
+                            if (data.error) {
+                                resultDiv.innerHTML = `
+                                    <div class="result error">
+                                        <strong>❌ Teardown Failed</strong>
+                                        <div>${data.error}</div>
+                                    </div>
+                                `;
+                                return;
+                            }
+
+                            // Build steps HTML
+                            let stepsHtml = '';
+                            if (data.steps && data.steps.length > 0) {
+                                stepsHtml = data.steps.map(step => {
+                                    let icon = step.status === 'completed' ? '✅' : '❌';
+                                    let bgColor = step.status === 'completed' ? '#f0f9ff' : '#fff5f5';
+
+                                    return `<div class="check-result" style="margin-bottom: 15px; padding: 12px; border-radius: 5px; background: ${bgColor};">
+                                        ${icon} <strong>${step.name}</strong>
+                                    </div>`;
+                                }).join('');
+                            }
+
+                            const isSuccess = data.success;
+                            resultDiv.innerHTML = `
+                                <div class="result ${isSuccess ? 'success' : 'error'}">
+                                    <strong>${isSuccess ? '✅ Teardown Completed' : '❌ Teardown Failed'}</strong>
+                                    <div style="margin-top: 15px;">
+                                        ${stepsHtml}
+                                    </div>
+                                    ${isSuccess ? '<div style="margin-top: 10px; color: #666;">The bot has been removed from the server. Code directory preserved at: ' + (data.bot || botName) + '</div>' : ''}
+                                </div>
+                            `;
+
+                        } catch (error) {
+                            resultDiv.innerHTML = `
+                                <div class="result error">
+                                    <strong>❌ Teardown Failed</strong>
+                                    <div>${error.message}</div>
+                                </div>
+                            `;
+                        }
+                    }
+                );
             }
         </script>
     </body>

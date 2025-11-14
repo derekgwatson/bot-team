@@ -1045,6 +1045,88 @@ class DeploymentOrchestrator:
             'error': result.get('stderr', '')
         }
 
+    def teardown_bot(self, server: str, bot_name: str, remove_code: bool = False) -> Dict:
+        """
+        Remove/teardown a bot from the server
+
+        Removes all deployment artifacts:
+        - Stops and disables systemd service
+        - Removes systemd service file
+        - Removes nginx config (if applicable)
+        - Reloads daemons
+        - Optionally removes code directory
+
+        Args:
+            server: Server name
+            bot_name: Bot to remove
+            remove_code: Whether to also remove the code directory (default: False)
+
+        Returns:
+            Teardown result with status
+        """
+        bot_config = config.get_bot_config(bot_name)
+        if not bot_config:
+            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+
+        path = bot_config.get('path')
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        skip_nginx = bot_config.get('skip_nginx', False)
+        nginx_config_name = bot_config.get('nginx_config_name', bot_name)
+
+        teardown_result = {
+            'bot': bot_name,
+            'server': server,
+            'steps': [],
+            'success': True
+        }
+
+        # Step 1: Stop and disable service
+        teardown_result['steps'].append({'name': 'Stop and disable service', 'status': 'in_progress'})
+        stop_result = self._call_sally(
+            server,
+            f"sudo systemctl stop {service_name} && sudo systemctl disable {service_name}"
+        )
+        teardown_result['steps'][-1]['status'] = 'completed' if stop_result.get('success') else 'failed'
+        teardown_result['steps'][-1]['result'] = stop_result
+
+        # Step 2: Remove systemd service file
+        teardown_result['steps'].append({'name': 'Remove systemd service', 'status': 'in_progress'})
+        remove_service_result = self._call_sally(
+            server,
+            f"sudo rm -f /etc/systemd/system/{service_name}.service && sudo systemctl daemon-reload"
+        )
+        teardown_result['steps'][-1]['status'] = 'completed' if remove_service_result.get('success') else 'failed'
+        teardown_result['steps'][-1]['result'] = remove_service_result
+
+        # Step 3: Remove nginx config (if applicable)
+        if not skip_nginx:
+            teardown_result['steps'].append({'name': 'Remove nginx config', 'status': 'in_progress'})
+            remove_nginx_result = self._call_sally(
+                server,
+                f"sudo rm -f /etc/nginx/sites-enabled/{nginx_config_name} && "
+                f"sudo rm -f /etc/nginx/sites-available/{nginx_config_name} && "
+                f"sudo nginx -t && sudo systemctl reload nginx"
+            )
+            teardown_result['steps'][-1]['status'] = 'completed' if remove_nginx_result.get('success') else 'failed'
+            teardown_result['steps'][-1]['result'] = remove_nginx_result
+
+        # Step 4: Remove code directory (optional)
+        if remove_code:
+            teardown_result['steps'].append({'name': 'Remove code directory', 'status': 'in_progress'})
+            remove_code_result = self._call_sally(
+                server,
+                f"sudo rm -rf {path}"
+            )
+            teardown_result['steps'][-1]['status'] = 'completed' if remove_code_result.get('success') else 'failed'
+            teardown_result['steps'][-1]['result'] = remove_code_result
+
+        # Check if any steps failed
+        teardown_result['success'] = all(
+            step['status'] == 'completed' for step in teardown_result['steps']
+        )
+
+        return teardown_result
+
     def get_deployment_status(self, deployment_id: str) -> Optional[Dict]:
         """Get status of a deployment"""
         return self.deployments.get(deployment_id)
