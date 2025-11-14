@@ -444,7 +444,7 @@ class DeploymentOrchestrator:
         plan['steps'].append({
             'name': 'Virtual environment setup',
             'description': 'Create Python virtual environment if needed',
-            'command': f"cd {path} && sudo -u www-data bash -c 'test -d .venv || python3 -m venv .venv'"
+            'command': f"sudo -u www-data bash -c 'cd {path} && (test -d .venv || python3 -m venv .venv)'"
         })
 
         # Step 3: Install dependencies
@@ -603,7 +603,7 @@ class DeploymentOrchestrator:
         venv_path = f"{path}/.venv"
         venv_result = self._call_sally(
             server,
-            f"cd {path} && sudo -u www-data bash -c 'test -d .venv || python3 -m venv .venv'"
+            f"sudo -u www-data bash -c 'cd {path} && (test -d .venv || python3 -m venv .venv)'"
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
