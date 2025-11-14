@@ -1,9 +1,12 @@
 from flask import Blueprint, render_template_string, request, jsonify
+from flask_login import current_user
 from config import config
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__)
 
 @web_bp.route('/')
+@login_required
 def index():
     """Dorothy's home page"""
     # Get all bots with defaults applied
@@ -14,6 +17,9 @@ def index():
     <html>
     <head>
         <title>Dorothy - Deployment Orchestrator</title>
+        <meta name="robots" content="noindex, nofollow">
+        <meta name="googlebot" content="noindex, nofollow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             body {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -28,9 +34,35 @@ def index():
                 padding: 30px;
                 border-radius: 10px;
                 margin-bottom: 30px;
+                position: relative;
             }
             .header h1 { margin: 0 0 10px 0; }
             .header p { margin: 0; opacity: 0.9; }
+            .user-info {
+                position: absolute;
+                top: 20px;
+                right: 30px;
+                text-align: right;
+                font-size: 0.9em;
+            }
+            .user-email {
+                margin-bottom: 8px;
+                opacity: 0.9;
+            }
+            .btn-logout {
+                background: rgba(255,255,255,0.2);
+                color: white;
+                border: 1px solid rgba(255,255,255,0.3);
+                padding: 6px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 0.85em;
+            }
+            .btn-logout:hover {
+                background: rgba(255,255,255,0.3);
+            }
             .card {
                 background: white;
                 padding: 25px;
@@ -48,13 +80,13 @@ def index():
             }
             .bot-card h3 { margin: 0 0 10px 0; color: #f5576c; }
             .bot-card .info { color: #666; font-size: 0.9em; margin: 5px 0; }
-            .bot-card .actions { margin-top: 15px; display: flex; gap: 10px; }
+            .bot-card .actions { margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
             .btn {
-                padding: 8px 16px;
+                padding: 6px 12px;
                 border: none;
                 border-radius: 5px;
                 cursor: pointer;
-                font-size: 0.9em;
+                font-size: 0.85em;
                 font-weight: bold;
             }
             .btn-verify { background: #4CAF50; color: white; }
@@ -193,6 +225,10 @@ def index():
     </head>
     <body>
         <div class="header">
+            <div class="user-info">
+                <div class="user-email">{{ current_user.email }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+            </div>
             <h1>🚀 Dorothy</h1>
             <p>{{ config.description }}</p>
         </div>
@@ -238,11 +274,98 @@ def index():
             <p>🔗 <a href="{{ config.sally_url }}" target="_blank">Sally (SSH Executor)</a></p>
         </div>
 
+        <div class="card">
+            <h2>Managing Bots</h2>
+
+            <h3 style="margin-top: 15px; color: #f5576c;">➕ Add New Bot</h3>
+            <p style="color: #666; font-size: 0.9em;">Add a new bot directly from the UI - Sally will update the config for you!</p>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Bot Name*</label>
+                        <input type="text" id="new-bot-name" placeholder="e.g., peter" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Domain*</label>
+                        <input type="text" id="new-bot-domain" placeholder="e.g., peter.example.com" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Workers</label>
+                        <input type="number" id="new-bot-workers" value="2" min="1" max="8" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Description</label>
+                        <input type="text" id="new-bot-description" placeholder="e.g., Project management bot" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+
+                <!-- Advanced Options Toggle -->
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                    <button type="button" onclick="toggleAdvancedOptions()" style="background: none; border: none; color: #007bff; cursor: pointer; font-size: 0.85em; padding: 0; text-decoration: underline;">
+                        <span id="advanced-toggle-text">⚙️ Show Advanced Options</span>
+                    </button>
+                </div>
+
+                <!-- Advanced Options (Hidden by default) -->
+                <div id="advanced-options" style="display: none; margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <p style="font-size: 0.85em; color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin: 0 0 10px 0;">
+                        ⚠️ <strong>Advanced:</strong> For internal-only bots (like Sally) that don't need nginx/public domain.<br>
+                        If you enter a port, nginx will be skipped and the bot will be accessible directly on that port.
+                    </p>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port (optional - for internal-only bots)</label>
+                        <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+
+                <button class="btn btn-deploy" onclick="addNewBot()" style="width: 100%; margin-top: 15px;">
+                    ✨ Add Bot & Restart Dorothy
+                </button>
+                <div id="add-bot-result"></div>
+            </div>
+
+            <h3 style="margin-top: 15px; color: #DC3545;">➖ Removing a Bot</h3>
+            <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                Use the <strong>Teardown</strong> button on any bot card. You'll have options to:
+            </p>
+            <ul style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                <li><strong>Remove from config:</strong> Sally will edit config.local.yaml and restart Dorothy (bot disappears from UI)</li>
+                <li><strong>Delete code:</strong> Permanently remove the code directory from the server</li>
+                <li>Or just teardown infrastructure and keep bot in config for future redeployment</li>
+            </ul>
+
+            <h3 style="margin-top: 15px; color: #17a2b8;">🔒 Accessing Internal-Only Bots</h3>
+            <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                Internal-only bots (like Sally) aren't exposed via nginx. Access them locally using SSH port forwarding:
+            </p>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.85em;">
+                ssh -L &lt;port&gt;:localhost:&lt;port&gt; &lt;user&gt;@&lt;server&gt;
+            </div>
+            <p style="color: #666; font-size: 0.85em; margin-top: 8px;">
+                <strong>Example for Sally (port 8004):</strong>
+            </p>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.85em;">
+                ssh -L 8004:localhost:8004 ubuntu@watsonblinds.com.au
+            </div>
+            <p style="color: #666; font-size: 0.85em;">
+                Then access at <code>http://localhost:8004</code> in your browser while the SSH connection is active.
+            </p>
+
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button class="btn btn-deploy" onclick="restartDorothy()" style="width: 100%;">
+                    🔄 Restart Dorothy
+                </button>
+                <div id="restart-result"></div>
+            </div>
+        </div>
+
         <!-- Confirmation Modal -->
         <div id="confirmModal" class="modal-overlay">
             <div class="modal-dialog">
                 <div class="modal-title" id="modalTitle">Confirm Action</div>
                 <div class="modal-message" id="modalMessage"></div>
+                <div id="modalOptions" style="margin: 15px 0; display: none;"></div>
                 <div class="modal-actions">
                     <button class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
                     <button class="btn-confirm" id="modalConfirmBtn">Deploy</button>
@@ -387,9 +510,19 @@ def index():
 
             let confirmModalCallback = null;
 
-            function showConfirmModal(title, message, onConfirm) {
+            function showConfirmModal(title, message, onConfirm, optionsHtml = null) {
                 document.getElementById('modalTitle').textContent = title;
                 document.getElementById('modalMessage').textContent = message;
+
+                const modalOptions = document.getElementById('modalOptions');
+                if (optionsHtml) {
+                    modalOptions.innerHTML = optionsHtml;
+                    modalOptions.style.display = 'block';
+                } else {
+                    modalOptions.innerHTML = '';
+                    modalOptions.style.display = 'none';
+                }
+
                 document.getElementById('confirmModal').classList.add('show');
                 confirmModalCallback = onConfirm;
             }
@@ -859,17 +992,37 @@ def index():
             async function teardownBot(botName) {
                 const resultDiv = document.getElementById('result-' + botName);
 
+                const optionsHtml = `
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; text-align: left;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 0.9em;">Teardown Options:</p>
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9em;">
+                            <input type="checkbox" id="teardown-remove-from-config" style="margin-right: 8px;">
+                            Remove bot from config.local.yaml and restart Dorothy
+                        </label>
+                        <label style="display: flex; align-items: center; font-size: 0.9em;">
+                            <input type="checkbox" id="teardown-remove-code" style="margin-right: 8px;">
+                            Delete code directory (⚠️ Cannot be undone!)
+                        </label>
+                    </div>
+                `;
+
                 showConfirmModal(
                     '⚠️ Teardown ' + botName + '?',
-                    'WARNING: This will remove the bot from the server (stop service, remove systemd/nginx configs). The code directory will be kept. This cannot be undone!',
+                    'This will stop the service and remove systemd/nginx configs from the server.',
                     async function() {
+                        const removeFromConfig = document.getElementById('teardown-remove-from-config').checked;
+                        const removeCode = document.getElementById('teardown-remove-code').checked;
+
                         resultDiv.innerHTML = '<div class="result">🗑️ Tearing down bot...</div>';
 
                         try {
                             const response = await fetch('/api/teardown/' + botName, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ remove_code: false })
+                                body: JSON.stringify({
+                                    remove_code: removeCode,
+                                    remove_from_config: removeFromConfig
+                                })
                             });
 
                             const data = await response.json();
@@ -898,13 +1051,26 @@ def index():
                             }
 
                             const isSuccess = data.success;
+                            const removedFromConfig = data.removed_from_config;
+
+                            let statusMessage = '';
+                            if (isSuccess) {
+                                if (removedFromConfig) {
+                                    statusMessage = '<div style="margin-top: 10px; color: #666;">Bot removed from server and config. Dorothy is restarting... Page will reload in 3 seconds.</div>';
+                                    // Reload page after 3 seconds to reflect config change
+                                    setTimeout(() => { window.location.reload(); }, 3000);
+                                } else {
+                                    statusMessage = '<div style="margin-top: 10px; color: #666;">Bot removed from server. Still listed in config - use Teardown again to remove from config, or Deploy to bring it back.</div>';
+                                }
+                            }
+
                             resultDiv.innerHTML = `
                                 <div class="result ${isSuccess ? 'success' : 'error'}">
                                     <strong>${isSuccess ? '✅ Teardown Completed' : '❌ Teardown Failed'}</strong>
                                     <div style="margin-top: 15px;">
                                         ${stepsHtml}
                                     </div>
-                                    ${isSuccess ? '<div style="margin-top: 10px; color: #666;">The bot has been removed from the server. Code directory preserved at: ' + (data.bot || botName) + '</div>' : ''}
+                                    ${statusMessage}
                                 </div>
                             `;
 
@@ -916,12 +1082,183 @@ def index():
                                 </div>
                             `;
                         }
-                    }
+                    },
+                    optionsHtml  // Pass the options HTML to the modal
                 );
+            }
+
+            function toggleAdvancedOptions() {
+                const advancedOptions = document.getElementById('advanced-options');
+                const toggleText = document.getElementById('advanced-toggle-text');
+
+                if (advancedOptions.style.display === 'none') {
+                    advancedOptions.style.display = 'block';
+                    toggleText.textContent = '⚙️ Hide Advanced Options';
+                } else {
+                    advancedOptions.style.display = 'none';
+                    toggleText.textContent = '⚙️ Show Advanced Options';
+                }
+            }
+
+            async function addNewBot() {
+                const resultDiv = document.getElementById('add-bot-result');
+
+                // Get form values
+                const botName = document.getElementById('new-bot-name').value.trim();
+                const port = document.getElementById('new-bot-port').value;
+                const domain = document.getElementById('new-bot-domain').value.trim();
+                const workers = document.getElementById('new-bot-workers').value;
+                const description = document.getElementById('new-bot-description').value.trim();
+
+                // Automatically determine skip_nginx based on whether port is provided
+                const skipNginx = !!port;
+
+                // Validate required fields
+                if (!botName) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Validation Error</strong>
+                            <div>Bot name is required</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!domain) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Validation Error</strong>
+                            <div>Domain is required</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">✨ Adding bot and restarting Dorothy...</div>';
+
+                try {
+                    // Build request body
+                    const requestBody = {
+                        name: botName,
+                        domain: domain,
+                        workers: parseInt(workers),
+                        description: description || undefined,
+                        skip_nginx: skipNginx
+                    };
+
+                    // Include port if provided (automatically sets skip_nginx=true)
+                    if (port) {
+                        requestBody.port = parseInt(port);
+                    }
+
+                    const response = await fetch('/api/add-bot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Failed to Add Bot</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="result success" style="margin-top: 10px;">
+                                <strong>✅ Bot Added Successfully!</strong>
+                                <div style="margin-top: 5px; color: #666;">Bot "${data.bot_name}" has been added to config.</div>
+                                <div style="margin-top: 5px; color: #666;">Dorothy is restarting... Page will reload in 3 seconds.</div>
+                            </div>
+                        `;
+                        // Reload page after 3 seconds to show new bot
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Failed to Add Bot</strong>
+                                <div>An unexpected error occurred</div>
+                            </div>
+                        `;
+                    }
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Failed to Add Bot</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            async function restartDorothy() {
+                const resultDiv = document.getElementById('restart-result');
+                resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">🔄 Restarting Dorothy...</div>';
+
+                try {
+                    const response = await fetch('/api/restart-dorothy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Restart Failed</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="result success" style="margin-top: 10px;">
+                                <strong>✅ Dorothy Restarted!</strong>
+                                <div style="margin-top: 5px; color: #666;">Page will reload in 3 seconds...</div>
+                            </div>
+                        `;
+                        // Reload page after 3 seconds to show updated config
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        let errorDetails = '';
+                        if (data.stderr) errorDetails += `<div><strong>Error:</strong> ${data.stderr}</div>`;
+                        if (data.stdout) errorDetails += `<div><strong>Output:</strong> ${data.stdout}</div>`;
+
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Restart Failed</strong>
+                                ${errorDetails}
+                            </div>
+                        `;
+                    }
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Restart Failed</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
             }
         </script>
     </body>
     </html>
     '''
 
-    return render_template_string(template, config=config, bots=bots)
+    return render_template_string(template, config=config, bots=bots, current_user=current_user)

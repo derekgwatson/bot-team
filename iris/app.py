@@ -9,6 +9,13 @@ app = Flask(__name__)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 
+@app.route('/robots.txt')
+def robots():
+    """Robots.txt to block all search engine crawlers"""
+    return """User-agent: *
+Disallow: /
+""", 200, {'Content-Type': 'text/plain'}
+
 @app.route('/health')
 def health():
     """Health check endpoint"""

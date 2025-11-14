@@ -697,7 +697,69 @@ class DeploymentOrchestrator:
         if not config_result.get('success'):
             deployment['steps'][-1]['result']['warning'] = 'Configuration file setup failed, but continuing deployment'
 
-        # Step 4: Create nginx config (skip for internal-only bots)
+        # Step 4: DNS resolution check (for public domains only)
+        if not skip_nginx:
+            deployment['steps'].append({'name': 'DNS resolution check', 'status': 'in_progress'})
+
+            # Get server's public IP address
+            server_ip_result = self._call_sally(
+                server,
+                "curl -s ifconfig.me || curl -s icanhazip.com || curl -s api.ipify.org"
+            )
+            server_ip = server_ip_result.get('stdout', '').strip()
+
+            # Check if domain resolves
+            dns_result = self._call_sally(
+                server,
+                f"host {domain} || nslookup {domain} || dig {domain} +short"
+            )
+
+            deployment['steps'][-1]['status'] = 'completed' if dns_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {
+                'success': dns_result.get('success'),
+                'stdout': dns_result.get('stdout', ''),
+                'stderr': dns_result.get('stderr', ''),
+                'exit_code': dns_result.get('exit_code'),
+                'domain': domain,
+                'server_ip': server_ip
+            }
+
+            # Fail fast if DNS doesn't resolve
+            if not dns_result.get('success') or not dns_result.get('stdout', '').strip():
+                deployment['status'] = 'failed'
+                error_parts = []
+                error_parts.append(f"Domain '{domain}' does not resolve to any IP address")
+                error_parts.append("Please check:")
+                error_parts.append("1. DNS records are configured correctly")
+                error_parts.append("2. Domain name is spelled correctly in config")
+                error_parts.append("3. DNS propagation has completed (can take up to 48 hours)")
+                if dns_result.get('stderr'):
+                    error_parts.append(f"DNS lookup error: {dns_result['stderr']}")
+                deployment['error'] = '\n'.join(error_parts)
+                deployment['end_time'] = time.time()
+                return deployment
+
+            # Verify domain resolves to this server's IP
+            if server_ip:
+                dns_output = dns_result.get('stdout', '')
+                if server_ip not in dns_output:
+                    deployment['status'] = 'failed'
+                    deployment['steps'][-1]['status'] = 'failed'
+                    error_parts = []
+                    error_parts.append(f"DNS mismatch: '{domain}' does not resolve to this server")
+                    error_parts.append(f"This server's IP: {server_ip}")
+                    error_parts.append(f"Domain resolves to: {dns_output.strip()}")
+                    error_parts.append("")
+                    error_parts.append("This will cause certbot SSL certificate setup to fail.")
+                    error_parts.append("Please update your DNS A record to point to the correct server IP.")
+                    deployment['error'] = '\n'.join(error_parts)
+                    deployment['end_time'] = time.time()
+                    return deployment
+            else:
+                # Couldn't get server IP - log warning but continue
+                deployment['steps'][-1]['result']['warning'] = 'Could not verify server IP match'
+
+        # Step 5: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
             deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
 
@@ -759,7 +821,7 @@ class DeploymentOrchestrator:
                 deployment['end_time'] = time.time()
                 return deployment
 
-        # Step 5: Create systemd service
+        # Step 6: Create systemd service
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
 
         try:
@@ -830,7 +892,7 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
-        # Step 6: SSL certificate (if configured and not skipping nginx)
+        # Step 7: SSL certificate (if configured and not skipping nginx)
         if ssl_email and not skip_nginx:
             deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
 
@@ -848,7 +910,7 @@ class DeploymentOrchestrator:
                 'exit_code': ssl_result.get('exit_code')
             }
 
-        # Step 7: Reload nginx (skip for internal-only bots)
+        # Step 8: Reload nginx (skip for internal-only bots)
         if not skip_nginx:
             deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
 
@@ -861,7 +923,7 @@ class DeploymentOrchestrator:
                 'exit_code': reload_result.get('exit_code')
             }
 
-        # Step 8: Manual configuration instructions (don't start service yet)
+        # Step 9: Manual configuration instructions (don't start service yet)
         deployment['steps'].append({'name': 'Manual configuration required', 'status': 'completed'})
         deployment['steps'][-1]['result'] = {
             'success': True,
@@ -1045,7 +1107,7 @@ class DeploymentOrchestrator:
             'error': result.get('stderr', '')
         }
 
-    def teardown_bot(self, server: str, bot_name: str, remove_code: bool = False) -> Dict:
+    def teardown_bot(self, server: str, bot_name: str, remove_code: bool = False, remove_from_config: bool = False) -> Dict:
         """
         Remove/teardown a bot from the server
 
@@ -1055,14 +1117,16 @@ class DeploymentOrchestrator:
         - Removes nginx config (if applicable)
         - Reloads daemons
         - Optionally removes code directory
+        - Optionally removes bot from config.local.yaml and restarts Dorothy
 
         Args:
             server: Server name
             bot_name: Bot to remove
             remove_code: Whether to also remove the code directory (default: False)
+            remove_from_config: Whether to remove from config.local.yaml (default: False)
 
         Returns:
-            Teardown result with status
+            Teardown result with status and removed_from_config flag
         """
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
@@ -1119,6 +1183,51 @@ class DeploymentOrchestrator:
             )
             teardown_result['steps'][-1]['status'] = 'completed' if remove_code_result.get('success') else 'failed'
             teardown_result['steps'][-1]['result'] = remove_code_result
+
+        # Step 5: Remove from config.local.yaml (optional)
+        teardown_result['removed_from_config'] = False
+        if remove_from_config:
+            teardown_result['steps'].append({'name': 'Remove from config and restart Dorothy', 'status': 'in_progress'})
+
+            config_path = "/var/www/bot-team/dorothy/config.local.yaml"
+
+            # Read current config
+            read_result = self._call_sally(server, f"cat {config_path} 2>/dev/null || echo ''")
+
+            if read_result.get('success'):
+                current_config = read_result.get('stdout', '')
+
+                # Remove bot section from YAML (simple approach - remove from bot name to next bot or end of bots section)
+                import re
+                # Pattern matches the bot entry and all its properties
+                pattern = rf"^\s*{re.escape(bot_name)}:.*?(?=^\s*\w+:|^\w+:|$)"
+                new_config = re.sub(pattern, '', current_config, flags=re.MULTILINE | re.DOTALL)
+
+                # Write updated config
+                escaped_config = new_config.replace("'", "'\\''")
+                write_result = self._call_sally(
+                    server,
+                    f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+                )
+
+                if write_result.get('success'):
+                    # Restart Dorothy
+                    dorothy_config = config.get_bot_config('dorothy')
+                    dorothy_service = dorothy_config.get('service', 'gunicorn-bot-team-dorothy')
+                    restart_result = self._call_sally(server, f"sudo systemctl restart {dorothy_service}")
+
+                    if restart_result.get('success'):
+                        teardown_result['steps'][-1]['status'] = 'completed'
+                        teardown_result['removed_from_config'] = True
+                    else:
+                        teardown_result['steps'][-1]['status'] = 'failed'
+                        teardown_result['steps'][-1]['result'] = restart_result
+                else:
+                    teardown_result['steps'][-1]['status'] = 'failed'
+                    teardown_result['steps'][-1]['result'] = write_result
+            else:
+                teardown_result['steps'][-1]['status'] = 'failed'
+                teardown_result['steps'][-1]['result'] = read_result
 
         # Check if any steps failed
         teardown_result['success'] = all(

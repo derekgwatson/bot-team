@@ -225,6 +225,137 @@ def start_service(bot_name):
         'exit_code': result.get('exit_code')
     })
 
+@api_bp.route('/add-bot', methods=['POST'])
+def add_bot():
+    """
+    Add a new bot to config.local.yaml and restart Dorothy
+
+    Body:
+        name: Bot name (required)
+        domain: Domain name (required)
+        port: Port number (optional - if provided, nginx is skipped for internal-only bot)
+        workers: Number of workers (optional, default: 2)
+        description: Bot description (optional)
+        server: Server name (optional, uses default)
+
+    Note: skip_nginx is automatically determined by port presence (port provided = skip nginx)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    # Required fields
+    bot_name = data.get('name')
+    domain = data.get('domain')
+
+    if not bot_name:
+        return jsonify({'error': 'Bot name is required'}), 400
+
+    if not domain:
+        return jsonify({'error': 'Domain is required'}), 400
+
+    # Optional fields
+    port = data.get('port')
+    workers = data.get('workers', 2)
+    description = data.get('description', '')
+
+    # Automatically determine skip_nginx based on port presence
+    # If port is provided -> internal-only bot (skip nginx)
+    # If port is not provided -> public bot (use nginx)
+    skip_nginx = bool(port)
+
+    # Build YAML snippet for new bot
+    bot_yaml = f"""
+  {bot_name}:"""
+
+    if port:
+        bot_yaml += f"\n    port: {port}"
+
+    if domain:
+        bot_yaml += f"\n    domain: {domain}"
+    if workers != 2:
+        bot_yaml += f"\n    workers: {workers}"
+    if description:
+        bot_yaml += f"\n    description: {description}"
+    if skip_nginx:
+        bot_yaml += f"\n    skip_nginx: true"
+
+    # Path to config.local.yaml
+    config_path = "/var/www/bot-team/dorothy/config.local.yaml"
+
+    # Read current config
+    read_result = deployment_orchestrator._call_sally(
+        server,
+        f"cat {config_path} 2>/dev/null || echo ''"
+    )
+
+    current_config = read_result.get('stdout', '').strip()
+
+    # Check if bots section exists
+    if 'bots:' not in current_config:
+        # No bots section yet, create it
+        new_config = current_config + f"\n\nbots:{bot_yaml}\n"
+    else:
+        # Append to existing bots section
+        new_config = current_config + f"{bot_yaml}\n"
+
+    # Write updated config (escape single quotes for shell)
+    escaped_config = new_config.replace("'", "'\\''")
+    write_result = deployment_orchestrator._call_sally(
+        server,
+        f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+    )
+
+    if not write_result.get('success'):
+        return jsonify({
+            'success': False,
+            'error': 'Failed to write config file',
+            'details': write_result
+        }), 500
+
+    # Restart Dorothy to load new config
+    bot_config = config.get_bot_config('dorothy')
+    service_name = bot_config.get('service', 'gunicorn-bot-team-dorothy')
+
+    restart_result = deployment_orchestrator._call_sally(
+        server,
+        f"sudo systemctl restart {service_name}"
+    )
+
+    return jsonify({
+        'success': True,
+        'bot_name': bot_name,
+        'message': 'Bot added successfully. Dorothy is restarting...',
+        'restart_result': restart_result
+    })
+
+@api_bp.route('/restart-dorothy', methods=['POST'])
+def restart_dorothy():
+    """
+    Restart Dorothy's own service (to reload config changes)
+
+    Body:
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    # Get Dorothy's service name from config
+    bot_config = config.get_bot_config('dorothy')
+    service_name = bot_config.get('service', 'gunicorn-bot-team-dorothy')
+
+    result = deployment_orchestrator._call_sally(
+        server,
+        f"sudo systemctl restart {service_name}"
+    )
+
+    return jsonify({
+        'success': result.get('success'),
+        'service': service_name,
+        'stdout': result.get('stdout', ''),
+        'stderr': result.get('stderr', ''),
+        'exit_code': result.get('exit_code')
+    })
+
 @api_bp.route('/update/<bot_name>', methods=['POST'])
 def update_bot(bot_name):
     """
@@ -252,17 +383,19 @@ def teardown_bot(bot_name):
     Body:
         server: Server name (optional, uses default)
         remove_code: Whether to also remove code directory (optional, default: false)
+        remove_from_config: Whether to remove bot from config.local.yaml (optional, default: false)
     """
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
     remove_code = data.get('remove_code', False)
+    remove_from_config = data.get('remove_from_config', False)
 
     if bot_name not in config.bots:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
 
-    result = deployment_orchestrator.teardown_bot(server, bot_name, remove_code)
+    result = deployment_orchestrator.teardown_bot(server, bot_name, remove_code, remove_from_config)
     return jsonify(result)
 
 @api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
