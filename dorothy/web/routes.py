@@ -241,18 +241,48 @@ def index():
         <div class="card">
             <h2>Managing Bots</h2>
 
-            <h3 style="margin-top: 15px; color: #f5576c;">➕ Adding a New Bot</h3>
-            <ol style="color: #666; font-size: 0.9em; line-height: 1.6;">
-                <li>Edit <code>dorothy/config.yaml</code> (or <code>config.local.yaml</code> for overrides)</li>
-                <li>Add your bot to the <code>bots:</code> section with port, domain, etc.</li>
-                <li>Restart Dorothy using the button below to load the new config</li>
-                <li>Use the <strong>Deploy</strong> button to deploy the new bot</li>
-            </ol>
+            <h3 style="margin-top: 15px; color: #f5576c;">➕ Add New Bot</h3>
+            <p style="color: #666; font-size: 0.9em;">Add a new bot directly from the UI - Sally will update the config for you!</p>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Bot Name*</label>
+                        <input type="text" id="new-bot-name" placeholder="e.g., peter" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port*</label>
+                        <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Domain</label>
+                        <input type="text" id="new-bot-domain" placeholder="e.g., peter.example.com" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Workers</label>
+                        <input type="number" id="new-bot-workers" value="2" min="1" max="8" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Description</label>
+                    <input type="text" id="new-bot-description" placeholder="e.g., Project management bot" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; font-size: 0.85em; color: #666;">
+                        <input type="checkbox" id="new-bot-skip-nginx" style="margin-right: 5px;">
+                        Internal-only bot (skip nginx)
+                    </label>
+                </div>
+                <button class="btn btn-deploy" onclick="addNewBot()" style="width: 100%; margin-top: 15px;">
+                    ✨ Add Bot & Restart Dorothy
+                </button>
+                <div id="add-bot-result"></div>
+            </div>
 
             <h3 style="margin-top: 15px; color: #DC3545;">➖ Removing a Bot</h3>
             <ol style="color: #666; font-size: 0.9em; line-height: 1.6;">
                 <li>Use the <strong>Teardown</strong> button to remove the bot from the server</li>
-                <li>Remove the bot from <code>config.yaml</code> (or <code>config.local.yaml</code>)</li>
+                <li>Edit <code>config.local.yaml</code> to remove the bot entry (or use the form above to manage)</li>
                 <li>Restart Dorothy using the button below to update the UI</li>
             </ol>
 
@@ -944,6 +974,87 @@ def index():
                         }
                     }
                 );
+            }
+
+            async function addNewBot() {
+                const resultDiv = document.getElementById('add-bot-result');
+
+                // Get form values
+                const botName = document.getElementById('new-bot-name').value.trim();
+                const port = document.getElementById('new-bot-port').value;
+                const domain = document.getElementById('new-bot-domain').value.trim();
+                const workers = document.getElementById('new-bot-workers').value;
+                const description = document.getElementById('new-bot-description').value.trim();
+                const skipNginx = document.getElementById('new-bot-skip-nginx').checked;
+
+                // Validate required fields
+                if (!botName || !port) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Validation Error</strong>
+                            <div>Bot name and port are required</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">✨ Adding bot and restarting Dorothy...</div>';
+
+                try {
+                    const response = await fetch('/api/add-bot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: botName,
+                            port: parseInt(port),
+                            domain: domain || undefined,
+                            workers: parseInt(workers),
+                            description: description || undefined,
+                            skip_nginx: skipNginx
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Failed to Add Bot</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="result success" style="margin-top: 10px;">
+                                <strong>✅ Bot Added Successfully!</strong>
+                                <div style="margin-top: 5px; color: #666;">Bot "${data.bot_name}" has been added to config.</div>
+                                <div style="margin-top: 5px; color: #666;">Dorothy is restarting... Page will reload in 3 seconds.</div>
+                            </div>
+                        `;
+                        // Reload page after 3 seconds to show new bot
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result error" style="margin-top: 10px;">
+                                <strong>❌ Failed to Add Bot</strong>
+                                <div>An unexpected error occurred</div>
+                            </div>
+                        `;
+                    }
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Failed to Add Bot</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
             }
 
             async function restartDorothy() {

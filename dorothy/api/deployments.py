@@ -225,6 +225,99 @@ def start_service(bot_name):
         'exit_code': result.get('exit_code')
     })
 
+@api_bp.route('/add-bot', methods=['POST'])
+def add_bot():
+    """
+    Add a new bot to config.local.yaml and restart Dorothy
+
+    Body:
+        name: Bot name (required)
+        port: Port number (required)
+        domain: Domain name (optional)
+        workers: Number of workers (optional, default: 2)
+        description: Bot description (optional)
+        skip_nginx: Whether to skip nginx (optional, default: false)
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    # Required fields
+    bot_name = data.get('name')
+    port = data.get('port')
+
+    if not bot_name or not port:
+        return jsonify({'error': 'Bot name and port are required'}), 400
+
+    # Optional fields
+    domain = data.get('domain', f"{bot_name}.{config.default_server}")
+    workers = data.get('workers', 2)
+    description = data.get('description', '')
+    skip_nginx = data.get('skip_nginx', False)
+
+    # Build YAML snippet for new bot
+    bot_yaml = f"""
+  {bot_name}:
+    port: {port}"""
+
+    if domain:
+        bot_yaml += f"\n    domain: {domain}"
+    if workers != 2:
+        bot_yaml += f"\n    workers: {workers}"
+    if description:
+        bot_yaml += f"\n    description: {description}"
+    if skip_nginx:
+        bot_yaml += f"\n    skip_nginx: true"
+
+    # Path to config.local.yaml
+    config_path = "/var/www/bot-team/dorothy/config.local.yaml"
+
+    # Read current config
+    read_result = deployment_orchestrator._call_sally(
+        server,
+        f"cat {config_path} 2>/dev/null || echo ''"
+    )
+
+    current_config = read_result.get('stdout', '').strip()
+
+    # Check if bots section exists
+    if 'bots:' not in current_config:
+        # No bots section yet, create it
+        new_config = current_config + f"\n\nbots:{bot_yaml}\n"
+    else:
+        # Append to existing bots section
+        new_config = current_config + f"{bot_yaml}\n"
+
+    # Write updated config (escape single quotes for shell)
+    escaped_config = new_config.replace("'", "'\\''")
+    write_result = deployment_orchestrator._call_sally(
+        server,
+        f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+    )
+
+    if not write_result.get('success'):
+        return jsonify({
+            'success': False,
+            'error': 'Failed to write config file',
+            'details': write_result
+        }), 500
+
+    # Restart Dorothy to load new config
+    bot_config = config.get_bot_config('dorothy')
+    service_name = bot_config.get('service', 'gunicorn-bot-team-dorothy')
+
+    restart_result = deployment_orchestrator._call_sally(
+        server,
+        f"sudo systemctl restart {service_name}"
+    )
+
+    return jsonify({
+        'success': True,
+        'bot_name': bot_name,
+        'message': 'Bot added successfully. Dorothy is restarting...',
+        'restart_result': restart_result
+    })
+
 @api_bp.route('/restart-dorothy', methods=['POST'])
 def restart_dorothy():
     """
