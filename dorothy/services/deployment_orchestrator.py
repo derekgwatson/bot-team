@@ -577,8 +577,18 @@ class DeploymentOrchestrator:
 
         if not result.get('success'):
             deployment['status'] = 'failed'
-            error_details = result.get('stderr', '') or result.get('error', '')
-            deployment['error'] = f"Repository setup failed: {error_details}" if error_details else 'Repository setup failed'
+            error_parts = []
+            if result.get('stderr'):
+                error_parts.append(f"stderr: {result['stderr']}")
+            if result.get('stdout'):
+                error_parts.append(f"stdout: {result['stdout']}")
+            if result.get('error'):
+                error_parts.append(f"error: {result['error']}")
+            if result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {result['exit_code']}")
+
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Repository setup failed: {error_details}"
             deployment['end_time'] = time.time()
             return deployment
 
@@ -618,8 +628,17 @@ class DeploymentOrchestrator:
         # Stop if venv setup failed
         if not venv_result.get('success'):
             deployment['status'] = 'failed'
-            error_details = venv_result.get('stderr', '') or venv_result.get('error', '')
-            deployment['error'] = f"Virtual environment setup failed: {error_details}" if error_details else 'Virtual environment setup failed'
+            error_parts = []
+            if venv_result.get('stderr'):
+                error_parts.append(f"stderr: {venv_result['stderr']}")
+            if venv_result.get('stdout'):
+                error_parts.append(f"stdout: {venv_result['stdout']}")
+            if venv_result.get('error'):
+                error_parts.append(f"error: {venv_result['error']}")
+            if venv_result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {venv_result['exit_code']}")
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Virtual environment setup failed: {error_details}"
             deployment['end_time'] = time.time()
             return deployment
 
@@ -643,8 +662,17 @@ class DeploymentOrchestrator:
         # Stop if dependency installation failed
         if not install_result.get('success'):
             deployment['status'] = 'failed'
-            error_details = install_result.get('stderr', '') or install_result.get('error', '')
-            deployment['error'] = f"Dependency installation failed: {error_details}" if error_details else 'Dependency installation failed'
+            error_parts = []
+            if install_result.get('stderr'):
+                error_parts.append(f"stderr: {install_result['stderr']}")
+            if install_result.get('stdout'):
+                error_parts.append(f"stdout: {install_result['stdout']}")
+            if install_result.get('error'):
+                error_parts.append(f"error: {install_result['error']}")
+            if install_result.get('exit_code') is not None:
+                error_parts.append(f"exit_code: {install_result['exit_code']}")
+            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+            deployment['error'] = f"Dependency installation failed: {error_details}"
             deployment['end_time'] = time.time()
             return deployment
 
@@ -684,8 +712,17 @@ class DeploymentOrchestrator:
                 # Stop if nginx config failed
                 if not nginx_result.get('success'):
                     deployment['status'] = 'failed'
-                    error_details = nginx_result.get('stderr', '') or nginx_result.get('error', '')
-                    deployment['error'] = f"Nginx configuration failed: {error_details}" if error_details else 'Nginx configuration failed'
+                    error_parts = []
+                    if nginx_result.get('stderr'):
+                        error_parts.append(f"stderr: {nginx_result['stderr']}")
+                    if nginx_result.get('stdout'):
+                        error_parts.append(f"stdout: {nginx_result['stdout']}")
+                    if nginx_result.get('error'):
+                        error_parts.append(f"error: {nginx_result['error']}")
+                    if nginx_result.get('exit_code') is not None:
+                        error_parts.append(f"exit_code: {nginx_result['exit_code']}")
+                    error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+                    deployment['error'] = f"Nginx configuration failed: {error_details}"
                     deployment['end_time'] = time.time()
                     return deployment
 
@@ -736,8 +773,17 @@ class DeploymentOrchestrator:
             # Stop if systemd service creation failed
             if not service_result.get('success'):
                 deployment['status'] = 'failed'
-                error_details = service_result.get('stderr', '') or service_result.get('error', '')
-                deployment['error'] = f"Systemd service creation failed: {error_details}" if error_details else 'Systemd service creation failed'
+                error_parts = []
+                if service_result.get('stderr'):
+                    error_parts.append(f"stderr: {service_result['stderr']}")
+                if service_result.get('stdout'):
+                    error_parts.append(f"stdout: {service_result['stdout']}")
+                if service_result.get('error'):
+                    error_parts.append(f"error: {service_result['error']}")
+                if service_result.get('exit_code') is not None:
+                    error_parts.append(f"exit_code: {service_result['exit_code']}")
+                error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
+                deployment['error'] = f"Systemd service creation failed: {error_details}"
                 deployment['end_time'] = time.time()
                 return deployment
 
