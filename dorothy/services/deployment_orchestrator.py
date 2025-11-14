@@ -155,15 +155,26 @@ class DeploymentOrchestrator:
             if expiry_result.get('success'):
                 expiry = expiry_result.get('stdout', '').strip()
 
-        return {
+        # Build result with helpful details
+        result = {
             'check': 'ssl_certificate',
             'success': exists,
             'exists': exists,
             'domain': domain,
-            'expiry': expiry,
             'path': f"/etc/letsencrypt/live/{domain}/fullchain.pem",
             'command': check_result.get('command')
         }
+
+        if exists:
+            result['expiry'] = expiry
+            result['details'] = f"Certificate exists for {domain}" + (f", expires: {expiry}" if expiry else "")
+        else:
+            result['details'] = f"Certificate not found for {domain}. Use certbot to set up SSL."
+            # Include command output to help diagnose permission issues
+            if check_result.get('stderr'):
+                result['error'] = check_result.get('stderr')
+
+        return result
 
     def verify_repository(self, server: str, bot_name: str) -> Dict:
         """Verify repository is cloned and up to date"""
