@@ -57,9 +57,40 @@ def index():
                 font-weight: bold;
             }
             .btn-verify { background: #4CAF50; color: white; }
+            .btn-plan { background: #FF9800; color: white; }
             .btn-deploy { background: #f5576c; color: white; }
             .btn-health { background: #2196F3; color: white; }
             .btn:hover { opacity: 0.9; }
+            .plan-step {
+                background: #f8f9fa;
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 5px;
+                border-left: 3px solid #FF9800;
+            }
+            .plan-step h4 { margin: 0 0 10px 0; color: #FF9800; }
+            .plan-command {
+                background: #2d2d2d;
+                color: #f8f8f2;
+                padding: 10px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                margin: 5px 0;
+                overflow-x: auto;
+            }
+            .plan-config {
+                background: #2d2d2d;
+                color: #f8f8f2;
+                padding: 10px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+                margin: 5px 0;
+                max-height: 300px;
+                overflow: auto;
+                white-space: pre;
+            }
             .result {
                 margin-top: 20px;
                 padding: 15px;
@@ -100,6 +131,7 @@ def index():
                     <div class="info">📁 {{ bot.path }}</div>
                     <div class="actions">
                         <button class="btn btn-verify" onclick="verifyBot('{{ name }}')">Verify</button>
+                        <button class="btn btn-plan" onclick="showPlan('{{ name }}')">Show Plan</button>
                         <button class="btn btn-deploy" onclick="deployBot('{{ name }}')">Deploy</button>
                         <button class="btn btn-health" onclick="healthCheck('{{ name }}')">Health</button>
                     </div>
@@ -210,6 +242,94 @@ def index():
                     resultDiv.innerHTML = `
                         <div class="result error">
                             <strong>❌ Deployment Failed</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            async function showPlan(botName) {
+                const resultDiv = document.getElementById('result-' + botName);
+                resultDiv.innerHTML = '<div class="result">📋 Loading deployment plan...</div>';
+
+                try {
+                    const response = await fetch('/api/plan/' + botName, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const plan = await response.json();
+
+                    if (plan.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <strong>❌ Error</strong>
+                                <div>${plan.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Build the plan HTML
+                    let configHtml = `
+                        <div style="margin: 10px 0;">
+                            <strong>Configuration:</strong><br>
+                            📁 Path: ${plan.config.path}<br>
+                            🔗 Repo: ${plan.config.repo}<br>
+                            🌐 Domain: ${plan.config.domain}<br>
+                            ⚙️ Service: ${plan.config.service}<br>
+                            👷 Workers: ${plan.config.workers}
+                        </div>
+                    `;
+
+                    let stepsHtml = plan.steps.map((step, index) => {
+                        let content = `<h4>Step ${index + 1}: ${step.name}</h4>`;
+                        content += `<p>${step.description || ''}</p>`;
+
+                        if (step.error) {
+                            content += `<div class="error">Error: ${step.error}</div>`;
+                        }
+
+                        if (step.command) {
+                            content += `<div class="plan-command">${step.command}</div>`;
+                        }
+
+                        if (step.commands) {
+                            if (Array.isArray(step.commands)) {
+                                step.commands.forEach(cmd => {
+                                    content += `<div class="plan-command">${cmd}</div>`;
+                                });
+                            } else {
+                                content += `<div class="plan-command"># If repo exists:\n${step.commands.if_exists}</div>`;
+                                content += `<div class="plan-command"># If repo missing:\n${step.commands.if_missing}</div>`;
+                            }
+                        }
+
+                        if (step.config_content) {
+                            content += `<details style="margin-top: 10px;">
+                                <summary style="cursor: pointer;">📄 Show config file</summary>
+                                <div class="plan-config">${step.config_content}</div>
+                            </details>`;
+                        }
+
+                        return `<div class="plan-step">${content}</div>`;
+                    }).join('');
+
+                    resultDiv.innerHTML = `
+                        <div class="result warning">
+                            <strong>📋 Deployment Plan for ${botName}</strong>
+                            ${configHtml}
+                            ${stepsHtml}
+                            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                                <strong>⚠️ Ready to deploy?</strong><br>
+                                Review the commands above, then click <strong>Deploy</strong> to execute.
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Failed to load plan</strong>
                             <div>${error.message}</div>
                         </div>
                     `;

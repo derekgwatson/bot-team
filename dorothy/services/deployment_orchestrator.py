@@ -293,6 +293,144 @@ class DeploymentOrchestrator:
 
         return results
 
+    def get_deployment_plan(self, server: str, bot_name: str) -> Dict:
+        """
+        Get the deployment plan without executing (dry-run)
+
+        Shows all commands that would be executed during deployment
+
+        Args:
+            server: Server name
+            bot_name: Bot to deploy
+
+        Returns:
+            Deployment plan with all commands
+        """
+        bot_config = config.get_bot_config(bot_name)
+
+        if not bot_config:
+            return {
+                'success': False,
+                'error': f"Bot {bot_name} not configured"
+            }
+
+        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
+        repo = bot_config.get('repo', '')
+        domain = bot_config.get('domain', f"{bot_name}.example.com")
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        workers = bot_config.get('workers', 3)
+        description = bot_config.get('description', bot_name)
+        venv_path = f"{path}/.venv"
+
+        # Build the plan
+        plan = {
+            'bot': bot_name,
+            'server': server,
+            'config': {
+                'path': path,
+                'repo': repo,
+                'domain': domain,
+                'service': service_name,
+                'workers': workers
+            },
+            'steps': []
+        }
+
+        # Step 1: Check and clone/update repository
+        plan['steps'].append({
+            'name': 'Repository setup',
+            'description': 'Clone or update the git repository',
+            'check_command': f"test -d {path}/.git && echo 'exists' || echo 'missing'",
+            'commands': {
+                'if_exists': f"cd {path} && sudo -u www-data git pull",
+                'if_missing': f"sudo mkdir -p {str(Path(path).parent)} && cd {str(Path(path).parent)} && sudo git clone {repo} && sudo chown -R www-data:www-data {path}"
+            }
+        })
+
+        # Step 2: Virtual environment
+        plan['steps'].append({
+            'name': 'Virtual environment setup',
+            'description': 'Create Python virtual environment if needed',
+            'command': f"cd {path} && sudo -u www-data test -d .venv || sudo -u www-data python3 -m venv .venv"
+        })
+
+        # Step 3: Install dependencies
+        plan['steps'].append({
+            'name': 'Install dependencies',
+            'description': 'Install Python packages from requirements.txt',
+            'command': f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt"
+        })
+
+        # Step 4: Nginx config
+        try:
+            nginx_config = self._load_template(
+                'nginx.conf.template',
+                bot_name=bot_name,
+                bot_name_title=bot_name.title(),
+                description=description,
+                domain=domain,
+                bot_path=path
+            )
+
+            plan['steps'].append({
+                'name': 'Nginx configuration',
+                'description': 'Create nginx site configuration',
+                'config_content': nginx_config,
+                'commands': [
+                    f"# Write config to /etc/nginx/sites-available/{bot_name}",
+                    f"sudo ln -sf /etc/nginx/sites-available/{bot_name} /etc/nginx/sites-enabled/{bot_name}",
+                    f"sudo nginx -t"
+                ]
+            })
+        except Exception as e:
+            plan['steps'].append({
+                'name': 'Nginx configuration',
+                'error': str(e)
+            })
+
+        # Step 5: Systemd service
+        try:
+            service_config = self._load_template(
+                'gunicorn.service.template',
+                bot_name=bot_name,
+                bot_name_title=bot_name.title(),
+                description=description,
+                bot_path=path,
+                workers=workers
+            )
+
+            plan['steps'].append({
+                'name': 'Systemd service',
+                'description': 'Create systemd service file',
+                'config_content': service_config,
+                'commands': [
+                    f"# Write service to /etc/systemd/system/{service_name}.service",
+                    f"sudo systemctl daemon-reload",
+                    f"sudo systemctl enable {service_name}"
+                ]
+            })
+        except Exception as e:
+            plan['steps'].append({
+                'name': 'Systemd service',
+                'error': str(e)
+            })
+
+        # Step 6: Reload nginx
+        plan['steps'].append({
+            'name': 'Reload nginx',
+            'description': 'Reload nginx to pick up new configuration',
+            'command': 'sudo systemctl reload nginx'
+        })
+
+        # Step 7: Start service
+        plan['steps'].append({
+            'name': 'Start service',
+            'description': 'Start or restart the gunicorn service',
+            'command': f"sudo systemctl restart {service_name}"
+        })
+
+        return plan
+
     def deploy_bot(self, server: str, bot_name: str) -> Dict:
         """
         Deploy a bot to a server

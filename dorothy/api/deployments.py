@@ -43,6 +43,25 @@ def verify_bot(bot_name):
     result = deployment_orchestrator.verify_deployment(server, bot_name)
     return jsonify(result)
 
+@api_bp.route('/plan/<bot_name>', methods=['POST'])
+def get_deployment_plan(bot_name):
+    """
+    Get deployment plan (dry-run) - shows what would be executed
+
+    Body:
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    if bot_name not in config.bots:
+        return jsonify({
+            'error': f"Bot '{bot_name}' not configured"
+        }), 404
+
+    plan = deployment_orchestrator.get_deployment_plan(server, bot_name)
+    return jsonify(plan)
+
 @api_bp.route('/deploy/<bot_name>', methods=['POST'])
 def deploy_bot(bot_name):
     """
