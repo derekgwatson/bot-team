@@ -1,0 +1,20 @@
+# Local configuration overrides for Sally
+# Copy this file to config.local.yaml and customize for your environment
+# config.local.yaml is gitignored and won't be committed
+
+# Override server configuration
+servers:
+  prod:
+    host: 203.45.67.89  # Your production server IP/hostname
+    user: ubuntu        # SSH user
+    description: Production Ubuntu Server
+
+  staging:
+    host: staging.example.com
+    user: ubuntu
+    description: Staging Environment
+
+# You can also override other settings:
+# ssh:
+#   default_user: youruser
+#   connect_timeout: 15

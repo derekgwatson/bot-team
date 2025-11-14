@@ -15,9 +15,35 @@ class Config:
         self._config = self._load_config()
 
     def _load_config(self):
-        """Load configuration from YAML file"""
+        """
+        Load configuration from YAML file with local override support
+
+        Loads config.yaml (base config in git) and merges with config.local.yaml
+        (local overrides, gitignored) if it exists.
+        """
+        # Load base config
         with open(self.config_file, 'r') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f) or {}
+
+        # Load local config if it exists
+        local_config_file = self.base_dir / 'config.local.yaml'
+        if local_config_file.exists():
+            with open(local_config_file, 'r') as f:
+                local_config = yaml.safe_load(f) or {}
+                # Deep merge: local config overrides base config
+                config = self._deep_merge(config, local_config)
+
+        return config
+
+    def _deep_merge(self, base: dict, override: dict) -> dict:
+        """Deep merge two dictionaries, with override taking precedence"""
+        result = base.copy()
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
 
     @property
     def name(self):
