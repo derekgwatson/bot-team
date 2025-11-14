@@ -309,13 +309,31 @@ def index():
 
                     const data = await response.json();
 
-                    if (data.status === 'completed') {
-                        let stepsHtml = data.steps.map(step =>
-                            `<div class="check-result ${step.status === 'completed' ? 'passed' : 'failed'}">
-                                ${step.status === 'completed' ? '✅' : '❌'} ${step.name}
-                            </div>`
-                        ).join('');
+                    // Build detailed steps HTML with results
+                    let stepsHtml = '';
+                    if (data.steps && data.steps.length > 0) {
+                        stepsHtml = data.steps.map(step => {
+                            let icon = step.status === 'completed' ? '✅' : '❌';
+                            let statusClass = step.status === 'completed' ? 'passed' : 'failed';
 
+                            let detailsHtml = '';
+                            if (step.result) {
+                                if (step.result.message) {
+                                    detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em;"><strong>Output:</strong> <code>${step.result.message}</code></div>`;
+                                }
+                                if (step.result.error) {
+                                    detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
+                                }
+                            }
+
+                            return `<div class="check-result ${statusClass}" style="margin-bottom: 10px;">
+                                ${icon} <strong>${step.name}</strong>
+                                ${detailsHtml}
+                            </div>`;
+                        }).join('');
+                    }
+
+                    if (data.status === 'completed') {
                         resultDiv.innerHTML = `
                             <div class="result success">
                                 <strong>✅ Deployment Completed</strong>
@@ -327,7 +345,11 @@ def index():
                         resultDiv.innerHTML = `
                             <div class="result error">
                                 <strong>❌ Deployment Failed</strong>
-                                <div>${data.error || 'See steps for details'}</div>
+                                ${data.error ? `<div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px;">${data.error}</div>` : ''}
+                                <div style="margin-top: 15px;">
+                                    <strong>Deployment Steps:</strong>
+                                    ${stepsHtml || '<div>No step information available</div>'}
+                                </div>
                             </div>
                         `;
                     }
