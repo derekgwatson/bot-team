@@ -395,6 +395,7 @@ class DeploymentOrchestrator:
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
         ssl_email = bot_config.get('ssl_email')
+        skip_nginx = bot_config.get('skip_nginx', False)
         venv_path = f"{path}/.venv"
 
         # Build the plan
@@ -437,32 +438,33 @@ class DeploymentOrchestrator:
             'command': f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt"
         })
 
-        # Step 4: Nginx config
-        try:
-            nginx_config = self._load_template(
-                'nginx.conf.template',
-                bot_name=bot_name,
-                bot_name_title=bot_name.title(),
-                description=description,
-                domain=domain,
-                bot_path=path
-            )
+        # Step 4: Nginx config (skip for internal-only bots)
+        if not skip_nginx:
+            try:
+                nginx_config = self._load_template(
+                    'nginx.conf.template',
+                    bot_name=bot_name,
+                    bot_name_title=bot_name.title(),
+                    description=description,
+                    domain=domain,
+                    bot_path=path
+                )
 
-            plan['steps'].append({
-                'name': 'Nginx configuration',
-                'description': 'Create nginx site configuration',
-                'config_content': nginx_config,
-                'commands': [
-                    f"# Write config to /etc/nginx/sites-available/{nginx_config_name}",
-                    f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name}",
-                    f"sudo nginx -t"
-                ]
-            })
-        except Exception as e:
-            plan['steps'].append({
-                'name': 'Nginx configuration',
-                'error': str(e)
-            })
+                plan['steps'].append({
+                    'name': 'Nginx configuration',
+                    'description': 'Create nginx site configuration',
+                    'config_content': nginx_config,
+                    'commands': [
+                        f"# Write config to /etc/nginx/sites-available/{nginx_config_name}",
+                        f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name}",
+                        f"sudo nginx -t"
+                    ]
+                })
+            except Exception as e:
+                plan['steps'].append({
+                    'name': 'Nginx configuration',
+                    'error': str(e)
+                })
 
         # Step 5: Systemd service
         try:
@@ -491,20 +493,21 @@ class DeploymentOrchestrator:
                 'error': str(e)
             })
 
-        # Step 6: SSL certificate (if configured)
-        if ssl_email:
+        # Step 6: SSL certificate (if configured and not skipping nginx)
+        if ssl_email and not skip_nginx:
             plan['steps'].append({
                 'name': 'SSL certificate',
                 'description': f'Set up SSL certificate with certbot for {domain}',
                 'command': f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}"
             })
 
-        # Step 7: Reload nginx
-        plan['steps'].append({
-            'name': 'Reload nginx',
-            'description': 'Reload nginx to pick up new configuration',
-            'command': 'sudo systemctl reload nginx'
-        })
+        # Step 7: Reload nginx (skip for internal-only bots)
+        if not skip_nginx:
+            plan['steps'].append({
+                'name': 'Reload nginx',
+                'description': 'Reload nginx to pick up new configuration',
+                'command': 'sudo systemctl reload nginx'
+            })
 
         # Step 8: Start service
         plan['steps'].append({
@@ -565,6 +568,7 @@ class DeploymentOrchestrator:
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
         ssl_email = bot_config.get('ssl_email')
+        skip_nginx = bot_config.get('skip_nginx', False)
 
         # Step 1: Clone/update repository
         deployment['steps'].append({'name': 'Repository setup', 'status': 'in_progress'})
@@ -616,35 +620,36 @@ class DeploymentOrchestrator:
         deployment['steps'][-1]['status'] = 'completed' if install_result.get('success') else 'failed'
         deployment['steps'][-1]['result'] = {'success': install_result.get('success')}
 
-        # Step 4: Create nginx config
-        deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
+        # Step 4: Create nginx config (skip for internal-only bots)
+        if not skip_nginx:
+            deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
 
-        try:
-            nginx_config = self._load_template(
-                'nginx.conf.template',
-                bot_name=bot_name,
-                bot_name_title=bot_name.title(),
-                description=description,
-                domain=domain,
-                bot_path=path
-            )
+            try:
+                nginx_config = self._load_template(
+                    'nginx.conf.template',
+                    bot_name=bot_name,
+                    bot_name_title=bot_name.title(),
+                    description=description,
+                    domain=domain,
+                    bot_path=path
+                )
 
-            # Escape quotes for shell
-            nginx_config_escaped = nginx_config.replace("'", "'\\''")
+                # Escape quotes for shell
+                nginx_config_escaped = nginx_config.replace("'", "'\\''")
 
-            # Write nginx config
-            nginx_result = self._call_sally(
-                server,
-                f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{nginx_config_name} > /dev/null && "
-                f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name} && "
-                f"sudo nginx -t"
-            )
+                # Write nginx config
+                nginx_result = self._call_sally(
+                    server,
+                    f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{nginx_config_name} > /dev/null && "
+                    f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name} && "
+                    f"sudo nginx -t"
+                )
 
-            deployment['steps'][-1]['status'] = 'completed' if nginx_result.get('success') else 'failed'
-            deployment['steps'][-1]['result'] = {'success': nginx_result.get('success')}
-        except Exception as e:
-            deployment['steps'][-1]['status'] = 'failed'
-            deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
+                deployment['steps'][-1]['status'] = 'completed' if nginx_result.get('success') else 'failed'
+                deployment['steps'][-1]['result'] = {'success': nginx_result.get('success')}
+            except Exception as e:
+                deployment['steps'][-1]['status'] = 'failed'
+                deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
 
         # Step 5: Create systemd service
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
@@ -676,8 +681,8 @@ class DeploymentOrchestrator:
             deployment['steps'][-1]['status'] = 'failed'
             deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
 
-        # Step 6: SSL certificate (if configured)
-        if ssl_email:
+        # Step 6: SSL certificate (if configured and not skipping nginx)
+        if ssl_email and not skip_nginx:
             deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
 
             ssl_result = self._call_sally(
@@ -692,12 +697,13 @@ class DeploymentOrchestrator:
                 'message': ssl_result.get('stdout', '')[:200]
             }
 
-        # Step 7: Reload nginx
-        deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
+        # Step 7: Reload nginx (skip for internal-only bots)
+        if not skip_nginx:
+            deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
 
-        reload_result = self._call_sally(server, "sudo systemctl reload nginx")
-        deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {'success': reload_result.get('success')}
+            reload_result = self._call_sally(server, "sudo systemctl reload nginx")
+            deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {'success': reload_result.get('success')}
 
         # Step 8: Start/restart service
         deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})

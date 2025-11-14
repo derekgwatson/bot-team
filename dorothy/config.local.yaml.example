@@ -13,6 +13,9 @@ defaults:
 
 # Override specific bots if needed
 # bots:
+#   sally:
+#     description: SSH Command Executor
+#     skip_nginx: true              # Internal-only bot, no nginx/SSL needed
 #   peter:
 #     workers: 5                    # Override just Peter's workers
 #     domain: custom.com            # Override just Peter's domain

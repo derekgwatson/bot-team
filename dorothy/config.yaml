@@ -31,6 +31,7 @@ defaults:
   domain: "{bot_name}.example.com"
   nginx_config_name: "{bot_name}"
   workers: 3
+  skip_nginx: false  # Set to true for internal-only bots (skips nginx/SSL setup)
   # ssl_email: your@email.com  # Optional: Auto-run certbot during deployment (skip if you run certbot manually)
 
 bots:
