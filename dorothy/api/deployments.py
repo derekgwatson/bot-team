@@ -302,7 +302,7 @@ def add_bot():
     escaped_config = new_config.replace("'", "'\\''")
     write_result = deployment_orchestrator._call_sally(
         server,
-        f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+        f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null && sudo chown www-data:www-data {config_path}"
     )
 
     if not write_result.get('success'):
