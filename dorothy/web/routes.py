@@ -172,7 +172,7 @@ def index():
 
                     if (data.all_passed) {
                         let checksHtml = data.checks.map(check =>
-                            `<div class="check-result passed">✅ ${check.check}: ${check.success ? 'Passed' : 'Failed'}</div>`
+                            `<div class="check-result passed">✅ ${check.command || 'Check'}: Passed</div>`
                         ).join('');
 
                         resultDiv.innerHTML = `
@@ -182,12 +182,13 @@ def index():
                             </div>
                         `;
                     } else {
-                        let checksHtml = data.checks.map(check =>
-                            `<div class="check-result ${check.success ? 'passed' : 'failed'}">
-                                ${check.success ? '✅' : '❌'} ${check.check}: ${check.success ? 'Passed' : 'Failed'}
-                                ${check.details ? '<br><small>' + check.details + '</small>' : ''}
-                            </div>`
-                        ).join('');
+                        let checksHtml = data.checks.map(check => {
+                            let errorMsg = check.error ? '<br><pre style="white-space: pre-wrap; font-size: 0.85em; margin-top: 5px;">' + check.error + '</pre>' : '';
+                            return `<div class="check-result ${check.success ? 'passed' : 'failed'}">
+                                ${check.success ? '✅' : '❌'} ${check.command || 'Check'}: ${check.success ? 'Passed' : 'Failed'}
+                                ${errorMsg}
+                            </div>`;
+                        }).join('');
 
                         resultDiv.innerHTML = `
                             <div class="result warning">
