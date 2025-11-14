@@ -16,6 +16,6 @@ servers:
   # Define your servers here
   # Example:
   # prod:
-     host: prod.example.com
-     user: ubuntu
-     description: Production Ubuntu Server
+  #   host: prod.example.com
+  #   user: ubuntu
+  #   description: Production Ubuntu Server
