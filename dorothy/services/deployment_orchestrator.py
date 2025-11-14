@@ -1079,7 +1079,7 @@ class DeploymentOrchestrator:
             'error': result.get('stderr', '')
         }
 
-    def teardown_bot(self, server: str, bot_name: str, remove_code: bool = False) -> Dict:
+    def teardown_bot(self, server: str, bot_name: str, remove_code: bool = False, remove_from_config: bool = False) -> Dict:
         """
         Remove/teardown a bot from the server
 
@@ -1089,14 +1089,16 @@ class DeploymentOrchestrator:
         - Removes nginx config (if applicable)
         - Reloads daemons
         - Optionally removes code directory
+        - Optionally removes bot from config.local.yaml and restarts Dorothy
 
         Args:
             server: Server name
             bot_name: Bot to remove
             remove_code: Whether to also remove the code directory (default: False)
+            remove_from_config: Whether to remove from config.local.yaml (default: False)
 
         Returns:
-            Teardown result with status
+            Teardown result with status and removed_from_config flag
         """
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
@@ -1153,6 +1155,51 @@ class DeploymentOrchestrator:
             )
             teardown_result['steps'][-1]['status'] = 'completed' if remove_code_result.get('success') else 'failed'
             teardown_result['steps'][-1]['result'] = remove_code_result
+
+        # Step 5: Remove from config.local.yaml (optional)
+        teardown_result['removed_from_config'] = False
+        if remove_from_config:
+            teardown_result['steps'].append({'name': 'Remove from config and restart Dorothy', 'status': 'in_progress'})
+
+            config_path = "/var/www/bot-team/dorothy/config.local.yaml"
+
+            # Read current config
+            read_result = self._call_sally(server, f"cat {config_path} 2>/dev/null || echo ''")
+
+            if read_result.get('success'):
+                current_config = read_result.get('stdout', '')
+
+                # Remove bot section from YAML (simple approach - remove from bot name to next bot or end of bots section)
+                import re
+                # Pattern matches the bot entry and all its properties
+                pattern = rf"^\s*{re.escape(bot_name)}:.*?(?=^\s*\w+:|^\w+:|$)"
+                new_config = re.sub(pattern, '', current_config, flags=re.MULTILINE | re.DOTALL)
+
+                # Write updated config
+                escaped_config = new_config.replace("'", "'\\''")
+                write_result = self._call_sally(
+                    server,
+                    f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+                )
+
+                if write_result.get('success'):
+                    # Restart Dorothy
+                    dorothy_config = config.get_bot_config('dorothy')
+                    dorothy_service = dorothy_config.get('service', 'gunicorn-bot-team-dorothy')
+                    restart_result = self._call_sally(server, f"sudo systemctl restart {dorothy_service}")
+
+                    if restart_result.get('success'):
+                        teardown_result['steps'][-1]['status'] = 'completed'
+                        teardown_result['removed_from_config'] = True
+                    else:
+                        teardown_result['steps'][-1]['status'] = 'failed'
+                        teardown_result['steps'][-1]['result'] = restart_result
+                else:
+                    teardown_result['steps'][-1]['status'] = 'failed'
+                    teardown_result['steps'][-1]['result'] = write_result
+            else:
+                teardown_result['steps'][-1]['status'] = 'failed'
+                teardown_result['steps'][-1]['result'] = read_result
 
         # Check if any steps failed
         teardown_result['success'] = all(

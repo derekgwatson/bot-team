@@ -290,11 +290,14 @@ def index():
             </div>
 
             <h3 style="margin-top: 15px; color: #DC3545;">➖ Removing a Bot</h3>
-            <ol style="color: #666; font-size: 0.9em; line-height: 1.6;">
-                <li>Use the <strong>Teardown</strong> button to remove the bot from the server</li>
-                <li>Edit <code>config.local.yaml</code> to remove the bot entry (or use the form above to manage)</li>
-                <li>Restart Dorothy using the button below to update the UI</li>
-            </ol>
+            <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                Use the <strong>Teardown</strong> button on any bot card. You'll have options to:
+            </p>
+            <ul style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                <li><strong>Remove from config:</strong> Sally will edit config.local.yaml and restart Dorothy (bot disappears from UI)</li>
+                <li><strong>Delete code:</strong> Permanently remove the code directory from the server</li>
+                <li>Or just teardown infrastructure and keep bot in config for future redeployment</li>
+            </ul>
 
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
                 <button class="btn btn-deploy" onclick="restartDorothy()" style="width: 100%;">
@@ -309,6 +312,7 @@ def index():
             <div class="modal-dialog">
                 <div class="modal-title" id="modalTitle">Confirm Action</div>
                 <div class="modal-message" id="modalMessage"></div>
+                <div id="modalOptions" style="margin: 15px 0; display: none;"></div>
                 <div class="modal-actions">
                     <button class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
                     <button class="btn-confirm" id="modalConfirmBtn">Deploy</button>
@@ -453,9 +457,19 @@ def index():
 
             let confirmModalCallback = null;
 
-            function showConfirmModal(title, message, onConfirm) {
+            function showConfirmModal(title, message, onConfirm, optionsHtml = null) {
                 document.getElementById('modalTitle').textContent = title;
                 document.getElementById('modalMessage').textContent = message;
+
+                const modalOptions = document.getElementById('modalOptions');
+                if (optionsHtml) {
+                    modalOptions.innerHTML = optionsHtml;
+                    modalOptions.style.display = 'block';
+                } else {
+                    modalOptions.innerHTML = '';
+                    modalOptions.style.display = 'none';
+                }
+
                 document.getElementById('confirmModal').classList.add('show');
                 confirmModalCallback = onConfirm;
             }
@@ -925,17 +939,37 @@ def index():
             async function teardownBot(botName) {
                 const resultDiv = document.getElementById('result-' + botName);
 
+                const optionsHtml = `
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; text-align: left;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 0.9em;">Teardown Options:</p>
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9em;">
+                            <input type="checkbox" id="teardown-remove-from-config" style="margin-right: 8px;">
+                            Remove bot from config.local.yaml and restart Dorothy
+                        </label>
+                        <label style="display: flex; align-items: center; font-size: 0.9em;">
+                            <input type="checkbox" id="teardown-remove-code" style="margin-right: 8px;">
+                            Delete code directory (⚠️ Cannot be undone!)
+                        </label>
+                    </div>
+                `;
+
                 showConfirmModal(
                     '⚠️ Teardown ' + botName + '?',
-                    'WARNING: This will remove the bot from the server (stop service, remove systemd/nginx configs). The code directory will be kept. This cannot be undone!',
+                    'This will stop the service and remove systemd/nginx configs from the server.',
                     async function() {
+                        const removeFromConfig = document.getElementById('teardown-remove-from-config').checked;
+                        const removeCode = document.getElementById('teardown-remove-code').checked;
+
                         resultDiv.innerHTML = '<div class="result">🗑️ Tearing down bot...</div>';
 
                         try {
                             const response = await fetch('/api/teardown/' + botName, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ remove_code: false })
+                                body: JSON.stringify({
+                                    remove_code: removeCode,
+                                    remove_from_config: removeFromConfig
+                                })
                             });
 
                             const data = await response.json();
@@ -964,13 +998,26 @@ def index():
                             }
 
                             const isSuccess = data.success;
+                            const removedFromConfig = data.removed_from_config;
+
+                            let statusMessage = '';
+                            if (isSuccess) {
+                                if (removedFromConfig) {
+                                    statusMessage = '<div style="margin-top: 10px; color: #666;">Bot removed from server and config. Dorothy is restarting... Page will reload in 3 seconds.</div>';
+                                    // Reload page after 3 seconds to reflect config change
+                                    setTimeout(() => { window.location.reload(); }, 3000);
+                                } else {
+                                    statusMessage = '<div style="margin-top: 10px; color: #666;">Bot removed from server. Still listed in config - use Teardown again to remove from config, or Deploy to bring it back.</div>';
+                                }
+                            }
+
                             resultDiv.innerHTML = `
                                 <div class="result ${isSuccess ? 'success' : 'error'}">
                                     <strong>${isSuccess ? '✅ Teardown Completed' : '❌ Teardown Failed'}</strong>
                                     <div style="margin-top: 15px;">
                                         ${stepsHtml}
                                     </div>
-                                    ${isSuccess ? '<div style="margin-top: 10px; color: #666;">The bot has been removed from the server. Code directory preserved at: ' + (data.bot || botName) + '</div>' : ''}
+                                    ${statusMessage}
                                 </div>
                             `;
 
@@ -982,7 +1029,8 @@ def index():
                                 </div>
                             `;
                         }
-                    }
+                    },
+                    optionsHtml  // Pass the options HTML to the modal
                 );
             }
 
