@@ -581,6 +581,22 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
+        # Check if bot directory exists in the repository
+        bot_dir_check = self._call_sally(server, f"test -d {path} && echo 'exists' || echo 'missing'")
+
+        if 'missing' in bot_dir_check.get('stdout', ''):
+            deployment['steps'][-1]['status'] = 'failed'
+            deployment['steps'][-1]['result'] = {
+                'success': False,
+                'stdout': bot_dir_check.get('stdout', ''),
+                'stderr': f"Bot directory not found: {path}\n\nThis usually means the bot's code hasn't been merged to the branch on the server yet.\nPlease merge your feature branch to main and try again.",
+                'exit_code': 1
+            }
+            deployment['status'] = 'failed'
+            deployment['error'] = f"Bot directory '{bot_name}' not found in repository"
+            deployment['end_time'] = time.time()
+            return deployment
+
         # Step 2: Set up virtual environment
         deployment['steps'].append({'name': 'Virtual environment setup', 'status': 'in_progress'})
 
