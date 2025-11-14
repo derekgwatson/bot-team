@@ -97,7 +97,7 @@ class GoogleAuth:
     def logout_route(self):
         """Logout route"""
         session.clear()
-        return redirect(url_for('login'))
+        return redirect('/')
 
     def _is_authorized(self, email):
         """
