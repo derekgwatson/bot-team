@@ -1,21 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from functools import wraps
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import current_user
 from database.db import db
 from services.google_groups import groups_service
+from services.auth import login_required
 from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
-
-def require_auth(f):
-    """Decorator to require authentication"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            # Store the current URL to redirect back after login
-            session['next_url'] = request.url
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 @web_bp.route('/')
 def index():
@@ -77,7 +67,7 @@ def request_access():
 # Admin routes
 
 @web_bp.route('/admin')
-@require_auth
+@login_required
 def admin_index():
     """Admin dashboard - display all external staff and pending requests"""
     status_filter = request.args.get('status', 'active')
@@ -118,7 +108,7 @@ def admin_index():
                          unmanaged_external=unmanaged_external)
 
 @web_bp.route('/admin/add', methods=['GET', 'POST'])
-@require_auth
+@login_required
 def add_staff():
     """Add new external staff member"""
     if request.method == 'POST':
@@ -146,7 +136,7 @@ def add_staff():
     return render_template('add.html')
 
 @web_bp.route('/admin/edit/<int:staff_id>', methods=['GET', 'POST'])
-@require_auth
+@login_required
 def edit_staff(staff_id):
     """Edit existing staff member"""
     staff = db.get_staff_by_id(staff_id)
@@ -190,7 +180,7 @@ def edit_staff(staff_id):
     return render_template('edit.html', staff=staff)
 
 @web_bp.route('/admin/delete/<int:staff_id>', methods=['POST'])
-@require_auth
+@login_required
 def delete_staff(staff_id):
     """Delete (deactivate) staff member"""
     staff = db.get_staff_by_id(staff_id)
@@ -203,7 +193,7 @@ def delete_staff(staff_id):
 
 
 @web_bp.route('/admin/approve-request/<int:request_id>', methods=['POST'])
-@require_auth
+@login_required
 def approve_request(request_id):
     """Approve a pending access request"""
     reviewed_by = session.get('user', {}).get('email', 'unknown')
@@ -220,7 +210,7 @@ def approve_request(request_id):
 
 
 @web_bp.route('/admin/deny-request/<int:request_id>', methods=['POST'])
-@require_auth
+@login_required
 def deny_request(request_id):
     """Deny a pending access request"""
     reviewed_by = session.get('user', {}).get('email', 'unknown')
@@ -232,7 +222,7 @@ def deny_request(request_id):
 
 
 @web_bp.route('/admin/import-from-group/<path:email>', methods=['POST'])
-@require_auth
+@login_required
 def import_from_group(email):
     """Import an existing group member into Quinn's database"""
     added_by = session.get('user', {}).get('email', 'unknown')
@@ -255,7 +245,7 @@ def import_from_group(email):
 
 
 @web_bp.route('/admin/bulk-import-from-group', methods=['POST'])
-@require_auth
+@login_required
 def bulk_import_from_group():
     """Import multiple existing group members into Quinn's database"""
     added_by = session.get('user', {}).get('email', 'unknown')
