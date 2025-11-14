@@ -1,22 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, current_app
-from functools import wraps
+from flask import Blueprint, render_template, request, redirect, url_for
+from flask_login import current_user
 from services.google_sheets import sheets_service
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
-def require_auth(f):
-    """Decorator to require authentication"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            # Store the URL they were trying to access
-            session['next_url'] = request.url
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 @web_bp.route('/')
-@require_auth
+@login_required
 def index():
     """Home page showing all contacts"""
     contacts = sheets_service.get_all_contacts()
@@ -38,7 +28,7 @@ def index():
     return render_template('index.html', sections=sections, error=error)
 
 @web_bp.route('/search')
-@require_auth
+@login_required
 def search():
     """Search page"""
     query = request.args.get('q', '')
@@ -58,7 +48,7 @@ def search():
     return render_template('search.html', results=results, query=query, error=error)
 
 @web_bp.route('/add', methods=['GET', 'POST'])
-@require_auth
+@login_required
 def add_contact():
     """Add new contact page"""
     if request.method == 'POST':
@@ -88,7 +78,7 @@ def add_contact():
     return render_template('add.html')
 
 @web_bp.route('/edit/<int:row>', methods=['GET', 'POST'])
-@require_auth
+@login_required
 def edit_contact(row):
     """Edit contact page"""
     if request.method == 'POST':
@@ -141,7 +131,7 @@ def edit_contact(row):
     return render_template('edit.html', contact=contact)
 
 @web_bp.route('/delete/<int:row>', methods=['POST'])
-@require_auth
+@login_required
 def delete_contact(row):
     """Delete contact action"""
     result = sheets_service.delete_contact(row)
