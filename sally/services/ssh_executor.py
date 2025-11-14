@@ -1,0 +1,176 @@
+import paramiko
+import time
+from typing import Dict, Optional, Tuple
+from config import config
+
+class SSHExecutor:
+    """Handles SSH connections and command execution"""
+
+    def __init__(self):
+        self.connections = {}
+
+    def _get_friendly_error(self, error_type: str, details: str, server_config: dict) -> str:
+        """Generate friendly, helpful error messages with troubleshooting steps"""
+        if error_type == "key_not_found":
+            return (
+                f"🔑 SSH Key Not Found!\n\n"
+                f"I couldn't find the SSH key at: {config.ssh_key_path}\n\n"
+                f"Here's how to fix this:\n"
+                f"1. Check if the key exists:\n"
+                f"   ls -la {config.ssh_key_path}\n\n"
+                f"2. If it doesn't exist, generate one:\n"
+                f"   cd sally && python3 -c \"import paramiko; key = paramiko.RSAKey.generate(4096); key.write_private_key_file('sally_id_rsa'); pub = f'{{key.get_name()}} {{key.get_base64()}} sally-bot-ssh-key'; open('sally_id_rsa.pub', 'w').write(pub); print('✅ Key pair generated!'); print('Private: sally_id_rsa'); print('Public: sally_id_rsa.pub')\"\n\n"
+                f"3. Update sally/.env to point to the key:\n"
+                f"   SSH_PRIVATE_KEY_PATH=/home/user/bot-team/sally/sally_id_rsa\n\n"
+                f"4. Copy the public key to your server:\n"
+                f"   cat sally_id_rsa.pub\n"
+                f"   # Then on your server: echo \"<paste_the_public_key_here>\" >> ~/.ssh/authorized_keys\n\n"
+                f"Error details: {details}"
+            )
+        elif error_type == "connection_failed":
+            return (
+                f"🔌 Connection Failed!\n\n"
+                f"I couldn't connect to {server_config.get('host')} as user {server_config.get('user', config.ssh_default_user)}\n\n"
+                f"Let's troubleshoot step-by-step:\n\n"
+                f"1. Can you reach the server?\n"
+                f"   ping {server_config.get('host')}\n\n"
+                f"2. Is SSH running on the server?\n"
+                f"   telnet {server_config.get('host')} 22\n\n"
+                f"3. Try connecting manually with the same key:\n"
+                f"   ssh -i {config.ssh_key_path} {server_config.get('user', config.ssh_default_user)}@{server_config.get('host')}\n\n"
+                f"4. Check if the public key is installed on the server:\n"
+                f"   # On the server, check: cat ~/.ssh/authorized_keys\n"
+                f"   # It should contain the public key from: cat {config.ssh_key_path}.pub\n\n"
+                f"5. Verify server firewall allows SSH (port 22):\n"
+                f"   # On server: sudo ufw status\n\n"
+                f"6. Check file permissions:\n"
+                f"   # On server: chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\n"
+                f"   # Locally: chmod 600 {config.ssh_key_path}\n\n"
+                f"Error details: {details}"
+            )
+        elif error_type == "server_not_configured":
+            return (
+                f"⚙️ Server Not Configured!\n\n"
+                f"I don't know about a server called '{details}'.\n\n"
+                f"To add it, edit sally/config.yaml:\n\n"
+                f"servers:\n"
+                f"  {details}:\n"
+                f"    host: your-server.com\n"
+                f"    user: ubuntu\n"
+                f"    description: Your server description\n\n"
+                f"Then restart me and try again!"
+            )
+        else:
+            return f"Error: {details}"
+
+    def _get_connection(self, server_name: str) -> paramiko.SSHClient:
+        """Get or create SSH connection to server"""
+        if server_name not in self.connections:
+            servers = config.servers
+            if server_name not in servers:
+                raise ValueError(self._get_friendly_error("server_not_configured", server_name, {}))
+
+            server_config = servers[server_name]
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Load private key
+            try:
+                private_key = paramiko.RSAKey.from_private_key_file(config.ssh_key_path)
+            except FileNotFoundError as e:
+                raise Exception(self._get_friendly_error("key_not_found", str(e), server_config))
+            except Exception as e:
+                raise Exception(self._get_friendly_error("key_not_found", str(e), server_config))
+
+            # Connect
+            try:
+                client.connect(
+                    hostname=server_config['host'],
+                    username=server_config.get('user', config.ssh_default_user),
+                    pkey=private_key,
+                    timeout=config.ssh_connect_timeout
+                )
+                self.connections[server_name] = client
+            except Exception as e:
+                raise Exception(self._get_friendly_error("connection_failed", str(e), server_config))
+
+        return self.connections[server_name]
+
+    def execute_command(
+        self,
+        server_name: str,
+        command: str,
+        timeout: Optional[int] = None
+    ) -> Dict[str, any]:
+        """
+        Execute a command on a remote server
+
+        Args:
+            server_name: Name of the server from config
+            command: Command to execute
+            timeout: Command timeout in seconds (uses config default if None)
+
+        Returns:
+            Dict with stdout, stderr, exit_code, and execution time
+        """
+        if timeout is None:
+            timeout = config.ssh_command_timeout
+
+        try:
+            client = self._get_connection(server_name)
+
+            start_time = time.time()
+            stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+
+            # Wait for command to complete
+            exit_code = stdout.channel.recv_exit_status()
+
+            stdout_text = stdout.read().decode('utf-8')
+            stderr_text = stderr.read().decode('utf-8')
+            execution_time = time.time() - start_time
+
+            return {
+                'success': exit_code == 0,
+                'exit_code': exit_code,
+                'stdout': stdout_text,
+                'stderr': stderr_text,
+                'execution_time': round(execution_time, 2),
+                'server': server_name,
+                'command': command
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'server': server_name,
+                'command': command
+            }
+
+    def test_connection(self, server_name: str) -> Dict[str, any]:
+        """Test connection to a server"""
+        try:
+            result = self.execute_command(server_name, 'echo "Sally is connected!"')
+            return {
+                'connected': result['success'],
+                'server': server_name,
+                'message': result.get('stdout', '').strip() if result['success'] else result.get('error', 'Connection failed')
+            }
+        except Exception as e:
+            return {
+                'connected': False,
+                'server': server_name,
+                'error': str(e)
+            }
+
+    def close_all(self):
+        """Close all SSH connections"""
+        for client in self.connections.values():
+            try:
+                client.close()
+            except:
+                pass
+        self.connections.clear()
+
+# Global instance
+ssh_executor = SSHExecutor()

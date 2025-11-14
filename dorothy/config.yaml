@@ -1,0 +1,48 @@
+name: dorothy
+description: Deployment Orchestrator - Knows how to deploy and manage bots
+version: 0.1.0
+
+server:
+  host: 0.0.0.0
+  port: 8005
+
+sally:
+  # Sally's API endpoint
+  url: http://localhost:8004
+
+deployment:
+  # Default deployment settings
+  default_server: prod
+  deployment_timeout: 600  # 10 minutes
+  verification_checks:
+    - nginx_config
+    - gunicorn_service
+    - ssl_certificate
+    - repository
+    - virtualenv
+    - permissions
+
+# Global defaults for all bots - use {bot_name} for placeholders
+defaults:
+  repo: git@github.com:yourorg/bot-team.git
+  repo_path: "/var/www/bot-team"  # Where the git repository is cloned
+  path: "/var/www/bot-team/{bot_name}"  # Where each bot's code lives
+  service: "gunicorn-{bot_name}"
+  domain: "{bot_name}.example.com"
+  nginx_config_name: "{bot_name}"
+  workers: 3
+  skip_nginx: false  # Set to true for internal-only bots (skips nginx/SSL setup)
+  # ssl_email: your@email.com  # Optional: Auto-run certbot during deployment (skip if you run certbot manually)
+
+bots:
+  # Each bot only needs to specify what's unique (description)
+  # Everything else inherits from defaults above
+
+  dorothy:
+    description: Deployment Orchestrator
+    port: 8005
+
+  sally:
+    description: SSH Command Executor
+    port: 8004
+    skip_nginx: true  # Internal-only bot, no public web access needed

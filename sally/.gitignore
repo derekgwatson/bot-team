@@ -1,0 +1,9 @@
+.env
+*.pyc
+__pycache__/
+*.log
+id_rsa*
+sally_id_rsa*
+*.pem
+.DS_Store
+config.local.yaml
