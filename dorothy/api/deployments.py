@@ -244,6 +244,27 @@ def update_bot(bot_name):
     result = deployment_orchestrator.update_bot(server, bot_name)
     return jsonify(result)
 
+@api_bp.route('/teardown/<bot_name>', methods=['POST'])
+def teardown_bot(bot_name):
+    """
+    Remove/teardown a bot from the server
+
+    Body:
+        server: Server name (optional, uses default)
+        remove_code: Whether to also remove code directory (optional, default: false)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+    remove_code = data.get('remove_code', False)
+
+    if bot_name not in config.bots:
+        return jsonify({
+            'error': f"Bot '{bot_name}' not configured"
+        }), 404
+
+    result = deployment_orchestrator.teardown_bot(server, bot_name, remove_code)
+    return jsonify(result)
+
 @api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
 def setup_ssl(bot_name):
     """
