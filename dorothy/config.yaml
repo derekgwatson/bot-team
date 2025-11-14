@@ -25,7 +25,8 @@ deployment:
 # Global defaults for all bots - use {bot_name} for placeholders
 defaults:
   repo: git@github.com:yourorg/bot-team.git
-  path: "/var/www/bot-team/{bot_name}"
+  repo_path: "/var/www/bot-team"  # Where the git repository is cloned
+  path: "/var/www/bot-team/{bot_name}"  # Where each bot's code lives
   service: "gunicorn-{bot_name}"
   domain: "{bot_name}.example.com"
   nginx_config_name: "{bot_name}"

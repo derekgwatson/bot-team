@@ -182,12 +182,13 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'check': 'repository', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
+        repo_path = bot_config.get('repo_path', '/var/www/bot-team')
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
 
-        # Check if directory exists and is a git repo
+        # Check if git repository exists (could be at repo_path for monorepo or path for separate repos)
         check_result = self._call_sally(
             server,
-            f"test -d {path}/.git && echo 'exists' || echo 'missing'"
+            f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'"
         )
 
         if not check_result.get('success'):
@@ -200,11 +201,11 @@ class DeploymentOrchestrator:
         branch = None
         status = None
         if exists:
-            branch_result = self._call_sally(server, f"cd {path} && git branch --show-current")
+            branch_result = self._call_sally(server, f"cd {repo_path} && git branch --show-current")
             if branch_result.get('success'):
                 branch = branch_result.get('stdout', '').strip()
 
-            status_result = self._call_sally(server, f"cd {path} && git status --short")
+            status_result = self._call_sally(server, f"cd {repo_path} && git status --short")
             if status_result.get('success'):
                 status = status_result.get('stdout', '').strip()
 
@@ -212,9 +213,11 @@ class DeploymentOrchestrator:
             'check': 'repository',
             'success': exists,
             'exists': exists,
-            'path': path,
+            'path': repo_path,
+            'bot_path': path,
             'branch': branch,
             'status': status or 'clean',
+            'details': f"Repository at {repo_path}, bot code at {path}",
             'command': check_result.get('command')
         }
 
@@ -344,6 +347,7 @@ class DeploymentOrchestrator:
                 'error': f"Bot {bot_name} not configured"
             }
 
+        repo_path = bot_config.get('repo_path', '/var/www/bot-team')
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
         repo = bot_config.get('repo', '')
         domain = bot_config.get('domain', f"{bot_name}.example.com")
@@ -358,6 +362,7 @@ class DeploymentOrchestrator:
             'bot': bot_name,
             'server': server,
             'config': {
+                'repo_path': repo_path,
                 'path': path,
                 'repo': repo,
                 'domain': domain,
@@ -371,10 +376,10 @@ class DeploymentOrchestrator:
         plan['steps'].append({
             'name': 'Repository setup',
             'description': 'Clone or update the git repository',
-            'check_command': f"test -d {path}/.git && echo 'exists' || echo 'missing'",
+            'check_command': f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'",
             'commands': {
-                'if_exists': f"cd {path} && sudo -u www-data git pull",
-                'if_missing': f"sudo mkdir -p {str(Path(path).parent)} && cd {str(Path(path).parent)} && sudo git clone {repo} && sudo chown -R www-data:www-data {path}"
+                'if_exists': f"cd {repo_path} && sudo -u www-data git pull",
+                'if_missing': f"sudo mkdir -p {repo_path} && cd {str(Path(repo_path).parent)} && sudo git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
             }
         })
 
@@ -502,6 +507,7 @@ class DeploymentOrchestrator:
 
         self.deployments[deployment_id] = deployment
 
+        repo_path = bot_config.get('repo_path', '/var/www/bot-team')
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
         repo = bot_config.get('repo', '')
         domain = bot_config.get('domain', f"{bot_name}.example.com")
@@ -513,17 +519,18 @@ class DeploymentOrchestrator:
         # Step 1: Clone/update repository
         deployment['steps'].append({'name': 'Repository setup', 'status': 'in_progress'})
 
-        repo_check = self._call_sally(server, f"test -d {path}/.git && echo 'exists' || echo 'missing'")
+        repo_check = self._call_sally(server, f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'")
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"cd {path} && sudo -u www-data git pull")
+            result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data git pull")
         else:
-            # Clone - need to create parent directory first
-            parent_path = str(Path(path).parent)
+            # Clone - create parent directory and clone
+            parent_path = str(Path(repo_path).parent)
+            repo_name = Path(repo_path).name
             result = self._call_sally(
                 server,
-                f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} && sudo chown -R www-data:www-data {path}"
+                f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} {repo_name} && sudo chown -R www-data:www-data {repo_path}"
             )
 
         deployment['steps'][-1]['status'] = 'completed' if result.get('success') else 'failed'
