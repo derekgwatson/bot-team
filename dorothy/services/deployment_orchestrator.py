@@ -676,25 +676,26 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
-        # Step 3.5: Create .env from .env.example if it doesn't exist
-        deployment['steps'].append({'name': 'Environment configuration', 'status': 'in_progress'})
+        # Step 3.5: Create config files from examples if they don't exist
+        deployment['steps'].append({'name': 'Configuration files setup', 'status': 'in_progress'})
 
-        env_result = self._call_sally(
+        config_result = self._call_sally(
             server,
-            f"[ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data || echo 'No .env.example found, skipping')"
+            f"([ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data)) && "
+            f"([ -f {path}/config.local.yaml ] || ([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data))"
         )
 
-        deployment['steps'][-1]['status'] = 'completed' if env_result.get('success') else 'failed'
+        deployment['steps'][-1]['status'] = 'completed' if config_result.get('success') else 'failed'
         deployment['steps'][-1]['result'] = {
-            'success': env_result.get('success'),
-            'stdout': env_result.get('stdout', ''),
-            'stderr': env_result.get('stderr', ''),
-            'exit_code': env_result.get('exit_code')
+            'success': config_result.get('success'),
+            'stdout': config_result.get('stdout', ''),
+            'stderr': config_result.get('stderr', ''),
+            'exit_code': config_result.get('exit_code')
         }
 
-        # Don't fail deployment if .env setup fails - just log it
-        if not env_result.get('success'):
-            deployment['steps'][-1]['result']['warning'] = 'Environment file setup failed, but continuing deployment'
+        # Don't fail deployment if config file setup fails - just log it
+        if not config_result.get('success'):
+            deployment['steps'][-1]['result']['warning'] = 'Configuration file setup failed, but continuing deployment'
 
         # Step 4: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
@@ -856,10 +857,12 @@ class DeploymentOrchestrator:
             'success': True,
             'message': f'Deployment setup complete! Before starting the service:\n'
                       f'1. SSH to the server: ssh {server}\n'
-                      f'2. Edit the .env file: sudo nano {path}/.env\n'
-                      f'3. Update configuration values (API keys, credentials, etc.)\n'
-                      f'4. Start the service: sudo systemctl start {service_name}\n'
-                      f'5. Check status: sudo systemctl status {service_name}'
+                      f'2. Edit configuration files:\n'
+                      f'   - .env file: sudo nano {path}/.env (API keys, credentials, etc.)\n'
+                      f'   - config.local.yaml: sudo nano {path}/config.local.yaml (servers, repo, domain, etc.)\n'
+                      f'3. Start the service: sudo systemctl start {service_name}\n'
+                      f'4. Check status: sudo systemctl status {service_name}\n'
+                      f'5. View logs: sudo journalctl -u {service_name} -f'
         }
 
         # Final status
@@ -876,12 +879,12 @@ class DeploymentOrchestrator:
         - Clone/update repository
         - Set up virtual environment
         - Install dependencies
-        - Create .env from .env.example (if needed)
+        - Create config files from examples (.env, config.local.yaml)
         - Create nginx config
         - Create systemd service
         - Set up SSL with certbot (if ssl_email is configured)
         - Reload nginx
-        - Provide instructions for manual .env configuration and service start
+        - Provide instructions for manual configuration and service start
 
         Args:
             server: Server name
