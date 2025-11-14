@@ -299,6 +299,23 @@ def index():
                 <li>Or just teardown infrastructure and keep bot in config for future redeployment</li>
             </ul>
 
+            <h3 style="margin-top: 15px; color: #17a2b8;">🔒 Accessing Internal-Only Bots</h3>
+            <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                Internal-only bots (like Sally) aren't exposed via nginx. Access them locally using SSH port forwarding:
+            </p>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.85em;">
+                ssh -L &lt;port&gt;:localhost:&lt;port&gt; &lt;user&gt;@&lt;server&gt;
+            </div>
+            <p style="color: #666; font-size: 0.85em; margin-top: 8px;">
+                <strong>Example for Sally (port 8004):</strong>
+            </p>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.85em;">
+                ssh -L 8004:localhost:8004 ubuntu@prod.example.com
+            </div>
+            <p style="color: #666; font-size: 0.85em;">
+                Then access at <code>http://localhost:8004</code> in your browser while the SSH connection is active.
+            </p>
+
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
                 <button class="btn btn-deploy" onclick="restartDorothy()" style="width: 100%;">
                     🔄 Restart Dorothy
