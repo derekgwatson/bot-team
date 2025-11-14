@@ -19,12 +19,12 @@ class SSHExecutor:
                 f"1. Check if the key exists:\n"
                 f"   ls -la {config.ssh_key_path}\n\n"
                 f"2. If it doesn't exist, generate one:\n"
-                f"   cd sally && python -c \"import paramiko; key = paramiko.RSAKey.generate(4096); key.write_private_key_file('sally_id_rsa'); print('Key generated!')\"\n\n"
+                f"   cd sally && python3 -c \"import paramiko; key = paramiko.RSAKey.generate(4096); key.write_private_key_file('sally_id_rsa'); pub = f'{{key.get_name()}} {{key.get_base64()}} sally-bot-ssh-key'; open('sally_id_rsa.pub', 'w').write(pub); print('✅ Key pair generated!'); print('Private: sally_id_rsa'); print('Public: sally_id_rsa.pub')\"\n\n"
                 f"3. Update sally/.env to point to the key:\n"
                 f"   SSH_PRIVATE_KEY_PATH=/home/user/bot-team/sally/sally_id_rsa\n\n"
                 f"4. Copy the public key to your server:\n"
                 f"   cat sally_id_rsa.pub\n"
-                f"   # Then on your server: echo \"<public_key>\" >> ~/.ssh/authorized_keys\n\n"
+                f"   # Then on your server: echo \"<paste_the_public_key_here>\" >> ~/.ssh/authorized_keys\n\n"
                 f"Error details: {details}"
             )
         elif error_type == "connection_failed":
