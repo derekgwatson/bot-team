@@ -27,7 +27,7 @@ bots:
   fred:
     description: Google Workspace User Management
     domain: fred.example.com
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/fred
     service: gunicorn-fred
     workers: 3
@@ -35,7 +35,7 @@ bots:
   iris:
     description: Google Workspace Reporting & Analytics
     domain: iris.example.com
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/iris
     service: gunicorn-iris
     workers: 3
@@ -43,7 +43,7 @@ bots:
   peter:
     description: Phone Directory Manager
     domain: peter.example.com
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/peter
     service: gunicorn-peter
     workers: 3
@@ -51,7 +51,7 @@ bots:
   pam:
     description: Phone Directory Presenter Bot
     domain: pam.watsonblinds.com.au
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/pam
     service: gunicorn-pam
     workers: 3
@@ -59,7 +59,7 @@ bots:
   sally:
     description: SSH Command Executor
     domain: sally.example.com
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/sally
     service: gunicorn-sally
     workers: 2
@@ -67,7 +67,7 @@ bots:
   dorothy:
     description: Deployment Orchestrator
     domain: dorothy.example.com
-    repo: https://github.com/yourorg/bot-team.git
+    repo: git@github.com:yourorg/bot-team.git
     path: /var/www/bot-team/dorothy
     service: gunicorn-dorothy
     workers: 2
