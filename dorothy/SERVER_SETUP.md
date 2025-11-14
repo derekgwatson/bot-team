@@ -30,9 +30,13 @@ Add the following (replace `derek` with your SSH username):
 
 ```bash
 # Dorothy deployment automation - passwordless sudo for specific commands
+
+# SSH user (derek) - for remote deployments via SSH
 derek ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 derek ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
 derek ALL=(ALL) NOPASSWD: /bin/systemctl restart *
+derek ALL=(ALL) NOPASSWD: /bin/systemctl start *
+derek ALL=(ALL) NOPASSWD: /bin/systemctl stop *
 derek ALL=(ALL) NOPASSWD: /bin/systemctl enable *
 derek ALL=(ALL) NOPASSWD: /bin/systemctl disable *
 derek ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
@@ -48,6 +52,16 @@ derek ALL=(ALL) NOPASSWD: /usr/bin/test -f *
 derek ALL=(ALL) NOPASSWD: /usr/bin/openssl x509 *
 derek ALL=(ALL) NOPASSWD: /usr/bin/certbot *
 derek ALL=(ALL) NOPASSWD: /bin/su -s /bin/bash -c * www-data
+
+# www-data user - for local deployments when Sally is on the same server
+# Sally runs as www-data under gunicorn, so she needs these permissions for local execution
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart *
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start *
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop *
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl status *
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl is-active *
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 ```
 
 **Security Note:** This configuration grants passwordless sudo only for specific deployment-related commands, not full system access.
