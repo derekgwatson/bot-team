@@ -1,9 +1,12 @@
 from flask import Blueprint, render_template_string, request, jsonify
+from flask_login import current_user
 from config import config
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__)
 
 @web_bp.route('/')
+@login_required
 def index():
     """Dorothy's home page"""
     # Get all bots with defaults applied
@@ -28,9 +31,35 @@ def index():
                 padding: 30px;
                 border-radius: 10px;
                 margin-bottom: 30px;
+                position: relative;
             }
             .header h1 { margin: 0 0 10px 0; }
             .header p { margin: 0; opacity: 0.9; }
+            .user-info {
+                position: absolute;
+                top: 20px;
+                right: 30px;
+                text-align: right;
+                font-size: 0.9em;
+            }
+            .user-email {
+                margin-bottom: 8px;
+                opacity: 0.9;
+            }
+            .btn-logout {
+                background: rgba(255,255,255,0.2);
+                color: white;
+                border: 1px solid rgba(255,255,255,0.3);
+                padding: 6px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 0.85em;
+            }
+            .btn-logout:hover {
+                background: rgba(255,255,255,0.3);
+            }
             .card {
                 background: white;
                 padding: 25px;
@@ -193,6 +222,10 @@ def index():
     </head>
     <body>
         <div class="header">
+            <div class="user-info">
+                <div class="user-email">{{ current_user.email }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+            </div>
             <h1>🚀 Dorothy</h1>
             <p>{{ config.description }}</p>
         </div>
@@ -1225,4 +1258,4 @@ def index():
     </html>
     '''
 
-    return render_template_string(template, config=config, bots=bots)
+    return render_template_string(template, config=config, bots=bots, current_user=current_user)

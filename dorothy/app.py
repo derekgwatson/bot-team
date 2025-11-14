@@ -1,11 +1,21 @@
+import os
 from flask import Flask, jsonify
 from config import config
 from api.deployments import api_bp
 from web.routes import web_bp
+from web.auth_routes import auth_bp
+from services.auth import init_auth
 
 app = Flask(__name__)
 
+# Configure Flask for sessions and OAuth
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 
