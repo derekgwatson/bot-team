@@ -568,7 +568,12 @@ class DeploymentOrchestrator:
             )
 
         deployment['steps'][-1]['status'] = 'completed' if result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {'success': result.get('success'), 'message': result.get('stdout', '')[:200]}
+        deployment['steps'][-1]['result'] = {
+            'success': result.get('success'),
+            'stdout': result.get('stdout', ''),
+            'stderr': result.get('stderr', ''),
+            'exit_code': result.get('exit_code')
+        }
 
         if not result.get('success'):
             deployment['status'] = 'failed'
@@ -586,7 +591,12 @@ class DeploymentOrchestrator:
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {'success': venv_result.get('success')}
+        deployment['steps'][-1]['result'] = {
+            'success': venv_result.get('success'),
+            'stdout': venv_result.get('stdout', ''),
+            'stderr': venv_result.get('stderr', ''),
+            'exit_code': venv_result.get('exit_code')
+        }
 
         # Step 3: Install dependencies
         deployment['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
@@ -598,7 +608,12 @@ class DeploymentOrchestrator:
         )
 
         deployment['steps'][-1]['status'] = 'completed' if install_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {'success': install_result.get('success')}
+        deployment['steps'][-1]['result'] = {
+            'success': install_result.get('success'),
+            'stdout': install_result.get('stdout', ''),
+            'stderr': install_result.get('stderr', ''),
+            'exit_code': install_result.get('exit_code')
+        }
 
         # Step 4: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
@@ -626,10 +641,19 @@ class DeploymentOrchestrator:
                 )
 
                 deployment['steps'][-1]['status'] = 'completed' if nginx_result.get('success') else 'failed'
-                deployment['steps'][-1]['result'] = {'success': nginx_result.get('success')}
+                deployment['steps'][-1]['result'] = {
+                    'success': nginx_result.get('success'),
+                    'stdout': nginx_result.get('stdout', ''),
+                    'stderr': nginx_result.get('stderr', ''),
+                    'exit_code': nginx_result.get('exit_code')
+                }
             except Exception as e:
                 deployment['steps'][-1]['status'] = 'failed'
-                deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
+                deployment['steps'][-1]['result'] = {
+                    'success': False,
+                    'error': str(e),
+                    'stderr': str(e)
+                }
 
         # Step 5: Create systemd service
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
@@ -656,10 +680,19 @@ class DeploymentOrchestrator:
             )
 
             deployment['steps'][-1]['status'] = 'completed' if service_result.get('success') else 'failed'
-            deployment['steps'][-1]['result'] = {'success': service_result.get('success')}
+            deployment['steps'][-1]['result'] = {
+                'success': service_result.get('success'),
+                'stdout': service_result.get('stdout', ''),
+                'stderr': service_result.get('stderr', ''),
+                'exit_code': service_result.get('exit_code')
+            }
         except Exception as e:
             deployment['steps'][-1]['status'] = 'failed'
-            deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
+            deployment['steps'][-1]['result'] = {
+                'success': False,
+                'error': str(e),
+                'stderr': str(e)
+            }
 
         # Step 6: SSL certificate (if configured and not skipping nginx)
         if ssl_email and not skip_nginx:
@@ -674,7 +707,9 @@ class DeploymentOrchestrator:
             deployment['steps'][-1]['status'] = 'completed' if ssl_result.get('success') else 'failed'
             deployment['steps'][-1]['result'] = {
                 'success': ssl_result.get('success'),
-                'message': ssl_result.get('stdout', '')[:200]
+                'stdout': ssl_result.get('stdout', ''),
+                'stderr': ssl_result.get('stderr', ''),
+                'exit_code': ssl_result.get('exit_code')
             }
 
         # Step 7: Reload nginx (skip for internal-only bots)
@@ -683,14 +718,24 @@ class DeploymentOrchestrator:
 
             reload_result = self._call_sally(server, "sudo systemctl reload nginx")
             deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
-            deployment['steps'][-1]['result'] = {'success': reload_result.get('success')}
+            deployment['steps'][-1]['result'] = {
+                'success': reload_result.get('success'),
+                'stdout': reload_result.get('stdout', ''),
+                'stderr': reload_result.get('stderr', ''),
+                'exit_code': reload_result.get('exit_code')
+            }
 
         # Step 8: Start/restart service
         deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})
 
         start_result = self._call_sally(server, f"sudo systemctl restart {service_name}")
         deployment['steps'][-1]['status'] = 'completed' if start_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {'success': start_result.get('success')}
+        deployment['steps'][-1]['result'] = {
+            'success': start_result.get('success'),
+            'stdout': start_result.get('stdout', ''),
+            'stderr': start_result.get('stderr', ''),
+            'exit_code': start_result.get('exit_code')
+        }
 
         # Final status
         all_succeeded = all(step['status'] == 'completed' for step in deployment['steps'])

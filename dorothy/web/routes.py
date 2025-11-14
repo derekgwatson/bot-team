@@ -348,15 +348,32 @@ def index():
 
                                     let detailsHtml = '';
                                     if (step.result) {
-                                        if (step.result.message) {
-                                            detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em;"><strong>Output:</strong> <code>${step.result.message}</code></div>`;
+                                        // Show stdout if available
+                                        if (step.result.stdout && step.result.stdout.trim()) {
+                                            detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
+                                                <strong>Output:</strong>
+                                                <pre style="margin: 5px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-size: 0.85em;">${step.result.stdout}</pre>
+                                            </div>`;
                                         }
+                                        // Show stderr if available (in red for failures)
+                                        if (step.result.stderr && step.result.stderr.trim()) {
+                                            detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
+                                                <strong style="color: #dc3545;">Error Output:</strong>
+                                                <pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; color: #721c24; font-size: 0.85em;">${step.result.stderr}</pre>
+                                            </div>`;
+                                        }
+                                        // Show error message if available
                                         if (step.result.error) {
-                                            detailsHtml += `<div style="margin-top: 5px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
+                                            detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
+                                        }
+                                        // Show exit code if non-zero
+                                        if (step.result.exit_code !== undefined && step.result.exit_code !== 0) {
+                                            detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em; color: #856404;"><strong>Exit Code:</strong> ${step.result.exit_code}</div>`;
                                         }
                                     }
 
-                                    return `<div class="check-result ${statusClass}" style="margin-bottom: 10px;">
+                                    let bgColor = step.status === 'completed' ? '#f0f9ff' : (step.status === 'failed' ? '#fff5f5' : '#fffbeb');
+                                    return `<div class="check-result ${statusClass}" style="margin-bottom: 15px; padding: 12px; border-radius: 5px; background: ${bgColor};">
                                         ${icon} <strong>${step.name}</strong>
                                         ${detailsHtml}
                                     </div>`;
