@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 from flask import Flask
 import responses
+import importlib.util
 
 # Add paths for multiple bots
 project_root = Path(__file__).parent.parent.parent
@@ -29,6 +30,23 @@ if str(shared_path) not in sys.path:
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Import Pam's peter_client using importlib for Windows compatibility
+try:
+    from services.peter_client import PeterClient
+except (ImportError, AttributeError) as e:
+    # Fallback for Windows: use importlib to load module directly
+    spec = importlib.util.spec_from_file_location(
+        "peter_client",
+        pam_path / "services" / "peter_client.py"
+    )
+    if spec and spec.loader:
+        peter_client_module = importlib.util.module_from_spec(spec)
+        sys.modules['peter_client'] = peter_client_module
+        spec.loader.exec_module(peter_client_module)
+        PeterClient = peter_client_module.PeterClient
+    else:
+        raise ImportError(f"Could not import PeterClient: {e}")
+
 
 # ==============================================================================
 # Pam -> Peter Integration Tests
@@ -39,8 +57,6 @@ if str(project_root) not in sys.path:
 @pytest.mark.peter
 def test_pam_calls_peter_search(mock_responses):
     """Test Pam successfully calling Peter's search API."""
-    from services.peter_client import PeterClient
-
     # Mock Peter API response (proper format with 'results' key)
     mock_responses.add(
         responses.GET,
@@ -75,8 +91,6 @@ def test_pam_calls_peter_search(mock_responses):
 @pytest.mark.peter
 def test_pam_handles_peter_unavailable(mock_responses):
     """Test Pam handling Peter being unavailable."""
-    from services.peter_client import PeterClient
-
     # Mock connection error
     mock_responses.add(
         responses.GET,
@@ -121,6 +135,8 @@ def test_oauth_checks_quinn_for_external_approval(mock_responses, test_env):
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     # Mock Quinn API response - approved
     mock_responses.add(
@@ -151,6 +167,8 @@ def test_oauth_handles_quinn_unavailable(mock_responses, test_env):
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     # Mock Quinn being unavailable
     import requests
@@ -243,10 +261,12 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
+    mock_config.allowed_domains = []
+    mock_config.admin_emails = []
 
     auth = GoogleAuth(app, mock_config)
 

@@ -104,8 +104,9 @@ def test_initialization_missing_credentials(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    # Patch where the config is USED
+    # Patch where the config is USED (using already-imported module)
     import services.google_reports
     monkeypatch.setattr(services.google_reports, 'config', MockConfig())
 
@@ -148,8 +149,9 @@ def test_get_usage_service_not_initialized(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    # Patch where the config is USED
+    # Patch where the config is USED (using already-imported module)
     import services.google_reports
     monkeypatch.setattr(services.google_reports, 'config', MockConfig())
 
