@@ -106,6 +106,16 @@ def get_deployment(deployment_id):
 
     return jsonify(deployment)
 
+@api_bp.route('/verifications/<verification_id>', methods=['GET'])
+def get_verification(verification_id):
+    """Get status of a verification"""
+    verification = deployment_orchestrator.get_verification_status(verification_id)
+
+    if not verification:
+        return jsonify({'error': 'Verification not found'}), 404
+
+    return jsonify(verification)
+
 @api_bp.route('/health-check/<bot_name>', methods=['POST'])
 def health_check_bot(bot_name):
     """

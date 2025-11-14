@@ -159,60 +159,104 @@ def index():
         <script>
             async function verifyBot(botName) {
                 const resultDiv = document.getElementById('result-' + botName);
-                resultDiv.innerHTML = '<div class="result">⏳ Verifying ' + botName + '...</div>';
+                resultDiv.innerHTML = '<div class="result">⏳ Starting verification for ' + botName + '...</div>';
 
                 try {
+                    // Start verification
                     const response = await fetch('/api/verify/' + botName, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({})
                     });
 
-                    const data = await response.json();
+                    const startData = await response.json();
 
-                    if (data.all_passed) {
-                        let checksHtml = data.checks.map(check =>
-                            `<div class="check-result passed">✅ ${check.check || 'Check'}: Passed</div>`
-                        ).join('');
-
+                    if (startData.error) {
                         resultDiv.innerHTML = `
-                            <div class="result success">
-                                <strong>✅ All Checks Passed</strong>
-                                ${checksHtml}
+                            <div class="result error">
+                                <strong>❌ Verification Failed</strong>
+                                <div>${startData.error}</div>
                             </div>
                         `;
-                    } else {
-                        let checksHtml = data.checks.map(check => {
-                            let checkName = (check.check || 'Check').replace(/_/g, ' ');
-
-                            // Build detailed info
-                            let details = [];
-                            if (check.path) details.push(`<strong>Path:</strong> <code>${check.path}</code>`);
-                            if (check.service_name) details.push(`<strong>Service:</strong> ${check.service_name}`);
-                            if (check.domain) details.push(`<strong>Domain:</strong> ${check.domain}`);
-                            if (check.branch) details.push(`<strong>Branch:</strong> ${check.branch}`);
-                            if (check.details) details.push(`<strong>Details:</strong> ${check.details}`);
-                            if (check.command) details.push(`<strong>Command:</strong> <code style="font-size: 0.85em;">${check.command}</code>`);
-                            if (check.error) details.push(`<strong>Error:</strong><pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107;">${check.error}</pre>`);
-                            if (check.stdout) details.push(`<strong>Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #d4edda; border-left: 3px solid #28a745;">${check.stdout}</pre>`);
-                            if (check.stderr) details.push(`<strong>Error Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #f8d7da; border-left: 3px solid #dc3545;">${check.stderr}</pre>`);
-                            if (check.exit_code !== undefined) details.push(`<strong>Exit Code:</strong> ${check.exit_code}`);
-
-                            let detailsHtml = details.length > 0 ? '<div style="margin-top: 8px; font-size: 0.9em; color: #555;">' + details.join('<br>') + '</div>' : '';
-
-                            return `<div class="check-result ${check.success ? 'passed' : 'failed'}" style="margin-bottom: 15px; padding: 10px; border-radius: 5px; background: ${check.success ? '#f0f9ff' : '#fff5f5'};">
-                                ${check.success ? '✅' : '❌'} <strong>${checkName}</strong>: ${check.success ? 'Passed' : 'Failed'}
-                                ${detailsHtml}
-                            </div>`;
-                        }).join('');
-
-                        resultDiv.innerHTML = `
-                            <div class="result warning">
-                                <strong>⚠️ Some Checks Failed</strong>
-                                ${checksHtml}
-                            </div>
-                        `;
+                        return;
                     }
+
+                    const verificationId = startData.verification_id;
+
+                    // Poll for updates
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const statusResponse = await fetch('/api/verifications/' + verificationId);
+                            const data = await statusResponse.json();
+
+                            // Build checks HTML showing current progress
+                            let checksHtml = data.checks.map(check => {
+                                let checkName = (check.check || 'Check').replace(/_/g, ' ');
+                                let icon = check.status === 'in_progress' ? '⏳' : (check.success ? '✅' : '❌');
+                                let statusText = check.status === 'in_progress' ? 'Checking...' : (check.success ? 'Passed' : 'Failed');
+
+                                // Build detailed info
+                                let details = [];
+                                if (check.path) details.push(`<strong>Path:</strong> <code>${check.path}</code>`);
+                                if (check.bot_path) details.push(`<strong>Bot Path:</strong> <code>${check.bot_path}</code>`);
+                                if (check.service_name) details.push(`<strong>Service:</strong> ${check.service_name}`);
+                                if (check.domain) details.push(`<strong>Domain:</strong> ${check.domain}`);
+                                if (check.branch) details.push(`<strong>Branch:</strong> ${check.branch}`);
+                                if (check.details) details.push(`<strong>Details:</strong> ${check.details}`);
+                                if (check.command) details.push(`<strong>Command:</strong> <code style="font-size: 0.85em;">${check.command}</code>`);
+                                if (check.error) details.push(`<strong>Error:</strong><pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107;">${check.error}</pre>`);
+                                if (check.stdout) details.push(`<strong>Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #d4edda; border-left: 3px solid #28a745;">${check.stdout}</pre>`);
+                                if (check.stderr) details.push(`<strong>Error Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #f8d7da; border-left: 3px solid #dc3545;">${check.stderr}</pre>`);
+                                if (check.exit_code !== undefined) details.push(`<strong>Exit Code:</strong> ${check.exit_code}`);
+
+                                let detailsHtml = details.length > 0 ? '<div style="margin-top: 8px; font-size: 0.9em; color: #555;">' + details.join('<br>') + '</div>' : '';
+
+                                let bgColor = check.status === 'in_progress' ? '#fffbeb' : (check.success ? '#f0f9ff' : '#fff5f5');
+                                return `<div class="check-result ${check.success ? 'passed' : 'failed'}" style="margin-bottom: 15px; padding: 10px; border-radius: 5px; background: ${bgColor};">
+                                    ${icon} <strong>${checkName}</strong>: ${statusText}
+                                    ${detailsHtml}
+                                </div>`;
+                            }).join('');
+
+                            // Update display
+                            if (data.status === 'completed') {
+                                clearInterval(pollInterval);
+
+                                if (data.all_passed) {
+                                    resultDiv.innerHTML = `
+                                        <div class="result success">
+                                            <strong>✅ All Checks Passed</strong>
+                                            ${checksHtml}
+                                        </div>
+                                    `;
+                                } else {
+                                    resultDiv.innerHTML = `
+                                        <div class="result warning">
+                                            <strong>⚠️ Some Checks Failed</strong>
+                                            ${checksHtml}
+                                        </div>
+                                    `;
+                                }
+                            } else {
+                                // Still in progress, update display
+                                resultDiv.innerHTML = `
+                                    <div class="result">
+                                        <strong>⏳ Verification in progress...</strong>
+                                        ${checksHtml}
+                                    </div>
+                                `;
+                            }
+                        } catch (pollError) {
+                            clearInterval(pollInterval);
+                            resultDiv.innerHTML = `
+                                <div class="result error">
+                                    <strong>❌ Error polling verification status</strong>
+                                    <div>${pollError.message}</div>
+                                </div>
+                            `;
+                        }
+                    }, 500);  // Poll every 500ms
+
                 } catch (error) {
                     resultDiv.innerHTML = `
                         <div class="result error">

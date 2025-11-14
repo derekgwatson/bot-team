@@ -1,6 +1,7 @@
 import requests
 import time
 import uuid
+import threading
 from typing import Dict, List, Optional
 from pathlib import Path
 from config import config
@@ -11,6 +12,7 @@ class DeploymentOrchestrator:
     def __init__(self):
         self.sally_url = config.sally_url
         self.deployments = {}
+        self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
     def _call_sally(self, server: str, command: str, timeout: Optional[int] = None) -> Dict:
@@ -289,42 +291,79 @@ class DeploymentOrchestrator:
             'command': check_result.get('command')
         }
 
+    def _run_verification_checks(self, verification_id: str, server: str, bot_name: str):
+        """Run verification checks in background, updating progress as we go"""
+        verification = self.verifications[verification_id]
+        checks = config.verification_checks
+
+        for check in checks:
+            # Mark this check as in progress
+            check_status = {
+                'check': check,
+                'status': 'in_progress',
+                'name': check.replace('_', ' ').title()
+            }
+            verification['checks'].append(check_status)
+
+            # Run the check
+            check_method = getattr(self, f"verify_{check}", None)
+            if check_method:
+                result = check_method(server, bot_name)
+                # Update the check with results
+                check_status.update(result)
+                check_status['status'] = 'completed' if result.get('success') else 'failed'
+                if not result.get('success'):
+                    verification['all_passed'] = False
+            else:
+                check_status.update({
+                    'status': 'failed',
+                    'success': False,
+                    'error': f"Unknown check: {check}"
+                })
+                verification['all_passed'] = False
+
+        verification['status'] = 'completed'
+        verification['end_time'] = time.time()
+
     def verify_deployment(self, server: str, bot_name: str) -> Dict:
         """
-        Run all verification checks for a bot deployment
+        Start verification checks for a bot deployment (non-blocking)
 
         Args:
             server: Server name
             bot_name: Bot to verify
 
         Returns:
-            Verification results
+            Verification ID and initial status
         """
-        checks = config.verification_checks
-        results = {
+        verification_id = str(uuid.uuid4())[:8]
+
+        verification = {
+            'id': verification_id,
             'bot': bot_name,
             'server': server,
+            'status': 'in_progress',
             'checks': [],
             'all_passed': True,
-            'timestamp': time.time()
+            'start_time': time.time()
         }
 
-        for check in checks:
-            check_method = getattr(self, f"verify_{check}", None)
-            if check_method:
-                result = check_method(server, bot_name)
-                results['checks'].append(result)
-                if not result.get('success'):
-                    results['all_passed'] = False
-            else:
-                results['checks'].append({
-                    'check': check,
-                    'success': False,
-                    'error': f"Unknown check: {check}"
-                })
-                results['all_passed'] = False
+        self.verifications[verification_id] = verification
 
-        return results
+        # Run checks in background thread
+        thread = threading.Thread(
+            target=self._run_verification_checks,
+            args=(verification_id, server, bot_name)
+        )
+        thread.daemon = True
+        thread.start()
+
+        return {
+            'verification_id': verification_id,
+            'status': 'started',
+            'bot': bot_name,
+            'server': server
+        }
 
     def get_deployment_plan(self, server: str, bot_name: str) -> Dict:
         """
@@ -682,6 +721,10 @@ class DeploymentOrchestrator:
     def get_deployment_status(self, deployment_id: str) -> Optional[Dict]:
         """Get status of a deployment"""
         return self.deployments.get(deployment_id)
+
+    def get_verification_status(self, verification_id: str) -> Optional[Dict]:
+        """Get status of a verification"""
+        return self.verifications.get(verification_id)
 
 # Global instance
 deployment_orchestrator = DeploymentOrchestrator()
