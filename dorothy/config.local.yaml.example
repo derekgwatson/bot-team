@@ -1,0 +1,21 @@
+# Local configuration overrides for Dorothy
+# Copy this file to config.local.yaml and customize for your environment
+# config.local.yaml is gitignored and won't be committed
+
+# Override bot configurations
+bots:
+  fred:
+    repo: git@github.com:yourorg/bot-team.git  # Your actual repo URL
+
+  iris:
+    repo: git@github.com:yourorg/bot-team.git
+
+  # You can override specific bot settings:
+  # peter:
+  #   workers: 5  # Override just the workers count
+  #   domain: peter.yourdomain.com
+
+# Override deployment settings
+# deployment:
+#   default_server: staging
+#   deployment_timeout: 900
