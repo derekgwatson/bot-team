@@ -207,8 +207,21 @@ def index():
                             // Build checks HTML showing current progress
                             let checksHtml = (data.checks || []).map(check => {
                                 let checkName = (check.check || 'Check').replace(/_/g, ' ');
-                                let icon = check.status === 'in_progress' ? '⏳' : (check.success ? '✅' : '❌');
-                                let statusText = check.status === 'in_progress' ? 'Checking...' : (check.success ? 'Passed' : 'Failed');
+                                let icon, statusText, bgColor;
+
+                                if (check.status === 'skipped') {
+                                    icon = '⊝';
+                                    statusText = 'Skipped';
+                                    bgColor = '#f5f5f5';
+                                } else if (check.status === 'in_progress') {
+                                    icon = '⏳';
+                                    statusText = 'Checking...';
+                                    bgColor = '#fffbeb';
+                                } else {
+                                    icon = check.success ? '✅' : '❌';
+                                    statusText = check.success ? 'Passed' : 'Failed';
+                                    bgColor = check.success ? '#f0f9ff' : '#fff5f5';
+                                }
 
                                 // Build detailed info
                                 let details = [];
@@ -226,7 +239,6 @@ def index():
 
                                 let detailsHtml = details.length > 0 ? '<div style="margin-top: 8px; font-size: 0.9em; color: #555;">' + details.join('<br>') + '</div>' : '';
 
-                                let bgColor = check.status === 'in_progress' ? '#fffbeb' : (check.success ? '#f0f9ff' : '#fff5f5');
                                 return `<div class="check-result ${check.success ? 'passed' : 'failed'}" style="margin-bottom: 15px; padding: 10px; border-radius: 5px; background: ${bgColor};">
                                     ${icon} <strong>${checkName}</strong>: ${statusText}
                                     ${detailsHtml}

@@ -296,7 +296,23 @@ class DeploymentOrchestrator:
         verification = self.verifications[verification_id]
         checks = config.verification_checks
 
+        # Get bot config to check if we should skip nginx-related checks
+        bot_config = config.get_bot_config(bot_name)
+        skip_nginx = bot_config.get('skip_nginx', False) if bot_config else False
+
         for check in checks:
+            # Skip nginx and SSL checks for internal-only bots
+            if skip_nginx and check in ['nginx_config', 'ssl_certificate']:
+                check_status = {
+                    'check': check,
+                    'status': 'skipped',
+                    'name': check.replace('_', ' ').title(),
+                    'success': True,
+                    'details': 'Skipped for internal-only bot (skip_nginx=true)'
+                }
+                verification['checks'].append(check_status)
+                continue
+
             # Mark this check as in progress
             check_status = {
                 'check': check,
