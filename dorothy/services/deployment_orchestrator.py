@@ -57,7 +57,7 @@ class DeploymentOrchestrator:
         """Verify nginx configuration exists and is valid"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'nginx_config', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         # Check if nginx config exists
         check_result = self._call_sally(
@@ -66,6 +66,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'nginx_config'
             return check_result
 
         exists = 'exists' in check_result.get('stdout', '')
@@ -85,7 +86,7 @@ class DeploymentOrchestrator:
         """Verify gunicorn service file exists and status"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'gunicorn_service', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
 
@@ -96,6 +97,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'gunicorn_service'
             return check_result
 
         exists = 'exists' in check_result.get('stdout', '')
@@ -121,7 +123,7 @@ class DeploymentOrchestrator:
         """Verify SSL certificate exists and is valid"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'ssl_certificate', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         domain = bot_config.get('domain', f"{bot_name}.example.com")
 
@@ -132,6 +134,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'ssl_certificate'
             return check_result
 
         exists = 'exists' in check_result.get('stdout', '')
@@ -158,7 +161,7 @@ class DeploymentOrchestrator:
         """Verify repository is cloned and up to date"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'repository', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
 
@@ -169,6 +172,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'repository'
             return check_result
 
         exists = 'exists' in check_result.get('stdout', '')
@@ -198,7 +202,7 @@ class DeploymentOrchestrator:
         """Verify virtual environment exists and has requirements installed"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'virtualenv', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
         venv_path = f"{path}/.venv"
@@ -210,6 +214,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'virtualenv'
             return check_result
 
         exists = 'exists' in check_result.get('stdout', '')
@@ -237,7 +242,7 @@ class DeploymentOrchestrator:
         """Verify directory permissions are correct"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
-            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+            return {'check': 'permissions', 'success': False, 'error': f"Bot {bot_name} not configured"}
 
         path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
 
@@ -248,6 +253,7 @@ class DeploymentOrchestrator:
         )
 
         if not check_result.get('success'):
+            check_result['check'] = 'permissions'
             return check_result
 
         return {
