@@ -28,10 +28,6 @@ class Config:
         # Organization config
         self.allowed_domains = shared_data['organization']['domains']
 
-        # Auth config - secrets come from environment variables
-        self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
-        self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-
         # Bot URLs - use environment variables with localhost fallback for development
         self.quinn_api_url = os.environ.get('QUINN_API_URL', 'http://localhost:8005')
         self.peter_api_url = os.environ.get('PETER_API_URL', 'http://localhost:8003')

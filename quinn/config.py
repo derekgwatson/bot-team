@@ -36,9 +36,6 @@ class Config:
         # Read allstaff group from env first, fallback to config file
         self.allstaff_group = os.environ.get('GOOGLE_ALLSTAFF_GROUP') or data['google_groups'].get('allstaff_group', '')
 
-        # Auth config - secrets come from environment variables
-        self.oauth_client_id = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
-        self.oauth_client_secret = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
         # Admin emails from env (comma-separated list) or fallback to config file
         env_emails = os.environ.get('ADMIN_EMAILS', '')
         if env_emails:

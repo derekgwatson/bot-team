@@ -65,14 +65,6 @@ class Config:
         return self._shared_config['organization']['domains']
 
     @property
-    def oauth_client_id(self):
-        return os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
-
-    @property
-    def oauth_client_secret(self):
-        return os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-
-    @property
     def admin_emails(self):
         # Read from environment variable (comma-separated list)
         env_emails = os.environ.get('ADMIN_EMAILS', '')
