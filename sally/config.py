@@ -59,6 +59,6 @@ class Config:
     @property
     def servers(self):
         """Get configured servers"""
-        return self._config.get('servers', {})
+        return self._config.get('servers') or {}
 
 config = Config()
