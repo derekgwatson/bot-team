@@ -763,13 +763,23 @@ class DeploymentOrchestrator:
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
 
         try:
+            # Determine bind configuration based on skip_nginx
+            if skip_nginx:
+                # Internal-only bot: use TCP port for direct access
+                port = bot_config.get('port', 8000)
+                bind_config = f"0.0.0.0:{port}"
+            else:
+                # Nginx-proxied bot: use Unix socket
+                bind_config = f"unix:/run/gunicorn-bot-team-{bot_name}/gunicorn.sock"
+
             service_config = self._load_template(
                 'gunicorn.service.template',
                 bot_name=bot_name,
                 bot_name_title=bot_name.title(),
                 description=description,
                 bot_path=path,
-                workers=workers
+                workers=workers,
+                bind_config=bind_config
             )
 
             # Escape quotes for shell
