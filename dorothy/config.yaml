@@ -40,3 +40,8 @@ bots:
 
   dorothy:
     description: Deployment Orchestrator
+
+  sally:
+    description: SSH Command Executor
+    port: 8004
+    skip_nginx: true  # Internal-only bot, no public web access needed

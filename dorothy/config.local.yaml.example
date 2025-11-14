@@ -15,6 +15,7 @@ defaults:
 # bots:
 #   sally:
 #     description: SSH Command Executor
+#     port: 8004                    # Port for internal access (used by health checks)
 #     skip_nginx: true              # Internal-only bot, no nginx/SSL needed
 #   peter:
 #     workers: 5                    # Override just Peter's workers

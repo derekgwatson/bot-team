@@ -134,8 +134,48 @@ def health_check_bot(bot_name):
 
     bot_config = config.get_bot_config(bot_name)
     domain = bot_config.get('domain')
+    skip_nginx = bot_config.get('skip_nginx', False)
+    port = bot_config.get('port')
 
-    # Check if the bot is responding via its domain
+    # For internal-only bots, check direct port access or systemd service
+    if skip_nginx:
+        if port:
+            # Try direct access via localhost:port
+            result = deployment_orchestrator._call_sally(
+                server,
+                f"curl -s http://localhost:{port}/health || echo 'not responding'"
+            )
+            is_healthy = 'healthy' in result.get('stdout', '')
+
+            return jsonify({
+                'bot': bot_name,
+                'server': server,
+                'port': port,
+                'access_method': 'direct_port',
+                'healthy': is_healthy,
+                'response': result.get('stdout', ''),
+                'success': result.get('success')
+            })
+        else:
+            # Fall back to checking systemd service status
+            service_name = bot_config.get('service', f"gunicorn-{bot_name}")
+            result = deployment_orchestrator._call_sally(
+                server,
+                f"sudo systemctl is-active {service_name}"
+            )
+            is_active = 'active' in result.get('stdout', '')
+
+            return jsonify({
+                'bot': bot_name,
+                'server': server,
+                'service': service_name,
+                'access_method': 'systemd_service',
+                'healthy': is_active,
+                'response': result.get('stdout', ''),
+                'success': result.get('success')
+            })
+
+    # For nginx-routed bots, check via domain
     result = deployment_orchestrator._call_sally(
         server,
         f"curl -s http://localhost/health -H 'Host: {domain}' || echo 'not responding'"
@@ -147,6 +187,7 @@ def health_check_bot(bot_name):
         'bot': bot_name,
         'server': server,
         'domain': domain,
+        'access_method': 'nginx_domain',
         'healthy': is_healthy,
         'response': result.get('stdout', ''),
         'success': result.get('success')
