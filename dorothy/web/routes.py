@@ -189,8 +189,20 @@ def index():
                             const statusResponse = await fetch('/api/verifications/' + verificationId);
                             const data = await statusResponse.json();
 
+                            // Check if verification was found
+                            if (data.error) {
+                                clearInterval(pollInterval);
+                                resultDiv.innerHTML = `
+                                    <div class="result error">
+                                        <strong>❌ Verification Failed</strong>
+                                        <div>${data.error}</div>
+                                    </div>
+                                `;
+                                return;
+                            }
+
                             // Build checks HTML showing current progress
-                            let checksHtml = data.checks.map(check => {
+                            let checksHtml = (data.checks || []).map(check => {
                                 let checkName = (check.check || 'Check').replace(/_/g, ' ');
                                 let icon = check.status === 'in_progress' ? '⏳' : (check.success ? '✅' : '❌');
                                 let statusText = check.status === 'in_progress' ? 'Checking...' : (check.success ? 'Passed' : 'Failed');

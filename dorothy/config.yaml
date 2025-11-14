@@ -31,7 +31,7 @@ defaults:
   domain: "{bot_name}.example.com"
   nginx_config_name: "{bot_name}"
   workers: 3
-  # ssl_email: your@email.com  # Optional: If set, certbot will run during deployment
+  # ssl_email: your@email.com  # Optional: Auto-run certbot during deployment (skip if you run certbot manually)
 
 bots:
   # Each bot only needs to specify what's unique (description)
