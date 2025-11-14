@@ -298,11 +298,11 @@ def add_bot():
         # Append to existing bots section
         new_config = current_config + f"{bot_yaml}\n"
 
-    # Write updated config (escape single quotes for shell)
+    # Write updated config as www-data user (escape single quotes for shell)
     escaped_config = new_config.replace("'", "'\\''")
     write_result = deployment_orchestrator._call_sally(
         server,
-        f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null && sudo chown www-data:www-data {config_path}"
+        f"sudo su -s /bin/bash -c \"echo '{escaped_config}' > {config_path}\" www-data"
     )
 
     if not write_result.get('success'):
