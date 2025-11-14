@@ -676,6 +676,26 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
+        # Step 3.5: Create .env from .env.example if it doesn't exist
+        deployment['steps'].append({'name': 'Environment configuration', 'status': 'in_progress'})
+
+        env_result = self._call_sally(
+            server,
+            f"[ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data || echo 'No .env.example found, skipping')"
+        )
+
+        deployment['steps'][-1]['status'] = 'completed' if env_result.get('success') else 'failed'
+        deployment['steps'][-1]['result'] = {
+            'success': env_result.get('success'),
+            'stdout': env_result.get('stdout', ''),
+            'stderr': env_result.get('stderr', ''),
+            'exit_code': env_result.get('exit_code')
+        }
+
+        # Don't fail deployment if .env setup fails - just log it
+        if not env_result.get('success'):
+            deployment['steps'][-1]['result']['warning'] = 'Environment file setup failed, but continuing deployment'
+
         # Step 4: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
             deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
