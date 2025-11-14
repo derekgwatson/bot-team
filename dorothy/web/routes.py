@@ -164,7 +164,8 @@ def index():
                 try {
                     const response = await fetch('/api/verify/' + botName, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
                     });
 
                     const data = await response.json();
@@ -214,7 +215,8 @@ def index():
                 try {
                     const response = await fetch('/api/deploy/' + botName, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
                     });
 
                     const data = await response.json();
@@ -258,7 +260,8 @@ def index():
                 try {
                     const response = await fetch('/api/plan/' + botName, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
                     });
 
                     const plan = await response.json();
@@ -346,7 +349,8 @@ def index():
                 try {
                     const response = await fetch('/api/health-check/' + botName, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
                     });
 
                     const data = await response.json();
