@@ -45,6 +45,18 @@ def index():
                 border-radius: 8px;
                 border-left: 4px solid #667eea;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .server-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                border-left-color: #5568d3;
+            }
+            .server-card.selected {
+                background: #f0f4ff;
+                border-left-color: #5568d3;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
             }
             .server-card h3 { margin: 0 0 10px 0; color: #667eea; }
             .server-card .info { color: #666; font-size: 0.9em; margin: 5px 0; }
@@ -93,7 +105,7 @@ def index():
             {% if servers %}
             <div class="servers">
                 {% for name, server in servers.items() %}
-                <div class="server-card">
+                <div class="server-card" data-server="{{ name }}" onclick="selectServer('{{ name }}')">
                     <h3>{{ name }}</h3>
                     <div class="info">🖥️ {{ server.host }}</div>
                     <div class="info">👤 {{ server.get('user', 'ubuntu') }}</div>
@@ -140,6 +152,51 @@ def index():
         </div>
 
         <script>
+            // Select a server (from clicking card or dropdown change)
+            function selectServer(serverName) {
+                const serverSelect = document.getElementById('server');
+                serverSelect.value = serverName;
+
+                // Update visual selection on cards
+                document.querySelectorAll('.server-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                const selectedCard = document.querySelector(`[data-server="${serverName}"]`);
+                if (selectedCard) {
+                    selectedCard.classList.add('selected');
+                }
+
+                // Save to localStorage for next time
+                localStorage.setItem('sally_last_server', serverName);
+
+                // Scroll to command input for convenience
+                document.getElementById('command').focus();
+            }
+
+            // Initialize on page load
+            window.addEventListener('DOMContentLoaded', () => {
+                const serverSelect = document.getElementById('server');
+                const serverOptions = Array.from(serverSelect.options).filter(o => o.value);
+
+                // Auto-select if only one server
+                if (serverOptions.length === 1) {
+                    selectServer(serverOptions[0].value);
+                } else if (serverOptions.length > 1) {
+                    // Try to restore last selected server
+                    const lastServer = localStorage.getItem('sally_last_server');
+                    if (lastServer && serverOptions.find(o => o.value === lastServer)) {
+                        selectServer(lastServer);
+                    }
+                }
+
+                // Also update visual when dropdown is changed manually
+                serverSelect.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        selectServer(e.target.value);
+                    }
+                });
+            });
+
             async function executeCommand(event) {
                 event.preventDefault();
 
