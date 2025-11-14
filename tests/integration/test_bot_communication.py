@@ -109,7 +109,7 @@ def test_oauth_checks_quinn_for_external_approval(mock_responses, test_env):
         return 'Access Denied'
 
     # Mock config with Quinn URL
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
@@ -139,7 +139,7 @@ def test_oauth_handles_quinn_unavailable(mock_responses, test_env):
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.quinn_api_url = 'http://localhost:8004'
@@ -169,10 +169,11 @@ def test_oauth_combines_domain_and_quinn_checks(mock_responses, test_env):
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret'
 
-    mock_config = Mock()
+    mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'allowed_domains', 'admin_emails', 'quinn_api_url'])
     mock_config.oauth_client_id = 'test-client-id'
     mock_config.oauth_client_secret = 'test-client-secret'
     mock_config.allowed_domains = ['company.com']
+    mock_config.admin_emails = []
     mock_config.quinn_api_url = 'http://localhost:8004'
 
     # Mock Quinn response for external user
