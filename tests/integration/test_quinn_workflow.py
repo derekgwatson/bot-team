@@ -38,17 +38,12 @@ quinn_config.config = original_config
 
 
 @pytest.fixture
-def db(monkeypatch, tmp_path):
+def db(tmp_path):
     """Create a test database instance."""
     db_file = tmp_path / 'test_quinn_integration.db'
 
-    class MockConfig:
-        database_path = str(db_file)
-
-    import config as quinn_config
-    monkeypatch.setattr(quinn_config, 'config', MockConfig())
-
-    return ExternalStaffDB()
+    # Create database with explicit path
+    return ExternalStaffDB(db_path=str(db_file))
 
 
 # ==============================================================================

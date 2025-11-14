@@ -31,12 +31,15 @@ def mock_config(monkeypatch, tmp_path):
     class MockConfig:
         google_credentials_file = str(creds_file)
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    # Patch the config module
-    import config as fred_config
-    monkeypatch.setattr(fred_config, 'config', MockConfig())
+    mock_config_obj = MockConfig()
 
-    return MockConfig()
+    # Patch where the config is USED, not where it's defined
+    import services.google_workspace
+    monkeypatch.setattr(services.google_workspace, 'config', mock_config_obj)
+
+    return mock_config_obj
 
 
 @pytest.fixture
@@ -55,9 +58,11 @@ def workspace_service_uninitialized(monkeypatch):
     class MockConfig:
         google_credentials_file = '/nonexistent/credentials.json'
         google_admin_email = 'admin@company.com'
+        google_domain = 'example.com'
 
-    import config as fred_config
-    monkeypatch.setattr(fred_config, 'config', MockConfig())
+    # Patch where the config is USED
+    import services.google_workspace
+    monkeypatch.setattr(services.google_workspace, 'config', MockConfig())
 
     service = GoogleWorkspaceService()
     return service
