@@ -2,7 +2,7 @@
 # Opens SSH tunnel to Sally on production server and launches browser
 
 param(
-    [string]$Server = "ubuntu@your-prod-server.com",
+    [string]$Server = "derek@206.189.234.68",
     [int]$LocalPort = 8004,
     [int]$RemotePort = 8004
 )
