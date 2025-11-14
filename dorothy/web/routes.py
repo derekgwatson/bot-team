@@ -6,7 +6,8 @@ web_bp = Blueprint('web', __name__)
 @web_bp.route('/')
 def index():
     """Dorothy's home page"""
-    bots = config.bots
+    # Get all bots with defaults applied
+    bots = {name: config.get_bot_config(name) for name in config.bots.keys()}
 
     template = '''
     <!DOCTYPE html>
@@ -127,8 +128,10 @@ def index():
                 <div class="bot-card">
                     <h3>{{ name.title() }}</h3>
                     <div class="info">🌐 {{ bot.domain }}</div>
-                    <div class="info">🔌 Port {{ bot.port }}</div>
+                    <div class="info">🖥️ Server: {{ config.default_server }}</div>
                     <div class="info">📁 {{ bot.path }}</div>
+                    <div class="info">⚙️ {{ bot.service }}</div>
+                    <div class="info">👥 Workers: {{ bot.workers }}</div>
                     <div class="actions">
                         <button class="btn btn-verify" onclick="verifyBot('{{ name }}')">Verify</button>
                         <button class="btn btn-plan" onclick="showPlan('{{ name }}')">Show Plan</button>
