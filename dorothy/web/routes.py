@@ -443,18 +443,45 @@ def index():
 
                     const data = await response.json();
 
+                    // Handle errors from API
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <strong>❌ Health Check Failed</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Build access info based on method
+                    let accessInfo = '';
+                    if (data.access_method === 'direct_port') {
+                        accessInfo = `<div class="check-result"><strong>Port:</strong> ${data.port || 'N/A'}</div>`;
+                    } else if (data.access_method === 'nginx_domain') {
+                        accessInfo = `<div class="check-result"><strong>Domain:</strong> ${data.domain || 'N/A'}</div>`;
+                    } else if (data.access_method === 'systemd_service') {
+                        accessInfo = `<div class="check-result"><strong>Service:</strong> ${data.service || 'N/A'}</div>`;
+                    }
+
+                    if (data.response) {
+                        accessInfo += `<div class="check-result"><strong>Response:</strong> <code>${data.response}</code></div>`;
+                    }
+
+                    const displayName = data.bot || botName;
+
                     if (data.healthy) {
                         resultDiv.innerHTML = `
                             <div class="result success">
-                                <strong>✅ ${botName} is healthy!</strong>
-                                <div class="check-result">Port: ${data.port}</div>
+                                <strong>✅ ${displayName} is healthy!</strong>
+                                ${accessInfo}
                             </div>
                         `;
                     } else {
                         resultDiv.innerHTML = `
                             <div class="result error">
-                                <strong>❌ ${botName} is not responding</strong>
-                                <div class="check-result">Port: ${data.port}</div>
+                                <strong>❌ ${displayName} is not responding</strong>
+                                ${accessInfo}
                             </div>
                         `;
                     }
