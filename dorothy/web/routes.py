@@ -60,6 +60,8 @@ def index():
             .btn-verify { background: #4CAF50; color: white; }
             .btn-plan { background: #FF9800; color: white; }
             .btn-deploy { background: #f5576c; color: white; }
+            .btn-update { background: #9C27B0; color: white; }
+            .btn-start-service { background: #00BCD4; color: white; }
             .btn-health { background: #2196F3; color: white; }
             .btn:hover { opacity: 0.9; }
             .plan-step {
@@ -213,6 +215,7 @@ def index():
                         <button class="btn btn-verify" onclick="verifyBot('{{ name }}')">Verify</button>
                         <button class="btn btn-plan" onclick="showPlan('{{ name }}')">Show Plan</button>
                         <button class="btn btn-deploy" onclick="deployBot('{{ name }}')">Deploy</button>
+                        <button class="btn btn-update" onclick="updateBot('{{ name }}')">Update</button>
                         <button class="btn btn-health" onclick="healthCheck('{{ name }}')">Health</button>
                     </div>
                     <div id="result-{{ name }}"></div>
@@ -514,6 +517,24 @@ def index():
                             if (data.status === 'completed' || data.status === 'partial') {
                                 clearInterval(pollInterval);
                                 const isSuccess = data.status === 'completed';
+
+                                // Check if last step is "Manual configuration required"
+                                const lastStep = data.steps && data.steps.length > 0 ? data.steps[data.steps.length - 1] : null;
+                                const needsManualConfig = lastStep && lastStep.name === 'Manual configuration required';
+                                const configMessage = lastStep && lastStep.result && lastStep.result.message ? lastStep.result.message : '';
+
+                                let startServiceButton = '';
+                                if (isSuccess && needsManualConfig) {
+                                    startServiceButton = `
+                                        <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border: 2px solid #0066cc; border-radius: 8px;">
+                                            <div style="color: #004085; margin-bottom: 10px; white-space: pre-line;">${configMessage}</div>
+                                            <button class="btn btn-start-service" onclick="startService('${botName}')" style="margin-top: 10px;">
+                                                🚀 Start Service
+                                            </button>
+                                        </div>
+                                    `;
+                                }
+
                                 resultDiv.innerHTML = `
                                     <div class="result ${isSuccess ? 'success' : 'error'}">
                                         <strong>${isSuccess ? '✅ Deployment Completed' : '❌ Deployment Failed'}</strong>
@@ -522,6 +543,7 @@ def index():
                                         <div style="margin-top: 15px;">
                                             ${stepsHtml}
                                         </div>
+                                        ${startServiceButton}
                                     </div>
                                 `;
                             } else {
@@ -704,6 +726,128 @@ def index():
                     resultDiv.innerHTML = `
                         <div class="result error">
                             <strong>❌ Health Check Failed</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            async function updateBot(botName) {
+                const resultDiv = document.getElementById('result-' + botName);
+
+                showConfirmModal(
+                    '🔄 Update ' + botName + '?',
+                    'This will pull the latest code, install dependencies, and restart the service. Use this for regular deployments after initial setup.',
+                    async function() {
+                        resultDiv.innerHTML = '<div class="result">🔄 Updating bot...</div>';
+
+                        try {
+                            const response = await fetch('/api/update/' + botName, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({})
+                            });
+
+                            const data = await response.json();
+
+                            if (data.error) {
+                                resultDiv.innerHTML = `
+                                    <div class="result error">
+                                        <strong>❌ Update Failed</strong>
+                                        <div>${data.error}</div>
+                                    </div>
+                                `;
+                                return;
+                            }
+
+                            // Build steps HTML
+                            let stepsHtml = '';
+                            if (data.steps && data.steps.length > 0) {
+                                stepsHtml = data.steps.map(step => {
+                                    let icon = step.status === 'completed' ? '✅' : '❌';
+                                    let bgColor = step.status === 'completed' ? '#f0f9ff' : '#fff5f5';
+
+                                    return `<div class="check-result" style="margin-bottom: 15px; padding: 12px; border-radius: 5px; background: ${bgColor};">
+                                        ${icon} <strong>${step.name}</strong>
+                                    </div>`;
+                                }).join('');
+                            }
+
+                            const isSuccess = data.success;
+                            resultDiv.innerHTML = `
+                                <div class="result ${isSuccess ? 'success' : 'error'}">
+                                    <strong>${isSuccess ? '✅ Update Completed' : '❌ Update Failed'}</strong>
+                                    <div style="margin-top: 15px;">
+                                        ${stepsHtml}
+                                    </div>
+                                </div>
+                            `;
+
+                        } catch (error) {
+                            resultDiv.innerHTML = `
+                                <div class="result error">
+                                    <strong>❌ Update Failed</strong>
+                                    <div>${error.message}</div>
+                                </div>
+                            `;
+                        }
+                    }
+                );
+            }
+
+            async function startService(botName) {
+                const resultDiv = document.getElementById('result-' + botName);
+                resultDiv.innerHTML = '<div class="result">🚀 Starting service...</div>';
+
+                try {
+                    const response = await fetch('/api/start-service/' + botName, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <strong>❌ Failed to Start Service</strong>
+                                <div>${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <strong>✅ Service Started Successfully!</strong>
+                                <div class="check-result" style="margin-top: 10px;">
+                                    <strong>Service:</strong> ${data.service || botName}
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <button class="btn btn-health" onclick="healthCheck('${botName}')">Check Health</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        let errorDetails = '';
+                        if (data.stderr) errorDetails += `<div><strong>Error:</strong> ${data.stderr}</div>`;
+                        if (data.stdout) errorDetails += `<div><strong>Output:</strong> ${data.stdout}</div>`;
+                        if (data.exit_code !== undefined) errorDetails += `<div><strong>Exit Code:</strong> ${data.exit_code}</div>`;
+
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <strong>❌ Failed to Start Service</strong>
+                                ${errorDetails}
+                            </div>
+                        `;
+                    }
+
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Failed to Start Service</strong>
                             <div>${error.message}</div>
                         </div>
                     `;

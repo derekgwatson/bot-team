@@ -1,5 +1,7 @@
 import paramiko
+import subprocess
 import time
+import socket
 from typing import Dict, Optional, Tuple
 from config import config
 
@@ -8,6 +10,89 @@ class SSHExecutor:
 
     def __init__(self):
         self.connections = {}
+        self._local_hostname = socket.gethostname()
+        self._local_fqdn = socket.getfqdn()
+
+    def _is_local_server(self, server_config: dict) -> bool:
+        """
+        Check if a server is the local machine
+
+        Returns True if the server host matches:
+        - localhost
+        - 127.0.0.1
+        - The current machine's hostname
+        - The current machine's FQDN
+        """
+        host = server_config.get('host', '')
+
+        if host in ['localhost', '127.0.0.1', '::1']:
+            return True
+
+        if host == self._local_hostname or host == self._local_fqdn:
+            return True
+
+        # Try to resolve hostname and compare IPs
+        try:
+            target_ip = socket.gethostbyname(host)
+            local_ip = socket.gethostbyname(self._local_hostname)
+            if target_ip == local_ip:
+                return True
+        except:
+            pass
+
+        return False
+
+    def _execute_local(self, command: str, timeout: Optional[int] = None) -> Dict[str, any]:
+        """
+        Execute a command locally using subprocess
+
+        Args:
+            command: Command to execute
+            timeout: Command timeout in seconds
+
+        Returns:
+            Dict with stdout, stderr, exit_code, and execution time
+        """
+        if timeout is None:
+            timeout = config.ssh_command_timeout
+
+        try:
+            start_time = time.time()
+
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+
+            execution_time = time.time() - start_time
+
+            return {
+                'success': result.returncode == 0,
+                'exit_code': result.returncode,
+                'stdout': result.stdout,
+                'stderr': result.stderr,
+                'execution_time': round(execution_time, 2),
+                'command': command,
+                'execution_mode': 'local'
+            }
+
+        except subprocess.TimeoutExpired:
+            return {
+                'success': False,
+                'error': f'Command timed out after {timeout} seconds',
+                'command': command,
+                'execution_mode': 'local'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'command': command,
+                'execution_mode': 'local'
+            }
 
     def _get_friendly_error(self, error_type: str, details: str, server_config: dict) -> str:
         """Generate friendly, helpful error messages with troubleshooting steps"""
@@ -103,7 +188,11 @@ class SSHExecutor:
         timeout: Optional[int] = None
     ) -> Dict[str, any]:
         """
-        Execute a command on a remote server
+        Execute a command on a server (local or remote)
+
+        Automatically detects if the target server is the local machine and uses
+        subprocess instead of SSH for better performance. Falls back to SSH for
+        remote servers.
 
         Args:
             server_name: Name of the server from config
@@ -116,6 +205,25 @@ class SSHExecutor:
         if timeout is None:
             timeout = config.ssh_command_timeout
 
+        # Get server config
+        servers = config.servers
+        if server_name not in servers:
+            return {
+                'success': False,
+                'error': self._get_friendly_error("server_not_configured", server_name, {}),
+                'server': server_name,
+                'command': command
+            }
+
+        server_config = servers[server_name]
+
+        # Check if this is a local server
+        if self._is_local_server(server_config):
+            result = self._execute_local(command, timeout)
+            result['server'] = server_name
+            return result
+
+        # Remote server - use SSH
         try:
             client = self._get_connection(server_name)
 
@@ -136,7 +244,8 @@ class SSHExecutor:
                 'stderr': stderr_text,
                 'execution_time': round(execution_time, 2),
                 'server': server_name,
-                'command': command
+                'command': command,
+                'execution_mode': 'ssh'
             }
 
         except Exception as e:

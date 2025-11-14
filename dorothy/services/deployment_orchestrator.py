@@ -676,25 +676,26 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
-        # Step 3.5: Create .env from .env.example if it doesn't exist
-        deployment['steps'].append({'name': 'Environment configuration', 'status': 'in_progress'})
+        # Step 3.5: Create config files from examples if they don't exist
+        deployment['steps'].append({'name': 'Configuration files setup', 'status': 'in_progress'})
 
-        env_result = self._call_sally(
+        config_result = self._call_sally(
             server,
-            f"[ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data || echo 'No .env.example found, skipping')"
+            f"([ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data)) && "
+            f"([ -f {path}/config.local.yaml ] || ([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data))"
         )
 
-        deployment['steps'][-1]['status'] = 'completed' if env_result.get('success') else 'failed'
+        deployment['steps'][-1]['status'] = 'completed' if config_result.get('success') else 'failed'
         deployment['steps'][-1]['result'] = {
-            'success': env_result.get('success'),
-            'stdout': env_result.get('stdout', ''),
-            'stderr': env_result.get('stderr', ''),
-            'exit_code': env_result.get('exit_code')
+            'success': config_result.get('success'),
+            'stdout': config_result.get('stdout', ''),
+            'stderr': config_result.get('stderr', ''),
+            'exit_code': config_result.get('exit_code')
         }
 
-        # Don't fail deployment if .env setup fails - just log it
-        if not env_result.get('success'):
-            deployment['steps'][-1]['result']['warning'] = 'Environment file setup failed, but continuing deployment'
+        # Don't fail deployment if config file setup fails - just log it
+        if not config_result.get('success'):
+            deployment['steps'][-1]['result']['warning'] = 'Configuration file setup failed, but continuing deployment'
 
         # Step 4: Create nginx config (skip for internal-only bots)
         if not skip_nginx:
@@ -850,16 +851,18 @@ class DeploymentOrchestrator:
                 'exit_code': reload_result.get('exit_code')
             }
 
-        # Step 8: Start/restart service
-        deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})
-
-        start_result = self._call_sally(server, f"sudo systemctl restart {service_name}")
-        deployment['steps'][-1]['status'] = 'completed' if start_result.get('success') else 'failed'
+        # Step 8: Manual configuration instructions (don't start service yet)
+        deployment['steps'].append({'name': 'Manual configuration required', 'status': 'completed'})
         deployment['steps'][-1]['result'] = {
-            'success': start_result.get('success'),
-            'stdout': start_result.get('stdout', ''),
-            'stderr': start_result.get('stderr', ''),
-            'exit_code': start_result.get('exit_code')
+            'success': True,
+            'message': f'Deployment setup complete! Before starting the service:\n'
+                      f'1. SSH to the server: ssh {server}\n'
+                      f'2. Edit configuration files:\n'
+                      f'   - .env file: sudo nano {path}/.env (API keys, credentials, etc.)\n'
+                      f'   - config.local.yaml: sudo nano {path}/config.local.yaml (servers, repo, domain, etc.)\n'
+                      f'3. Start the service: sudo systemctl start {service_name}\n'
+                      f'4. Check status: sudo systemctl status {service_name}\n'
+                      f'5. View logs: sudo journalctl -u {service_name} -f'
         }
 
         # Final status
@@ -876,11 +879,12 @@ class DeploymentOrchestrator:
         - Clone/update repository
         - Set up virtual environment
         - Install dependencies
+        - Create config files from examples (.env, config.local.yaml)
         - Create nginx config
         - Create systemd service
         - Set up SSL with certbot (if ssl_email is configured)
         - Reload nginx
-        - Start the service
+        - Provide instructions for manual configuration and service start
 
         Args:
             server: Server name
@@ -923,6 +927,82 @@ class DeploymentOrchestrator:
             'bot': bot_name,
             'server': server
         }
+
+    def update_bot(self, server: str, bot_name: str) -> Dict:
+        """
+        Update a bot (simpler than full deploy)
+
+        Just pulls latest code, installs dependencies, and restarts service.
+        Use this for regular deployments after initial setup is complete.
+
+        Args:
+            server: Server name
+            bot_name: Bot to update
+
+        Returns:
+            Update result with status
+        """
+        bot_config = config.get_bot_config(bot_name)
+        if not bot_config:
+            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+
+        path = bot_config.get('path')
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        venv_path = f"{path}/.venv"
+
+        update_result = {
+            'bot': bot_name,
+            'server': server,
+            'steps': [],
+            'success': True
+        }
+
+        # Step 1: Git pull
+        update_result['steps'].append({'name': 'Pull latest code', 'status': 'in_progress'})
+        pull_result = self._call_sally(
+            server,
+            f"sudo su -s /bin/bash -c 'cd {path} && git pull' www-data"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if pull_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = pull_result
+
+        if not pull_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to pull latest code'
+            return update_result
+
+        # Step 2: Install dependencies (in case requirements changed)
+        update_result['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
+        deps_result = self._call_sally(
+            server,
+            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if deps_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = deps_result
+
+        if not deps_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to install dependencies'
+            return update_result
+
+        # Step 3: Restart service
+        update_result['steps'].append({'name': 'Restart service', 'status': 'in_progress'})
+        restart_result = self._call_sally(
+            server,
+            f"sudo systemctl restart {service_name}"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if restart_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = restart_result
+
+        if not restart_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to restart service'
+            return update_result
+
+        return update_result
 
     def setup_ssl(self, server: str, bot_name: str, email: str) -> Dict:
         """

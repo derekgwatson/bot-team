@@ -193,6 +193,57 @@ def health_check_bot(bot_name):
         'success': result.get('success')
     })
 
+@api_bp.route('/start-service/<bot_name>', methods=['POST'])
+def start_service(bot_name):
+    """
+    Start the systemd service for a bot
+
+    Body:
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    if bot_name not in config.bots:
+        return jsonify({
+            'error': f"Bot '{bot_name}' not configured"
+        }), 404
+
+    bot_config = config.get_bot_config(bot_name)
+    service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+
+    result = deployment_orchestrator._call_sally(
+        server,
+        f"sudo systemctl start {service_name}"
+    )
+
+    return jsonify({
+        'success': result.get('success'),
+        'service': service_name,
+        'stdout': result.get('stdout', ''),
+        'stderr': result.get('stderr', ''),
+        'exit_code': result.get('exit_code')
+    })
+
+@api_bp.route('/update/<bot_name>', methods=['POST'])
+def update_bot(bot_name):
+    """
+    Update a bot (simpler than full deploy - just pull code and restart)
+
+    Body:
+        server: Server name (optional, uses default)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+
+    if bot_name not in config.bots:
+        return jsonify({
+            'error': f"Bot '{bot_name}' not configured"
+        }), 404
+
+    result = deployment_orchestrator.update_bot(server, bot_name)
+    return jsonify(result)
+
 @api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
 def setup_ssl(bot_name):
     """
