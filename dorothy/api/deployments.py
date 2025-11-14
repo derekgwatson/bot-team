@@ -244,21 +244,30 @@ def add_bot():
 
     # Required fields
     bot_name = data.get('name')
-    port = data.get('port')
+    domain = data.get('domain')
 
-    if not bot_name or not port:
-        return jsonify({'error': 'Bot name and port are required'}), 400
+    if not bot_name:
+        return jsonify({'error': 'Bot name is required'}), 400
+
+    if not domain:
+        return jsonify({'error': 'Domain is required'}), 400
 
     # Optional fields
-    domain = data.get('domain', f"{bot_name}.{config.default_server}")
+    port = data.get('port')
     workers = data.get('workers', 2)
     description = data.get('description', '')
     skip_nginx = data.get('skip_nginx', False)
 
+    # Validate port is required for internal-only bots
+    if skip_nginx and not port:
+        return jsonify({'error': 'Port is required for internal-only bots'}), 400
+
     # Build YAML snippet for new bot
     bot_yaml = f"""
-  {bot_name}:
-    port: {port}"""
+  {bot_name}:"""
+
+    if port:
+        bot_yaml += f"\n    port: {port}"
 
     if domain:
         bot_yaml += f"\n    domain: {domain}"

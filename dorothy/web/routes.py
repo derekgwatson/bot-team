@@ -251,28 +251,45 @@ def index():
                         <input type="text" id="new-bot-name" placeholder="e.g., peter" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port*</label>
-                        <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Domain</label>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Domain*</label>
                         <input type="text" id="new-bot-domain" placeholder="e.g., peter.example.com" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                     </div>
                     <div>
                         <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Workers</label>
                         <input type="number" id="new-bot-workers" value="2" min="1" max="8" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                     </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Description</label>
+                        <input type="text" id="new-bot-description" placeholder="e.g., Project management bot" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
                 </div>
-                <div style="margin-top: 10px;">
-                    <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Description</label>
-                    <input type="text" id="new-bot-description" placeholder="e.g., Project management bot" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+
+                <!-- Advanced Options Toggle -->
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                    <button type="button" onclick="toggleAdvancedOptions()" style="background: none; border: none; color: #007bff; cursor: pointer; font-size: 0.85em; padding: 0; text-decoration: underline;">
+                        <span id="advanced-toggle-text">⚙️ Show Advanced Options</span>
+                    </button>
                 </div>
-                <div style="margin-top: 10px;">
-                    <label style="display: flex; align-items: center; font-size: 0.85em; color: #666;">
-                        <input type="checkbox" id="new-bot-skip-nginx" style="margin-right: 5px;">
-                        Internal-only bot (skip nginx)
-                    </label>
+
+                <!-- Advanced Options (Hidden by default) -->
+                <div id="advanced-options" style="display: none; margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <p style="font-size: 0.85em; color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin: 0 0 10px 0;">
+                        ⚠️ Advanced: For internal-only bots (like Sally) that don't need nginx/public domain
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                        <div>
+                            <label style="display: flex; align-items: center; font-size: 0.85em; color: #666;">
+                                <input type="checkbox" id="new-bot-skip-nginx" style="margin-right: 5px;" onchange="togglePortRequired()">
+                                Internal-only bot (skip nginx)
+                            </label>
+                        </div>
+                        <div id="port-field" style="display: none;">
+                            <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port* (required for internal-only)</label>
+                            <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </div>
                 </div>
+
                 <button class="btn btn-deploy" onclick="addNewBot()" style="width: 100%; margin-top: 15px;">
                     ✨ Add Bot & Restart Dorothy
                 </button>
@@ -976,6 +993,30 @@ def index():
                 );
             }
 
+            function toggleAdvancedOptions() {
+                const advancedOptions = document.getElementById('advanced-options');
+                const toggleText = document.getElementById('advanced-toggle-text');
+
+                if (advancedOptions.style.display === 'none') {
+                    advancedOptions.style.display = 'block';
+                    toggleText.textContent = '⚙️ Hide Advanced Options';
+                } else {
+                    advancedOptions.style.display = 'none';
+                    toggleText.textContent = '⚙️ Show Advanced Options';
+                }
+            }
+
+            function togglePortRequired() {
+                const skipNginx = document.getElementById('new-bot-skip-nginx').checked;
+                const portField = document.getElementById('port-field');
+
+                if (skipNginx) {
+                    portField.style.display = 'block';
+                } else {
+                    portField.style.display = 'none';
+                }
+            }
+
             async function addNewBot() {
                 const resultDiv = document.getElementById('add-bot-result');
 
@@ -988,11 +1029,32 @@ def index():
                 const skipNginx = document.getElementById('new-bot-skip-nginx').checked;
 
                 // Validate required fields
-                if (!botName || !port) {
+                if (!botName) {
                     resultDiv.innerHTML = `
                         <div class="result error" style="margin-top: 10px;">
                             <strong>❌ Validation Error</strong>
-                            <div>Bot name and port are required</div>
+                            <div>Bot name is required</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!domain) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Validation Error</strong>
+                            <div>Domain is required</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Port is only required for internal-only bots
+                if (skipNginx && !port) {
+                    resultDiv.innerHTML = `
+                        <div class="result error" style="margin-top: 10px;">
+                            <strong>❌ Validation Error</strong>
+                            <div>Port is required for internal-only bots</div>
                         </div>
                     `;
                     return;
@@ -1001,17 +1063,24 @@ def index():
                 resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">✨ Adding bot and restarting Dorothy...</div>';
 
                 try {
+                    // Build request body
+                    const requestBody = {
+                        name: botName,
+                        domain: domain,
+                        workers: parseInt(workers),
+                        description: description || undefined,
+                        skip_nginx: skipNginx
+                    };
+
+                    // Only include port if it's provided (for internal-only bots)
+                    if (port) {
+                        requestBody.port = parseInt(port);
+                    }
+
                     const response = await fetch('/api/add-bot', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: botName,
-                            port: parseInt(port),
-                            domain: domain || undefined,
-                            workers: parseInt(workers),
-                            description: description || undefined,
-                            skip_nginx: skipNginx
-                        })
+                        body: JSON.stringify(requestBody)
                     });
 
                     const data = await response.json();
