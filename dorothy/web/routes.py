@@ -348,6 +348,8 @@ def index():
 
                                     let detailsHtml = '';
                                     if (step.result) {
+                                        const isFailed = step.status === 'failed';
+
                                         // Show stdout if available
                                         if (step.result.stdout && step.result.stdout.trim()) {
                                             detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
@@ -355,17 +357,29 @@ def index():
                                                 <pre style="margin: 5px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; font-size: 0.85em;">${step.result.stdout}</pre>
                                             </div>`;
                                         }
-                                        // Show stderr if available (in red for failures)
+
+                                        // Show stderr - only highlight as error if step actually failed
                                         if (step.result.stderr && step.result.stderr.trim()) {
-                                            detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
-                                                <strong style="color: #dc3545;">Error Output:</strong>
-                                                <pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; color: #721c24; font-size: 0.85em;">${step.result.stderr}</pre>
-                                            </div>`;
+                                            if (isFailed) {
+                                                // Failed step - show stderr as error
+                                                detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
+                                                    <strong style="color: #dc3545;">Error Output:</strong>
+                                                    <pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; color: #721c24; font-size: 0.85em;">${step.result.stderr}</pre>
+                                                </div>`;
+                                            } else {
+                                                // Successful step - show stderr as info (some commands like git write to stderr)
+                                                detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em;">
+                                                    <strong>Info:</strong>
+                                                    <pre style="margin: 5px 0; padding: 8px; background: #e7f3ff; border-left: 3px solid #0066cc; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; color: #004085; font-size: 0.85em;">${step.result.stderr}</pre>
+                                                </div>`;
+                                            }
                                         }
-                                        // Show error message if available
-                                        if (step.result.error) {
+
+                                        // Show error message if available (only for failures)
+                                        if (step.result.error && isFailed) {
                                             detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em; color: #dc3545;"><strong>Error:</strong> ${step.result.error}</div>`;
                                         }
+
                                         // Show exit code if non-zero
                                         if (step.result.exit_code !== undefined && step.result.exit_code !== 0) {
                                             detailsHtml += `<div style="margin-top: 8px; font-size: 0.9em; color: #856404;"><strong>Exit Code:</strong> ${step.result.exit_code}</div>`;
