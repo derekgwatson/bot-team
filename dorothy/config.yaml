@@ -1,0 +1,46 @@
+name: dorothy
+description: Deployment Orchestrator - Knows how to deploy and manage bots
+version: 0.1.0
+
+server:
+  host: 0.0.0.0
+  port: 8005
+
+sally:
+  # Sally's API endpoint
+  url: http://localhost:8004
+
+deployment:
+  # Default deployment settings
+  default_server: prod
+  deployment_timeout: 600  # 10 minutes
+  verification_checks:
+    - nginx_config
+    - gunicorn_service
+    - ssl_certificate
+    - repository
+    - virtualenv
+    - permissions
+
+bots:
+  # Bot deployment configurations
+  fred:
+    port: 8001
+    domain: fred.example.com
+    repo: https://github.com/yourorg/bot-team.git
+    path: /var/www/fred
+    service: fred-bot
+
+  iris:
+    port: 8002
+    domain: iris.example.com
+    repo: https://github.com/yourorg/bot-team.git
+    path: /var/www/iris
+    service: iris-bot
+
+  peter:
+    port: 8003
+    domain: peter.example.com
+    repo: https://github.com/yourorg/bot-team.git
+    path: /var/www/peter
+    service: peter-bot

@@ -1,0 +1,7 @@
+.env
+*.pyc
+__pycache__/
+*.log
+id_rsa*
+*.pem
+.DS_Store
