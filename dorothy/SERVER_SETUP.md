@@ -39,6 +39,7 @@ derek ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
 derek ALL=(ALL) NOPASSWD: /bin/systemctl is-active *
 derek ALL=(ALL) NOPASSWD: /bin/systemctl status *
 derek ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
+derek ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/systemd/system/*
 derek ALL=(ALL) NOPASSWD: /bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 derek ALL=(ALL) NOPASSWD: /bin/mkdir -p *
 derek ALL=(ALL) NOPASSWD: /bin/chown -R www-data\:www-data *
