@@ -7,3 +7,4 @@ sally_id_rsa*
 *.pem
 .DS_Store
 config.local.yaml
+.venv/
