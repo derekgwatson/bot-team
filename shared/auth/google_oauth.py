@@ -33,6 +33,18 @@ class GoogleAuth:
                 secret_key = hashlib.sha256(b'bot-team-default-secret').hexdigest()
             self.app.config['SECRET_KEY'] = secret_key
 
+        # Configure session cookies for production (HTTPS) vs development (HTTP)
+        # In production (behind nginx with HTTPS), enforce secure cookies
+        is_production = os.environ.get('FLASK_ENV') != 'development'
+        self.app.config['SESSION_COOKIE_SECURE'] = is_production  # Only send cookies over HTTPS in production
+        self.app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+        self.app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
+        # Trust proxy headers in production (nginx sets X-Forwarded-Proto, X-Forwarded-For, etc.)
+        if is_production:
+            from werkzeug.middleware.proxy_fix import ProxyFix
+            self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_proto=1, x_host=1)
+
         # Initialize OAuth
         self.oauth = OAuth(app)
         self.google = self.oauth.register(
