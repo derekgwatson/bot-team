@@ -928,6 +928,82 @@ class DeploymentOrchestrator:
             'server': server
         }
 
+    def update_bot(self, server: str, bot_name: str) -> Dict:
+        """
+        Update a bot (simpler than full deploy)
+
+        Just pulls latest code, installs dependencies, and restarts service.
+        Use this for regular deployments after initial setup is complete.
+
+        Args:
+            server: Server name
+            bot_name: Bot to update
+
+        Returns:
+            Update result with status
+        """
+        bot_config = config.get_bot_config(bot_name)
+        if not bot_config:
+            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+
+        path = bot_config.get('path')
+        service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
+        venv_path = f"{path}/.venv"
+
+        update_result = {
+            'bot': bot_name,
+            'server': server,
+            'steps': [],
+            'success': True
+        }
+
+        # Step 1: Git pull
+        update_result['steps'].append({'name': 'Pull latest code', 'status': 'in_progress'})
+        pull_result = self._call_sally(
+            server,
+            f"sudo su -s /bin/bash -c 'cd {path} && git pull' www-data"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if pull_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = pull_result
+
+        if not pull_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to pull latest code'
+            return update_result
+
+        # Step 2: Install dependencies (in case requirements changed)
+        update_result['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
+        deps_result = self._call_sally(
+            server,
+            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if deps_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = deps_result
+
+        if not deps_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to install dependencies'
+            return update_result
+
+        # Step 3: Restart service
+        update_result['steps'].append({'name': 'Restart service', 'status': 'in_progress'})
+        restart_result = self._call_sally(
+            server,
+            f"sudo systemctl restart {service_name}"
+        )
+
+        update_result['steps'][-1]['status'] = 'completed' if restart_result.get('success') else 'failed'
+        update_result['steps'][-1]['result'] = restart_result
+
+        if not restart_result.get('success'):
+            update_result['success'] = False
+            update_result['error'] = 'Failed to restart service'
+            return update_result
+
+        return update_result
+
     def setup_ssl(self, server: str, bot_name: str, email: str) -> Dict:
         """
         Set up SSL certificate with certbot
