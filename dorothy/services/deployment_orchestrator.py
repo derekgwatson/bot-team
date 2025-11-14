@@ -2,6 +2,7 @@ import requests
 import time
 import uuid
 from typing import Dict, List, Optional
+from pathlib import Path
 from config import config
 
 class DeploymentOrchestrator:
@@ -10,6 +11,7 @@ class DeploymentOrchestrator:
     def __init__(self):
         self.sally_url = config.sally_url
         self.deployments = {}
+        self.templates_dir = Path(__file__).parent.parent / 'templates'
 
     def _call_sally(self, server: str, command: str, timeout: Optional[int] = None) -> Dict:
         """
@@ -44,13 +46,18 @@ class DeploymentOrchestrator:
                 'error': f"Failed to call Sally: {str(e)}"
             }
 
+    def _load_template(self, template_name: str, **kwargs) -> str:
+        """Load and fill in template file"""
+        template_path = self.templates_dir / template_name
+        with open(template_path, 'r') as f:
+            template = f.read()
+        return template.format(**kwargs)
+
     def verify_nginx_config(self, server: str, bot_name: str) -> Dict:
         """Verify nginx configuration exists and is valid"""
         bot_config = config.get_bot_config(bot_name)
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
-
-        domain = bot_config.get('domain', f"{bot_name}.example.com")
 
         # Check if nginx config exists
         check_result = self._call_sally(
@@ -64,14 +71,14 @@ class DeploymentOrchestrator:
         exists = 'exists' in check_result.get('stdout', '')
 
         # Test nginx config syntax
-        syntax_result = self._call_sally(server, "sudo nginx -t")
+        syntax_result = self._call_sally(server, "sudo nginx -t 2>&1")
 
         return {
             'check': 'nginx_config',
-            'success': exists and syntax_result.get('success'),
+            'success': exists and syntax_result.get('exit_code') == 0,
             'exists': exists,
-            'syntax_valid': syntax_result.get('success'),
-            'details': check_result.get('stdout', '').strip()
+            'syntax_valid': syntax_result.get('exit_code') == 0,
+            'details': f"Config exists: {exists}, Syntax valid: {syntax_result.get('exit_code') == 0}"
         }
 
     def verify_gunicorn_service(self, server: str, bot_name: str) -> Dict:
@@ -80,7 +87,7 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
 
-        service_name = bot_config.get('service', f"{bot_name}-bot")
+        service_name = bot_config.get('service', f"gunicorn-{bot_name}")
 
         # Check if service file exists
         check_result = self._call_sally(
@@ -96,11 +103,10 @@ class DeploymentOrchestrator:
         # Check service status
         status_result = self._call_sally(
             server,
-            f"sudo systemctl status {service_name} --no-pager"
+            f"sudo systemctl is-active {service_name}"
         )
 
-        # Service is running if exit code is 0
-        is_running = status_result.get('exit_code') == 0
+        is_running = 'active' in status_result.get('stdout', '')
 
         return {
             'check': 'gunicorn_service',
@@ -108,7 +114,7 @@ class DeploymentOrchestrator:
             'exists': exists,
             'running': is_running,
             'service_name': service_name,
-            'details': status_result.get('stdout', '')[:500]  # Limit output
+            'details': f"Service exists: {exists}, Running: {is_running}"
         }
 
     def verify_ssl_certificate(self, server: str, bot_name: str) -> Dict:
@@ -154,7 +160,7 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
 
-        path = bot_config.get('path', f"/var/www/{bot_name}")
+        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
 
         # Check if directory exists and is a git repo
         check_result = self._call_sally(
@@ -194,8 +200,8 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
 
-        path = bot_config.get('path', f"/var/www/{bot_name}")
-        venv_path = f"{path}/venv"
+        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
+        venv_path = f"{path}/.venv"
 
         # Check if venv exists
         check_result = self._call_sally(
@@ -208,15 +214,16 @@ class DeploymentOrchestrator:
 
         exists = 'exists' in check_result.get('stdout', '')
 
-        # If exists, check if requirements.txt packages are installed
+        # If exists, check if packages are installed
         packages_ok = False
         if exists:
             packages_result = self._call_sally(
                 server,
-                f"cd {path}/{bot_name} && {venv_path}/bin/pip freeze"
+                f"{venv_path}/bin/pip freeze | wc -l"
             )
             if packages_result.get('success'):
-                packages_ok = len(packages_result.get('stdout', '')) > 0
+                count = packages_result.get('stdout', '').strip()
+                packages_ok = int(count) > 0 if count.isdigit() else False
 
         return {
             'check': 'virtualenv',
@@ -232,7 +239,7 @@ class DeploymentOrchestrator:
         if not bot_config:
             return {'success': False, 'error': f"Bot {bot_name} not configured"}
 
-        path = bot_config.get('path', f"/var/www/{bot_name}")
+        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
 
         # Check permissions and ownership
         check_result = self._call_sally(
@@ -290,14 +297,14 @@ class DeploymentOrchestrator:
         """
         Deploy a bot to a server
 
-        This is a full deployment workflow including:
-        - Cloning/updating repository
-        - Setting up virtual environment
-        - Installing dependencies
-        - Creating nginx config
-        - Creating systemd service
-        - Setting up SSL
-        - Starting the service
+        Full deployment workflow:
+        - Clone/update repository
+        - Set up virtual environment
+        - Install dependencies
+        - Create nginx config
+        - Create systemd service
+        - Set up SSL with certbot
+        - Start the service
 
         Args:
             server: Server name
@@ -326,90 +333,174 @@ class DeploymentOrchestrator:
 
         self.deployments[deployment_id] = deployment
 
-        # Step 1: Clone/update repository
-        path = bot_config.get('path', f"/var/www/{bot_name}")
+        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
         repo = bot_config.get('repo', '')
+        domain = bot_config.get('domain', f"{bot_name}.example.com")
+        service_name = bot_config.get('service', f"gunicorn-{bot_name}")
+        workers = bot_config.get('workers', 3)
+        description = bot_config.get('description', bot_name)
 
-        deployment['steps'].append({
-            'name': 'Repository setup',
-            'status': 'in_progress'
-        })
+        # Step 1: Clone/update repository
+        deployment['steps'].append({'name': 'Repository setup', 'status': 'in_progress'})
 
-        # Check if repo exists
         repo_check = self._call_sally(server, f"test -d {path}/.git && echo 'exists' || echo 'missing'")
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"cd {path} && git pull")
+            result = self._call_sally(server, f"cd {path} && sudo -u www-data git pull")
         else:
-            # Clone
-            result = self._call_sally(server, f"sudo mkdir -p {path} && sudo git clone {repo} {path}")
+            # Clone - need to create parent directory first
+            parent_path = str(Path(path).parent)
+            result = self._call_sally(
+                server,
+                f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} && sudo chown -R www-data:www-data {path}"
+            )
 
         deployment['steps'][-1]['status'] = 'completed' if result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = result
+        deployment['steps'][-1]['result'] = {'success': result.get('success'), 'message': result.get('stdout', '')[:200]}
 
         if not result.get('success'):
             deployment['status'] = 'failed'
+            deployment['error'] = 'Repository setup failed'
             deployment['end_time'] = time.time()
             return deployment
 
         # Step 2: Set up virtual environment
-        deployment['steps'].append({
-            'name': 'Virtual environment setup',
-            'status': 'in_progress'
-        })
+        deployment['steps'].append({'name': 'Virtual environment setup', 'status': 'in_progress'})
 
-        venv_path = f"{path}/venv"
+        venv_path = f"{path}/.venv"
         venv_result = self._call_sally(
             server,
-            f"cd {path} && test -d venv || python3 -m venv venv"
+            f"cd {path} && sudo -u www-data test -d .venv || sudo -u www-data python3 -m venv .venv"
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = venv_result
+        deployment['steps'][-1]['result'] = {'success': venv_result.get('success')}
 
         # Step 3: Install dependencies
-        deployment['steps'].append({
-            'name': 'Install dependencies',
-            'status': 'in_progress'
-        })
+        deployment['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
 
         install_result = self._call_sally(
             server,
-            f"cd {path}/{bot_name} && {venv_path}/bin/pip install -r requirements.txt"
+            f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt",
+            timeout=300
         )
 
         deployment['steps'][-1]['status'] = 'completed' if install_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = install_result
+        deployment['steps'][-1]['result'] = {'success': install_result.get('success')}
 
-        # Step 4: Create/update nginx config
-        deployment['steps'].append({
-            'name': 'Nginx configuration',
-            'status': 'in_progress'
-        })
+        # Step 4: Create nginx config
+        deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
 
-        # This is a placeholder - in real implementation, you'd create the actual nginx config
-        nginx_result = {'success': True, 'message': 'Nginx config step - implement based on your template'}
-        deployment['steps'][-1]['status'] = 'completed'
-        deployment['steps'][-1]['result'] = nginx_result
+        try:
+            nginx_config = self._load_template(
+                'nginx.conf.template',
+                bot_name=bot_name,
+                bot_name_title=bot_name.title(),
+                description=description,
+                domain=domain,
+                bot_path=path
+            )
 
-        # Step 5: Create/update systemd service
-        deployment['steps'].append({
-            'name': 'Systemd service',
-            'status': 'in_progress'
-        })
+            # Escape quotes for shell
+            nginx_config_escaped = nginx_config.replace("'", "'\\''")
 
-        # This is a placeholder - in real implementation, you'd create the actual service file
-        service_result = {'success': True, 'message': 'Service file step - implement based on your template'}
-        deployment['steps'][-1]['status'] = 'completed'
-        deployment['steps'][-1]['result'] = service_result
+            # Write nginx config
+            nginx_result = self._call_sally(
+                server,
+                f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{bot_name} > /dev/null && "
+                f"sudo ln -sf /etc/nginx/sites-available/{bot_name} /etc/nginx/sites-enabled/{bot_name} && "
+                f"sudo nginx -t"
+            )
+
+            deployment['steps'][-1]['status'] = 'completed' if nginx_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {'success': nginx_result.get('success')}
+        except Exception as e:
+            deployment['steps'][-1]['status'] = 'failed'
+            deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
+
+        # Step 5: Create systemd service
+        deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
+
+        try:
+            service_config = self._load_template(
+                'gunicorn.service.template',
+                bot_name=bot_name,
+                bot_name_title=bot_name.title(),
+                description=description,
+                bot_path=path,
+                workers=workers
+            )
+
+            # Escape quotes for shell
+            service_config_escaped = service_config.replace("'", "'\\''")
+
+            # Write service file and reload systemd
+            service_result = self._call_sally(
+                server,
+                f"echo '{service_config_escaped}' | sudo tee /etc/systemd/system/{service_name}.service > /dev/null && "
+                f"sudo systemctl daemon-reload && "
+                f"sudo systemctl enable {service_name}"
+            )
+
+            deployment['steps'][-1]['status'] = 'completed' if service_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {'success': service_result.get('success')}
+        except Exception as e:
+            deployment['steps'][-1]['status'] = 'failed'
+            deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
+
+        # Step 6: Reload nginx
+        deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
+
+        reload_result = self._call_sally(server, "sudo systemctl reload nginx")
+        deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
+        deployment['steps'][-1]['result'] = {'success': reload_result.get('success')}
+
+        # Step 7: Start/restart service
+        deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})
+
+        start_result = self._call_sally(server, f"sudo systemctl restart {service_name}")
+        deployment['steps'][-1]['status'] = 'completed' if start_result.get('success') else 'failed'
+        deployment['steps'][-1]['result'] = {'success': start_result.get('success')}
 
         # Final status
-        deployment['status'] = 'completed'
+        all_succeeded = all(step['status'] == 'completed' for step in deployment['steps'])
+        deployment['status'] = 'completed' if all_succeeded else 'partial'
         deployment['end_time'] = time.time()
         deployment['duration'] = deployment['end_time'] - deployment['start_time']
 
         return deployment
+
+    def setup_ssl(self, server: str, bot_name: str, email: str) -> Dict:
+        """
+        Set up SSL certificate with certbot
+
+        Args:
+            server: Server name
+            bot_name: Bot name
+            email: Email for Let's Encrypt
+
+        Returns:
+            Result
+        """
+        bot_config = config.get_bot_config(bot_name)
+        if not bot_config:
+            return {'success': False, 'error': f"Bot {bot_name} not configured"}
+
+        domain = bot_config.get('domain')
+
+        result = self._call_sally(
+            server,
+            f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {email}",
+            timeout=300
+        )
+
+        return {
+            'success': result.get('success'),
+            'domain': domain,
+            'output': result.get('stdout', ''),
+            'error': result.get('stderr', '')
+        }
 
     def get_deployment_status(self, deployment_id: str) -> Optional[Dict]:
         """Get status of a deployment"""

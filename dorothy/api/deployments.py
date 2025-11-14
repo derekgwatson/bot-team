@@ -100,12 +100,12 @@ def health_check_bot(bot_name):
         }), 404
 
     bot_config = config.get_bot_config(bot_name)
-    port = bot_config.get('port')
+    domain = bot_config.get('domain')
 
-    # Check if the bot is responding on its port
+    # Check if the bot is responding via its domain
     result = deployment_orchestrator._call_sally(
         server,
-        f"curl -s http://localhost:{port}/health || echo 'not responding'"
+        f"curl -s http://localhost/health -H 'Host: {domain}' || echo 'not responding'"
     )
 
     is_healthy = 'healthy' in result.get('stdout', '')
@@ -113,8 +113,34 @@ def health_check_bot(bot_name):
     return jsonify({
         'bot': bot_name,
         'server': server,
-        'port': port,
+        'domain': domain,
         'healthy': is_healthy,
         'response': result.get('stdout', ''),
         'success': result.get('success')
     })
+
+@api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
+def setup_ssl(bot_name):
+    """
+    Set up SSL certificate with certbot
+
+    Body:
+        server: Server name (optional, uses default)
+        email: Email for Let's Encrypt (required)
+    """
+    data = request.get_json() or {}
+    server = data.get('server', config.default_server)
+    email = data.get('email')
+
+    if not email:
+        return jsonify({
+            'error': 'Email is required for SSL setup'
+        }), 400
+
+    if bot_name not in config.bots:
+        return jsonify({
+            'error': f"Bot '{bot_name}' not configured"
+        }), 404
+
+    result = deployment_orchestrator.setup_ssl(server, bot_name, email)
+    return jsonify(result)

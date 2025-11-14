@@ -1,0 +1,48 @@
+# {bot_name_title} - {description}
+# {domain}
+
+# Initial HTTP-only configuration
+# Run certbot to obtain SSL certificates and enable HTTPS:
+#   sudo certbot --nginx -d {domain}
+# Certbot will automatically add the HTTPS server block and redirect
+
+server {{
+    server_name {domain};
+
+    # Logging
+    access_log /var/log/nginx/{bot_name}.access.log;
+    error_log /var/log/nginx/{bot_name}.error.log;
+
+    # Maintenance mode toggle (touch {bot_path}/maintenance.on)
+    if (-f {bot_path}/maintenance.on) {{
+        return 503;
+    }}
+    error_page 503 /maintenance.html;
+    location = /maintenance.html {{
+        root {bot_path};
+        internal;
+    }}
+
+    # Proxy to gunicorn via unix socket
+    location / {{
+        proxy_pass http://unix:/run/gunicorn-{bot_name}/gunicorn.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }}
+
+    # Block access to hidden files
+    location ~ /\. {{
+        deny all;
+    }}
+
+    listen 80;
+    listen [::]:80;
+}}
