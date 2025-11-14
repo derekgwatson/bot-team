@@ -435,7 +435,7 @@ class DeploymentOrchestrator:
             'description': 'Clone or update the git repository',
             'check_command': f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'",
             'commands': {
-                'if_exists': f"cd {repo_path} && sudo -u www-data git pull",
+                'if_exists': f"sudo su -c 'cd {repo_path} && git pull' www-data",
                 'if_missing': f"sudo mkdir -p {repo_path} && cd {str(Path(repo_path).parent)} && sudo git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
             }
         })
@@ -444,14 +444,14 @@ class DeploymentOrchestrator:
         plan['steps'].append({
             'name': 'Virtual environment setup',
             'description': 'Create Python virtual environment if needed',
-            'command': f"[ -d {path}/.venv ] || (cd {path} && sudo -u www-data python3 -m venv --without-pip .venv && sudo -u www-data {path}/.venv/bin/python3 -m ensurepip --default-pip)"
+            'command': f"[ -d {path}/.venv ] || sudo su -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         })
 
         # Step 3: Install dependencies
         plan['steps'].append({
             'name': 'Install dependencies',
             'description': 'Install Python packages from requirements.txt',
-            'command': f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt"
+            'command': f"sudo su -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
         })
 
         # Step 4: Nginx config (skip for internal-only bots)
@@ -557,7 +557,7 @@ class DeploymentOrchestrator:
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data git pull")
+            result = self._call_sally(server, f"sudo su -c 'cd {repo_path} && git pull' www-data")
         else:
             # Clone - create parent directory and clone
             parent_path = str(Path(repo_path).parent)
@@ -603,7 +603,7 @@ class DeploymentOrchestrator:
         venv_path = f"{path}/.venv"
         venv_result = self._call_sally(
             server,
-            f"[ -d {path}/.venv ] || (cd {path} && sudo -u www-data python3 -m venv --without-pip .venv && sudo -u www-data {path}/.venv/bin/python3 -m ensurepip --default-pip)"
+            f"[ -d {path}/.venv ] || sudo su -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
@@ -617,7 +617,8 @@ class DeploymentOrchestrator:
         # Stop if venv setup failed
         if not venv_result.get('success'):
             deployment['status'] = 'failed'
-            deployment['error'] = 'Virtual environment setup failed'
+            error_details = venv_result.get('stderr', '') or venv_result.get('error', '')
+            deployment['error'] = f"Virtual environment setup failed: {error_details}" if error_details else 'Virtual environment setup failed'
             deployment['end_time'] = time.time()
             return deployment
 
@@ -626,7 +627,7 @@ class DeploymentOrchestrator:
 
         install_result = self._call_sally(
             server,
-            f"cd {path} && sudo -u www-data {venv_path}/bin/pip install -r requirements.txt",
+            f"sudo su -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data",
             timeout=300
         )
 
@@ -641,7 +642,8 @@ class DeploymentOrchestrator:
         # Stop if dependency installation failed
         if not install_result.get('success'):
             deployment['status'] = 'failed'
-            deployment['error'] = 'Dependency installation failed'
+            error_details = install_result.get('stderr', '') or install_result.get('error', '')
+            deployment['error'] = f"Dependency installation failed: {error_details}" if error_details else 'Dependency installation failed'
             deployment['end_time'] = time.time()
             return deployment
 
@@ -681,7 +683,8 @@ class DeploymentOrchestrator:
                 # Stop if nginx config failed
                 if not nginx_result.get('success'):
                     deployment['status'] = 'failed'
-                    deployment['error'] = 'Nginx configuration failed'
+                    error_details = nginx_result.get('stderr', '') or nginx_result.get('error', '')
+                    deployment['error'] = f"Nginx configuration failed: {error_details}" if error_details else 'Nginx configuration failed'
                     deployment['end_time'] = time.time()
                     return deployment
 
@@ -732,7 +735,8 @@ class DeploymentOrchestrator:
             # Stop if systemd service creation failed
             if not service_result.get('success'):
                 deployment['status'] = 'failed'
-                deployment['error'] = 'Systemd service creation failed'
+                error_details = service_result.get('stderr', '') or service_result.get('error', '')
+                deployment['error'] = f"Systemd service creation failed: {error_details}" if error_details else 'Systemd service creation failed'
                 deployment['end_time'] = time.time()
                 return deployment
 
