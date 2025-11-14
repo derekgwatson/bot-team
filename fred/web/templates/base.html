@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
     <title>Fred - Google Workspace Bot</title>
     <style>
         * {
@@ -29,6 +31,7 @@
             color: white;
             padding: 20px 0;
             margin-bottom: 30px;
+            position: relative;
         }
 
         header h1 {
@@ -39,6 +42,35 @@
         header p {
             color: #bdc3c7;
             margin-top: 5px;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-size: 0.9em;
+        }
+
+        .user-email {
+            color: #bdc3c7;
+            margin-bottom: 8px;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.85em;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.2);
         }
 
         nav {
@@ -224,6 +256,10 @@
 <body>
     <header>
         <div class="container">
+            <div class="user-info">
+                <div class="user-email">{{ current_user.email }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+            </div>
             <h1>👤 Fred</h1>
             <p>Google Workspace User Management</p>
             <nav>

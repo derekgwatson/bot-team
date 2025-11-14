@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from services.google_workspace import workspace_service
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 @web_bp.route('/')
+@login_required
 def index():
     """Home page showing active users"""
     users = workspace_service.list_users(archived=False)
@@ -17,6 +19,7 @@ def index():
     return render_template('index.html', users=users, error=error, archived=False)
 
 @web_bp.route('/archived')
+@login_required
 def archived():
     """Page showing archived users"""
     users = workspace_service.list_users(archived=True)
@@ -30,6 +33,7 @@ def archived():
     return render_template('index.html', users=users, error=error, archived=True)
 
 @web_bp.route('/users/<email>')
+@login_required
 def user_detail(email):
     """User detail page"""
     user = workspace_service.get_user(email)
@@ -43,6 +47,7 @@ def user_detail(email):
     return render_template('user_detail.html', user=user, error=error)
 
 @web_bp.route('/users/new', methods=['GET', 'POST'])
+@login_required
 def new_user():
     """Create new user form"""
     if request.method == 'POST':
@@ -66,6 +71,7 @@ def new_user():
     return render_template('new_user.html')
 
 @web_bp.route('/users/<email>/archive', methods=['POST'])
+@login_required
 def archive_user_action(email):
     """Archive user action"""
     result = workspace_service.archive_user(email)
@@ -77,6 +83,7 @@ def archive_user_action(email):
     return redirect(url_for('web.index'))
 
 @web_bp.route('/users/<email>/delete', methods=['POST'])
+@login_required
 def delete_user_action(email):
     """Delete user action"""
     result = workspace_service.delete_user(email)
