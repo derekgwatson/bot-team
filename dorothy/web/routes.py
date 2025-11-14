@@ -48,13 +48,13 @@ def index():
             }
             .bot-card h3 { margin: 0 0 10px 0; color: #f5576c; }
             .bot-card .info { color: #666; font-size: 0.9em; margin: 5px 0; }
-            .bot-card .actions { margin-top: 15px; display: flex; gap: 10px; }
+            .bot-card .actions { margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
             .btn {
-                padding: 8px 16px;
+                padding: 6px 12px;
                 border: none;
                 border-radius: 5px;
                 cursor: pointer;
-                font-size: 0.9em;
+                font-size: 0.85em;
                 font-weight: bold;
             }
             .btn-verify { background: #4CAF50; color: white; }
