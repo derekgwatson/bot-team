@@ -1,10 +1,13 @@
 from flask import Blueprint, render_template, request
+from flask_login import current_user
 from services.google_reports import reports_service
+from services.auth import login_required
 from datetime import datetime, timedelta
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 @web_bp.route('/')
+@login_required
 def index():
     """Home page showing storage usage overview"""
     # Get usage data for yesterday (most recent available)
@@ -21,6 +24,7 @@ def index():
     return render_template('index.html', usage=usage_data, error=error)
 
 @web_bp.route('/user/<email>')
+@login_required
 def user_detail(email):
     """User detail page showing individual usage"""
     usage_data = reports_service.get_user_usage(email=email)

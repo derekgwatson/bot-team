@@ -31,6 +31,37 @@
             color: white;
             padding: 20px 0;
             margin-bottom: 30px;
+            position: relative;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-size: 0.9em;
+        }
+
+        .user-email {
+            color: #e8daef;
+            margin-bottom: 8px;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.2);
         }
 
         header h1 {
@@ -237,12 +268,15 @@
 <body>
     <header>
         <div class="container">
+            <div class="user-info">
+                <div class="user-email">{{ current_user.email }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+            </div>
             <h1>👥 Quinn</h1>
             <p>External Staff Access Manager</p>
             <nav>
                 <a href="/" class="active">Staff List</a>
                 <a href="/add">Add Staff</a>
-                <a href="/auth/logout">Logout</a>
             </nav>
         </div>
     </header>

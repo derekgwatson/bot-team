@@ -1,22 +1,12 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for
-from functools import wraps
+from flask import Blueprint, render_template, request
+from flask_login import current_user
 from services.peter_client import peter_client
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
-def require_auth(f):
-    """Decorator to require authentication"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            # Store the current URL to redirect back after login
-            session['next_url'] = request.url
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 @web_bp.route('/')
-@require_auth
+@login_required
 def index():
     """Display the phone directory"""
     contacts = peter_client.get_all_contacts()
@@ -30,7 +20,7 @@ def index():
     return render_template('index.html', sections=sections, error=None)
 
 @web_bp.route('/search')
-@require_auth
+@login_required
 def search():
     """Search for contacts"""
     query = request.args.get('q', '')
