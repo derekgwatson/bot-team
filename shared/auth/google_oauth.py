@@ -58,7 +58,11 @@ class GoogleAuth:
         """OAuth login route"""
         # Store the page the user was trying to access (if not already set by require_auth)
         if 'next_url' not in session:
-            session['next_url'] = request.args.get('next') or request.referrer or '/'
+            next_url = request.args.get('next') or request.referrer or '/'
+            # Don't redirect back to login page after successful auth
+            if next_url and '/login' in next_url:
+                next_url = '/'
+            session['next_url'] = next_url
         redirect_uri = url_for('auth_callback', _external=True)
         return self.google.authorize_redirect(redirect_uri)
 
