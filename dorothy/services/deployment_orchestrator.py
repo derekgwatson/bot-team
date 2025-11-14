@@ -577,7 +577,8 @@ class DeploymentOrchestrator:
 
         if not result.get('success'):
             deployment['status'] = 'failed'
-            deployment['error'] = 'Repository setup failed'
+            error_details = result.get('stderr', '') or result.get('error', '')
+            deployment['error'] = f"Repository setup failed: {error_details}" if error_details else 'Repository setup failed'
             deployment['end_time'] = time.time()
             return deployment
 
