@@ -435,7 +435,7 @@ class DeploymentOrchestrator:
             'description': 'Clone or update the git repository',
             'check_command': f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'",
             'commands': {
-                'if_exists': f"sudo su -c 'cd {repo_path} && git pull' www-data",
+                'if_exists': f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data",
                 'if_missing': f"sudo mkdir -p {repo_path} && cd {str(Path(repo_path).parent)} && sudo git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
             }
         })
@@ -444,14 +444,14 @@ class DeploymentOrchestrator:
         plan['steps'].append({
             'name': 'Virtual environment setup',
             'description': 'Create Python virtual environment if needed',
-            'command': f"[ -d {path}/.venv ] || sudo su -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
+            'command': f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         })
 
         # Step 3: Install dependencies
         plan['steps'].append({
             'name': 'Install dependencies',
             'description': 'Install Python packages from requirements.txt',
-            'command': f"sudo su -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
+            'command': f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
         })
 
         # Step 4: Nginx config (skip for internal-only bots)
@@ -557,7 +557,7 @@ class DeploymentOrchestrator:
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"sudo su -c 'cd {repo_path} && git pull' www-data")
+            result = self._call_sally(server, f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data")
         else:
             # Clone - create parent directory and clone
             parent_path = str(Path(repo_path).parent)
@@ -614,7 +614,7 @@ class DeploymentOrchestrator:
         venv_path = f"{path}/.venv"
         venv_result = self._call_sally(
             server,
-            f"[ -d {path}/.venv ] || sudo su -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
+            f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
         )
 
         deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
@@ -647,7 +647,7 @@ class DeploymentOrchestrator:
 
         install_result = self._call_sally(
             server,
-            f"sudo su -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data",
+            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data",
             timeout=300
         )
 
