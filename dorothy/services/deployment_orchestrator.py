@@ -394,6 +394,7 @@ class DeploymentOrchestrator:
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
+        ssl_email = bot_config.get('ssl_email')
         venv_path = f"{path}/.venv"
 
         # Build the plan
@@ -490,14 +491,22 @@ class DeploymentOrchestrator:
                 'error': str(e)
             })
 
-        # Step 6: Reload nginx
+        # Step 6: SSL certificate (if configured)
+        if ssl_email:
+            plan['steps'].append({
+                'name': 'SSL certificate',
+                'description': f'Set up SSL certificate with certbot for {domain}',
+                'command': f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}"
+            })
+
+        # Step 7: Reload nginx
         plan['steps'].append({
             'name': 'Reload nginx',
             'description': 'Reload nginx to pick up new configuration',
             'command': 'sudo systemctl reload nginx'
         })
 
-        # Step 7: Start service
+        # Step 8: Start service
         plan['steps'].append({
             'name': 'Start service',
             'description': 'Start or restart the gunicorn service',
@@ -516,7 +525,8 @@ class DeploymentOrchestrator:
         - Install dependencies
         - Create nginx config
         - Create systemd service
-        - Set up SSL with certbot
+        - Set up SSL with certbot (if ssl_email is configured)
+        - Reload nginx
         - Start the service
 
         Args:
@@ -554,6 +564,7 @@ class DeploymentOrchestrator:
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
+        ssl_email = bot_config.get('ssl_email')
 
         # Step 1: Clone/update repository
         deployment['steps'].append({'name': 'Repository setup', 'status': 'in_progress'})
@@ -665,14 +676,30 @@ class DeploymentOrchestrator:
             deployment['steps'][-1]['status'] = 'failed'
             deployment['steps'][-1]['result'] = {'success': False, 'error': str(e)}
 
-        # Step 6: Reload nginx
+        # Step 6: SSL certificate (if configured)
+        if ssl_email:
+            deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
+
+            ssl_result = self._call_sally(
+                server,
+                f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}",
+                timeout=300
+            )
+
+            deployment['steps'][-1]['status'] = 'completed' if ssl_result.get('success') else 'failed'
+            deployment['steps'][-1]['result'] = {
+                'success': ssl_result.get('success'),
+                'message': ssl_result.get('stdout', '')[:200]
+            }
+
+        # Step 7: Reload nginx
         deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
 
         reload_result = self._call_sally(server, "sudo systemctl reload nginx")
         deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
         deployment['steps'][-1]['result'] = {'success': reload_result.get('success')}
 
-        # Step 7: Start/restart service
+        # Step 8: Start/restart service
         deployment['steps'].append({'name': 'Start service', 'status': 'in_progress'})
 
         start_result = self._call_sally(server, f"sudo systemctl restart {service_name}")

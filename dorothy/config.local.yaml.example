@@ -9,6 +9,7 @@ defaults:
   # path: /var/www/bot-team/{bot_name}         # Where each bot's code lives
   # domain: {bot_name}.yourdomain.com          # Override domain pattern
   # workers: 4                                 # Override default workers
+  # ssl_email: your@email.com                  # Email for Let's Encrypt SSL (certbot runs during deployment if set)
 
 # Override specific bots if needed
 # bots:
@@ -16,6 +17,7 @@ defaults:
 #     workers: 5                    # Override just Peter's workers
 #     domain: custom.com            # Override just Peter's domain
 #     nginx_config_name: peter-bot  # Override nginx config filename if different from bot name
+#     ssl_email: peter@email.com    # Override SSL email for this specific bot
 
 # Override deployment settings
 # deployment:
