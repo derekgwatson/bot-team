@@ -184,12 +184,21 @@ def index():
                     } else {
                         let checksHtml = data.checks.map(check => {
                             let checkName = (check.check || 'Check').replace(/_/g, ' ');
-                            let errorMsg = check.error ? '<br><pre style="white-space: pre-wrap; font-size: 0.85em; margin-top: 5px; background: #f8f8f8; padding: 8px; border-radius: 4px;">' + check.error + '</pre>' : '';
-                            let cmdMsg = check.command ? '<br><small style="color: #666;">Command: <code>' + check.command + '</code></small>' : '';
-                            return `<div class="check-result ${check.success ? 'passed' : 'failed'}">
+
+                            // Build detailed info
+                            let details = [];
+                            if (check.command) details.push(`<strong>Command:</strong> <code>${check.command}</code>`);
+                            if (check.details) details.push(`<strong>Details:</strong> ${check.details}`);
+                            if (check.error) details.push(`<strong>Error:</strong><pre style="margin: 5px 0; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107;">${check.error}</pre>`);
+                            if (check.stdout) details.push(`<strong>Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #d4edda; border-left: 3px solid #28a745;">${check.stdout}</pre>`);
+                            if (check.stderr) details.push(`<strong>Error Output:</strong><pre style="margin: 5px 0; padding: 8px; background: #f8d7da; border-left: 3px solid #dc3545;">${check.stderr}</pre>`);
+                            if (check.exit_code !== undefined) details.push(`<strong>Exit Code:</strong> ${check.exit_code}`);
+
+                            let detailsHtml = details.length > 0 ? '<div style="margin-top: 8px; font-size: 0.9em; color: #555;">' + details.join('<br>') + '</div>' : '';
+
+                            return `<div class="check-result ${check.success ? 'passed' : 'failed'}" style="margin-bottom: 15px; padding: 10px; border-radius: 5px; background: ${check.success ? '#f0f9ff' : '#fff5f5'};">
                                 ${check.success ? '✅' : '❌'} <strong>${checkName}</strong>: ${check.success ? 'Passed' : 'Failed'}
-                                ${cmdMsg}
-                                ${errorMsg}
+                                ${detailsHtml}
                             </div>`;
                         }).join('');
 
