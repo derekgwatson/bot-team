@@ -22,52 +22,34 @@ deployment:
     - virtualenv
     - permissions
 
+# Global defaults for all bots - use {bot_name} for placeholders
+defaults:
+  repo: git@github.com:yourorg/bot-team.git
+  path: "/var/www/bot-team/{bot_name}"
+  service: "gunicorn-bot-team-{bot_name}"
+  domain: "{bot_name}.watsonblinds.com.au"
+  workers: 3
+
 bots:
-  # Bot deployment configurations
+  # Each bot only needs to specify what's unique (description)
+  # Everything else inherits from defaults above
+
   fred:
     description: Google Workspace User Management
-    domain: fred.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/fred
-    service: gunicorn-bot-team-fred
-    workers: 3
 
   iris:
     description: Google Workspace Reporting & Analytics
-    domain: iris.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/iris
-    service: gunicorn-bot-team-iris
-    workers: 3
 
   peter:
     description: Phone Directory Manager
-    domain: peter.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/peter
-    service: gunicorn-bot-team-peter
-    workers: 3
 
   pam:
     description: Phone Directory Presenter Bot
-    domain: pam.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/pam
-    service: gunicorn-bot-team-pam
-    workers: 3
 
   sally:
     description: SSH Command Executor
-    domain: sally.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/sally
-    service: gunicorn-bot-team-sally
-    workers: 2
+    workers: 2  # Override: Sally needs fewer workers
 
   dorothy:
     description: Deployment Orchestrator
-    domain: dorothy.watsonblinds.com.au
-    repo: git@github.com:yourorg/bot-team.git
-    path: /var/www/bot-team/dorothy
-    service: gunicorn-bot-team-dorothy
-    workers: 2
+    workers: 2  # Override: Dorothy needs fewer workers

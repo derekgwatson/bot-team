@@ -2,18 +2,17 @@
 # Copy this file to config.local.yaml and customize for your environment
 # config.local.yaml is gitignored and won't be committed
 
-# Override bot configurations
-bots:
-  fred:
-    repo: git@github.com:yourorg/bot-team.git  # Your actual repo URL
+# Override global defaults (applies to all bots unless overridden)
+defaults:
+  repo: git@github.com:yourorg/bot-team.git  # Your actual repo URL
+  # domain: {bot_name}.yourdomain.com         # Override domain pattern
+  # workers: 4                                # Override default workers
 
-  iris:
-    repo: git@github.com:yourorg/bot-team.git
-
-  # You can override specific bot settings:
-  # peter:
-  #   workers: 5  # Override just the workers count
-  #   domain: peter.yourdomain.com
+# Override specific bots if needed
+# bots:
+#   peter:
+#     workers: 5           # Override just Peter's workers
+#     domain: custom.com   # Override just Peter's domain
 
 # Override deployment settings
 # deployment:
