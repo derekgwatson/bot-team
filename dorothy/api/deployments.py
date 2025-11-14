@@ -232,12 +232,13 @@ def add_bot():
 
     Body:
         name: Bot name (required)
-        port: Port number (required)
-        domain: Domain name (optional)
+        domain: Domain name (required)
+        port: Port number (optional - if provided, nginx is skipped for internal-only bot)
         workers: Number of workers (optional, default: 2)
         description: Bot description (optional)
-        skip_nginx: Whether to skip nginx (optional, default: false)
         server: Server name (optional, uses default)
+
+    Note: skip_nginx is automatically determined by port presence (port provided = skip nginx)
     """
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
@@ -256,11 +257,11 @@ def add_bot():
     port = data.get('port')
     workers = data.get('workers', 2)
     description = data.get('description', '')
-    skip_nginx = data.get('skip_nginx', False)
 
-    # Validate port is required for internal-only bots
-    if skip_nginx and not port:
-        return jsonify({'error': 'Port is required for internal-only bots'}), 400
+    # Automatically determine skip_nginx based on port presence
+    # If port is provided -> internal-only bot (skip nginx)
+    # If port is not provided -> public bot (use nginx)
+    skip_nginx = bool(port)
 
     # Build YAML snippet for new bot
     bot_yaml = f"""

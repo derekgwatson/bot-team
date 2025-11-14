@@ -274,19 +274,12 @@ def index():
                 <!-- Advanced Options (Hidden by default) -->
                 <div id="advanced-options" style="display: none; margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
                     <p style="font-size: 0.85em; color: #856404; background: #fff3cd; padding: 8px; border-radius: 4px; margin: 0 0 10px 0;">
-                        ⚠️ Advanced: For internal-only bots (like Sally) that don't need nginx/public domain
+                        ⚠️ <strong>Advanced:</strong> For internal-only bots (like Sally) that don't need nginx/public domain.<br>
+                        If you enter a port, nginx will be skipped and the bot will be accessible directly on that port.
                     </p>
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-                        <div>
-                            <label style="display: flex; align-items: center; font-size: 0.85em; color: #666;">
-                                <input type="checkbox" id="new-bot-skip-nginx" style="margin-right: 5px;" onchange="togglePortRequired()">
-                                Internal-only bot (skip nginx)
-                            </label>
-                        </div>
-                        <div id="port-field" style="display: none;">
-                            <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port* (required for internal-only)</label>
-                            <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85em; color: #666; margin-bottom: 3px;">Port (optional - for internal-only bots)</label>
+                        <input type="number" id="new-bot-port" placeholder="e.g., 8005" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                     </div>
                 </div>
 
@@ -1006,17 +999,6 @@ def index():
                 }
             }
 
-            function togglePortRequired() {
-                const skipNginx = document.getElementById('new-bot-skip-nginx').checked;
-                const portField = document.getElementById('port-field');
-
-                if (skipNginx) {
-                    portField.style.display = 'block';
-                } else {
-                    portField.style.display = 'none';
-                }
-            }
-
             async function addNewBot() {
                 const resultDiv = document.getElementById('add-bot-result');
 
@@ -1026,7 +1008,9 @@ def index():
                 const domain = document.getElementById('new-bot-domain').value.trim();
                 const workers = document.getElementById('new-bot-workers').value;
                 const description = document.getElementById('new-bot-description').value.trim();
-                const skipNginx = document.getElementById('new-bot-skip-nginx').checked;
+
+                // Automatically determine skip_nginx based on whether port is provided
+                const skipNginx = !!port;
 
                 // Validate required fields
                 if (!botName) {
@@ -1049,17 +1033,6 @@ def index():
                     return;
                 }
 
-                // Port is only required for internal-only bots
-                if (skipNginx && !port) {
-                    resultDiv.innerHTML = `
-                        <div class="result error" style="margin-top: 10px;">
-                            <strong>❌ Validation Error</strong>
-                            <div>Port is required for internal-only bots</div>
-                        </div>
-                    `;
-                    return;
-                }
-
                 resultDiv.innerHTML = '<div class="result" style="margin-top: 10px;">✨ Adding bot and restarting Dorothy...</div>';
 
                 try {
@@ -1072,7 +1045,7 @@ def index():
                         skip_nginx: skipNginx
                     };
 
-                    // Only include port if it's provided (for internal-only bots)
+                    // Include port if provided (automatically sets skip_nginx=true)
                     if (port) {
                         requestBody.port = parseInt(port);
                     }
