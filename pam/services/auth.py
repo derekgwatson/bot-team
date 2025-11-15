@@ -1,8 +1,10 @@
 import os
+import requests
 from functools import wraps
 from flask import session, redirect, url_for, request
 from flask_login import LoginManager, UserMixin, current_user
 from authlib.integrations.flask_client import OAuth
+from config import config
 
 # User model for Flask-Login
 class User(UserMixin):
@@ -58,14 +60,43 @@ def init_auth(app):
     return login_manager
 
 def is_email_allowed(email):
-    """Check if email is in the allowed list"""
-    allowed_emails = os.getenv('ALLOWED_EMAILS', '')
-    if not allowed_emails:
-        # If no allowed emails configured, deny all access
-        return False
+    """
+    Check if email is allowed to access Pam.
 
-    allowed_list = [e.strip() for e in allowed_emails.split(',')]
-    return email in allowed_list
+    Allows access to:
+    1. Anyone from company domains (watsonblinds.com.au, etc.)
+    2. External staff approved by Quinn
+
+    Args:
+        email: Email address to check
+
+    Returns:
+        Boolean
+    """
+    email = email.lower().strip()
+
+    # 1. Check if from company domain
+    for domain in config.allowed_domains:
+        if email.endswith(f'@{domain}'):
+            return True
+
+    # 2. Check if approved by Quinn (external staff)
+    try:
+        response = requests.get(
+            f'{config.quinn_api_url}/api/check',
+            params={'email': email},
+            timeout=3
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('approved'):
+                return True
+    except Exception as e:
+        # If Quinn is down, log error but don't crash
+        print(f"Warning: Could not reach Quinn to check approval: {e}")
+        # Fall through to deny access
+
+    return False
 
 def login_required(f):
     """Decorator to require login for a route"""
