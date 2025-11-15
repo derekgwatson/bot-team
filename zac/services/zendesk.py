@@ -19,7 +19,7 @@ class ZendeskService:
             token=config.zendesk_api_token
         )
 
-    def list_users(self, role=None, page=1, per_page=50):
+    def list_users(self, role=None, page=1, per_page=100):
         """
         List Zendesk users, optionally filtered by role
         Uses Zendesk's search API for server-side filtering
@@ -27,13 +27,14 @@ class ZendeskService:
         Args:
             role: Optional role filter ('end-user', 'agent', 'admin')
             page: Page number (default: 1)
-            per_page: Results per page (default: 50)
+            per_page: Results per page (default: 100)
 
         Returns:
             List of user objects
         """
         try:
             users = []
+            skipped_count = 0
             max_needed = page * per_page + 1  # Fetch one extra to check if there are more pages
 
             logger.info(f"Fetching users for page {page} (role={role}, max {max_needed} users)...")
@@ -69,8 +70,12 @@ class ZendeskService:
                         break
 
                 except Exception as user_error:
-                    logger.warning(f"Error processing user {getattr(user, 'id', 'unknown')}: {str(user_error)}")
+                    skipped_count += 1
+                    logger.warning(f"SKIPPED user {getattr(user, 'id', 'unknown')} - Error: {str(user_error)}")
                     continue
+
+            if skipped_count > 0:
+                logger.warning(f"⚠️ Skipped {skipped_count} users due to errors - this may cause count discrepancies")
 
             # Paginate
             start = (page - 1) * per_page

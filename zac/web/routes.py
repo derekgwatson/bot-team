@@ -27,7 +27,7 @@ def index():
             }
         else:
             # List mode with pagination
-            result = zendesk_service.list_users(role=role_filter, page=page, per_page=50)
+            result = zendesk_service.list_users(role=role_filter, page=page, per_page=100)
 
         return render_template('index.html',
                              users=result['users'],
