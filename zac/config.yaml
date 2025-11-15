@@ -1,0 +1,32 @@
+# Zac - Zendesk User Management Bot Configuration
+
+name: zac
+description: "Zendesk user management bot"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8007
+
+# Database configuration for tracking user operations
+database:
+  path: "database/zendesk_users.db"
+
+# Shared organization config
+shared_config: "../shared/config/organization.yaml"
+
+# Zendesk configuration
+# Credentials are stored in .env file for security
+# See .env.example for required environment variables
+zendesk:
+  # ZENDESK_SUBDOMAIN - Your Zendesk subdomain (e.g., 'yourcompany' for yourcompany.zendesk.com)
+  # ZENDESK_EMAIL - Admin email address
+  # ZENDESK_API_TOKEN - Zendesk API token
+
+# Authentication configuration
+# OAuth credentials stored in .env for security
+auth:
+  # GOOGLE_CLIENT_ID - Google OAuth client ID
+  # GOOGLE_CLIENT_SECRET - Google OAuth client secret
+  # ADMIN_EMAILS - Comma-separated list of allowed admin emails

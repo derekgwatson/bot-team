@@ -29,7 +29,7 @@ class Config:
         self.allowed_domains = shared_data['organization']['domains']
 
         # Bot URLs - use environment variables with localhost fallback for development
-        self.quinn_api_url = os.environ.get('QUINN_API_URL', 'http://localhost:8005')
+        self.quinn_api_url = os.environ.get('QUINN_API_URL', 'http://localhost:8006')
         self.peter_api_url = os.environ.get('PETER_API_URL', 'http://localhost:8003')
 
         # Peter API config (keep endpoints from yaml)

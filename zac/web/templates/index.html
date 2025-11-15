@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+function showLoading() {
+    // Show the loading overlay
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('active');
+    }
+
+    // Show inline indicator too
+    var indicator = document.getElementById('loadingIndicator');
+    if (indicator) {
+        indicator.style.display = 'inline';
+    }
+
+    // Disable filter to prevent double-clicks
+    var filter = document.getElementById('roleFilter');
+    if (filter) {
+        filter.disabled = true;
+    }
+}
+
+// Hide loading on page load
+window.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+});
+</script>
+
+{% if error %}
+<div class="alert alert-error">
+    Error: {{ error }}
+</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>Zendesk Users</h2>
+
+    {% if total is defined %}
+    <div style="background: #e8f4f8; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+        {% if '+' in total|string %}
+        📊 Showing at least <strong>{{ total }}</strong> users
+        <span style="color: #666; font-size: 12px;">(more pages available)</span>
+        {% else %}
+        📊 Total: <strong>{{ total }}</strong> users
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Search Bar -->
+    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar" onsubmit="showLoading()">
+        <input type="text" name="q" placeholder="Search users by name or email..." value="{{ search_query or '' }}">
+        <button type="submit" class="btn">Search</button>
+        {% if search_query %}
+        <a href="{{ url_for('web.index') }}" class="btn" onclick="showLoading()">Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <label>Filter by role:</label>
+        <select id="roleFilter" onchange="showLoading(); window.location.href='{{ url_for('web.index') }}?role=' + this.value">
+            <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
+            <option value="end-user" {% if role_filter == 'end-user' %}selected{% endif %}>End Users</option>
+            <option value="agent" {% if role_filter == 'agent' %}selected{% endif %}>Agents</option>
+            <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admins</option>
+        </select>
+        {% if role_filter %}
+        <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #3498db; text-decoration: none;" onclick="showLoading()">Clear filter</a>
+        {% endif %}
+        <span id="loadingIndicator" style="display: none; margin-left: 15px; color: #3498db;">
+            ⏳ Loading users...
+        </span>
+    </div>
+
+    <!-- Users Table -->
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    {% if user.role == 'admin' %}
+                    <span class="badge badge-admin">Admin</span>
+                    {% elif user.role == 'agent' %}
+                    <span class="badge badge-agent">Agent</span>
+                    {% else %}
+                    <span class="badge badge-user">End User</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.suspended %}
+                    <span class="badge badge-suspended">Suspended</span>
+                    {% elif user.active %}
+                    <span class="badge badge-active">Active</span>
+                    {% else %}
+                    <span class="badge">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('web.view_user', user_id=user.id) }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('web.index', page=page-1, role=role_filter, q=search_query) }}">&laquo; Previous</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <a href="{{ url_for('web.index', page=p, role=role_filter, q=search_query) }}">{{ p }}</a>
+            {% elif p == page - 3 or p == page + 3 %}
+            <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="{{ url_for('web.index', page=page+1, role=role_filter, q=search_query) }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <p style="margin-top: 20px; color: #7f8c8d;">
+        Showing {{ users|length }} of {{ total }} users
+    </p>
+
+    {% else %}
+    <div class="empty-state">
+        <h3>No users found</h3>
+        {% if search_query %}
+        <p>No users match your search query.</p>
+        <a href="{{ url_for('web.index') }}" class="btn">Clear search</a>
+        {% else %}
+        <p>Get started by creating your first user.</p>
+        <a href="{{ url_for('web.create_user') }}" class="btn">Create User</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
