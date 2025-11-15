@@ -33,7 +33,11 @@ class ZendeskService:
         """
         try:
             users = []
+            count = 0
+            max_to_fetch = page * per_page  # Only fetch what we need
+
             # Zenpy's users() method returns an iterable generator
+            # We'll fetch just enough to cover the current page
             for user in self.client.users():
                 if role is None or user.role == role:
                     users.append({
@@ -50,15 +54,26 @@ class ZendeskService:
                         'organization_id': user.organization_id
                     })
 
+                # Stop after fetching enough for this page
+                # Add a bit extra to determine if there are more pages
+                if len(users) >= max_to_fetch + 1:
+                    break
+
             # Manual pagination
             start = (page - 1) * per_page
             end = start + per_page
+            page_users = users[start:end]
+
+            # Estimate if there are more pages
+            has_more = len(users) > end
+
             return {
-                'users': users[start:end],
-                'total': len(users),
+                'users': page_users,
+                'total': len(users) if not has_more else end + 1,  # Approximate total
                 'page': page,
                 'per_page': per_page,
-                'total_pages': (len(users) + per_page - 1) // per_page
+                'total_pages': page if not has_more else page + 1,  # At least one more page
+                'has_more': has_more
             }
         except Exception as e:
             logger.error(f"Error listing users: {str(e)}")
