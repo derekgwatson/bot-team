@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}{{ bot_info.name }} - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bot-details {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .bot-header {
+        text-align: center;
+        padding: 30px 0;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
+    }
+
+    .bot-header h2 {
+        font-size: 2.5em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .bot-header .health-badge {
+        font-size: 1.2em;
+        padding: 8px 20px;
+    }
+
+    .info-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+    }
+
+    .info-section h3 {
+        color: #2a5298;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+    }
+
+    .info-row {
+        display: flex;
+        padding: 12px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #495057;
+        min-width: 150px;
+    }
+
+    .info-value {
+        color: #6c757d;
+        flex: 1;
+    }
+
+    .capabilities-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .capabilities-list li {
+        padding: 10px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .capabilities-list li:last-child {
+        border-bottom: none;
+    }
+
+    .capabilities-list li:before {
+        content: "✓ ";
+        color: #28a745;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+
+    .endpoints-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .endpoints-list li {
+        padding: 8px 0;
+        font-family: monospace;
+        color: #495057;
+    }
+
+    .endpoints-list code {
+        background: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+
+    .health-details {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+    }
+
+    .health-details .info-row {
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #2a5298;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .personality-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        text-align: center;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bot-details">
+    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+
+    <div class="bot-header">
+        <h2>{{ bot_info.name }}</h2>
+        <span class="badge badge-{{ health.status }} health-badge">{{ health.status }}</span>
+    </div>
+
+    <div class="personality-box">
+        "{{ bot_info.personality }}"
+    </div>
+
+    <div class="info-section">
+        <h3>📋 Basic Information</h3>
+        <div class="info-row">
+            <div class="info-label">Name</div>
+            <div class="info-value">{{ bot_info.name }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Description</div>
+            <div class="info-value">{{ bot_info.description }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Port</div>
+            <div class="info-value">{{ bot_info.port }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">URL</div>
+            <div class="info-value">{{ bot_info.url }}</div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>💪 Capabilities</h3>
+        <ul class="capabilities-list">
+            {% for capability in bot_info.capabilities %}
+            <li>{{ capability }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="info-section">
+        <h3>🔌 API Endpoints</h3>
+        <ul class="endpoints-list">
+            {% for endpoint_name, endpoint_path in bot_info.api_endpoints.items() %}
+            <li><code>{{ endpoint_path }}</code> - {{ endpoint_name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="info-section">
+        <h3>💚 Health Status</h3>
+        <div class="health-details">
+            <div class="info-row">
+                <div class="info-label">Status</div>
+                <div class="info-value">
+                    <span class="badge badge-{{ health.status }}">{{ health.status }}</span>
+                </div>
+            </div>
+            {% if health.status_code %}
+            <div class="info-row">
+                <div class="info-label">Status Code</div>
+                <div class="info-value">{{ health.status_code }}</div>
+            </div>
+            {% endif %}
+            {% if health.response_time %}
+            <div class="info-row">
+                <div class="info-label">Response Time</div>
+                <div class="info-value">{{ "%.3f"|format(health.response_time) }} seconds</div>
+            </div>
+            {% endif %}
+            <div class="info-row">
+                <div class="info-label">Health Check URL</div>
+                <div class="info-value">{{ health.url }}</div>
+            </div>
+            {% if health.error %}
+            <div class="info-row">
+                <div class="info-label">Error</div>
+                <div class="info-value" style="color: #dc3545;">{{ health.error }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

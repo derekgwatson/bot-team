@@ -1,0 +1,156 @@
+name: Chester
+description: Bot team concierge - your guide to all team members and their capabilities
+version: 1.0.0
+personality: Helpful, knowledgeable, and welcoming. Like a classic concierge who knows everyone and everything about the establishment.
+
+server:
+  host: 0.0.0.0
+  port: 8008
+
+# Registry of all bot team members
+bot_team:
+  fred:
+    name: Fred
+    port: 8001
+    url: http://localhost:8001
+    description: Google Workspace User Management
+    capabilities:
+      - Create, archive, and delete Google Workspace users
+      - Manage user onboarding and offboarding
+      - User lifecycle management
+    api_endpoints:
+      info: /info
+      health: /health
+      users: /api/users
+    personality: Organized and methodical, handles user management with care
+
+  iris:
+    name: Iris
+    port: 8002
+    url: http://localhost:8002
+    description: Google Workspace Reporting & Analytics
+    capabilities:
+      - Track storage usage (Gmail, Drive, total)
+      - Provide insights and usage trends
+      - Monitor space usage across organization
+    api_endpoints:
+      info: /info
+      health: /health
+      storage: /api/storage
+    personality: Detail-oriented analyst, loves data and insights
+
+  peter:
+    name: Peter
+    port: 8003
+    url: http://localhost:8003
+    description: Phone Directory Manager (Admin Interface)
+    capabilities:
+      - Admin interface for managing phone directory
+      - Sync with Google Sheets
+      - Full CRUD operations on contacts
+    api_endpoints:
+      info: /info
+      health: /health
+      contacts: /api/contacts
+    personality: Systematic administrator, keeps the directory organized
+
+  sally:
+    name: Sally
+    port: 8004
+    url: http://localhost:8004
+    description: SSH Command Executor
+    capabilities:
+      - Execute SSH commands on remote servers
+      - Provide command history
+      - Simple interface for server operations
+    api_endpoints:
+      info: /info
+      health: /health
+      execute: /api/execute
+    personality: Efficient and reliable, gets things done on remote servers
+
+  dorothy:
+    name: Dorothy
+    port: 8005
+    url: http://localhost:8005
+    description: Deployment Orchestrator
+    capabilities:
+      - Orchestrate bot deployments
+      - Call Sally to execute deployment commands
+      - Verify deployments (nginx, SSL, services, repos)
+      - Track deployment history
+    api_endpoints:
+      info: /info
+      health: /health
+      deploy: /api/deploy
+    personality: Takes charge of deployments, ensures everything goes smoothly
+
+  quinn:
+    name: Quinn
+    port: 8006
+    url: http://localhost:8006
+    description: External Staff Access Manager
+    capabilities:
+      - Maintain registry of external staff
+      - Manage Google Groups membership
+      - Provide approval API for other bots
+    api_endpoints:
+      info: /info
+      health: /health
+      external_staff: /api/external-staff
+    personality: Security-conscious gatekeeper, manages external access carefully
+
+  zac:
+    name: Zac
+    port: 8007
+    url: http://localhost:8007
+    description: Zendesk User Management
+    capabilities:
+      - Manage Zendesk users (end-users, agents, admins)
+      - Full CRUD operations for Zendesk accounts
+      - Suspend and unsuspend functionality
+    api_endpoints:
+      info: /info
+      health: /health
+      users: /api/users
+    personality: Customer-focused, manages support team access
+
+  pam:
+    name: Pam
+    port: 8009
+    url: http://localhost:8009
+    description: Phone Directory Presenter (Public Interface)
+    capabilities:
+      - Public-facing phone directory interface
+      - Read-only, safe for company-wide access
+      - Gets data from Peter's API
+    api_endpoints:
+      info: /info
+      health: /health
+      directory: /api/directory
+    personality: Welcoming and helpful, presents information clearly
+
+# Health check configuration
+health_check:
+  timeout: 5  # seconds
+  check_interval: 60  # seconds between automatic checks
+
+# New bot setup templates
+new_bot_template:
+  required_files:
+    - app.py
+    - config.py
+    - config.yaml
+    - .env.example
+    - requirements.txt
+  required_directories:
+    - api
+    - web
+    - web/templates
+    - services
+  standard_dependencies:
+    - Flask==3.0.0
+    - gunicorn==21.2.0
+    - python-dotenv==1.0.0
+    - PyYAML==6.0.1
+    - requests==2.31.0

@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}New Bot Guide - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .guide-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .guide-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .guide-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .step {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 25px;
+        border-left: 5px solid #2a5298;
+    }
+
+    .step h3 {
+        color: #2a5298;
+        margin-bottom: 15px;
+        font-size: 1.4em;
+    }
+
+    .step-number {
+        display: inline-block;
+        background: #2a5298;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 35px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+    .step p {
+        color: #495057;
+        margin-bottom: 15px;
+        line-height: 1.7;
+    }
+
+    .file-list, .dep-list {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    .file-list ul, .dep-list ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .file-list li, .dep-list li {
+        padding: 8px 0;
+        font-family: monospace;
+        color: #495057;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .file-list li:last-child, .dep-list li:last-child {
+        border-bottom: none;
+    }
+
+    .file-list li:before {
+        content: "📄 ";
+        margin-right: 8px;
+    }
+
+    .code-block {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 20px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        margin: 15px 0;
+    }
+
+    .info-box {
+        background: #e7f3ff;
+        border-left: 4px solid #0c5460;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 15px 0;
+    }
+
+    .info-box strong {
+        color: #0c5460;
+    }
+
+    .checklist {
+        background: white;
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+
+    .checklist h4 {
+        color: #28a745;
+        margin-bottom: 15px;
+    }
+
+    .checklist ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .checklist li {
+        padding: 8px 0;
+        color: #495057;
+    }
+
+    .checklist li:before {
+        content: "☐ ";
+        color: #28a745;
+        font-size: 1.2em;
+        margin-right: 8px;
+    }
+
+    .next-steps {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 30px;
+    }
+
+    .next-steps h3 {
+        margin-bottom: 15px;
+    }
+
+    .next-steps p {
+        opacity: 0.95;
+        margin-bottom: 20px;
+    }
+
+    .btn-white {
+        background: white;
+        color: #2a5298;
+        padding: 12px 30px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-block;
+        margin: 5px;
+    }
+
+    .btn-white:hover {
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="guide-container">
+    <div class="guide-header">
+        <h2>➕ Adding a New Bot to the Team</h2>
+        <p>Follow this guide to add a new specialized bot</p>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">1</span>Plan Your Bot</h3>
+        <p>Before creating a new bot, define its purpose following the Unix philosophy: <strong>do one thing well</strong>.</p>
+
+        <div class="checklist">
+            <h4>Planning Checklist</h4>
+            <ul>
+                <li>What specific problem does this bot solve?</li>
+                <li>What are its core capabilities?</li>
+                <li>Does it need to interact with other bots?</li>
+                <li>What external services will it integrate with?</li>
+                <li>Who will use it (admins only, or company-wide)?</li>
+                <li>What port will it run on? (Next available: 8010+)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">2</span>Create Directory Structure</h3>
+        <p>Create the bot's directory with the standard structure:</p>
+
+        <div class="code-block">mkdir -p your-bot-name/{api,web/templates,services}</div>
+
+        <div class="file-list">
+            <h4>Required Files and Directories:</h4>
+            <ul>
+                {% for file in template.required_files %}
+                <li>{{ file }}</li>
+                {% endfor %}
+            </ul>
+            <h4 style="margin-top: 15px;">Required Directories:</h4>
+            <ul>
+                {% for dir in template.required_directories %}
+                <li>{{ dir }}/</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">3</span>Set Up Configuration</h3>
+        <p>Create <code>config.yaml</code> with your bot's information:</p>
+
+        <div class="code-block">name: YourBotName
+description: What your bot does
+version: 1.0.0
+personality: Your bot's personality description
+
+server:
+  host: 0.0.0.0
+  port: 8010  # Use next available port
+
+# Add your bot-specific configuration here</div>
+
+        <p style="margin-top: 15px;">Create <code>.env.example</code> template for secrets:</p>
+
+        <div class="code-block">FLASK_SECRET_KEY=your-secret-key-here
+FLASK_DEBUG=False
+# Add other environment variables</div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">4</span>Install Dependencies</h3>
+        <p>Create <code>requirements.txt</code> with standard dependencies:</p>
+
+        <div class="dep-list">
+            <ul>
+                {% for dep in template.standard_dependencies %}
+                <li>{{ dep }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <p>Then install them:</p>
+        <div class="code-block">python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt</div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">5</span>Build Your Bot</h3>
+        <p>Follow the established patterns:</p>
+
+        <ul style="padding-left: 20px; margin-top: 15px;">
+            <li><strong>app.py</strong> - Main Flask application with /health and /info endpoints</li>
+            <li><strong>config.py</strong> - Configuration loader</li>
+            <li><strong>api/*.py</strong> - REST API endpoints as Flask blueprints</li>
+            <li><strong>web/routes.py</strong> - Web interface routes</li>
+            <li><strong>web/templates/</strong> - HTML templates</li>
+            <li><strong>services/</strong> - Business logic</li>
+        </ul>
+
+        <div class="info-box">
+            <strong>Pro Tip:</strong> Look at existing bots like Fred or Sally as reference implementations. They follow all the standard patterns!
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">6</span>Register with Chester</h3>
+        <p>Add your bot to Chester's registry so the team knows about it!</p>
+
+        <p>Edit <code>/home/user/bot-team/chester/config.yaml</code> and add your bot to the <code>bot_team</code> section:</p>
+
+        <div class="code-block">  yourbot:
+    name: YourBotName
+    port: 8010
+    url: http://localhost:8010
+    description: Brief description
+    capabilities:
+      - First capability
+      - Second capability
+      - Third capability
+    api_endpoints:
+      info: /info
+      health: /health
+      # your endpoints
+    personality: Bot's personality</div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">7</span>Test Locally</h3>
+        <p>Run your bot and test all functionality:</p>
+
+        <div class="code-block">python app.py</div>
+
+        <p style="margin-top: 15px;">Verify:</p>
+        <div class="checklist">
+            <ul>
+                <li>Bot starts without errors</li>
+                <li>/health endpoint returns 200</li>
+                <li>/info endpoint returns correct info</li>
+                <li>Web interface loads properly</li>
+                <li>API endpoints work as expected</li>
+                <li>Integration with other bots (if applicable)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">8</span>Deploy to Production</h3>
+        <p>Use Dorothy (the deployment orchestrator) to deploy your bot!</p>
+
+        <div class="info-box">
+            <strong>Note:</strong> You'll need to create systemd service and nginx configuration files.
+            See <code>/home/user/bot-team/deployment/</code> for examples.
+        </div>
+    </div>
+
+    <div class="next-steps">
+        <h3>🎉 Ready to Add a New Team Member?</h3>
+        <p>Check out existing bots for reference or view the team dashboard</p>
+        <a href="/dashboard" class="btn-white">View Team Dashboard</a>
+        <a href="/" class="btn-white">Back to Home</a>
+    </div>
+</div>
+{% endblock %}
