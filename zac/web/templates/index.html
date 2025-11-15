@@ -50,8 +50,12 @@ window.addEventListener('DOMContentLoaded', function() {
 
     {% if total is defined %}
     <div style="background: #e8f4f8; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
-        📊 Showing approximately <strong>{{ total }}</strong> users
-        <span style="color: #666; font-size: 12px;">(Zendesk API limits prevent exact totals)</span>
+        {% if '+' in total|string %}
+        📊 Showing at least <strong>{{ total }}</strong> users
+        <span style="color: #666; font-size: 12px;">(more pages available)</span>
+        {% else %}
+        📊 Total: <strong>{{ total }}</strong> users
+        {% endif %}
     </div>
     {% endif %}
 
