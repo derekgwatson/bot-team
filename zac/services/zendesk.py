@@ -39,25 +39,30 @@ class ZendeskService:
             # Zenpy's users() method returns an iterable generator
             # We'll fetch just enough to cover the current page
             for user in self.client.users():
-                if role is None or user.role == role:
-                    users.append({
-                        'id': user.id,
-                        'name': user.name,
-                        'email': user.email,
-                        'role': user.role,
-                        'verified': user.verified,
-                        'active': user.active,
-                        'suspended': user.suspended,
-                        'created_at': str(user.created_at) if user.created_at else None,
-                        'last_login_at': str(user.last_login_at) if user.last_login_at else None,
-                        'phone': user.phone,
-                        'organization_id': user.organization_id
-                    })
+                try:
+                    if role is None or user.role == role:
+                        users.append({
+                            'id': getattr(user, 'id', None),
+                            'name': getattr(user, 'name', 'Unknown'),
+                            'email': getattr(user, 'email', 'No email'),
+                            'role': getattr(user, 'role', 'end-user'),
+                            'verified': getattr(user, 'verified', False),
+                            'active': getattr(user, 'active', True),
+                            'suspended': getattr(user, 'suspended', False),
+                            'created_at': str(user.created_at) if hasattr(user, 'created_at') and user.created_at else None,
+                            'last_login_at': str(user.last_login_at) if hasattr(user, 'last_login_at') and user.last_login_at else None,
+                            'phone': getattr(user, 'phone', None),
+                            'organization_id': getattr(user, 'organization_id', None)
+                        })
 
-                # Stop after fetching enough for this page
-                # Add a bit extra to determine if there are more pages
-                if len(users) >= max_to_fetch + 1:
-                    break
+                    # Stop after fetching enough for this page
+                    # Add a bit extra to determine if there are more pages
+                    if len(users) >= max_to_fetch + 1:
+                        break
+                except Exception as user_error:
+                    # Log the error but continue with other users
+                    logger.warning(f"Error processing user {getattr(user, 'id', 'unknown')}: {str(user_error)}")
+                    continue
 
             # Manual pagination
             start = (page - 1) * per_page

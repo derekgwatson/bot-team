@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
+<script>
+function showLoading() {
+    // Show the loading overlay
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('active');
+    }
+
+    // Show inline indicator too
+    var indicator = document.getElementById('loadingIndicator');
+    if (indicator) {
+        indicator.style.display = 'inline';
+    }
+
+    // Disable filter to prevent double-clicks
+    var filter = document.getElementById('roleFilter');
+    if (filter) {
+        filter.disabled = true;
+    }
+}
+
+// Hide loading on page load
+window.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+});
+</script>
+
 {% if error %}
 <div class="alert alert-error">
     Error: {{ error }}
@@ -19,26 +49,29 @@
     <h2>Zendesk Users</h2>
 
     <!-- Search Bar -->
-    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar">
+    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar" onsubmit="showLoading()">
         <input type="text" name="q" placeholder="Search users by name or email..." value="{{ search_query or '' }}">
         <button type="submit" class="btn">Search</button>
         {% if search_query %}
-        <a href="{{ url_for('web.index') }}" class="btn">Clear</a>
+        <a href="{{ url_for('web.index') }}" class="btn" onclick="showLoading()">Clear</a>
         {% endif %}
     </form>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
         <label>Filter by role:</label>
-        <select onchange="window.location.href='{{ url_for('web.index') }}?role=' + this.value">
+        <select id="roleFilter" onchange="showLoading(); window.location.href='{{ url_for('web.index') }}?role=' + this.value">
             <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
             <option value="end-user" {% if role_filter == 'end-user' %}selected{% endif %}>End Users</option>
             <option value="agent" {% if role_filter == 'agent' %}selected{% endif %}>Agents</option>
             <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admins</option>
         </select>
         {% if role_filter %}
-        <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #3498db; text-decoration: none;">Clear filter</a>
+        <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #3498db; text-decoration: none;" onclick="showLoading()">Clear filter</a>
         {% endif %}
+        <span id="loadingIndicator" style="display: none; margin-left: 15px; color: #3498db;">
+            ⏳ Loading users...
+        </span>
     </div>
 
     <!-- Users Table -->
