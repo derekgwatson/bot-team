@@ -15,6 +15,51 @@ class DeploymentOrchestrator:
         self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
+    def check_sally_health(self) -> Dict:
+        """
+        Check if Sally is healthy and responding
+
+        Returns:
+            Dict with Sally's health status
+        """
+        try:
+            response = requests.get(
+                f"{self.sally_url}/health",
+                timeout=5
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                'success': True,
+                'healthy': data.get('status') == 'healthy',
+                'url': self.sally_url,
+                'version': data.get('version'),
+                'response_time_ms': int(response.elapsed.total_seconds() * 1000)
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': 'Connection refused - Sally is not running or not accessible',
+                'hint': f'Make sure Sally is running on {self.sally_url}'
+            }
+        except requests.exceptions.Timeout:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': 'Connection timeout - Sally is not responding',
+                'hint': 'Sally may be running but overloaded or unresponsive'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': f'Failed to check Sally health: {str(e)}'
+            }
+
     def _call_sally(self, server: str, command: str, timeout: Optional[int] = None) -> Dict:
         """
         Call Sally's API to execute a command
