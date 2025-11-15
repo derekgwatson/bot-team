@@ -1,0 +1,31 @@
+[Unit]
+Description=Sally - SSH Command Executor Bot
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=gunicorn-sally
+WorkingDirectory=/var/www/bot-team/sally
+Environment="PATH=/var/www/bot-team/sally/.venv/bin:$PATH"
+EnvironmentFile=/var/www/bot-team/sally/.env
+ExecStart=/var/www/bot-team/sally/.venv/bin/gunicorn \
+  --workers 2 \
+  --worker-tmp-dir /dev/shm \
+  --bind 0.0.0.0:8004 \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=30
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
