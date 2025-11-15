@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>Create New User</h2>
+
+    <form method="POST" action="{{ url_for('web.create_user') }}">
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" required placeholder="Enter full name">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" required placeholder="user@example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" name="role">
+                <option value="end-user">End User</option>
+                <option value="agent">Agent</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" placeholder="+1 555-1234">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="verified">
+                Email is verified
+            </label>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-success">Create User</button>
+            <a href="{{ url_for('web.index') }}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

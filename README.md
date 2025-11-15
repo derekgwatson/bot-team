@@ -53,6 +53,15 @@ Dorothy knows how to deploy and manage bots. She orchestrates complex deployment
 - API: http://localhost:8005/api/
 - [Read Dorothy's documentation →](dorothy/README.md)
 
+### 👤 Zac
+**Zendesk User Management**
+
+Zac manages your Zendesk users. He can create, update, suspend, and delete Zendesk users (end-users, agents, and admins). Zac provides a friendly web interface for managing your support team and a REST API for automation. Perfect for onboarding new support agents or managing customer accounts.
+
+- Port: 8006
+- API: http://localhost:8006/api/
+- [Read Zac's documentation →](zac/README.md)
+
 ## How Bots Work Together
 
 Each bot:
@@ -98,7 +107,8 @@ Each bot runs on its own port:
 - **Peter** (Phone Directory): `http://localhost:8003`
 - **Sally** (SSH Executor): `http://localhost:8004`
 - **Dorothy** (Deployment Orchestrator): `http://localhost:8005`
-- (Future bots will use 8006, 8007, etc.)
+- **Zac** (Zendesk User Management): `http://localhost:8006`
+- (Future bots will use 8007, 8008, etc.)
 
 For production deployment, use nginx to route domains/paths to different bots.
 

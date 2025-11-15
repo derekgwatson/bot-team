@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>Edit User: {{ user.name }}</h2>
+
+    <form method="POST" action="{{ url_for('web.edit_user', user_id=user.id) }}">
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" value="{{ user.name }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" value="{{ user.email }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" name="role">
+                <option value="end-user" {% if user.role == 'end-user' %}selected{% endif %}>End User</option>
+                <option value="agent" {% if user.role == 'agent' %}selected{% endif %}>Agent</option>
+                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="verified" {% if user.verified %}checked{% endif %}>
+                Email is verified
+            </label>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-success">Update User</button>
+            <a href="{{ url_for('web.view_user', user_id=user.id) }}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

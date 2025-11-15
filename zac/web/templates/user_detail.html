@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>{{ user.name }}</h2>
+
+    <table style="margin-bottom: 20px;">
+        <tr>
+            <th style="width: 200px;">ID</th>
+            <td>{{ user.id }}</td>
+        </tr>
+        <tr>
+            <th>Name</th>
+            <td>{{ user.name }}</td>
+        </tr>
+        <tr>
+            <th>Email</th>
+            <td>{{ user.email }}</td>
+        </tr>
+        <tr>
+            <th>Role</th>
+            <td>
+                {% if user.role == 'admin' %}
+                <span class="badge badge-admin">Admin</span>
+                {% elif user.role == 'agent' %}
+                <span class="badge badge-agent">Agent</span>
+                {% else %}
+                <span class="badge badge-user">End User</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                {% if user.suspended %}
+                <span class="badge badge-suspended">Suspended</span>
+                {% elif user.active %}
+                <span class="badge badge-active">Active</span>
+                {% else %}
+                <span class="badge">Inactive</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Email Verified</th>
+            <td>{{ 'Yes' if user.verified else 'No' }}</td>
+        </tr>
+        <tr>
+            <th>Phone</th>
+            <td>{{ user.phone or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Organization ID</th>
+            <td>{{ user.organization_id or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Locale</th>
+            <td>{{ user.locale or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Time Zone</th>
+            <td>{{ user.time_zone or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Created At</th>
+            <td>{{ user.created_at or 'N/A' }}</td>
+        </tr>
+        <tr>
+            <th>Last Login</th>
+            <td>{{ user.last_login_at or 'Never' }}</td>
+        </tr>
+        {% if user.notes %}
+        <tr>
+            <th>Notes</th>
+            <td>{{ user.notes }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('web.edit_user', user_id=user.id) }}" class="btn">Edit User</a>
+
+        {% if user.suspended %}
+        <form method="POST" action="{{ url_for('web.unsuspend_user', user_id=user.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success">Unsuspend User</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('web.suspend_user', user_id=user.id) }}" style="display: inline;">
+            <button type="submit" class="btn" onclick="return confirm('Are you sure you want to suspend this user?')">Suspend User</button>
+        </form>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('web.delete_user', user_id=user.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">Delete User</button>
+        </form>
+
+        <a href="{{ url_for('web.index') }}" class="btn">Back to List</a>
+    </div>
+</div>
+{% endblock %}
