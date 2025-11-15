@@ -33,7 +33,8 @@ class ZendeskService:
         """
         try:
             users = []
-            for user in self.client.users.list():
+            # Zenpy's users() method returns an iterable generator
+            for user in self.client.users():
                 if role is None or user.role == role:
                     users.append({
                         'id': user.id,
