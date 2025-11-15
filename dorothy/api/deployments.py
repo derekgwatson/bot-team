@@ -4,6 +4,13 @@ from config import config
 
 api_bp = Blueprint('api', __name__)
 
+@api_bp.route('/sally/health', methods=['GET'])
+def sally_health():
+    """Check if Sally is healthy and responding"""
+    health = deployment_orchestrator.check_sally_health()
+    status_code = 200 if health.get('healthy') else 503
+    return jsonify(health), status_code
+
 @api_bp.route('/bots', methods=['GET'])
 def list_bots():
     """List all configured bots"""

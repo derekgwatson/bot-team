@@ -2,6 +2,7 @@ from flask import Blueprint, render_template_string, request, jsonify
 from flask_login import current_user
 from config import config
 from services.auth import login_required
+from services.deployment_orchestrator import deployment_orchestrator
 
 web_bp = Blueprint('web', __name__)
 
@@ -11,6 +12,9 @@ def index():
     """Dorothy's home page"""
     # Get all bots with defaults applied
     bots = {name: config.get_bot_config(name) for name in config.bots.keys()}
+
+    # Get Sally's health status
+    sally_status = deployment_orchestrator.check_sally_health()
 
     template = '''
     <!DOCTYPE html>
@@ -233,6 +237,44 @@ def index():
             <p>{{ config.description }}</p>
         </div>
 
+        <!-- Sally Health Status -->
+        <div class="card" style="{% if sally_status.healthy %}background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #28a745;{% else %}background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); border-left: 4px solid #dc3545;{% endif %}">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h2 style="margin: 0 0 10px 0;">👩‍💼 Sally Status</h2>
+                    {% if sally_status.healthy %}
+                        <div style="color: #28a745; font-weight: bold; font-size: 1.1em; margin-bottom: 8px;">✅ Healthy & Ready</div>
+                        <div style="color: #666; font-size: 0.9em;">
+                            <div>🔗 URL: <code>{{ sally_status.url }}</code></div>
+                            <div>📦 Version: {{ sally_status.version }}</div>
+                            <div>⚡ Response Time: {{ sally_status.response_time_ms }}ms</div>
+                        </div>
+                    {% else %}
+                        <div style="color: #dc3545; font-weight: bold; font-size: 1.1em; margin-bottom: 8px;">❌ Not Available</div>
+                        <div style="color: #666; font-size: 0.9em; margin-bottom: 8px;">
+                            <div>🔗 URL: <code>{{ sally_status.url }}</code></div>
+                            {% if sally_status.error %}
+                                <div style="margin-top: 8px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 3px solid #ffc107;">
+                                    <strong>Error:</strong> {{ sally_status.error }}
+                                </div>
+                            {% endif %}
+                            {% if sally_status.hint %}
+                                <div style="margin-top: 8px; padding: 10px; background: #e7f3ff; border-radius: 4px; border-left: 3px solid #0066cc;">
+                                    <strong>💡 Hint:</strong> {{ sally_status.hint }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <button class="btn btn-health" onclick="checkSallyHealth()" style="font-size: 1em; padding: 10px 20px;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+            <div id="sally-status-result" style="margin-top: 10px;"></div>
+        </div>
+
         <div class="card">
             <h2>Managed Bots</h2>
             {% if bots %}
@@ -374,6 +416,45 @@ def index():
         </div>
 
         <script>
+            async function checkSallyHealth() {
+                const resultDiv = document.getElementById('sally-status-result');
+                resultDiv.innerHTML = '<div class="result">🔄 Checking Sally health...</div>';
+
+                try {
+                    const response = await fetch('/api/sally/health');
+                    const data = await response.json();
+
+                    if (data.healthy) {
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <strong>✅ Sally is healthy!</strong>
+                                <div style="margin-top: 8px; font-size: 0.9em;">
+                                    <div>📦 Version: ${data.version}</div>
+                                    <div>⚡ Response Time: ${data.response_time_ms}ms</div>
+                                </div>
+                            </div>
+                        `;
+                        // Reload page after 2 seconds to update the status card
+                        setTimeout(() => { window.location.reload(); }, 2000);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <strong>❌ Sally is not available</strong>
+                                ${data.error ? `<div style="margin-top: 8px;">Error: ${data.error}</div>` : ''}
+                                ${data.hint ? `<div style="margin-top: 8px;">💡 ${data.hint}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Failed to check Sally health</strong>
+                            <div>${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+
             async function verifyBot(botName) {
                 const resultDiv = document.getElementById('result-' + botName);
                 resultDiv.innerHTML = '<div class="result">⏳ Starting verification for ' + botName + '...</div>';
@@ -1261,4 +1342,4 @@ def index():
     </html>
     '''
 
-    return render_template_string(template, config=config, bots=bots, current_user=current_user)
+    return render_template_string(template, config=config, bots=bots, current_user=current_user, sally_status=sally_status)
