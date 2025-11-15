@@ -22,7 +22,7 @@ class ZendeskService:
     def list_users(self, role=None, page=1, per_page=50):
         """
         List Zendesk users, optionally filtered by role
-        Only fetches enough users for the current page to avoid rate limits
+        Uses Zendesk's search API for server-side filtering
 
         Args:
             role: Optional role filter ('end-user', 'agent', 'admin')
@@ -34,18 +34,21 @@ class ZendeskService:
         """
         try:
             users = []
-            count = 0
             max_needed = page * per_page + 1  # Fetch one extra to check if there are more pages
 
-            logger.info(f"Fetching users for page {page} (max {max_needed} users)...")
+            logger.info(f"Fetching users for page {page} (role={role}, max {max_needed} users)...")
+
+            # Use search API with role filter for server-side filtering
+            if role:
+                # Search by role - much faster than client-side filtering!
+                search_results = self.client.search(type='user', role=role)
+            else:
+                # No filter - use regular user list
+                search_results = self.client.users()
 
             # Only fetch what we need for this page
-            for user in self.client.users():
+            for user in search_results:
                 try:
-                    # Filter by role if specified
-                    if role is not None and getattr(user, 'role', None) != role:
-                        continue
-
                     users.append({
                         'id': getattr(user, 'id', None),
                         'name': getattr(user, 'name', 'Unknown'),
