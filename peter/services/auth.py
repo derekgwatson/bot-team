@@ -30,12 +30,25 @@ def init_auth(app):
             return User(user_data['email'], user_data['name'])
         return None
 
+    # Get OAuth credentials with backward compatibility
+    # Support both new (GOOGLE_CLIENT_ID) and old (GOOGLE_OAUTH_CLIENT_ID) variable names
+    client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+    client_secret = os.getenv('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+
+    if not client_id or not client_secret:
+        raise ValueError(
+            "Missing Google OAuth credentials. Please set either:\n"
+            "  GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (new format)\n"
+            "  or GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET (old format)\n"
+            "in your .env file"
+        )
+
     # Configure OAuth
     oauth.init_app(app)
     oauth.register(
         name='google',
-        client_id=os.getenv('GOOGLE_CLIENT_ID'),
-        client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+        client_id=client_id,
+        client_secret=client_secret,
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
         client_kwargs={
             'scope': 'openid email profile'
