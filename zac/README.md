@@ -60,9 +60,9 @@ Web UI / API → Zac → Zendesk API → Zendesk
    ```
 
 5. **Access Zac:**
-   - Web UI: http://localhost:8006
-   - API: http://localhost:8006/api
-   - Health: http://localhost:8006/health
+   - Web UI: http://localhost:8007
+   - API: http://localhost:8007/api
+   - Health: http://localhost:8007/health
 
 ## Environment Variables
 
@@ -263,14 +263,14 @@ import requests
 
 # List all agents
 response = requests.get(
-    'http://localhost:8006/api/users?role=agent',
+    'http://localhost:8007/api/users?role=agent',
     headers={'X-API-Key': 'your-bot-api-key'}
 )
 users = response.json()
 
 # Create a new user
 response = requests.post(
-    'http://localhost:8006/api/users',
+    'http://localhost:8007/api/users',
     headers={'X-API-Key': 'your-bot-api-key'},
     json={
         'name': 'Jane Smith',
@@ -285,7 +285,7 @@ new_user = response.json()
 
 See the main [DEPLOYMENT.md](../deployment/DEPLOYMENT.md) guide for production deployment instructions.
 
-**Port:** 8006
+**Port:** 8007
 
 ## Zendesk API Documentation
 

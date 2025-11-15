@@ -57,9 +57,9 @@ External Staff → Quinn (Registry) → Pam, other bots
    ```
 
 5. **Access Quinn:**
-   - Web UI: http://localhost:8005
-   - API: http://localhost:8005/api/intro
-   - Health: http://localhost:8005/health
+   - Web UI: http://localhost:8006
+   - API: http://localhost:8006/api/intro
+   - Health: http://localhost:8006/health
 
 ## API Endpoints
 
@@ -123,7 +123,7 @@ PUT /api/staff/1
 ```python
 # In your bot's config.yaml
 auth:
-  quinn_api_url: "http://localhost:8005"
+  quinn_api_url: "http://localhost:8006"
 
 # The shared auth module will automatically check Quinn
 ```
