@@ -97,19 +97,30 @@ class SSHExecutor:
     def _get_friendly_error(self, error_type: str, details: str, server_config: dict) -> str:
         """Generate friendly, helpful error messages with troubleshooting steps"""
         if error_type == "key_not_found":
+            server_host = server_config.get('host', 'unknown')
             return (
                 f"🔑 SSH Key Not Found!\n\n"
                 f"I couldn't find the SSH key at: {config.ssh_key_path}\n\n"
-                f"Here's how to fix this:\n"
+                f"💡 WAIT! If Sally is running ON {server_host}, you don't need SSH!\n"
+                f"   Configure {server_host} to use localhost for local execution (faster, no keys needed):\n\n"
+                f"   1. Edit sally/config.local.yaml:\n"
+                f"      servers:\n"
+                f"        prod:  # or whatever server name you're using\n"
+                f"          host: localhost\n"
+                f"          user: ubuntu\n"
+                f"          description: Production Server (Local)\n\n"
+                f"   2. Remove or comment out SSH_PRIVATE_KEY_PATH in sally/.env\n"
+                f"   3. Restart Sally - she'll use local execution (subprocess) instead of SSH\n\n"
+                f"Otherwise, if Sally is REMOTE from {server_host}, here's how to set up SSH:\n\n"
                 f"1. Check if the key exists:\n"
                 f"   ls -la {config.ssh_key_path}\n\n"
                 f"2. If it doesn't exist, generate one:\n"
                 f"   cd sally && python3 -c \"import paramiko; key = paramiko.RSAKey.generate(4096); key.write_private_key_file('sally_id_rsa'); pub = f'{{key.get_name()}} {{key.get_base64()}} sally-bot-ssh-key'; open('sally_id_rsa.pub', 'w').write(pub); print('✅ Key pair generated!'); print('Private: sally_id_rsa'); print('Public: sally_id_rsa.pub')\"\n\n"
                 f"3. Update sally/.env to point to the key:\n"
-                f"   SSH_PRIVATE_KEY_PATH=/home/user/bot-team/sally/sally_id_rsa\n\n"
+                f"   SSH_PRIVATE_KEY_PATH=/var/www/bot-team/sally/sally_id_rsa\n\n"
                 f"4. Copy the public key to your server:\n"
                 f"   cat sally_id_rsa.pub\n"
-                f"   # Then on your server: echo \"<paste_the_public_key_here>\" >> ~/.ssh/authorized_keys\n\n"
+                f"   # Then on {server_host}: echo \"<paste_the_public_key_here>\" >> ~/.ssh/authorized_keys\n\n"
                 f"Error details: {details}"
             )
         elif error_type == "connection_failed":

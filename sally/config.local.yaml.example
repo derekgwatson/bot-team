@@ -2,17 +2,29 @@
 # Copy this file to config.local.yaml and customize for your environment
 # config.local.yaml is gitignored and won't be committed
 
+# IMPORTANT: If Sally is deployed ON the production server, configure prod to use localhost
+# This enables local execution (no SSH needed, no SSH keys required!)
+# Otherwise, configure with the actual hostname/IP for remote SSH access
+
 # Override server configuration
 servers:
+  # Example 1: Sally is ON the prod server - use localhost for local execution
   prod:
-    host: 203.45.67.89  # Your production server IP/hostname
-    user: ubuntu        # SSH user
-    description: Production Ubuntu Server
+    host: localhost     # Use localhost when Sally is deployed on prod
+    user: ubuntu        # User is ignored for localhost, but required
+    description: Production Server (Local)
 
-  staging:
-    host: staging.example.com
-    user: ubuntu
-    description: Staging Environment
+  # Example 2: Sally is managing a REMOTE staging server - use actual hostname
+  # staging:
+  #   host: staging.example.com
+  #   user: ubuntu
+  #   description: Staging Environment
+
+  # Example 3: Sally on dev managing remote prod - use actual IP/hostname
+  # prod:
+  #   host: 203.45.67.89  # Production server IP/hostname
+  #   user: ubuntu        # SSH user (needs SSH key in .env)
+  #   description: Production Ubuntu Server
 
 # You can also override other settings:
 # ssh:
