@@ -2,7 +2,6 @@ from zenpy import Zenpy
 from zenpy.lib.api_objects import User
 from config import config
 import logging
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -20,96 +19,75 @@ class ZendeskService:
             token=config.zendesk_api_token
         )
 
-        # Simple in-memory cache
-        self._cache = {}
-        self._cache_expiry = None
-        self._cache_ttl = timedelta(minutes=5)  # Cache for 5 minutes
-
-    def _fetch_all_users(self):
-        """Fetch all users from Zendesk and cache them"""
-        users = []
-        logger.info("Fetching all users from Zendesk (this may take a while)...")
-
-        for user in self.client.users():
-            try:
-                users.append({
-                    'id': getattr(user, 'id', None),
-                    'name': getattr(user, 'name', 'Unknown'),
-                    'email': getattr(user, 'email', 'No email'),
-                    'role': getattr(user, 'role', 'end-user'),
-                    'verified': getattr(user, 'verified', False),
-                    'active': getattr(user, 'active', True),
-                    'suspended': getattr(user, 'suspended', False),
-                    'created_at': str(user.created_at) if hasattr(user, 'created_at') and user.created_at else None,
-                    'last_login_at': str(user.last_login_at) if hasattr(user, 'last_login_at') and user.last_login_at else None,
-                    'phone': getattr(user, 'phone', None),
-                    'organization_id': getattr(user, 'organization_id', None)
-                })
-            except Exception as user_error:
-                logger.warning(f"Error processing user {getattr(user, 'id', 'unknown')}: {str(user_error)}")
-                continue
-
-        logger.info(f"Fetched {len(users)} users from Zendesk")
-        return users
-
-    def list_users(self, role=None, page=1, per_page=100):
+    def list_users(self, role=None, page=1, per_page=50):
         """
         List Zendesk users, optionally filtered by role
-        Uses a 5-minute cache to avoid slow API calls
+        Only fetches enough users for the current page to avoid rate limits
 
         Args:
             role: Optional role filter ('end-user', 'agent', 'admin')
             page: Page number (default: 1)
-            per_page: Results per page (default: 100)
+            per_page: Results per page (default: 50)
 
         Returns:
             List of user objects
         """
         try:
-            # Check if cache is valid
-            now = datetime.now()
-            if self._cache_expiry is None or now > self._cache_expiry:
-                logger.info("Cache expired or empty, fetching fresh data...")
-                all_users = self._fetch_all_users()
-                self._cache = {'all_users': all_users}
-                self._cache_expiry = now + self._cache_ttl
-            else:
-                logger.info("Using cached user data")
-                all_users = self._cache.get('all_users', [])
+            users = []
+            count = 0
+            max_needed = page * per_page + 1  # Fetch one extra to check if there are more pages
 
-            # Filter by role if needed
-            if role:
-                users = [u for u in all_users if u['role'] == role]
-            else:
-                users = all_users
+            logger.info(f"Fetching users for page {page} (max {max_needed} users)...")
 
-            # Manual pagination
+            # Only fetch what we need for this page
+            for user in self.client.users():
+                try:
+                    # Filter by role if specified
+                    if role is not None and getattr(user, 'role', None) != role:
+                        continue
+
+                    users.append({
+                        'id': getattr(user, 'id', None),
+                        'name': getattr(user, 'name', 'Unknown'),
+                        'email': getattr(user, 'email', 'No email'),
+                        'role': getattr(user, 'role', 'end-user'),
+                        'verified': getattr(user, 'verified', False),
+                        'active': getattr(user, 'active', True),
+                        'suspended': getattr(user, 'suspended', False),
+                        'created_at': str(user.created_at) if hasattr(user, 'created_at') and user.created_at else None,
+                        'last_login_at': str(user.last_login_at) if hasattr(user, 'last_login_at') and user.last_login_at else None,
+                        'phone': getattr(user, 'phone', None),
+                        'organization_id': getattr(user, 'organization_id', None)
+                    })
+
+                    # Stop once we have enough for this page plus one more
+                    if len(users) >= max_needed:
+                        logger.info(f"Fetched enough users ({len(users)}), stopping early")
+                        break
+
+                except Exception as user_error:
+                    logger.warning(f"Error processing user {getattr(user, 'id', 'unknown')}: {str(user_error)}")
+                    continue
+
+            # Paginate
             start = (page - 1) * per_page
             end = start + per_page
             page_users = users[start:end]
+            has_more = len(users) > end
 
-            # Calculate totals
-            total = len(users)
-            total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+            logger.info(f"Returning {len(page_users)} users for page {page}")
 
             return {
                 'users': page_users,
-                'total': total,
+                'total': f"{len(users)}+" if has_more else len(users),  # Approximate
                 'page': page,
                 'per_page': per_page,
-                'total_pages': total_pages,
-                'cached': self._cache_expiry is not None,
-                'cache_expires': str(self._cache_expiry) if self._cache_expiry else None
+                'total_pages': page + 1 if has_more else page,  # At least one more page
+                'has_more': has_more
             }
         except Exception as e:
             logger.error(f"Error listing users: {str(e)}")
             raise
-
-    def clear_cache(self):
-        """Clear the user cache - call this after creating/updating/deleting users"""
-        self._cache = {}
-        self._cache_expiry = None
-        logger.info("User cache cleared")
 
     def get_user(self, user_id):
         """
@@ -195,9 +173,6 @@ class ZendeskService:
             created_user = self.client.users.create(user)
             logger.info(f"Created user: {created_user.email} (ID: {created_user.id})")
 
-            # Clear cache so next list shows new user
-            self.clear_cache()
-
             return {
                 'id': created_user.id,
                 'name': created_user.name,
@@ -232,9 +207,6 @@ class ZendeskService:
             updated_user = self.client.users.update(user)
             logger.info(f"Updated user {user_id}")
 
-            # Clear cache so changes are visible
-            self.clear_cache()
-
             return {
                 'id': updated_user.id,
                 'name': updated_user.name,
@@ -264,9 +236,6 @@ class ZendeskService:
             updated_user = self.client.users.update(user)
             logger.info(f"Suspended user {user_id}")
 
-            # Clear cache so changes are visible
-            self.clear_cache()
-
             return {
                 'id': updated_user.id,
                 'name': updated_user.name,
@@ -293,9 +262,6 @@ class ZendeskService:
             updated_user = self.client.users.update(user)
             logger.info(f"Unsuspended user {user_id}")
 
-            # Clear cache so changes are visible
-            self.clear_cache()
-
             return {
                 'id': updated_user.id,
                 'name': updated_user.name,
@@ -319,10 +285,6 @@ class ZendeskService:
         try:
             self.client.users.delete(user_id)
             logger.info(f"Deleted user {user_id}")
-
-            # Clear cache so deletion is visible
-            self.clear_cache()
-
             return True
         except Exception as e:
             logger.error(f"Error deleting user {user_id}: {str(e)}")

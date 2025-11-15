@@ -36,7 +36,6 @@ def index():
                              total=result['total'],
                              role_filter=role_filter,
                              search_query=search_query,
-                             cache_expires=result.get('cache_expires'),
                              user=current_user)
 
     except Exception as e:

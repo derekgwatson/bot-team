@@ -50,10 +50,8 @@ window.addEventListener('DOMContentLoaded', function() {
 
     {% if total is defined %}
     <div style="background: #e8f4f8; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
-        📊 Total: <strong>{{ total }}</strong> users
-        {% if cache_expires %}
-        | ⚡ Using cached data (refreshes at {{ cache_expires[11:19] }})
-        {% endif %}
+        📊 Showing approximately <strong>{{ total }}</strong> users
+        <span style="color: #666; font-size: 12px;">(Zendesk API limits prevent exact totals)</span>
     </div>
     {% endif %}
 
