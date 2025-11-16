@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Search Bots - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .search-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .search-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 15px 20px;
+        font-size: 1.1em;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        transition: border-color 0.3s;
+    }
+
+    .search-box:focus {
+        outline: none;
+        border-color: #2a5298;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .search-btn {
+        padding: 15px 30px;
+        background: #2a5298;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .search-btn:hover {
+        background: #1e3c72;
+    }
+
+    .results-header {
+        margin: 30px 0 20px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .results-header h3 {
+        color: #2a5298;
+        font-size: 1.5em;
+    }
+
+    .result-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 4px solid #2a5298;
+    }
+
+    .result-card h4 {
+        color: #2a5298;
+        font-size: 1.3em;
+        margin-bottom: 10px;
+    }
+
+    .result-card .description {
+        color: #495057;
+        margin-bottom: 15px;
+    }
+
+    .matching-capabilities {
+        margin-top: 15px;
+    }
+
+    .matching-capabilities h5 {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .matching-capabilities ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .matching-capabilities li {
+        padding: 5px 0;
+        color: #495057;
+    }
+
+    .matching-capabilities li:before {
+        content: "✓ ";
+        color: #28a745;
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .result-footer {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .result-link {
+        color: #2a5298;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .result-link:hover {
+        text-decoration: underline;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+        font-size: 1.1em;
+    }
+
+    .suggestions {
+        background: #e7f3ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .suggestions h4 {
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .suggestion-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .suggestion-tag {
+        background: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        text-decoration: none;
+        color: #2a5298;
+        font-weight: 500;
+        transition: all 0.3s;
+        border: 2px solid #2a5298;
+    }
+
+    .suggestion-tag:hover {
+        background: #2a5298;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="search-header">
+        <h2>🔍 Search Bot Capabilities</h2>
+        <p>Find the right bot for your needs</p>
+    </div>
+
+    <form method="GET" action="/search" class="search-form">
+        <input
+            type="text"
+            name="q"
+            class="search-box"
+            placeholder="Search for capabilities (e.g., 'Google', 'SSH', 'deployment')..."
+            value="{{ query }}"
+            autofocus
+        >
+        <button type="submit" class="search-btn">Search</button>
+    </form>
+
+    {% if not query %}
+    <div class="suggestions">
+        <h4>Try searching for:</h4>
+        <div class="suggestion-tags">
+            <a href="/search?q=Google" class="suggestion-tag">Google</a>
+            <a href="/search?q=user" class="suggestion-tag">User Management</a>
+            <a href="/search?q=deploy" class="suggestion-tag">Deployment</a>
+            <a href="/search?q=SSH" class="suggestion-tag">SSH</a>
+            <a href="/search?q=phone" class="suggestion-tag">Phone Directory</a>
+            <a href="/search?q=Zendesk" class="suggestion-tag">Zendesk</a>
+            <a href="/search?q=storage" class="suggestion-tag">Storage</a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if query %}
+        {% if results %}
+        <div class="results-header">
+            <h3>Found {{ results|length }} bot(s) matching "{{ query }}"</h3>
+        </div>
+
+        {% for result in results %}
+        <div class="result-card">
+            <h4>{{ result.name }}</h4>
+            <div class="description">{{ result.description }}</div>
+
+            <div class="matching-capabilities">
+                <h5>Matching Capabilities</h5>
+                <ul>
+                    {% for capability in result.matching_capabilities %}
+                    <li>{{ capability }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="result-footer">
+                <a href="/bot/{{ result.bot }}" class="result-link">View Full Details →</a>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div class="no-results">
+            <p>No bots found matching "{{ query }}"</p>
+            <p>Try a different search term or browse the <a href="/dashboard">full team dashboard</a></p>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

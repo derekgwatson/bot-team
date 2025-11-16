@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Team Dashboard - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .dashboard-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .health-summary {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+    }
+
+    .health-stat {
+        text-align: center;
+        padding: 20px 30px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        min-width: 150px;
+    }
+
+    .health-stat-number {
+        font-size: 2.5em;
+        font-weight: 700;
+        color: #2a5298;
+    }
+
+    .health-stat-label {
+        color: #6c757d;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .bot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    .bot-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .bot-card:hover {
+        border-color: #2a5298;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .bot-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 15px;
+    }
+
+    .bot-card h3 {
+        font-size: 1.5em;
+        color: #2a5298;
+        margin-bottom: 5px;
+    }
+
+    .bot-card .port {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+
+    .bot-card .description {
+        color: #495057;
+        margin-bottom: 15px;
+        font-size: 0.95em;
+    }
+
+    .capabilities {
+        margin-top: 15px;
+    }
+
+    .capabilities h4 {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .capabilities ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .capabilities li {
+        padding: 5px 0;
+        color: #495057;
+        font-size: 0.9em;
+    }
+
+    .capabilities li:before {
+        content: "✓ ";
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .bot-card-footer {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .view-details {
+        color: #2a5298;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+
+    .view-details:hover {
+        text-decoration: underline;
+    }
+
+    .response-time {
+        color: #6c757d;
+        font-size: 0.85em;
+    }
+
+    .refresh-btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #2a5298;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        margin: 20px auto;
+        cursor: pointer;
+        border: none;
+        font-size: 1em;
+    }
+
+    .refresh-btn:hover {
+        background: #1e3c72;
+    }
+
+    .center {
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>🎯 Bot Team Dashboard</h2>
+    <p>Real-time status of all team members</p>
+</div>
+
+<div class="health-summary">
+    {% set healthy_count = health_map.values() | selectattr('status', 'equalto', 'healthy') | list | length %}
+    {% set total_count = health_map | length %}
+
+    <div class="health-stat">
+        <div class="health-stat-number">{{ total_count }}</div>
+        <div class="health-stat-label">Total Bots</div>
+    </div>
+
+    <div class="health-stat">
+        <div class="health-stat-number">{{ healthy_count }}</div>
+        <div class="health-stat-label">Healthy</div>
+    </div>
+
+    <div class="health-stat">
+        <div class="health-stat-number">{{ total_count - healthy_count }}</div>
+        <div class="health-stat-label">Issues</div>
+    </div>
+</div>
+
+<div class="bot-grid">
+    {% for bot_name, bot_info in bots.items() %}
+    {% set health = health_map.get(bot_name, {}) %}
+    <div class="bot-card">
+        <div class="bot-card-header">
+            <div>
+                <h3>{{ bot_info.name }}</h3>
+                <div class="port">Port {{ bot_info.port }}</div>
+            </div>
+            <span class="badge badge-{{ health.status }}">{{ health.status or 'unknown' }}</span>
+        </div>
+
+        <div class="description">{{ bot_info.description }}</div>
+
+        <div class="capabilities">
+            <h4>Capabilities</h4>
+            <ul>
+                {% for capability in bot_info.capabilities[:3] %}
+                <li>{{ capability }}</li>
+                {% endfor %}
+                {% if bot_info.capabilities | length > 3 %}
+                <li style="color: #6c757d;">... and more</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="bot-card-footer">
+            <a href="/bot/{{ bot_name }}" class="view-details">View Details →</a>
+            {% if health.response_time %}
+            <span class="response-time">{{ "%.3f"|format(health.response_time) }}s</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="center">
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Health Status</button>
+</div>
+{% endblock %}

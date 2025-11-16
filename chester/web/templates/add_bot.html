@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Bot - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .form-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .form-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .form-section h3 {
+        color: #2a5298;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 1em;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #2a5298;
+    }
+
+    .form-group .help-text {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    .form-group .code-text {
+        font-family: monospace;
+        background: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1em;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #218838;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    .required {
+        color: #dc3545;
+    }
+
+    .preview-box {
+        background: white;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        margin-top: 10px;
+    }
+
+    .preview-label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+
+    .preview-value {
+        font-family: monospace;
+        color: #2a5298;
+        font-size: 0.95em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <h2>➕ Add New Bot to the Team</h2>
+        <p>Fill in the details below. Defaults will be applied automatically.</p>
+    </div>
+
+    <form id="addBotForm">
+        <div class="form-section">
+            <h3>Basic Information</h3>
+
+            <div class="form-group">
+                <label for="name">Bot Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" required placeholder="e.g., alice">
+                <div class="help-text">Short, lowercase name (will be used for directories, domains, etc.)</div>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description <span class="required">*</span></label>
+                <input type="text" id="description" name="description" required placeholder="e.g., Email Campaign Manager">
+                <div class="help-text">Brief description of what this bot does</div>
+            </div>
+
+            <div class="form-group">
+                <label for="port">Port <span class="required">*</span></label>
+                <input type="number" id="port" name="port" required min="8001" max="9000" placeholder="8010">
+                <div class="help-text">Next available port (check current bots to avoid conflicts)</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Deployment Configuration</h3>
+            <p style="color: #6c757d; margin-bottom: 20px;">These fields will use defaults if left blank. The <span class="code-text">{bot_name}</span> will be substituted automatically.</p>
+
+            <div class="form-group">
+                <label for="repo">Repository</label>
+                <input type="text" id="repo" name="repo" placeholder="{{ defaults.repo }}">
+                <div class="help-text">Default: <span class="code-text">{{ defaults.repo }}</span></div>
+            </div>
+
+            <div class="form-group">
+                <label for="path">Server Path</label>
+                <input type="text" id="path" name="path" placeholder="{{ defaults.path_template }}">
+                <div class="help-text">Default: <span class="code-text">{{ defaults.path_template }}</span></div>
+                <div class="preview-box" style="display: none;" id="pathPreview">
+                    <div class="preview-label">Preview:</div>
+                    <div class="preview-value" id="pathPreviewValue"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="service">Systemd Service Name</label>
+                <input type="text" id="service" name="service" placeholder="{{ defaults.service_template }}">
+                <div class="help-text">Default: <span class="code-text">{{ defaults.service_template }}</span></div>
+            </div>
+
+            <div class="form-group">
+                <label for="domain">Domain</label>
+                <input type="text" id="domain" name="domain" placeholder="{{ defaults.domain_template }}">
+                <div class="help-text">Default: <span class="code-text">{{ defaults.domain_template }}</span></div>
+            </div>
+
+            <div class="form-group">
+                <label for="nginx_config_name">Nginx Config Name</label>
+                <input type="text" id="nginx_config_name" name="nginx_config_name" placeholder="{{ defaults.nginx_config_template }}">
+                <div class="help-text">Default: <span class="code-text">{{ defaults.nginx_config_template }}</span></div>
+            </div>
+
+            <div class="form-group">
+                <label for="workers">Gunicorn Workers</label>
+                <input type="number" id="workers" name="workers" min="1" max="10" placeholder="{{ defaults.workers }}">
+                <div class="help-text">Default: {{ defaults.workers }}</div>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="skip_nginx" name="skip_nginx">
+                <label for="skip_nginx" style="margin-bottom: 0;">Internal-only bot (skip nginx/SSL setup)</label>
+            </div>
+            <div class="help-text">Check this if the bot should not be publicly accessible (like Sally)</div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="public_facing" name="public_facing">
+                <label for="public_facing" style="margin-bottom: 0;">Public-facing bot (show in company directory)</label>
+            </div>
+            <div class="help-text">Check this if the bot should be visible to all staff (like Pam, Quinn, Peter)</div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Bot</button>
+            <a href="/manage" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Live preview of path template
+const nameInput = document.getElementById('name');
+const pathInput = document.getElementById('path');
+const pathPreview = document.getElementById('pathPreview');
+const pathPreviewValue = document.getElementById('pathPreviewValue');
+
+nameInput.addEventListener('input', function() {
+    if (this.value && !pathInput.value) {
+        const template = '{{ defaults.path_template }}';
+        const preview = template.replace('{bot_name}', this.value);
+        pathPreviewValue.textContent = preview;
+        pathPreview.style.display = 'block';
+    } else {
+        pathPreview.style.display = 'none';
+    }
+});
+
+// Form submission
+document.getElementById('addBotForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const data = {};
+
+    // Collect form data
+    for (let [key, value] of formData.entries()) {
+        if (key === 'skip_nginx' || key === 'public_facing') {
+            data[key] = true;
+        } else if (value) {
+            data[key] = value;
+        }
+    }
+
+    // Convert port to number
+    if (data.port) {
+        data.port = parseInt(data.port);
+    }
+
+    // Convert workers to number
+    if (data.workers) {
+        data.workers = parseInt(data.workers);
+    }
+
+    try {
+        const response = await fetch('/api/deployment/bots', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Bot created successfully!');
+            window.location.href = '/manage';
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error creating bot: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

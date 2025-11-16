@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .welcome {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .welcome h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 20px;
+    }
+
+    .welcome p {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 30px;
+        line-height: 1.8;
+    }
+
+    .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 25px;
+        margin-top: 40px;
+    }
+
+    .feature-card {
+        display: block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        border-radius: 12px;
+        color: white;
+        text-align: center;
+        text-decoration: none;
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+
+    .feature-card h3 {
+        font-size: 1.5em;
+        margin-bottom: 15px;
+    }
+
+    .feature-card p {
+        font-size: 1em;
+        opacity: 0.95;
+        color: white;
+    }
+
+    .icon {
+        font-size: 3em;
+        margin-bottom: 15px;
+    }
+
+    .cta {
+        text-align: center;
+        margin-top: 50px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 15px 40px;
+        background: #2a5298;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1.1em;
+        transition: all 0.3s;
+    }
+
+    .btn:hover {
+        background: #1e3c72;
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome">
+    <h2>👋 Welcome to the Bot Team Concierge!</h2>
+    <p>
+        Hello! I'm Chester, your friendly guide to our amazing bot team.
+        Whether you're looking for a specific capability, checking on team health,
+        or adding a new member, I'm here to help you navigate our talented crew.
+    </p>
+
+    <div class="features">
+        <a href="/public" class="feature-card">
+            <div class="icon">👥</div>
+            <h3>Meet the Team</h3>
+            <p>Browse our public-facing bots available to all staff</p>
+        </a>
+
+        <a href="/dashboard" class="feature-card">
+            <div class="icon">💚</div>
+            <h3>Health Dashboard</h3>
+            <p>Real-time health monitoring for all team members at a glance</p>
+        </a>
+
+        <a href="/search" class="feature-card">
+            <div class="icon">🔍</div>
+            <h3>Search & Discover</h3>
+            <p>Find the right bot for your needs by searching capabilities</p>
+        </a>
+
+        <a href="/new-bot-guide" class="feature-card">
+            <div class="icon">➕</div>
+            <h3>New Bot Guide</h3>
+            <p>Step-by-step instructions for adding new team members</p>
+        </a>
+    </div>
+
+    <div class="cta">
+        <a href="/dashboard" class="btn">View Team Dashboard</a>
+    </div>
+</div>
+{% endblock %}

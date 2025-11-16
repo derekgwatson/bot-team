@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Bots - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .manage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .manage-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+    }
+
+    .btn-primary {
+        display: inline-block;
+        padding: 12px 24px;
+        background: #28a745;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        transition: background 0.3s;
+    }
+
+    .btn-primary:hover {
+        background: #218838;
+    }
+
+    .bots-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .bots-table thead {
+        background: #2a5298;
+        color: white;
+    }
+
+    .bots-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .bots-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .bots-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .bots-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .bot-name {
+        font-weight: 600;
+        color: #2a5298;
+    }
+
+    .btn-small {
+        padding: 6px 12px;
+        background: #2a5298;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        font-weight: 500;
+        transition: background 0.3s;
+    }
+
+    .btn-small:hover {
+        background: #1e3c72;
+    }
+
+    .skip-nginx-badge {
+        background: #fff3cd;
+        color: #856404;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 600;
+        margin-right: 5px;
+    }
+
+    .public-badge {
+        background: #d4edda;
+        color: #155724;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+
+    .defaults-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .defaults-section h3 {
+        color: #2a5298;
+        margin-bottom: 15px;
+    }
+
+    .defaults-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+    }
+
+    .default-item {
+        background: white;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+
+    .default-label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+
+    .default-value {
+        font-family: monospace;
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+
+    .api-info {
+        background: #e7f3ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 30px;
+    }
+
+    .api-info h3 {
+        color: #2a5298;
+        margin-bottom: 15px;
+    }
+
+    .api-info code {
+        background: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        color: #d63384;
+    }
+
+    .api-info p {
+        margin-bottom: 10px;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manage-header">
+    <h2>⚙️ Manage Bot Deployment Configurations</h2>
+    <a href="/manage/add-bot" class="btn-primary">+ Add New Bot</a>
+</div>
+
+<div class="defaults-section">
+    <h3>📋 Deployment Defaults</h3>
+    <div class="defaults-grid">
+        <div class="default-item">
+            <div class="default-label">Repository</div>
+            <div class="default-value">{{ defaults.repo }}</div>
+        </div>
+        <div class="default-item">
+            <div class="default-label">Path Template</div>
+            <div class="default-value">{{ defaults.path_template }}</div>
+        </div>
+        <div class="default-item">
+            <div class="default-label">Service Template</div>
+            <div class="default-value">{{ defaults.service_template }}</div>
+        </div>
+        <div class="default-item">
+            <div class="default-label">Domain Template</div>
+            <div class="default-value">{{ defaults.domain_template }}</div>
+        </div>
+        <div class="default-item">
+            <div class="default-label">Nginx Config Template</div>
+            <div class="default-value">{{ defaults.nginx_config_template }}</div>
+        </div>
+        <div class="default-item">
+            <div class="default-label">Workers</div>
+            <div class="default-value">{{ defaults.workers }}</div>
+        </div>
+    </div>
+</div>
+
+<table class="bots-table">
+    <thead>
+        <tr>
+            <th>Bot Name</th>
+            <th>Description</th>
+            <th>Port</th>
+            <th>Domain</th>
+            <th>Workers</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bot in bots %}
+        <tr>
+            <td class="bot-name">{{ bot.name }}</td>
+            <td>{{ bot.description }}</td>
+            <td>{{ bot.port }}</td>
+            <td>{{ bot.domain }}</td>
+            <td>{{ bot.workers }}</td>
+            <td>
+                {% if bot.skip_nginx %}
+                <span class="skip-nginx-badge">Internal Only</span>
+                {% endif %}
+                {% if bot.public_facing %}
+                <span class="public-badge">👥 Public-Facing</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/manage/bot/{{ bot.name }}" class="btn-small">Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="api-info">
+    <h3>🔌 API Access</h3>
+    <p>Other bots (like Dorothy) can query Chester's deployment API:</p>
+    <p><code>GET /api/deployment/bots</code> - Get all bot configurations</p>
+    <p><code>GET /api/deployment/bots/&lt;bot_name&gt;</code> - Get specific bot config</p>
+    <p><code>POST /api/deployment/bots</code> - Create new bot</p>
+    <p><code>PUT /api/deployment/bots/&lt;bot_name&gt;</code> - Update bot config</p>
+</div>
+{% endblock %}

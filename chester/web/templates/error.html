@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Error - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .error-icon {
+        font-size: 5em;
+        margin-bottom: 20px;
+    }
+
+    .error-container h2 {
+        font-size: 2em;
+        color: #dc3545;
+        margin-bottom: 20px;
+    }
+
+    .error-container p {
+        font-size: 1.2em;
+        color: #6c757d;
+        margin-bottom: 30px;
+    }
+
+    .error-btn {
+        display: inline-block;
+        padding: 12px 30px;
+        background: #2a5298;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+
+    .error-btn:hover {
+        background: #1e3c72;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-icon">❌</div>
+    <h2>Oops! Something went wrong</h2>
+    <p>{{ error }}</p>
+    <a href="/dashboard" class="error-btn">Go to Dashboard</a>
+</div>
+{% endblock %}

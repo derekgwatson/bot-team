@@ -2,6 +2,7 @@ import os
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
+from services.chester_service import ChesterService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,6 +14,10 @@ class Config:
         self.base_dir = Path(__file__).parent
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
+
+        # Initialize Chester service for bot configuration
+        chester_url = os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+        self.chester = ChesterService(chester_url)
 
     def _load_config(self):
         """
@@ -71,6 +76,11 @@ class Config:
         return os.environ.get('SALLY_URL') or self._config.get('sally', {}).get('url', 'http://localhost:8004')
 
     @property
+    def chester_url(self):
+        """Get Chester's API URL"""
+        return os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+
+    @property
     def default_server(self):
         return self._config.get('deployment', {}).get('default_server', 'prod')
 
@@ -82,49 +92,36 @@ class Config:
     def verification_checks(self):
         return self._config.get('deployment', {}).get('verification_checks', [])
 
-    @property
-    def bots(self):
-        """Get bot configurations"""
-        return self._config.get('bots', {})
+    def get_all_bots(self):
+        """
+        Get all bot configurations from Chester.
 
-    @property
-    def defaults(self):
-        """Get default bot configuration"""
-        return self._config.get('defaults', {})
+        Returns:
+            Dict of bot configurations keyed by name, or empty dict if Chester unavailable
+        """
+        chester_bots = self.chester.get_all_bots()
+
+        if chester_bots:
+            # Convert list to dict keyed by name for compatibility
+            return {bot['name']: bot for bot in chester_bots}
+
+        # Chester is unavailable
+        print("Warning: Chester is not available. Cannot retrieve bot configurations.")
+        return {}
 
     def get_bot_config(self, bot_name):
         """
-        Get configuration for a specific bot
+        Get configuration for a specific bot from Chester.
 
-        Merges defaults with bot-specific config and replaces {bot_name} placeholders
+        Returns:
+            Bot configuration dict, or None if not found or Chester unavailable
         """
-        bot_config = self.bots.get(bot_name)
-        if not bot_config:
-            return None
+        chester_config = self.chester.get_bot_config(bot_name)
 
-        # Start with defaults, then merge bot-specific config
-        merged = self._deep_merge(self.defaults.copy(), bot_config)
+        if not chester_config:
+            print(f"Warning: Could not get configuration for {bot_name} from Chester.")
 
-        # Replace {bot_name} placeholders in all string values
-        merged = self._replace_placeholders(merged, bot_name)
+        return chester_config
 
-        return merged
-
-    def _replace_placeholders(self, config: dict, bot_name: str) -> dict:
-        """Replace {bot_name} placeholders in config values"""
-        result = {}
-        for key, value in config.items():
-            if isinstance(value, str):
-                result[key] = value.format(bot_name=bot_name)
-            elif isinstance(value, dict):
-                result[key] = self._replace_placeholders(value, bot_name)
-            elif isinstance(value, list):
-                result[key] = [
-                    item.format(bot_name=bot_name) if isinstance(item, str) else item
-                    for item in value
-                ]
-            else:
-                result[key] = value
-        return result
 
 config = Config()
