@@ -158,13 +158,7 @@ class ZendeskTicketService:
                 'page': page,
                 'per_page': per_page,
                 'total_pages': total_pages,
-                'has_more': has_more and not hit_max_limit,
-                'debug': {
-                    'search_params': str(search_params) if (status_list or priority or group_id) else 'client.tickets() [no filters]',
-                    'iteration_count': iteration_count,
-                    'collected_count': len(tickets),
-                    'skipped_count': skipped_count
-                }
+                'has_more': has_more and not hit_max_limit
             }
 
             return result

@@ -29,16 +29,6 @@
     </div>
     {% endif %}
 
-    {% if debug is defined %}
-    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace;">
-        <strong>🐛 Debug Info:</strong><br>
-        Search params: {{ debug.search_params }}<br>
-        Iterated: {{ debug.iteration_count }} times<br>
-        Collected: {{ debug.collected_count }} tickets<br>
-        Skipped: {{ debug.skipped_count }} tickets
-    </div>
-    {% endif %}
-
     <!-- Search Bar -->
     <form method="GET" action="{{ url_for('web.index') }}" class="search-bar">
         <input type="text" name="q" placeholder="Search tickets by subject or content..." value="{{ search_query or '' }}">
