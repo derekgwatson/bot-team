@@ -11,8 +11,8 @@ sally:
   url: http://localhost:8004
 
 chester:
-  # Chester's API endpoint
-  # Bot deployment configurations are now managed by Chester
+  # Chester's API endpoint (REQUIRED)
+  # All bot deployment configurations are managed by Chester
   url: http://localhost:8008
 
 deployment:
@@ -27,19 +27,12 @@ deployment:
     - virtualenv
     - permissions
 
-# NOTE: Bot deployment configurations have been moved to Chester.
+# NOTE: Bot deployment configurations are managed exclusively by Chester.
 # Dorothy queries Chester's API at /api/deployment/bots to get bot configs.
-# To manage bot configurations, use Chester's web UI at http://localhost:8008/manage
-# or Chester's REST API.
 #
-# For local development/fallback, you can still define bots in config.local.yaml:
-# defaults:
-#   repo: git@github.com:yourorg/bot-team.git
-#   path: "/var/www/bot-team/{bot_name}"
-#   service: "gunicorn-{bot_name}"
-#   domain: "{bot_name}.example.com"
-#   workers: 3
-# bots:
-#   botname:
-#     description: Bot description
-#     port: 8001
+# To manage bot configurations:
+#   - Use Chester's web UI: http://localhost:8008/manage
+#   - Use Chester's REST API: POST /api/deployment/bots
+#
+# Chester must be running for Dorothy to retrieve bot configurations.
+# There is no local fallback - Chester is the single source of truth.
