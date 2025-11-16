@@ -2,6 +2,7 @@ import os
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
+from services.chester_service import ChesterService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,6 +14,10 @@ class Config:
         self.base_dir = Path(__file__).parent
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
+
+        # Initialize Chester service for bot configuration
+        chester_url = os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+        self.chester = ChesterService(chester_url)
 
     def _load_config(self):
         """
@@ -71,6 +76,11 @@ class Config:
         return os.environ.get('SALLY_URL') or self._config.get('sally', {}).get('url', 'http://localhost:8004')
 
     @property
+    def chester_url(self):
+        """Get Chester's API URL"""
+        return os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+
+    @property
     def default_server(self):
         return self._config.get('deployment', {}).get('default_server', 'prod')
 
@@ -84,8 +94,23 @@ class Config:
 
     @property
     def bots(self):
-        """Get bot configurations"""
+        """Get bot configurations from local YAML (fallback only)"""
         return self._config.get('bots', {})
+
+    def get_all_bots(self):
+        """
+        Get all bot configurations from Chester.
+
+        Falls back to local YAML config if Chester is unavailable.
+        """
+        chester_bots = self.chester.get_all_bots()
+
+        if chester_bots:
+            # Convert list to dict keyed by name for compatibility
+            return {bot['name']: bot for bot in chester_bots}
+
+        # Fallback to local YAML config
+        return self.bots
 
     @property
     def defaults(self):
@@ -94,10 +119,18 @@ class Config:
 
     def get_bot_config(self, bot_name):
         """
-        Get configuration for a specific bot
+        Get configuration for a specific bot from Chester.
 
-        Merges defaults with bot-specific config and replaces {bot_name} placeholders
+        Falls back to local YAML config if Chester is unavailable.
         """
+        # Try to get config from Chester first
+        chester_config = self.chester.get_bot_config(bot_name)
+
+        if chester_config:
+            return chester_config
+
+        # Fallback to local YAML config if Chester is unavailable
+        # This ensures Dorothy can still work if Chester is down
         bot_config = self.bots.get(bot_name)
         if not bot_config:
             return None
