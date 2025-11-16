@@ -118,6 +118,12 @@
             color: #721c24;
         }
 
+        .result-info {
+            background: #d6eaf8;
+            border: 2px solid #3498db;
+            color: #1f618d;
+        }
+
         .result h3 {
             margin-bottom: 10px;
             font-size: 20px;
@@ -191,6 +197,13 @@
                     <h3>✓ Approved</h3>
                     <p>Your email <strong>{{ result.email }}</strong> is approved for access.</p>
                     <p>You should be able to log in to the system using this email address.</p>
+                </div>
+                {% elif result.is_company_email %}
+                <div class="result result-info">
+                    <h3>ℹ️ Company Email</h3>
+                    <p>Your email <strong>{{ result.email }}</strong> is a Watson company email.</p>
+                    <p>Quinn is only for managing access for external staff without a work Google account.</p>
+                    <p>As a Watson staff member, you already have access through your work Google account.</p>
                 </div>
                 {% else %}
                 <div class="result result-not-approved">
