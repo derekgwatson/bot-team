@@ -52,6 +52,7 @@ def index():
                              total_pages=result['total_pages'],
                              total=result['total'],
                              has_more=result.get('has_more', False),
+                             debug=result.get('debug'),
                              status_filters=status_filters,
                              priority_filter=priority_filter,
                              group_filter=group_filter,

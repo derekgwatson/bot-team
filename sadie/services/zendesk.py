@@ -145,14 +145,22 @@ class ZendeskTicketService:
 
             logger.info(f"Returning {len(tickets)} tickets for page {page}")
 
-            return {
+            result = {
                 'tickets': tickets,
                 'total': f"{MAX_RESULTS}+" if hit_max_limit else len(tickets),
                 'page': page,
                 'per_page': per_page,
                 'total_pages': (MAX_RESULTS // per_page) if hit_max_limit else page,
-                'has_more': has_more and not hit_max_limit
+                'has_more': has_more and not hit_max_limit,
+                'debug': {
+                    'query': query_string if has_filters else 'No filters (using client.tickets())',
+                    'iteration_count': iteration_count,
+                    'collected_count': len(tickets),
+                    'skipped_count': skipped_count
+                }
             }
+
+            return result
         except Exception as e:
             logger.error(f"Error listing tickets: {str(e)}")
             raise
