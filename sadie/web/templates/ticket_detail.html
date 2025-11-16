@@ -11,7 +11,15 @@
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>Ticket #{{ ticket.id }}</h2>
+        <div>
+            <h2>Ticket #{{ ticket.id }}</h2>
+            <a href="https://{{ zendesk_subdomain }}.zendesk.com/agent/tickets/{{ ticket.id }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="color: #9b59b6; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 5px;">
+                🔗 Open in Zendesk
+            </a>
+        </div>
         <a href="{{ url_for('web.index') }}" class="btn btn-small">← Back to Tickets</a>
     </div>
 

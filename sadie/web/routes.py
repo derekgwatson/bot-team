@@ -58,6 +58,7 @@ def index():
                              groups=groups,
                              search_query=search_query,
                              preset=preset,
+                             zendesk_subdomain=config.zendesk_subdomain,
                              user=current_user)
 
     except Exception as e:
@@ -70,6 +71,7 @@ def index():
                              has_more=False,
                              status_filters=[],
                              groups=[],
+                             zendesk_subdomain=config.zendesk_subdomain,
                              user=current_user)
 
 @web_bp.route('/ticket/<int:ticket_id>')
@@ -88,6 +90,7 @@ def view_ticket(ticket_id):
         return render_template('ticket_detail.html',
                              ticket=ticket,
                              comments=comments,
+                             zendesk_subdomain=config.zendesk_subdomain,
                              current_user=current_user)
 
     except Exception as e:

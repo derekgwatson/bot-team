@@ -122,7 +122,15 @@
         <tbody>
             {% for ticket in tickets %}
             <tr>
-                <td>{{ ticket.id }}</td>
+                <td>
+                    <a href="https://{{ zendesk_subdomain }}.zendesk.com/agent/tickets/{{ ticket.id }}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       style="color: #9b59b6; text-decoration: none; font-weight: 500;"
+                       title="Open ticket #{{ ticket.id }} in Zendesk">
+                        {{ ticket.id }}
+                    </a>
+                </td>
                 <td>{{ ticket.subject[:60] }}{% if ticket.subject|length > 60 %}...{% endif %}</td>
                 <td>
                     <span class="badge badge-{{ ticket.status }}">{{ ticket.status|title }}</span>
