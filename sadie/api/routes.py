@@ -14,7 +14,9 @@ def list_tickets():
     List all Zendesk tickets with optional filtering
 
     Query Parameters:
-        status: Filter by status (new, open, pending, hold, solved, closed)
+        status: Filter by status - can be specified multiple times for OR logic
+                (new, open, pending, hold, solved, closed)
+                Example: ?status=new&status=open&status=pending
         priority: Filter by priority (low, normal, high, urgent)
         page: Page number (default: 1)
         per_page: Results per page (default: 25)
@@ -23,13 +25,13 @@ def list_tickets():
         JSON object with tickets list and pagination info
     """
     try:
-        status = request.args.get('status')
+        statuses = request.args.getlist('status')  # Get multiple status values
         priority = request.args.get('priority')
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 25))
 
         result = zendesk_ticket_service.list_tickets(
-            status=status,
+            statuses=statuses if statuses else None,
             priority=priority,
             page=page,
             per_page=per_page

@@ -38,23 +38,50 @@
         {% endif %}
     </form>
 
+    <!-- Quick Preset Filters -->
+    <div style="margin-bottom: 15px;">
+        <a href="{{ url_for('web.index', preset='active') }}" class="btn btn-small" style="background: #27ae60;">
+            🎯 Active Tickets (New/Open/Pending)
+        </a>
+        {% if status_filters or priority_filter or preset %}
+        <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #9b59b6; text-decoration: none;">Clear all filters</a>
+        {% endif %}
+    </div>
+
     <!-- Filter Bar -->
-    <div class="filter-bar">
-        <div>
-            <label>Status:</label>
-            <select name="status" onchange="window.location.href='{{ url_for('web.index') }}?status=' + this.value + '&priority={{ priority_filter or '' }}'">
-                <option value="" {% if not status_filter %}selected{% endif %}>All</option>
-                <option value="new" {% if status_filter == 'new' %}selected{% endif %}>New</option>
-                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="hold" {% if status_filter == 'hold' %}selected{% endif %}>On Hold</option>
-                <option value="solved" {% if status_filter == 'solved' %}selected{% endif %}>Solved</option>
-                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
-            </select>
+    <form method="GET" action="{{ url_for('web.index') }}" class="filter-bar">
+        <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Status (select multiple):</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="new" {% if 'new' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-new">New</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="open" {% if 'open' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-open">Open</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="pending" {% if 'pending' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-pending">Pending</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="hold" {% if 'hold' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-hold">On Hold</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="solved" {% if 'solved' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-solved">Solved</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="closed" {% if 'closed' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-closed">Closed</span>
+                </label>
+            </div>
         </div>
-        <div>
-            <label>Priority:</label>
-            <select name="priority" onchange="window.location.href='{{ url_for('web.index') }}?priority=' + this.value + '&status={{ status_filter or '' }}'">
+        <div style="margin-top: 15px;">
+            <label style="font-weight: 600;">Priority:</label>
+            <select name="priority" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                 <option value="" {% if not priority_filter %}selected{% endif %}>All</option>
                 <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
                 <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
@@ -62,10 +89,10 @@
                 <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
             </select>
         </div>
-        {% if status_filter or priority_filter %}
-        <a href="{{ url_for('web.index') }}" style="color: #9b59b6; text-decoration: none;">Clear filters</a>
-        {% endif %}
-    </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="btn">Apply Filters</button>
+        </div>
+    </form>
 
     <!-- Tickets Table -->
     {% if tickets %}
@@ -110,21 +137,21 @@
     {% if total_pages > 1 %}
     <div class="pagination">
         {% if page > 1 %}
-        <a href="{{ url_for('web.index', page=page-1, status=status_filter, priority=priority_filter, q=search_query) }}">&laquo; Previous</a>
+        <a href="{{ url_for('web.index', page=page-1, status=status_filters, priority=priority_filter, q=search_query) }}">&laquo; Previous</a>
         {% endif %}
 
         {% for p in range(1, total_pages + 1) %}
             {% if p == page %}
             <span class="current">{{ p }}</span>
             {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-            <a href="{{ url_for('web.index', page=p, status=status_filter, priority=priority_filter, q=search_query) }}">{{ p }}</a>
+            <a href="{{ url_for('web.index', page=p, status=status_filters, priority=priority_filter, q=search_query) }}">{{ p }}</a>
             {% elif p == page - 3 or p == page + 3 %}
             <span>...</span>
             {% endif %}
         {% endfor %}
 
         {% if page < total_pages %}
-        <a href="{{ url_for('web.index', page=page+1, status=status_filter, priority=priority_filter, q=search_query) }}">Next &raquo;</a>
+        <a href="{{ url_for('web.index', page=page+1, status=status_filters, priority=priority_filter, q=search_query) }}">Next &raquo;</a>
         {% endif %}
     </div>
     {% endif %}

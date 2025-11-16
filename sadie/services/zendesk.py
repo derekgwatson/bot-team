@@ -23,7 +23,7 @@ class ZendeskTicketService:
             token=config.zendesk_api_token
         )
 
-    def list_tickets(self, status=None, priority=None, page=1, per_page=25):
+    def list_tickets(self, statuses=None, priority=None, page=1, per_page=25):
         """
         List Zendesk tickets, optionally filtered by status and priority
 
@@ -32,7 +32,8 @@ class ZendeskTicketService:
         data from Zendesk, but we only ever show the first MAX_RESULTS tickets.
 
         Args:
-            status: Optional status filter ('new', 'open', 'pending', 'hold', 'solved', 'closed')
+            statuses: Optional status filter - can be a single status string or list of statuses
+                     ('new', 'open', 'pending', 'hold', 'solved', 'closed')
             priority: Optional priority filter ('low', 'normal', 'high', 'urgent')
             page: Page number (default: 1)
             per_page: Results per page (default: 25)
@@ -62,18 +63,33 @@ class ZendeskTicketService:
             if start_index + fetch_count > MAX_RESULTS:
                 fetch_count = MAX_RESULTS - start_index + 1
 
-            logger.info(f"Fetching tickets for page {page} (status={status}, priority={priority}), "
+            logger.info(f"Fetching tickets for page {page} (statuses={statuses}, priority={priority}), "
                        f"indices {start_index} to {start_index + fetch_count - 1}...")
 
-            # Use search API with filters for server-side filtering
-            search_params = {'type': 'ticket'}
-            if status:
-                search_params['status'] = status
-            if priority:
-                search_params['priority'] = priority
+            # Build search query for multiple statuses or priority
+            # Zendesk search API requires building a query string for multiple values
+            has_filters = False
+            query_parts = ['type:ticket']
 
-            if status or priority:
-                search_results = self.client.search(**search_params)
+            if statuses:
+                # Convert single status to list for consistency
+                if isinstance(statuses, str):
+                    statuses = [statuses]
+                # Build OR query for multiple statuses: (status:new OR status:open OR status:pending)
+                if statuses:
+                    status_queries = [f'status:{s}' for s in statuses]
+                    query_parts.append(f'({" OR ".join(status_queries)})')
+                    has_filters = True
+
+            if priority:
+                query_parts.append(f'priority:{priority}')
+                has_filters = True
+
+            if has_filters:
+                # Use search API with query string
+                query_string = ' '.join(query_parts)
+                logger.info(f"Search query: {query_string}")
+                search_results = self.client.search(query=query_string)
             else:
                 # No filter - use regular ticket list
                 search_results = self.client.tickets()
