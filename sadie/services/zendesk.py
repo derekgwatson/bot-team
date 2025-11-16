@@ -67,64 +67,44 @@ class ZendeskTicketService:
             logger.info(f"Fetching tickets for page {page} (statuses={statuses}, priority={priority}, group_id={group_id}), "
                        f"indices {start_index} to {start_index + fetch_count - 1}...")
 
-            # IMPORTANT: For multi-status filtering, we need to fetch from Zendesk and filter
-            # The Zenpy search API doesn't support OR queries well, so we'll filter client-side
-            # for status, but use server-side filtering for priority and group
+            # Try using Zenpy's search with status as a parameter (ChatGPT suggestion)
+            # This should handle multi-status filtering server-side
 
-            # Start with base query
-            if group_id or priority:
-                # Use search API with query string for group/priority filters
-                query_parts = []
-                if priority:
-                    query_parts.append(f'priority:{priority}')
-                if group_id:
-                    query_parts.append(f'group:{group_id}')
-
-                query_string = ' '.join(query_parts)
-                logger.info(f"Search query with filters: type='ticket' {query_string}")
-                search_results = self.client.search(type='ticket', query=query_string)
-            else:
-                # No group/priority filter - use regular ticket list
-                logger.info("No group/priority filters, using client.tickets()")
-                search_results = self.client.tickets()
-
-            # Convert statuses to list for filtering
-            status_filter_list = None
+            # Convert statuses to list if needed
+            status_list = None
             if statuses:
                 if isinstance(statuses, str):
-                    status_filter_list = [statuses.lower()]
+                    status_list = [statuses]
                 else:
-                    status_filter_list = [s.lower() for s in statuses]
+                    status_list = statuses
+
+            # Build search parameters
+            search_params = {'type': 'ticket'}
+
+            if status_list:
+                search_params['status'] = status_list
+            if priority:
+                search_params['priority'] = priority
+            if group_id:
+                search_params['group'] = group_id
+
+            logger.info(f"Search with params: {search_params}")
+
+            # Use search if we have any filters, otherwise get all tickets
+            if status_list or priority or group_id:
+                search_results = self.client.search(**search_params)
+            else:
+                search_results = self.client.tickets()
 
             # Use itertools.islice to efficiently skip to our page and limit results
-            # But we need to account for status filtering, so we may need to iterate more
+            # Server-side filtering should handle status/priority/group
             tickets = []
             skipped_count = 0
             iteration_count = 0
-            status_filtered_count = 0
 
-            # Iterate through results, applying status filter client-side
-            for ticket in search_results:
+            # Iterate through results (already filtered by Zendesk)
+            for ticket in itertools.islice(search_results, start_index, start_index + fetch_count):
                 iteration_count += 1
-
-                # Apply status filter if specified
-                if status_filter_list:
-                    ticket_status = getattr(ticket, 'status', '').lower()
-                    if ticket_status not in status_filter_list:
-                        status_filtered_count += 1
-                        continue  # Skip tickets that don't match status filter
-
-                # We've applied filters, now check if this ticket is in our page range
-                tickets_collected_so_far = len(tickets)
-                if tickets_collected_so_far < start_index:
-                    # Haven't reached our page yet, keep skipping
-                    continue
-
-                if tickets_collected_so_far >= start_index + fetch_count:
-                    # We've collected enough for this page
-                    break
-
-                # This ticket is in our page range, add it
                 try:
                     tickets.append({
                         'id': getattr(ticket, 'id', None),
@@ -146,12 +126,7 @@ class ZendeskTicketService:
                     logger.warning(f"SKIPPED ticket {getattr(ticket, 'id', 'unknown')} - Error: {str(ticket_error)}")
                     continue
 
-                # Stop if we hit MAX_RESULTS limit
-                if iteration_count >= MAX_RESULTS:
-                    logger.warning(f"Hit MAX_RESULTS limit ({MAX_RESULTS})")
-                    break
-
-            logger.info(f"Iterated {iteration_count} times, status filtered {status_filtered_count}, collected {len(tickets)} tickets")
+            logger.info(f"Iterated {iteration_count} times, collected {len(tickets)} tickets")
 
             if skipped_count > 0:
                 logger.warning(f"⚠️ Skipped {skipped_count} tickets due to errors")
@@ -166,16 +141,6 @@ class ZendeskTicketService:
             hit_max_limit = iteration_count >= MAX_RESULTS
 
             logger.info(f"Returning {len(tickets)} tickets for page {page}")
-
-            # Build debug query string
-            debug_query_parts = []
-            if group_id or priority:
-                debug_query_parts.append(f"type='ticket' query='{query_string}'")
-            else:
-                debug_query_parts.append("client.tickets() [no group/priority]")
-
-            if status_filter_list:
-                debug_query_parts.append(f"status IN {status_filter_list} [client-side]")
 
             # Calculate total pages based on whether we have more results
             # If we hit max limit, we know we can have up to MAX_RESULTS // per_page pages
@@ -195,11 +160,10 @@ class ZendeskTicketService:
                 'total_pages': total_pages,
                 'has_more': has_more and not hit_max_limit,
                 'debug': {
-                    'query': ' + '.join(debug_query_parts) if debug_query_parts else 'No filters',
+                    'search_params': str(search_params) if (status_list or priority or group_id) else 'client.tickets() [no filters]',
                     'iteration_count': iteration_count,
                     'collected_count': len(tickets),
-                    'skipped_count': skipped_count,
-                    'status_filtered': status_filtered_count
+                    'skipped_count': skipped_count
                 }
             }
 
