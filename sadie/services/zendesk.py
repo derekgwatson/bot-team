@@ -103,8 +103,10 @@ class ZendeskTicketService:
             # This prevents loading all tickets into memory
             tickets = []
             skipped_count = 0
+            iteration_count = 0
 
             for ticket in itertools.islice(search_results, start_index, start_index + fetch_count):
+                iteration_count += 1
                 try:
                     tickets.append({
                         'id': getattr(ticket, 'id', None),
@@ -125,6 +127,8 @@ class ZendeskTicketService:
                     skipped_count += 1
                     logger.warning(f"SKIPPED ticket {getattr(ticket, 'id', 'unknown')} - Error: {str(ticket_error)}")
                     continue
+
+            logger.info(f"Iterated {iteration_count} times, collected {len(tickets)} tickets")
 
             if skipped_count > 0:
                 logger.warning(f"⚠️ Skipped {skipped_count} tickets due to errors")
