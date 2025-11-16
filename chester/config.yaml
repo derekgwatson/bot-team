@@ -8,14 +8,12 @@ server:
   port: 8008
 
 # Registry of all bot team members
-# NOTE: This is ONLY used for dashboard health checks and capability info.
+# NOTE: This is used for bot metadata (capabilities, personality, etc.)
+# Health check URLs are built dynamically from database (domain field).
 # Deployment configurations (ports, domains, paths, etc.) are stored in the database.
-# In production, update these URLs to use domains or Unix sockets instead of localhost.
 bot_team:
   fred:
     name: Fred
-    port: 8001
-    url: http://localhost:8001
     description: Google Workspace User Management
     capabilities:
       - Create, archive, and delete Google Workspace users
@@ -29,8 +27,6 @@ bot_team:
 
   iris:
     name: Iris
-    port: 8002
-    url: http://localhost:8002
     description: Google Workspace Reporting & Analytics
     capabilities:
       - Track storage usage (Gmail, Drive, total)
@@ -44,8 +40,6 @@ bot_team:
 
   peter:
     name: Peter
-    port: 8003
-    url: http://localhost:8003
     description: Phone Directory Manager (Admin Interface)
     capabilities:
       - Admin interface for managing phone directory
@@ -59,8 +53,6 @@ bot_team:
 
   sally:
     name: Sally
-    port: 8004
-    url: http://localhost:8004
     description: SSH Command Executor
     capabilities:
       - Execute SSH commands on remote servers
@@ -74,8 +66,6 @@ bot_team:
 
   dorothy:
     name: Dorothy
-    port: 8005
-    url: http://localhost:8005
     description: Deployment Orchestrator
     capabilities:
       - Orchestrate bot deployments
@@ -90,8 +80,6 @@ bot_team:
 
   quinn:
     name: Quinn
-    port: 8006
-    url: http://localhost:8006
     description: External Staff Access Manager
     capabilities:
       - Maintain registry of external staff
@@ -105,8 +93,6 @@ bot_team:
 
   zac:
     name: Zac
-    port: 8007
-    url: http://localhost:8007
     description: Zendesk User Management
     capabilities:
       - Manage Zendesk users (end-users, agents, admins)
@@ -120,8 +106,6 @@ bot_team:
 
   pam:
     name: Pam
-    port: 8009
-    url: http://localhost:8009
     description: Phone Directory Presenter (Public Interface)
     capabilities:
       - Public-facing phone directory interface
@@ -134,8 +118,9 @@ bot_team:
     personality: Welcoming and helpful, presents information clearly
 
 # Health check configuration
-# NOTE: Health checks expect bots to be co-located on the same server (prod).
-# In dev, many bots won't be running locally, so checks will fail fast.
+# NOTE: Health checks always use production URLs (built from database domain field).
+# This means even in dev, Chester checks prod bot health status.
+# Sally (skip_nginx=True) is the exception - always checked via localhost.
 health_check:
   timeout: 0.5  # seconds - fast timeout since bots are on same server in prod
   check_interval: 60  # seconds between automatic checks

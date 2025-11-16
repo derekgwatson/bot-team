@@ -2,6 +2,7 @@
 import requests
 from typing import Dict, List, Optional
 from config import config
+from services.database import Database
 
 
 class BotService:
@@ -9,6 +10,7 @@ class BotService:
 
     def __init__(self):
         self.timeout = config.health_check_timeout
+        self.db = Database()
 
     def get_all_bots(self) -> Dict:
         """Get information about all bots in the team."""
@@ -17,6 +19,29 @@ class BotService:
     def get_bot_info(self, bot_name: str) -> Optional[Dict]:
         """Get information about a specific bot."""
         return config.bot_team.get(bot_name)
+
+    def _build_health_url(self, bot_name: str) -> Optional[str]:
+        """
+        Build health check URL for a bot from database configuration.
+
+        For bots with skip_nginx=True (Sally): http://localhost:{port}/health
+        For all other bots: https://{domain}/health
+
+        Returns:
+            Health check URL, or None if bot not found in database
+        """
+        bot_config = self.db.get_bot(bot_name)
+        if not bot_config:
+            return None
+
+        if bot_config.get('skip_nginx'):
+            # Sally uses localhost
+            port = bot_config.get('port', 8004)
+            return f"http://localhost:{port}/health"
+        else:
+            # Production bots use their domain
+            domain = bot_config.get('domain')
+            return f"https://{domain}/health"
 
     def check_bot_health(self, bot_name: str) -> Dict:
         """
@@ -33,7 +58,13 @@ class BotService:
                 'error': 'Bot not found in registry'
             }
 
-        health_url = f"{bot_info['url']}/health"
+        health_url = self._build_health_url(bot_name)
+        if not health_url:
+            return {
+                'bot': bot_name,
+                'status': 'unknown',
+                'error': 'Bot configuration not found in database'
+            }
 
         try:
             response = requests.get(health_url, timeout=self.timeout)
@@ -107,12 +138,16 @@ class BotService:
             ]
 
             if matching_capabilities:
+                # Get domain from database for the bot's URL
+                bot_config = self.db.get_bot(bot_name)
+                bot_url = f"https://{bot_config['domain']}" if bot_config else 'Unknown'
+
                 results.append({
                     'bot': bot_name,
                     'name': bot_info['name'],
                     'description': bot_info['description'],
                     'matching_capabilities': matching_capabilities,
-                    'url': bot_info['url']
+                    'url': bot_url
                 })
 
         return results
