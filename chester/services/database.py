@@ -1,18 +1,26 @@
 """Database service for Chester - manages bot deployment configuration."""
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 from contextlib import contextmanager
+
+# Add shared directory to path for migrations import
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.migrations import MigrationRunner
 
 
 class Database:
     """SQLite database manager for Chester."""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, auto_migrate: bool = True):
         if db_path is None:
             db_path = Path(__file__).parent.parent / 'chester.db'
         self.db_path = db_path
-        self.init_db()
+        self.migrations_dir = Path(__file__).parent.parent / 'migrations'
+
+        if auto_migrate:
+            self.run_migrations()
 
     @contextmanager
     def get_connection(self):
@@ -28,58 +36,13 @@ class Database:
         finally:
             conn.close()
 
-    def init_db(self):
-        """Initialize the database schema."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-
-            # Bot deployment configuration table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS bots (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL,
-                    description TEXT NOT NULL,
-                    port INTEGER NOT NULL,
-                    repo TEXT,
-                    path TEXT,
-                    service TEXT,
-                    domain TEXT,
-                    nginx_config_name TEXT,
-                    workers INTEGER DEFAULT 3,
-                    skip_nginx BOOLEAN DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-
-            # Deployment defaults table (single row)
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS deployment_defaults (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    repo TEXT NOT NULL,
-                    path_template TEXT NOT NULL,
-                    service_template TEXT NOT NULL,
-                    domain_template TEXT NOT NULL,
-                    nginx_config_template TEXT NOT NULL,
-                    workers INTEGER DEFAULT 3
-                )
-            ''')
-
-            # Insert default deployment config if not exists
-            cursor.execute('SELECT COUNT(*) FROM deployment_defaults')
-            if cursor.fetchone()[0] == 0:
-                cursor.execute('''
-                    INSERT INTO deployment_defaults
-                    (id, repo, path_template, service_template, domain_template, nginx_config_template, workers)
-                    VALUES (1, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    'git@github.com:derekgwatson/bot-team.git',
-                    '/var/www/bot-team/{bot_name}',
-                    'gunicorn-bot-team-{bot_name}',
-                    '{bot_name}.watsonblinds.com.au',
-                    'bot-team-{bot_name}.conf',
-                    3
-                ))
+    def run_migrations(self, verbose: bool = False):
+        """Run database migrations."""
+        runner = MigrationRunner(
+            db_path=str(self.db_path),
+            migrations_dir=str(self.migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=verbose)
 
     def get_deployment_defaults(self) -> Dict:
         """Get the deployment defaults."""
