@@ -177,12 +177,22 @@ class ZendeskTicketService:
             if status_filter_list:
                 debug_query_parts.append(f"status IN {status_filter_list} [client-side]")
 
+            # Calculate total pages based on whether we have more results
+            # If we hit max limit, we know we can have up to MAX_RESULTS // per_page pages
+            # Otherwise, we show page + 1 if has_more, or just page if not
+            if hit_max_limit:
+                total_pages = MAX_RESULTS // per_page
+            elif has_more:
+                total_pages = page + 1  # We know there's at least one more page
+            else:
+                total_pages = page  # This is the last page
+
             result = {
                 'tickets': tickets,
-                'total': f"{MAX_RESULTS}+" if hit_max_limit else len(tickets),
+                'total': f"{MAX_RESULTS}+" if hit_max_limit else (f"{len(tickets) * page}+" if has_more else len(tickets) + (page - 1) * per_page),
                 'page': page,
                 'per_page': per_page,
-                'total_pages': (MAX_RESULTS // per_page) if hit_max_limit else page,
+                'total_pages': total_pages,
                 'has_more': has_more and not hit_max_limit,
                 'debug': {
                     'query': ' + '.join(debug_query_parts) if debug_query_parts else 'No filters',
