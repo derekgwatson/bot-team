@@ -5,6 +5,7 @@ from api.deployments import api_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
 from services.auth import init_auth
+from services.deployment_orchestrator import deployment_orchestrator
 
 app = Flask(__name__)
 
@@ -38,15 +39,18 @@ def health():
 @app.route('/info')
 def info():
     """Bot information endpoint"""
+    sally_status = deployment_orchestrator.check_sally_health()
     return jsonify({
         'name': config.name,
         'description': config.description,
         'version': config.version,
         'sally_url': config.sally_url,
+        'sally_status': sally_status,
         'endpoints': {
             'web': '/',
             'api': '/api',
-            'health': '/health'
+            'health': '/health',
+            'sally_health': '/api/sally/health'
         }
     })
 

@@ -15,6 +15,51 @@ class DeploymentOrchestrator:
         self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
+    def check_sally_health(self) -> Dict:
+        """
+        Check if Sally is healthy and responding
+
+        Returns:
+            Dict with Sally's health status
+        """
+        try:
+            response = requests.get(
+                f"{self.sally_url}/health",
+                timeout=5
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                'success': True,
+                'healthy': data.get('status') == 'healthy',
+                'url': self.sally_url,
+                'version': data.get('version'),
+                'response_time_ms': int(response.elapsed.total_seconds() * 1000)
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': 'Connection refused - Sally is not running or not accessible',
+                'hint': f'Make sure Sally is running on {self.sally_url}'
+            }
+        except requests.exceptions.Timeout:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': 'Connection timeout - Sally is not responding',
+                'hint': 'Sally may be running but overloaded or unresponsive'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': self.sally_url,
+                'error': f'Failed to check Sally health: {str(e)}'
+            }
+
     def _call_sally(self, server: str, command: str, timeout: Optional[int] = None) -> Dict:
         """
         Call Sally's API to execute a command
@@ -679,23 +724,52 @@ class DeploymentOrchestrator:
         # Step 3.5: Create config files from examples if they don't exist
         deployment['steps'].append({'name': 'Configuration files setup', 'status': 'in_progress'})
 
-        config_result = self._call_sally(
+        # Check and setup .env file
+        env_result = self._call_sally(
             server,
-            f"([ -f {path}/.env ] || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data)) && "
-            f"([ -f {path}/config.local.yaml ] || ([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data))"
+            f"[ -f {path}/.env ] && echo 'exists' || "
+            f"([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data && echo 'created' || echo 'no_example')"
         )
 
-        deployment['steps'][-1]['status'] = 'completed' if config_result.get('success') else 'failed'
+        # Check and setup config.local.yaml file
+        config_yaml_result = self._call_sally(
+            server,
+            f"[ -f {path}/config.local.yaml ] && echo 'exists' || "
+            f"([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data && echo 'created' || echo 'no_example')"
+        )
+
+        # Build detailed result message
+        env_status = env_result.get('stdout', '').strip()
+        config_status = config_yaml_result.get('stdout', '').strip()
+
+        result_messages = []
+        warnings = []
+
+        if 'exists' in env_status:
+            result_messages.append("✅ .env file exists")
+        elif 'created' in env_status:
+            result_messages.append("✅ .env file created from .env.example")
+        elif 'no_example' in env_status:
+            warnings.append("⚠️ .env file missing and no .env.example found to copy")
+
+        if 'exists' in config_status:
+            result_messages.append("✅ config.local.yaml exists")
+        elif 'created' in config_status:
+            result_messages.append("✅ config.local.yaml created from config.local.yaml.example")
+        elif 'no_example' in config_status:
+            warnings.append("⚠️ config.local.yaml missing and no config.local.yaml.example found to copy")
+
+        # This step is always marked as completed (it's informational/optional)
+        deployment['steps'][-1]['status'] = 'completed'
         deployment['steps'][-1]['result'] = {
-            'success': config_result.get('success'),
-            'stdout': config_result.get('stdout', ''),
-            'stderr': config_result.get('stderr', ''),
-            'exit_code': config_result.get('exit_code')
+            'success': True,  # Always true since this is optional
+            'stdout': '\n'.join(result_messages + warnings),
+            'stderr': '',
+            'details': 'Config file setup is optional - deployment continues regardless'
         }
 
-        # Don't fail deployment if config file setup fails - just log it
-        if not config_result.get('success'):
-            deployment['steps'][-1]['result']['warning'] = 'Configuration file setup failed, but continuing deployment'
+        if warnings:
+            deployment['steps'][-1]['result']['warning'] = 'Some config files missing (see details above)'
 
         # Step 4: DNS resolution check (for public domains only)
         if not skip_nginx:
