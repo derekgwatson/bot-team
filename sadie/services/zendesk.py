@@ -70,7 +70,7 @@ class ZendeskTicketService:
             # Build search query for multiple statuses, priority, and group
             # Zendesk search API requires building a query string for multiple values
             has_filters = False
-            query_parts = ['type:ticket']
+            query_parts = []
 
             if statuses:
                 # Convert single status to list for consistency
@@ -92,9 +92,10 @@ class ZendeskTicketService:
 
             if has_filters:
                 # Use search API with query string
+                # Pass type='ticket' as separate parameter, not in query string
                 query_string = ' '.join(query_parts)
-                logger.info(f"Search query: {query_string}")
-                search_results = self.client.search(query=query_string)
+                logger.info(f"Search query: type='ticket' {query_string}")
+                search_results = self.client.search(type='ticket', query=query_string)
             else:
                 # No filter - use regular ticket list
                 search_results = self.client.tickets()
