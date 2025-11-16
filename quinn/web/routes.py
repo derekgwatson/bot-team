@@ -23,10 +23,14 @@ def check():
         email = request.form.get('email', '').strip()
 
         if email:
+            # Check if email is from company domain
+            is_company_email = any(email.endswith(f'@{domain}') for domain in config.organization_domains)
+
             approval = db.is_approved(email)
             result = {
                 'email': email,
-                'approved': approval.get('approved', False)
+                'approved': approval.get('approved', False),
+                'is_company_email': is_company_email
             }
 
     return render_template('public_check.html', result=result, email=email)
