@@ -18,6 +18,7 @@ def list_tickets():
                 (new, open, pending, hold, solved, closed)
                 Example: ?status=new&status=open&status=pending
         priority: Filter by priority (low, normal, high, urgent)
+        group_id: Filter by group ID (integer)
         page: Page number (default: 1)
         per_page: Results per page (default: 25)
 
@@ -27,12 +28,14 @@ def list_tickets():
     try:
         statuses = request.args.getlist('status')  # Get multiple status values
         priority = request.args.get('priority')
+        group_id = request.args.get('group_id', type=int)
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 25))
 
         result = zendesk_ticket_service.list_tickets(
             statuses=statuses if statuses else None,
             priority=priority,
+            group_id=group_id,
             page=page,
             per_page=per_page
         )
@@ -40,6 +43,23 @@ def list_tickets():
 
     except Exception as e:
         logger.error(f"Error listing tickets: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/groups', methods=['GET'])
+@api_key_required
+def list_groups():
+    """
+    Get all Zendesk groups for filtering
+
+    Returns:
+        JSON array of groups with id and name
+    """
+    try:
+        groups = zendesk_ticket_service.list_groups()
+        return jsonify({'groups': groups}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing groups: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/tickets/<int:ticket_id>', methods=['GET'])

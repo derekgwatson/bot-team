@@ -13,6 +13,7 @@ def index():
     page = request.args.get('page', 1, type=int)
     status_filters = request.args.getlist('status')  # Get multiple status values
     priority_filter = request.args.get('priority')
+    group_filter = request.args.get('group', type=int)  # Group ID filter
     search_query = request.args.get('q')
     preset = request.args.get('preset')  # For preset filters like "active"
 
@@ -21,6 +22,9 @@ def index():
         status_filters = ['new', 'open', 'pending']
 
     try:
+        # Fetch available groups for the dropdown
+        groups = zendesk_ticket_service.list_groups()
+
         if search_query:
             # Search mode
             tickets = zendesk_ticket_service.search_tickets(search_query)
@@ -37,6 +41,7 @@ def index():
             result = zendesk_ticket_service.list_tickets(
                 statuses=status_filters if status_filters else None,
                 priority=priority_filter,
+                group_id=group_filter,
                 page=page,
                 per_page=25
             )
@@ -49,6 +54,8 @@ def index():
                              has_more=result.get('has_more', False),
                              status_filters=status_filters,
                              priority_filter=priority_filter,
+                             group_filter=group_filter,
+                             groups=groups,
                              search_query=search_query,
                              preset=preset,
                              user=current_user)
@@ -62,6 +69,7 @@ def index():
                              total=0,
                              has_more=False,
                              status_filters=[],
+                             groups=[],
                              user=current_user)
 
 @web_bp.route('/ticket/<int:ticket_id>')

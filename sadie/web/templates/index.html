@@ -43,7 +43,7 @@
         <a href="{{ url_for('web.index', preset='active') }}" class="btn btn-small" style="background: #27ae60;">
             🎯 Active Tickets (New/Open/Pending)
         </a>
-        {% if status_filters or priority_filter or preset %}
+        {% if status_filters or priority_filter or group_filter or preset %}
         <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #9b59b6; text-decoration: none;">Clear all filters</a>
         {% endif %}
     </div>
@@ -79,15 +79,26 @@
                 </label>
             </div>
         </div>
-        <div style="margin-top: 15px;">
-            <label style="font-weight: 600;">Priority:</label>
-            <select name="priority" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="" {% if not priority_filter %}selected{% endif %}>All</option>
-                <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
-                <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
-                <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
-                <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
-            </select>
+        <div style="margin-top: 15px; display: flex; gap: 20px; align-items: center;">
+            <div>
+                <label style="font-weight: 600;">Priority:</label>
+                <select name="priority" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="" {% if not priority_filter %}selected{% endif %}>All</option>
+                    <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+                    <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+                    <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-weight: 600;">Group:</label>
+                <select name="group" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px;">
+                    <option value="" {% if not group_filter %}selected{% endif %}>All Groups</option>
+                    {% for group in groups %}
+                    <option value="{{ group.id }}" {% if group_filter == group.id %}selected{% endif %}>{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
         <div style="margin-top: 15px;">
             <button type="submit" class="btn">Apply Filters</button>
@@ -137,21 +148,21 @@
     {% if total_pages > 1 %}
     <div class="pagination">
         {% if page > 1 %}
-        <a href="{{ url_for('web.index', page=page-1, status=status_filters, priority=priority_filter, q=search_query) }}">&laquo; Previous</a>
+        <a href="{{ url_for('web.index', page=page-1, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">&laquo; Previous</a>
         {% endif %}
 
         {% for p in range(1, total_pages + 1) %}
             {% if p == page %}
             <span class="current">{{ p }}</span>
             {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-            <a href="{{ url_for('web.index', page=p, status=status_filters, priority=priority_filter, q=search_query) }}">{{ p }}</a>
+            <a href="{{ url_for('web.index', page=p, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">{{ p }}</a>
             {% elif p == page - 3 or p == page + 3 %}
             <span>...</span>
             {% endif %}
         {% endfor %}
 
         {% if page < total_pages %}
-        <a href="{{ url_for('web.index', page=page+1, status=status_filters, priority=priority_filter, q=search_query) }}">Next &raquo;</a>
+        <a href="{{ url_for('web.index', page=page+1, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">Next &raquo;</a>
         {% endif %}
     </div>
     {% endif %}

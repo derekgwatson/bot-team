@@ -23,9 +23,9 @@ class ZendeskTicketService:
             token=config.zendesk_api_token
         )
 
-    def list_tickets(self, statuses=None, priority=None, page=1, per_page=25):
+    def list_tickets(self, statuses=None, priority=None, group_id=None, page=1, per_page=25):
         """
-        List Zendesk tickets, optionally filtered by status and priority
+        List Zendesk tickets, optionally filtered by status, priority, and group
 
         IMPORTANT: This method limits results to MAX_RESULTS total tickets to prevent
         performance issues with tens of thousands of tickets. Each page fetches fresh
@@ -35,6 +35,7 @@ class ZendeskTicketService:
             statuses: Optional status filter - can be a single status string or list of statuses
                      ('new', 'open', 'pending', 'hold', 'solved', 'closed')
             priority: Optional priority filter ('low', 'normal', 'high', 'urgent')
+            group_id: Optional group ID filter (integer)
             page: Page number (default: 1)
             per_page: Results per page (default: 25)
 
@@ -63,10 +64,10 @@ class ZendeskTicketService:
             if start_index + fetch_count > MAX_RESULTS:
                 fetch_count = MAX_RESULTS - start_index + 1
 
-            logger.info(f"Fetching tickets for page {page} (statuses={statuses}, priority={priority}), "
+            logger.info(f"Fetching tickets for page {page} (statuses={statuses}, priority={priority}, group_id={group_id}), "
                        f"indices {start_index} to {start_index + fetch_count - 1}...")
 
-            # Build search query for multiple statuses or priority
+            # Build search query for multiple statuses, priority, and group
             # Zendesk search API requires building a query string for multiple values
             has_filters = False
             query_parts = ['type:ticket']
@@ -83,6 +84,10 @@ class ZendeskTicketService:
 
             if priority:
                 query_parts.append(f'priority:{priority}')
+                has_filters = True
+
+            if group_id:
+                query_parts.append(f'group:{group_id}')
                 has_filters = True
 
             if has_filters:
@@ -109,6 +114,7 @@ class ZendeskTicketService:
                         'type': getattr(ticket, 'type', None),
                         'requester_id': getattr(ticket, 'requester_id', None),
                         'assignee_id': getattr(ticket, 'assignee_id', None),
+                        'group_id': getattr(ticket, 'group_id', None),
                         'organization_id': getattr(ticket, 'organization_id', None),
                         'created_at': str(ticket.created_at) if hasattr(ticket, 'created_at') and ticket.created_at else None,
                         'updated_at': str(ticket.updated_at) if hasattr(ticket, 'updated_at') and ticket.updated_at else None,
@@ -322,6 +328,30 @@ class ZendeskTicketService:
             return tickets
         except Exception as e:
             logger.error(f"Error getting tickets for organization {organization_id}: {str(e)}")
+            raise
+
+    def list_groups(self):
+        """
+        Get all Zendesk groups for filtering
+
+        Returns:
+            List of group objects with id and name
+        """
+        try:
+            groups = []
+            for group in self.client.groups():
+                groups.append({
+                    'id': group.id,
+                    'name': group.name
+                })
+
+            # Sort by name for easier selection in UI
+            groups.sort(key=lambda g: g['name'].lower())
+
+            logger.info(f"Fetched {len(groups)} groups")
+            return groups
+        except Exception as e:
+            logger.error(f"Error listing groups: {str(e)}")
             raise
 
 # Initialize the service
