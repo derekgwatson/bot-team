@@ -23,7 +23,7 @@ def up(conn):
 
     for name, description, port, skip_nginx in bots_data:
         cursor.execute('''
-            INSERT INTO bots
+            INSERT OR IGNORE INTO bots
             (name, description, port, repo, path, service, domain, nginx_config_name, workers, skip_nginx)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (

@@ -37,9 +37,9 @@ def up(conn):
         )
     ''')
 
-    # Insert default deployment config
+    # Insert default deployment config (only if not exists)
     cursor.execute('''
-        INSERT INTO deployment_defaults
+        INSERT OR IGNORE INTO deployment_defaults
         (id, repo, path_template, service_template, domain_template, nginx_config_template, workers)
         VALUES (1, ?, ?, ?, ?, ?, ?)
     ''', (
