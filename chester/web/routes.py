@@ -58,21 +58,11 @@ def public_directory():
             }
             bots_info.append(bot_combined)
 
-    # Check health of public bots (if enabled)
-    if config.health_check_enabled:
-        health_results = bot_service.check_all_bots_health()
-        health_map = {h['bot']: h for h in health_results}
-    else:
-        health_map = {
-            bot['name'].lower(): {'bot': bot['name'].lower(), 'status': 'disabled'}
-            for bot in bots_info
-        }
-
+    # No health checks here - loaded asynchronously via AJAX
     return render_template(
         'public.html',
         config=config,
-        bots=bots_info,
-        health_map=health_map
+        bots=bots_info
     )
 
 

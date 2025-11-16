@@ -1,6 +1,7 @@
 """API endpoints for bot information and health checks."""
 from flask import Blueprint, jsonify, request
 from services.bot_service import bot_service
+from services.database import db
 
 bots_bp = Blueprint('bots', __name__)
 
@@ -60,6 +61,25 @@ def check_bot_health(bot_name):
     return jsonify({
         'success': True,
         'health': result
+    })
+
+
+@bots_bp.route('/health/public/all', methods=['GET'])
+def check_public_bots_health():
+    """Check health of only public-facing bots (for async loading)."""
+    # Get public bots from database
+    public_bots = db.get_public_bots()
+    public_bot_names = [bot['name'] for bot in public_bots]
+
+    # Check health for each public bot
+    results = []
+    for bot_name in public_bot_names:
+        health = bot_service.check_bot_health(bot_name)
+        results.append(health)
+
+    return jsonify({
+        'success': True,
+        'results': results
     })
 
 

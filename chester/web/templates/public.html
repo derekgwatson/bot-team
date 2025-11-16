@@ -124,6 +124,11 @@
         color: #6c757d;
         font-size: 0.9em;
     }
+
+    .badge-loading {
+        background: #e0e0e0;
+        color: #757575;
+    }
 </style>
 {% endblock %}
 
@@ -139,8 +144,7 @@
     <div class="public-bot-card">
         <div class="public-bot-header">
             <h3>{{ bot.name }}</h3>
-            {% set health = health_map.get(bot.name.lower(), {}) %}
-            <span class="badge badge-{{ health.status }}">{{ health.status or 'unknown' }}</span>
+            <span class="badge badge-loading" data-bot="{{ bot.name.lower() }}">checking...</span>
         </div>
 
         <div class="description">{{ bot.description }}</div>
@@ -174,4 +178,44 @@
 <div class="footer-note">
     <p>Need help? Contact IT for assistance.</p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Fetch health status asynchronously after page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/health/public/all')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.results) {
+                // Update each bot's health badge
+                data.results.forEach(result => {
+                    const botName = result.bot;
+                    const status = result.status;
+                    const badge = document.querySelector(`[data-bot="${botName}"]`);
+
+                    if (badge) {
+                        // Remove loading class
+                        badge.classList.remove('badge-loading');
+
+                        // Add status class
+                        badge.classList.add(`badge-${status}`);
+
+                        // Update text
+                        badge.textContent = status;
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching health status:', error);
+            // Update all badges to show error
+            document.querySelectorAll('.badge-loading').forEach(badge => {
+                badge.classList.remove('badge-loading');
+                badge.classList.add('badge-unknown');
+                badge.textContent = 'unknown';
+            });
+        });
+});
+</script>
 {% endblock %}
