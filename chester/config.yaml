@@ -104,6 +104,20 @@ bot_team:
       users: /api/users
     personality: Customer-focused, manages support team access
 
+  sadie:
+    name: Sadie
+    description: Zendesk Ticket Information
+    capabilities:
+      - View and search Zendesk tickets
+      - Get ticket details and comments
+      - Filter tickets by status and priority
+      - View user and organization tickets
+    api_endpoints:
+      info: /info
+      health: /health
+      tickets: /api/tickets
+    personality: Helpful and informative, provides ticket insights
+
   pam:
     name: Pam
     description: Phone Directory Presenter (Public Interface)

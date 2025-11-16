@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-error">
+    Error: {{ error }}
+</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>Zendesk Tickets</h2>
+
+    {% if total is defined %}
+    <div style="background: #e8daef; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+        {% if '+' in total|string %}
+        📊 Showing at least <strong>{{ total }}</strong> tickets
+        <span style="color: #666; font-size: 12px;">(more pages available)</span>
+        {% else %}
+        📊 Total: <strong>{{ total }}</strong> tickets
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Search Bar -->
+    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar">
+        <input type="text" name="q" placeholder="Search tickets by subject or content..." value="{{ search_query or '' }}">
+        <button type="submit" class="btn">Search</button>
+        {% if search_query %}
+        <a href="{{ url_for('web.index') }}" class="btn">Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Quick Preset Filters -->
+    <div style="margin-bottom: 15px;">
+        <a href="{{ url_for('web.index', preset='active') }}" class="btn btn-small" style="background: #27ae60;">
+            🎯 Active Tickets (New/Open/Pending)
+        </a>
+        {% if status_filters or priority_filter or group_filter or preset %}
+        <a href="{{ url_for('web.index') }}" style="margin-left: 10px; color: #9b59b6; text-decoration: none;">Clear all filters</a>
+        {% endif %}
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" action="{{ url_for('web.index') }}" class="filter-bar">
+        <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Status (select multiple):</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="new" {% if 'new' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-new">New</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="open" {% if 'open' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-open">Open</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="pending" {% if 'pending' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-pending">Pending</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="hold" {% if 'hold' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-hold">On Hold</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="solved" {% if 'solved' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-solved">Solved</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" name="status" value="closed" {% if 'closed' in status_filters %}checked{% endif %} style="margin-right: 5px;">
+                    <span class="badge badge-closed">Closed</span>
+                </label>
+            </div>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 20px; align-items: center;">
+            <div>
+                <label style="font-weight: 600;">Priority:</label>
+                <select name="priority" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="" {% if not priority_filter %}selected{% endif %}>All</option>
+                    <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+                    <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+                    <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-weight: 600;">Group:</label>
+                <select name="group" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px;">
+                    <option value="" {% if not group_filter %}selected{% endif %}>All Groups</option>
+                    {% for group in groups %}
+                    <option value="{{ group.id }}" {% if group_filter == group.id %}selected{% endif %}>{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div style="margin-top: 15px;">
+            <button type="submit" class="btn">Apply Filters</button>
+        </div>
+    </form>
+
+    <!-- Tickets Table -->
+    {% if tickets %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>
+                    <a href="https://{{ zendesk_subdomain }}.zendesk.com/agent/tickets/{{ ticket.id }}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       style="color: #9b59b6; text-decoration: none; font-weight: 500;"
+                       title="Open ticket #{{ ticket.id }} in Zendesk">
+                        {{ ticket.id }}
+                    </a>
+                </td>
+                <td>{{ ticket.subject[:60] }}{% if ticket.subject|length > 60 %}...{% endif %}</td>
+                <td>
+                    <span class="badge badge-{{ ticket.status }}">{{ ticket.status|title }}</span>
+                </td>
+                <td>
+                    {% if ticket.priority %}
+                    <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority|title }}</span>
+                    {% else %}
+                    <span class="badge">None</span>
+                    {% endif %}
+                </td>
+                <td>{{ ticket.created_at[:10] if ticket.created_at else 'N/A' }}</td>
+                <td>{{ ticket.updated_at[:10] if ticket.updated_at else 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('web.view_ticket', ticket_id=ticket.id) }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('web.index', page=page-1, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">&laquo; Previous</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <a href="{{ url_for('web.index', page=p, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">{{ p }}</a>
+            {% elif p == page - 3 or p == page + 3 %}
+            <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="{{ url_for('web.index', page=page+1, status=status_filters, priority=priority_filter, group=group_filter, q=search_query) }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <p style="margin-top: 20px; color: #7f8c8d;">
+        Showing {{ tickets|length }} of {{ total }} tickets
+    </p>
+
+    {% else %}
+    <div class="empty-state">
+        <h3>No tickets found</h3>
+        {% if search_query %}
+        <p>No tickets match your search query.</p>
+        <a href="{{ url_for('web.index') }}" class="btn">Clear search</a>
+        {% elif status_filter or priority_filter %}
+        <p>No tickets match your filter criteria.</p>
+        <a href="{{ url_for('web.index') }}" class="btn">Clear filters</a>
+        {% else %}
+        <p>No tickets available.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

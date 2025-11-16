@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2>Ticket #{{ ticket.id }}</h2>
+            <a href="https://{{ zendesk_subdomain }}.zendesk.com/agent/tickets/{{ ticket.id }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="color: #9b59b6; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 5px;">
+                🔗 Open in Zendesk
+            </a>
+        </div>
+        <a href="{{ url_for('web.index') }}" class="btn btn-small">← Back to Tickets</a>
+    </div>
+
+    <h3 style="margin-bottom: 20px; color: #2c3e50;">{{ ticket.subject }}</h3>
+
+    <!-- Ticket Metadata -->
+    <div class="ticket-meta">
+        <div class="meta-item">
+            <label>Status</label>
+            <div class="value">
+                <span class="badge badge-{{ ticket.status }}">{{ ticket.status|title }}</span>
+            </div>
+        </div>
+        <div class="meta-item">
+            <label>Priority</label>
+            <div class="value">
+                {% if ticket.priority %}
+                <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority|title }}</span>
+                {% else %}
+                <span class="badge">None</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="meta-item">
+            <label>Type</label>
+            <div class="value">{{ ticket.type|title if ticket.type else 'N/A' }}</div>
+        </div>
+        <div class="meta-item">
+            <label>Requester ID</label>
+            <div class="value">{{ ticket.requester_id if ticket.requester_id else 'N/A' }}</div>
+        </div>
+        <div class="meta-item">
+            <label>Assignee ID</label>
+            <div class="value">{{ ticket.assignee_id if ticket.assignee_id else 'Unassigned' }}</div>
+        </div>
+        <div class="meta-item">
+            <label>Organization ID</label>
+            <div class="value">{{ ticket.organization_id if ticket.organization_id else 'N/A' }}</div>
+        </div>
+        <div class="meta-item">
+            <label>Created</label>
+            <div class="value">{{ ticket.created_at if ticket.created_at else 'N/A' }}</div>
+        </div>
+        <div class="meta-item">
+            <label>Updated</label>
+            <div class="value">{{ ticket.updated_at if ticket.updated_at else 'N/A' }}</div>
+        </div>
+    </div>
+
+    <!-- Ticket Description -->
+    {% if ticket.description %}
+    <div style="margin: 20px 0;">
+        <h4 style="margin-bottom: 10px; color: #2c3e50;">Description</h4>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 3px solid #9b59b6;">
+            {{ ticket.description }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tags -->
+    {% if ticket.tags %}
+    <div style="margin: 20px 0;">
+        <h4 style="margin-bottom: 10px; color: #2c3e50;">Tags</h4>
+        <div>
+            {% for tag in ticket.tags %}
+            <span class="badge" style="background: #95a5a6; color: white; margin-right: 5px;">{{ tag }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Comments -->
+<div class="card">
+    <h3 style="margin-bottom: 20px; color: #2c3e50;">Comments ({{ comments|length }})</h3>
+
+    {% if comments %}
+        {% for comment in comments %}
+        <div class="comment">
+            <div class="comment-header">
+                <strong>Author ID: {{ comment.author_id }}</strong> •
+                {{ comment.created_at if comment.created_at else 'N/A' }} •
+                <span class="badge" style="background: {% if comment.public %}#27ae60{% else %}#e67e22{% endif %}; color: white;">
+                    {% if comment.public %}Public{% else %}Private{% endif %}
+                </span>
+            </div>
+            <div class="comment-body">
+                {{ comment.body if comment.body else comment.html_body|safe if comment.html_body else 'No content' }}
+            </div>
+            {% if comment.attachments %}
+            <div style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">
+                📎 {{ comment.attachments|length }} attachment(s)
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <h3>No comments yet</h3>
+        <p>This ticket has no comments.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
