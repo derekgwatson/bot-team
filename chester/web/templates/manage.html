@@ -91,6 +91,16 @@
         border-radius: 4px;
         font-size: 0.85em;
         font-weight: 600;
+        margin-right: 5px;
+    }
+
+    .public-badge {
+        background: #d4edda;
+        color: #155724;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 600;
     }
 
     .defaults-section {
@@ -217,8 +227,9 @@
             <td>
                 {% if bot.skip_nginx %}
                 <span class="skip-nginx-badge">Internal Only</span>
-                {% else %}
-                <span style="color: #28a745;">✓ Public</span>
+                {% endif %}
+                {% if bot.public_facing %}
+                <span class="public-badge">👥 Public-Facing</span>
                 {% endif %}
             </td>
             <td>

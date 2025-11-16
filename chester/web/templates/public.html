@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Bot Directory - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .public-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .public-header h2 {
+        font-size: 2.2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .public-header p {
+        color: #6c757d;
+        font-size: 1.1em;
+    }
+
+    .bot-list {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .public-bot-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+
+    .public-bot-card:hover {
+        border-color: #2a5298;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .public-bot-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .public-bot-card h3 {
+        font-size: 1.8em;
+        color: #2a5298;
+        margin-bottom: 5px;
+    }
+
+    .public-bot-card .description {
+        color: #495057;
+        font-size: 1.1em;
+        margin-bottom: 20px;
+    }
+
+    .capabilities {
+        margin-top: 15px;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .capabilities h4 {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .capabilities ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .capabilities li {
+        padding: 6px 0;
+        color: #495057;
+        font-size: 1em;
+    }
+
+    .capabilities li:before {
+        content: "✓ ";
+        color: #28a745;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+
+    .bot-link {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 10px 20px;
+        background: #2a5298;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        transition: background 0.3s;
+    }
+
+    .bot-link:hover {
+        background: #1e3c72;
+        color: white;
+    }
+
+    .no-bots {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .footer-note {
+        text-align: center;
+        margin-top: 60px;
+        padding-top: 30px;
+        border-top: 1px solid #e9ecef;
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="public-header">
+    <h2>🤖 Bot Team Directory</h2>
+    <p>Your friendly automated assistants</p>
+</div>
+
+{% if bots %}
+<div class="bot-list">
+    {% for bot in bots %}
+    <div class="public-bot-card">
+        <div class="public-bot-header">
+            <h3>{{ bot.name }}</h3>
+            {% set health = health_map.get(bot.name.lower(), {}) %}
+            <span class="badge badge-{{ health.status }}">{{ health.status or 'unknown' }}</span>
+        </div>
+
+        <div class="description">{{ bot.description }}</div>
+
+        {% if bot.capabilities %}
+        <div class="capabilities">
+            <h4>What {{ bot.name }} can do:</h4>
+            <ul>
+                {% for capability in bot.capabilities %}
+                <li>{{ capability }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if bot.domain %}
+        <a href="https://{{ bot.domain }}" class="bot-link" target="_blank">
+            Visit {{ bot.name }} →
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-bots">
+    <h3>No public-facing bots available yet</h3>
+    <p>Check back soon!</p>
+</div>
+{% endif %}
+
+<div class="footer-note">
+    <p>Need help? Contact IT for assistance.</p>
+</div>
+{% endblock %}

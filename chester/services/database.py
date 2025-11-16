@@ -73,7 +73,7 @@ class Database:
 
     def add_bot(self, name: str, description: str, port: int, **kwargs) -> Optional[int]:
         """Add a new bot to the database."""
-        valid_fields = ['repo', 'path', 'service', 'domain', 'nginx_config_name', 'workers', 'skip_nginx']
+        valid_fields = ['repo', 'path', 'service', 'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing']
 
         # Get deployment defaults
         defaults = self.get_deployment_defaults()
@@ -89,20 +89,21 @@ class Database:
             'domain': kwargs.get('domain', defaults['domain_template'].format(bot_name=name)),
             'nginx_config_name': kwargs.get('nginx_config_name', defaults['nginx_config_template'].format(bot_name=name)),
             'workers': kwargs.get('workers', defaults.get('workers', 3)),
-            'skip_nginx': 1 if kwargs.get('skip_nginx', False) else 0
+            'skip_nginx': 1 if kwargs.get('skip_nginx', False) else 0,
+            'public_facing': 1 if kwargs.get('public_facing', False) else 0
         }
 
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO bots
-                (name, description, port, repo, path, service, domain, nginx_config_name, workers, skip_nginx)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name, description, port, repo, path, service, domain, nginx_config_name, workers, skip_nginx, public_facing)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 bot_data['name'], bot_data['description'], bot_data['port'],
                 bot_data['repo'], bot_data['path'], bot_data['service'],
                 bot_data['domain'], bot_data['nginx_config_name'],
-                bot_data['workers'], bot_data['skip_nginx']
+                bot_data['workers'], bot_data['skip_nginx'], bot_data['public_facing']
             ))
             return cursor.lastrowid
 
@@ -115,6 +116,7 @@ class Database:
             if row:
                 bot = dict(row)
                 bot['skip_nginx'] = bool(bot['skip_nginx'])
+                bot['public_facing'] = bool(bot.get('public_facing', 0))
                 return bot
             return None
 
@@ -128,21 +130,38 @@ class Database:
             for row in rows:
                 bot = dict(row)
                 bot['skip_nginx'] = bool(bot['skip_nginx'])
+                bot['public_facing'] = bool(bot.get('public_facing', 0))
+                bots.append(bot)
+            return bots
+
+    def get_public_bots(self) -> List[Dict]:
+        """Get only public-facing bots (for company-wide access)."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM bots WHERE public_facing = 1 ORDER BY name')
+            rows = cursor.fetchall()
+            bots = []
+            for row in rows:
+                bot = dict(row)
+                bot['skip_nginx'] = bool(bot['skip_nginx'])
+                bot['public_facing'] = bool(bot.get('public_facing', 0))
                 bots.append(bot)
             return bots
 
     def update_bot(self, name: str, **kwargs) -> bool:
         """Update a bot's configuration."""
         valid_fields = ['description', 'port', 'repo', 'path', 'service',
-                       'domain', 'nginx_config_name', 'workers', 'skip_nginx']
+                       'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing']
 
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
             return False
 
-        # Convert skip_nginx boolean to int
+        # Convert boolean fields to int
         if 'skip_nginx' in updates:
             updates['skip_nginx'] = 1 if updates['skip_nginx'] else 0
+        if 'public_facing' in updates:
+            updates['public_facing'] = 1 if updates['public_facing'] else 0
 
         updates['updated_at'] = 'CURRENT_TIMESTAMP'
         set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
@@ -176,7 +195,8 @@ class Database:
             'domain': bot['domain'],
             'nginx_config_name': bot['nginx_config_name'],
             'workers': bot['workers'],
-            'skip_nginx': bot['skip_nginx']
+            'skip_nginx': bot['skip_nginx'],
+            'public_facing': bot['public_facing']
         }
 
 

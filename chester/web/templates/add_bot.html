@@ -227,6 +227,12 @@
                 <label for="skip_nginx" style="margin-bottom: 0;">Internal-only bot (skip nginx/SSL setup)</label>
             </div>
             <div class="help-text">Check this if the bot should not be publicly accessible (like Sally)</div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="public_facing" name="public_facing">
+                <label for="public_facing" style="margin-bottom: 0;">Public-facing bot (show in company directory)</label>
+            </div>
+            <div class="help-text">Check this if the bot should be visible to all staff (like Pam, Quinn, Peter)</div>
         </div>
 
         <div class="form-actions">
@@ -263,7 +269,7 @@ document.getElementById('addBotForm').addEventListener('submit', async function(
 
     // Collect form data
     for (let [key, value] of formData.entries()) {
-        if (key === 'skip_nginx') {
+        if (key === 'skip_nginx' || key === 'public_facing') {
             data[key] = true;
         } else if (value) {
             data[key] = value;

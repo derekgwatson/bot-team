@@ -38,6 +38,44 @@ def dashboard():
     )
 
 
+@web_bp.route('/public')
+def public_directory():
+    """Public-facing directory - shows only bots marked as public_facing."""
+    # Get only public-facing bots from database
+    public_bots_db = db.get_public_bots()
+
+    # Get bot metadata from config and merge with database info
+    bots_info = []
+    for bot_db in public_bots_db:
+        bot_name = bot_db['name']
+        bot_meta = bot_service.get_bot_info(bot_name)
+        if bot_meta:
+            # Merge database config with metadata
+            bot_combined = {
+                **bot_meta,
+                'domain': bot_db.get('domain', 'Unknown'),
+                'public_facing': bot_db.get('public_facing', False)
+            }
+            bots_info.append(bot_combined)
+
+    # Check health of public bots (if enabled)
+    if config.health_check_enabled:
+        health_results = bot_service.check_all_bots_health()
+        health_map = {h['bot']: h for h in health_results}
+    else:
+        health_map = {
+            bot['name'].lower(): {'bot': bot['name'].lower(), 'status': 'disabled'}
+            for bot in bots_info
+        }
+
+    return render_template(
+        'public.html',
+        config=config,
+        bots=bots_info,
+        health_map=health_map
+    )
+
+
 @web_bp.route('/bot/<bot_name>')
 def bot_details(bot_name):
     """Detailed page for a specific bot."""
