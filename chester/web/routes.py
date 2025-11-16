@@ -1,6 +1,7 @@
 """Web interface routes for Chester."""
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from services.bot_service import bot_service
+from services.database import db
 from config import config
 
 web_bp = Blueprint('web', __name__)
@@ -78,4 +79,48 @@ def new_bot_guide():
         'new_bot_guide.html',
         config=config,
         template=template_config
+    )
+
+
+@web_bp.route('/manage')
+def manage_bots():
+    """Manage bot deployment configurations."""
+    bots = db.get_all_bots()
+    defaults = db.get_deployment_defaults()
+
+    return render_template(
+        'manage.html',
+        config=config,
+        bots=bots,
+        defaults=defaults
+    )
+
+
+@web_bp.route('/manage/bot/<bot_name>')
+def manage_bot(bot_name):
+    """Edit a specific bot's deployment configuration."""
+    bot = db.get_bot(bot_name)
+
+    if not bot:
+        return render_template('error.html', config=config, error=f'Bot {bot_name} not found'), 404
+
+    defaults = db.get_deployment_defaults()
+
+    return render_template(
+        'manage_bot.html',
+        config=config,
+        bot=bot,
+        defaults=defaults
+    )
+
+
+@web_bp.route('/manage/add-bot')
+def add_bot_form():
+    """Form for adding a new bot."""
+    defaults = db.get_deployment_defaults()
+
+    return render_template(
+        'add_bot.html',
+        config=config,
+        defaults=defaults
     )

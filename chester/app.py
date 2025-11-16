@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 from dotenv import load_dotenv
 from config import config
 from api.bots import bots_bp
+from api.deployment import deployment_bp
 from web.routes import web_bp
 
 # Load environment variables
@@ -15,6 +16,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-product
 
 # Register blueprints
 app.register_blueprint(bots_bp, url_prefix='/api')
+app.register_blueprint(deployment_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
 
 

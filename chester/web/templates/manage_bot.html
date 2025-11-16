@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ bot.name }} - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .form-header h2 {
+        font-size: 2em;
+        color: #2a5298;
+        margin-bottom: 10px;
+    }
+
+    .form-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .form-section h3 {
+        color: #2a5298;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 1em;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #2a5298;
+    }
+
+    .form-group .help-text {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1em;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: #2a5298;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e3c72;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+    }
+
+    .readonly-field {
+        background: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .info-box {
+        background: #e7f3ff;
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 4px solid #2a5298;
+        margin-bottom: 20px;
+    }
+
+    .info-box p {
+        margin: 0;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <h2>✏️ Edit {{ bot.name }}</h2>
+        <p>Update deployment configuration for {{ bot.name }}</p>
+    </div>
+
+    <div class="info-box">
+        <p><strong>Note:</strong> The bot name cannot be changed. If you need to rename a bot, create a new one and delete the old one.</p>
+    </div>
+
+    <form id="editBotForm">
+        <div class="form-section">
+            <h3>Basic Information</h3>
+
+            <div class="form-group">
+                <label for="name">Bot Name</label>
+                <input type="text" id="name" name="name" value="{{ bot.name }}" readonly class="readonly-field">
+                <div class="help-text">Bot name cannot be changed</div>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description" value="{{ bot.description }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="port">Port</label>
+                <input type="number" id="port" name="port" value="{{ bot.port }}" required min="8001" max="9000">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Deployment Configuration</h3>
+
+            <div class="form-group">
+                <label for="repo">Repository</label>
+                <input type="text" id="repo" name="repo" value="{{ bot.repo }}">
+            </div>
+
+            <div class="form-group">
+                <label for="path">Server Path</label>
+                <input type="text" id="path" name="path" value="{{ bot.path }}">
+            </div>
+
+            <div class="form-group">
+                <label for="service">Systemd Service Name</label>
+                <input type="text" id="service" name="service" value="{{ bot.service }}">
+            </div>
+
+            <div class="form-group">
+                <label for="domain">Domain</label>
+                <input type="text" id="domain" name="domain" value="{{ bot.domain }}">
+            </div>
+
+            <div class="form-group">
+                <label for="nginx_config_name">Nginx Config Name</label>
+                <input type="text" id="nginx_config_name" name="nginx_config_name" value="{{ bot.nginx_config_name }}">
+            </div>
+
+            <div class="form-group">
+                <label for="workers">Gunicorn Workers</label>
+                <input type="number" id="workers" name="workers" value="{{ bot.workers }}" min="1" max="10">
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="skip_nginx" name="skip_nginx" {% if bot.skip_nginx %}checked{% endif %}>
+                <label for="skip_nginx" style="margin-bottom: 0;">Internal-only bot (skip nginx/SSL setup)</label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="/manage" class="btn btn-secondary">Cancel</a>
+            <button type="button" class="btn btn-danger" onclick="deleteBot()">Delete Bot</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Form submission
+document.getElementById('editBotForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const data = {};
+
+    // Collect form data (except readonly name)
+    for (let [key, value] of formData.entries()) {
+        if (key === 'name') continue; // Skip readonly name field
+
+        if (key === 'skip_nginx') {
+            data[key] = true;
+        } else if (value) {
+            data[key] = value;
+        }
+    }
+
+    // If skip_nginx wasn't in formData, it means checkbox is unchecked
+    if (!formData.has('skip_nginx')) {
+        data.skip_nginx = false;
+    }
+
+    // Convert numbers
+    if (data.port) data.port = parseInt(data.port);
+    if (data.workers) data.workers = parseInt(data.workers);
+
+    try {
+        const response = await fetch('/api/deployment/bots/{{ bot.name }}', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Bot updated successfully!');
+            window.location.href = '/manage';
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error updating bot: ' + error.message);
+    }
+});
+
+async function deleteBot() {
+    if (!confirm('Are you sure you want to delete {{ bot.name }}? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/deployment/bots/{{ bot.name }}', {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Bot deleted successfully!');
+            window.location.href = '/manage';
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error deleting bot: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

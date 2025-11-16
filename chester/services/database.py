@@ -1,0 +1,221 @@
+"""Database service for Chester - manages bot deployment configuration."""
+import sqlite3
+from pathlib import Path
+from typing import Dict, List, Optional
+from contextlib import contextmanager
+
+
+class Database:
+    """SQLite database manager for Chester."""
+
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            db_path = Path(__file__).parent.parent / 'chester.db'
+        self.db_path = db_path
+        self.init_db()
+
+    @contextmanager
+    def get_connection(self):
+        """Get a database connection context manager."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
+    def init_db(self):
+        """Initialize the database schema."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Bot deployment configuration table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    description TEXT NOT NULL,
+                    port INTEGER NOT NULL,
+                    repo TEXT,
+                    path TEXT,
+                    service TEXT,
+                    domain TEXT,
+                    nginx_config_name TEXT,
+                    workers INTEGER DEFAULT 3,
+                    skip_nginx BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Deployment defaults table (single row)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS deployment_defaults (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    repo TEXT NOT NULL,
+                    path_template TEXT NOT NULL,
+                    service_template TEXT NOT NULL,
+                    domain_template TEXT NOT NULL,
+                    nginx_config_template TEXT NOT NULL,
+                    workers INTEGER DEFAULT 3
+                )
+            ''')
+
+            # Insert default deployment config if not exists
+            cursor.execute('SELECT COUNT(*) FROM deployment_defaults')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO deployment_defaults
+                    (id, repo, path_template, service_template, domain_template, nginx_config_template, workers)
+                    VALUES (1, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    'git@github.com:derekgwatson/bot-team.git',
+                    '/var/www/bot-team/{bot_name}',
+                    'gunicorn-bot-team-{bot_name}',
+                    '{bot_name}.watsonblinds.com.au',
+                    'bot-team-{bot_name}.conf',
+                    3
+                ))
+
+    def get_deployment_defaults(self) -> Dict:
+        """Get the deployment defaults."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM deployment_defaults WHERE id = 1')
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return {}
+
+    def update_deployment_defaults(self, **kwargs) -> bool:
+        """Update deployment defaults."""
+        valid_fields = ['repo', 'path_template', 'service_template',
+                       'domain_template', 'nginx_config_template', 'workers']
+
+        updates = {k: v for k, v in kwargs.items() if k in valid_fields}
+        if not updates:
+            return False
+
+        set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
+        query = f'UPDATE deployment_defaults SET {set_clause} WHERE id = 1'
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, list(updates.values()))
+            return cursor.rowcount > 0
+
+    def add_bot(self, name: str, description: str, port: int, **kwargs) -> Optional[int]:
+        """Add a new bot to the database."""
+        valid_fields = ['repo', 'path', 'service', 'domain', 'nginx_config_name', 'workers', 'skip_nginx']
+
+        # Get deployment defaults
+        defaults = self.get_deployment_defaults()
+
+        # Apply defaults with template substitution
+        bot_data = {
+            'name': name,
+            'description': description,
+            'port': port,
+            'repo': kwargs.get('repo', defaults.get('repo', '')),
+            'path': kwargs.get('path', defaults['path_template'].format(bot_name=name)),
+            'service': kwargs.get('service', defaults['service_template'].format(bot_name=name)),
+            'domain': kwargs.get('domain', defaults['domain_template'].format(bot_name=name)),
+            'nginx_config_name': kwargs.get('nginx_config_name', defaults['nginx_config_template'].format(bot_name=name)),
+            'workers': kwargs.get('workers', defaults.get('workers', 3)),
+            'skip_nginx': 1 if kwargs.get('skip_nginx', False) else 0
+        }
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO bots
+                (name, description, port, repo, path, service, domain, nginx_config_name, workers, skip_nginx)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                bot_data['name'], bot_data['description'], bot_data['port'],
+                bot_data['repo'], bot_data['path'], bot_data['service'],
+                bot_data['domain'], bot_data['nginx_config_name'],
+                bot_data['workers'], bot_data['skip_nginx']
+            ))
+            return cursor.lastrowid
+
+    def get_bot(self, name: str) -> Optional[Dict]:
+        """Get a bot by name."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM bots WHERE name = ?', (name,))
+            row = cursor.fetchone()
+            if row:
+                bot = dict(row)
+                bot['skip_nginx'] = bool(bot['skip_nginx'])
+                return bot
+            return None
+
+    def get_all_bots(self) -> List[Dict]:
+        """Get all bots."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM bots ORDER BY name')
+            rows = cursor.fetchall()
+            bots = []
+            for row in rows:
+                bot = dict(row)
+                bot['skip_nginx'] = bool(bot['skip_nginx'])
+                bots.append(bot)
+            return bots
+
+    def update_bot(self, name: str, **kwargs) -> bool:
+        """Update a bot's configuration."""
+        valid_fields = ['description', 'port', 'repo', 'path', 'service',
+                       'domain', 'nginx_config_name', 'workers', 'skip_nginx']
+
+        updates = {k: v for k, v in kwargs.items() if k in valid_fields}
+        if not updates:
+            return False
+
+        # Convert skip_nginx boolean to int
+        if 'skip_nginx' in updates:
+            updates['skip_nginx'] = 1 if updates['skip_nginx'] else 0
+
+        updates['updated_at'] = 'CURRENT_TIMESTAMP'
+        set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
+        query = f'UPDATE bots SET {set_clause} WHERE name = ?'
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, list(updates.values()) + [name])
+            return cursor.rowcount > 0
+
+    def delete_bot(self, name: str) -> bool:
+        """Delete a bot from the database."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM bots WHERE name = ?', (name,))
+            return cursor.rowcount > 0
+
+    def get_bot_deployment_config(self, name: str) -> Optional[Dict]:
+        """Get deployment configuration for a specific bot (for Dorothy)."""
+        bot = self.get_bot(name)
+        if not bot:
+            return None
+
+        return {
+            'name': bot['name'],
+            'description': bot['description'],
+            'port': bot['port'],
+            'repo': bot['repo'],
+            'path': bot['path'],
+            'service': bot['service'],
+            'domain': bot['domain'],
+            'nginx_config_name': bot['nginx_config_name'],
+            'workers': bot['workers'],
+            'skip_nginx': bot['skip_nginx']
+        }
+
+
+# Global database instance
+db = Database()
