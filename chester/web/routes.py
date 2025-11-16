@@ -19,11 +19,16 @@ def dashboard():
     # Get all bots
     bots = bot_service.get_all_bots()
 
-    # Check health of all bots
-    health_results = bot_service.check_all_bots_health()
-
-    # Create a map of bot_name -> health status
-    health_map = {h['bot']: h for h in health_results}
+    # Check health of all bots (if enabled)
+    if config.health_check_enabled:
+        health_results = bot_service.check_all_bots_health()
+        health_map = {h['bot']: h for h in health_results}
+    else:
+        # Create a health map with all bots marked as 'disabled'
+        health_map = {
+            bot_name: {'bot': bot_name, 'status': 'disabled', 'message': 'Health checks disabled'}
+            for bot_name in bots.keys()
+        }
 
     return render_template(
         'dashboard.html',
@@ -39,10 +44,13 @@ def bot_details(bot_name):
     bot_info = bot_service.get_bot_info(bot_name)
 
     if not bot_info:
-        return render_template('error.html', error=f'Bot {bot_name} not found'), 404
+        return render_template('error.html', config=config, error=f'Bot {bot_name} not found'), 404
 
-    # Check health
-    health = bot_service.check_bot_health(bot_name)
+    # Check health (if enabled)
+    if config.health_check_enabled:
+        health = bot_service.check_bot_health(bot_name)
+    else:
+        health = {'bot': bot_name, 'status': 'disabled', 'message': 'Health checks disabled'}
 
     return render_template(
         'bot_details.html',

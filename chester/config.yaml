@@ -8,6 +8,9 @@ server:
   port: 8008
 
 # Registry of all bot team members
+# NOTE: This is ONLY used for dashboard health checks and capability info.
+# Deployment configurations (ports, domains, paths, etc.) are stored in the database.
+# In production, update these URLs to use domains or Unix sockets instead of localhost.
 bot_team:
   fred:
     name: Fred
@@ -131,9 +134,12 @@ bot_team:
     personality: Welcoming and helpful, presents information clearly
 
 # Health check configuration
+# NOTE: Health checks expect bots to be co-located on the same server (prod).
+# In dev, many bots won't be running locally, so checks will fail fast.
 health_check:
-  timeout: 5  # seconds
+  timeout: 0.5  # seconds - fast timeout since bots are on same server in prod
   check_interval: 60  # seconds between automatic checks
+  enabled: true  # Set to false in dev if you don't want health checks
 
 # New bot setup templates
 new_bot_template:

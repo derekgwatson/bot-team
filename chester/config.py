@@ -46,11 +46,16 @@ class Config:
 
     @property
     def health_check_timeout(self):
-        return self.config.get('health_check', {}).get('timeout', 5)
+        return self.config.get('health_check', {}).get('timeout', 0.5)
 
     @property
     def health_check_interval(self):
         return self.config.get('health_check', {}).get('check_interval', 60)
+
+    @property
+    def health_check_enabled(self):
+        """Check if health checks are enabled (can be disabled in dev)."""
+        return self.config.get('health_check', {}).get('enabled', True)
 
     @property
     def new_bot_template(self):
