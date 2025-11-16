@@ -28,17 +28,21 @@
     }
 
     .feature-card {
+        display: block;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 30px;
         border-radius: 12px;
         color: white;
         text-align: center;
+        text-decoration: none;
         transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
     }
 
     .feature-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        color: white;
     }
 
     .feature-card h3 {
@@ -91,29 +95,29 @@
     </p>
 
     <div class="features">
-        <div class="feature-card">
+        <a href="/public" class="feature-card">
             <div class="icon">👥</div>
             <h3>Meet the Team</h3>
-            <p>Browse our full roster of 8 specialized bots, each with unique capabilities</p>
-        </div>
+            <p>Browse our public-facing bots available to all staff</p>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard" class="feature-card">
             <div class="icon">💚</div>
             <h3>Health Dashboard</h3>
             <p>Real-time health monitoring for all team members at a glance</p>
-        </div>
+        </a>
 
-        <div class="feature-card">
+        <a href="/search" class="feature-card">
             <div class="icon">🔍</div>
             <h3>Search & Discover</h3>
             <p>Find the right bot for your needs by searching capabilities</p>
-        </div>
+        </a>
 
-        <div class="feature-card">
+        <a href="/new-bot-guide" class="feature-card">
             <div class="icon">➕</div>
             <h3>New Bot Guide</h3>
             <p>Step-by-step instructions for adding new team members</p>
-        </div>
+        </a>
     </div>
 
     <div class="cta">
