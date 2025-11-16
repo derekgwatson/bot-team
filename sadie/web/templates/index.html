@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-error">
+    Error: {{ error }}
+</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <h2>Zendesk Tickets</h2>
+
+    {% if total is defined %}
+    <div style="background: #e8daef; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+        {% if '+' in total|string %}
+        📊 Showing at least <strong>{{ total }}</strong> tickets
+        <span style="color: #666; font-size: 12px;">(more pages available)</span>
+        {% else %}
+        📊 Total: <strong>{{ total }}</strong> tickets
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Search Bar -->
+    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar">
+        <input type="text" name="q" placeholder="Search tickets by subject or content..." value="{{ search_query or '' }}">
+        <button type="submit" class="btn">Search</button>
+        {% if search_query %}
+        <a href="{{ url_for('web.index') }}" class="btn">Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div>
+            <label>Status:</label>
+            <select name="status" onchange="window.location.href='{{ url_for('web.index') }}?status=' + this.value + '&priority={{ priority_filter or '' }}'">
+                <option value="" {% if not status_filter %}selected{% endif %}>All</option>
+                <option value="new" {% if status_filter == 'new' %}selected{% endif %}>New</option>
+                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="hold" {% if status_filter == 'hold' %}selected{% endif %}>On Hold</option>
+                <option value="solved" {% if status_filter == 'solved' %}selected{% endif %}>Solved</option>
+                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+            </select>
+        </div>
+        <div>
+            <label>Priority:</label>
+            <select name="priority" onchange="window.location.href='{{ url_for('web.index') }}?priority=' + this.value + '&status={{ status_filter or '' }}'">
+                <option value="" {% if not priority_filter %}selected{% endif %}>All</option>
+                <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+                <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+                <option value="urgent" {% if priority_filter == 'urgent' %}selected{% endif %}>Urgent</option>
+            </select>
+        </div>
+        {% if status_filter or priority_filter %}
+        <a href="{{ url_for('web.index') }}" style="color: #9b59b6; text-decoration: none;">Clear filters</a>
+        {% endif %}
+    </div>
+
+    <!-- Tickets Table -->
+    {% if tickets %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>{{ ticket.id }}</td>
+                <td>{{ ticket.subject[:60] }}{% if ticket.subject|length > 60 %}...{% endif %}</td>
+                <td>
+                    <span class="badge badge-{{ ticket.status }}">{{ ticket.status|title }}</span>
+                </td>
+                <td>
+                    {% if ticket.priority %}
+                    <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority|title }}</span>
+                    {% else %}
+                    <span class="badge">None</span>
+                    {% endif %}
+                </td>
+                <td>{{ ticket.created_at[:10] if ticket.created_at else 'N/A' }}</td>
+                <td>{{ ticket.updated_at[:10] if ticket.updated_at else 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('web.view_ticket', ticket_id=ticket.id) }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('web.index', page=page-1, status=status_filter, priority=priority_filter, q=search_query) }}">&laquo; Previous</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <a href="{{ url_for('web.index', page=p, status=status_filter, priority=priority_filter, q=search_query) }}">{{ p }}</a>
+            {% elif p == page - 3 or p == page + 3 %}
+            <span>...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="{{ url_for('web.index', page=page+1, status=status_filter, priority=priority_filter, q=search_query) }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <p style="margin-top: 20px; color: #7f8c8d;">
+        Showing {{ tickets|length }} of {{ total }} tickets
+    </p>
+
+    {% else %}
+    <div class="empty-state">
+        <h3>No tickets found</h3>
+        {% if search_query %}
+        <p>No tickets match your search query.</p>
+        <a href="{{ url_for('web.index') }}" class="btn">Clear search</a>
+        {% elif status_filter or priority_filter %}
+        <p>No tickets match your filter criteria.</p>
+        <a href="{{ url_for('web.index') }}" class="btn">Clear filters</a>
+        {% else %}
+        <p>No tickets available.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

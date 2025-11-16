@@ -41,6 +41,11 @@ bots_data = [
         'port': 8007
     },
     {
+        'name': 'sadie',
+        'description': 'Zendesk Ticket Information',
+        'port': 8010
+    },
+    {
         'name': 'chester',
         'description': 'Bot Team Concierge',
         'port': 8008
