@@ -27,9 +27,20 @@ def up(conn):
         # Import sheets_service only when needed
         # Calculate path to peter directory (migrations -> database -> peter)
         import os
-        peter_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # Debug: print the paths to see what's happening
+        migration_file = os.path.abspath(__file__)
+        migrations_dir = os.path.dirname(migration_file)
+        database_dir = os.path.dirname(migrations_dir)
+        peter_dir = os.path.dirname(database_dir)
+
+        print(f"  DEBUG: Migration file: {migration_file}")
+        print(f"  DEBUG: Peter directory: {peter_dir}")
+        print(f"  DEBUG: Current sys.path[0]: {sys.path[0] if sys.path else 'empty'}")
+
         if peter_dir not in sys.path:
             sys.path.insert(0, peter_dir)
+            print(f"  DEBUG: Added {peter_dir} to sys.path")
 
         from services.sheets_service import sheets_service
 
