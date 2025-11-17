@@ -25,7 +25,12 @@ def up(conn):
 
     try:
         # Import sheets_service only when needed
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        # Calculate path to peter directory (migrations -> database -> peter)
+        import os
+        peter_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if peter_dir not in sys.path:
+            sys.path.insert(0, peter_dir)
+
         from services.sheets_service import sheets_service
 
         # Get all contacts from Google Sheets
