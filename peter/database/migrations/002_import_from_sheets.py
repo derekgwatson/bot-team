@@ -8,11 +8,6 @@ run multiple times or skip if data already exists.
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from services.sheets_service import sheets_service
-
 
 def up(conn):
     """Import data from Google Sheets if database is empty"""
@@ -29,6 +24,10 @@ def up(conn):
     print("  Importing from Google Sheets...")
 
     try:
+        # Import sheets_service only when needed
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from services.sheets_service import sheets_service
+
         # Get all contacts from Google Sheets
         contacts = sheets_service.get_all_contacts()
 
