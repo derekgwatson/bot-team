@@ -45,6 +45,53 @@ def list_tickets():
         logger.error(f"Error listing tickets: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/tickets', methods=['POST'])
+@api_key_required
+def create_ticket():
+    """
+    Create a new Zendesk ticket
+
+    Request Body (JSON):
+        subject: Ticket subject line (required)
+        description: Ticket description/body (required)
+        priority: Ticket priority ('low', 'normal', 'high', 'urgent') - default: 'normal'
+        type: Ticket type ('question', 'incident', 'problem', 'task') - default: 'task'
+        requester_id: Zendesk user ID of the requester (optional)
+        tags: List of tags or single tag string (optional)
+
+    Returns:
+        JSON object with created ticket details including ID and URL
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        if not data.get('subject'):
+            return jsonify({'error': 'Subject is required'}), 400
+
+        if not data.get('description'):
+            return jsonify({'error': 'Description is required'}), 400
+
+        # Create the ticket
+        ticket = zendesk_ticket_service.create_ticket(
+            subject=data['subject'],
+            description=data['description'],
+            priority=data.get('priority', 'normal'),
+            ticket_type=data.get('type', 'task'),
+            requester_id=data.get('requester_id'),
+            tags=data.get('tags')
+        )
+
+        logger.info(f"Created ticket #{ticket['id']}: {ticket['subject']}")
+        return jsonify({'ticket': ticket}), 201
+
+    except Exception as e:
+        logger.error(f"Error creating ticket: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/groups', methods=['GET'])
 @api_key_required
 def list_groups():

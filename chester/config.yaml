@@ -110,8 +110,9 @@ bot_team:
 
   sadie:
     name: Sadie
-    description: Zendesk Ticket Information
+    description: Zendesk Ticket Manager
     capabilities:
+      - Create new Zendesk tickets
       - View and search Zendesk tickets
       - Get ticket details and comments
       - Filter tickets by status and priority
@@ -120,7 +121,7 @@ bot_team:
       info: /info
       health: /health
       tickets: /api/tickets
-    personality: Helpful and informative, provides ticket insights
+    personality: Helpful and proactive, manages tickets and provides insights
 
   pam:
     name: Pam

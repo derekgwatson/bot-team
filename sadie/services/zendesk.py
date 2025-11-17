@@ -368,5 +368,58 @@ class ZendeskTicketService:
             logger.error(f"Error listing groups: {str(e)}")
             raise
 
+    def create_ticket(self, subject, description, priority='normal', ticket_type='task', requester_id=None, tags=None):
+        """
+        Create a new Zendesk ticket
+
+        Args:
+            subject: Ticket subject line (required)
+            description: Ticket description/body (required)
+            priority: Ticket priority ('low', 'normal', 'high', 'urgent') - default: 'normal'
+            ticket_type: Ticket type ('question', 'incident', 'problem', 'task') - default: 'task'
+            requester_id: Zendesk user ID of the requester (optional)
+            tags: List of tags to add to the ticket (optional)
+
+        Returns:
+            Dictionary with created ticket details including ticket ID and URL
+        """
+        try:
+            # Create ticket object
+            ticket = Ticket(
+                subject=subject,
+                description=description,
+                priority=priority,
+                type=ticket_type
+            )
+
+            # Add optional fields if provided
+            if requester_id:
+                ticket.requester_id = requester_id
+
+            if tags:
+                ticket.tags = tags if isinstance(tags, list) else [tags]
+
+            # Create the ticket
+            created_ticket = self.client.tickets.create(ticket)
+
+            logger.info(f"Created ticket #{created_ticket.id}: {subject}")
+
+            # Return ticket details
+            return {
+                'id': created_ticket.id,
+                'subject': created_ticket.subject,
+                'description': created_ticket.description,
+                'status': created_ticket.status,
+                'priority': created_ticket.priority,
+                'type': created_ticket.type,
+                'requester_id': created_ticket.requester_id,
+                'created_at': str(created_ticket.created_at) if created_ticket.created_at else None,
+                'url': f"https://{config.zendesk_subdomain}.zendesk.com/agent/tickets/{created_ticket.id}",
+                'tags': created_ticket.tags if hasattr(created_ticket, 'tags') else []
+            }
+        except Exception as e:
+            logger.error(f"Error creating ticket: {str(e)}")
+            raise
+
 # Initialize the service
 zendesk_ticket_service = ZendeskTicketService()

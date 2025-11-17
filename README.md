@@ -124,7 +124,7 @@ Each bot runs on its own port:
 - **Zac** (Zendesk User Management): `http://localhost:8007`
 - **Chester** (Bot Team Concierge): `http://localhost:8008`
 - **Pam** (Phone Directory Presenter): `http://localhost:8009`
-- **Sadie** (Zendesk Ticket Information): `http://localhost:8010`
+- **Sadie** (Zendesk Ticket Manager): `http://localhost:8010`
 - **Oscar** (Staff Onboarding Orchestrator): `http://localhost:8011`
 - (Future bots will use 8012, 8013, etc.)
 
