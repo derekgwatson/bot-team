@@ -42,7 +42,7 @@ def up(conn):
             sys.path.insert(0, peter_dir)
             print(f"  DEBUG: Added {peter_dir} to sys.path")
 
-        from services.sheets_service import sheets_service
+        from services.google_sheets import sheets_service
 
         # Get all contacts from Google Sheets
         contacts = sheets_service.get_all_contacts()
@@ -105,8 +105,8 @@ def up(conn):
         print(f"  Imported {added} staff members and {len(unique_sections)} sections")
 
     except Exception as e:
-        print(f"  Warning: Could not import from Google Sheets: {e}")
-        print(f"  This is OK - you can add staff manually or the database may be in a different environment")
+        print(f"  ERROR: Failed to import from Google Sheets: {e}")
+        raise  # Fail fast - this should not fail in production!
 
 
 def down(conn):
