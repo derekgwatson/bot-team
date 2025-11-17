@@ -51,8 +51,8 @@ def info():
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("📱 Hi! I'm Peter")
-    print("   Phone Directory Manager")
+    print("👔 Hi! I'm Peter")
+    print("   Staff Directory")
     print(f"   Running on http://localhost:{config.server_port}")
     print("="*50 + "\n")
 

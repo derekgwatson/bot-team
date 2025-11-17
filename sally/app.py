@@ -1,7 +1,13 @@
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
 from flask import Flask, jsonify
 from config import config
 from api.execute import api_bp
 from web.routes import web_bp
+
 
 app = Flask(__name__)
 

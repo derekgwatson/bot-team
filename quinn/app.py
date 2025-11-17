@@ -4,6 +4,7 @@ from api.routes import api_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
 from services.auth import init_auth
+from services.sync_service import sync_service
 import os
 
 app = Flask(__name__)
@@ -13,6 +14,10 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Initialize authentication
 init_auth(app)
+
+# Start the sync service
+sync_service.interval_seconds = config.sync_interval_seconds
+sync_service.start()
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/')
@@ -52,8 +57,9 @@ def info():
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("👥 Hi! I'm Quinn")
-    print("   External Staff Access Manager")
+    print("   All-Staff Group Manager")
     print(f"   Running on http://localhost:{config.server_port}")
+    print(f"   Syncing with Peter every {config.sync_interval_seconds}s")
     print("="*50 + "\n")
 
     app.run(

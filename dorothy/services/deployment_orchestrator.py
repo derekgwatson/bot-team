@@ -2,9 +2,14 @@ import requests
 import time
 import uuid
 import threading
+import sys
 from typing import Dict, List, Optional
 from pathlib import Path
 from config import config
+
+# Add shared directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.config.ports import get_port
 
 class DeploymentOrchestrator:
     """Orchestrates bot deployments by calling Sally to execute commands"""
@@ -838,13 +843,19 @@ class DeploymentOrchestrator:
             deployment['steps'].append({'name': 'Nginx configuration', 'status': 'in_progress'})
 
             try:
+                # Get port from shared configuration
+                port = get_port(bot_name)
+                if not port:
+                    raise ValueError(f"No port configured for {bot_name} in shared/config/ports.yaml")
+
                 nginx_config = self._load_template(
                     'nginx.conf.template',
                     bot_name=bot_name,
                     bot_name_title=bot_name.title(),
                     description=description,
                     domain=domain,
-                    bot_path=path
+                    bot_path=path,
+                    port=port
                 )
 
                 # Escape quotes for shell
@@ -899,14 +910,13 @@ class DeploymentOrchestrator:
         deployment['steps'].append({'name': 'Systemd service', 'status': 'in_progress'})
 
         try:
-            # Determine bind configuration based on skip_nginx
-            if skip_nginx:
-                # Internal-only bot: use TCP port for direct access
-                port = bot_config.get('port', 8000)
-                bind_config = f"0.0.0.0:{port}"
-            else:
-                # Nginx-proxied bot: use Unix socket
-                bind_config = f"unix:/run/gunicorn-bot-team-{bot_name}/gunicorn.sock"
+            # Get port from shared ports configuration
+            port = get_port(bot_name)
+            if not port:
+                raise ValueError(f"No port configured for {bot_name} in shared/config/ports.yaml")
+
+            # All bots now use TCP ports (no more Unix sockets)
+            bind_config = f"0.0.0.0:{port}"
 
             service_config = self._load_template(
                 'gunicorn.service.template',

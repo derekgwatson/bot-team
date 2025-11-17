@@ -10,8 +10,8 @@ web_bp = Blueprint('web', __name__)
 @login_required
 def index():
     """Dorothy's home page"""
-    # Get all bots with defaults applied
-    bots = {name: config.get_bot_config(name) for name in config.bots.keys()}
+    # Get all bots from Chester via Config helper
+    bots = config.get_all_bots()
 
     # Get Sally's health status
     sally_status = deployment_orchestrator.check_sally_health()

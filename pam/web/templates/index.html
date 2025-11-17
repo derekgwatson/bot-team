@@ -20,7 +20,7 @@
 {% if sections %}
     {% for section_name, contacts in sections.items() %}
     <div class="section-container" data-section="{{ section_name }}">
-        <div class="section-header">{{ section_name }}</div>
+        <div class="section-header">{{ section_name|upper }}</div>
 
         <div class="contacts-grid">
             {% for contact in contacts %}

@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="card">
-    <h2>Add New Contact</h2>
+    <h2>Add New Staff Member</h2>
 
     {% if error %}
     <div class="error">
@@ -11,21 +11,9 @@
     {% endif %}
 
     <form method="POST" action="/add">
-        <div class="form-group">
-            <label for="section">Section *</label>
-            <input type="text" id="section" name="section" required placeholder="e.g., SALES, ADMIN">
-            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                Must match an existing section name (all caps)
-            </small>
-        </div>
-
-        <div class="form-group">
-            <label for="extension">Extension</label>
-            <input type="text" id="extension" name="extension" placeholder="e.g., 1234" maxlength="4">
-            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                Optional. Must match last 4 digits of fixed line if provided.
-            </small>
-        </div>
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Basic Information
+        </h3>
 
         <div class="form-group">
             <label for="name">Name *</label>
@@ -38,22 +26,129 @@
         </div>
 
         <div class="form-group">
-            <label for="fixed_line">Fixed Line</label>
-            <input type="text" id="fixed_line" name="fixed_line" placeholder="e.g., 02 1234 5678">
+            <label for="section">Section *</label>
+            <select id="section" name="section" required>
+                <option value="">-- Select a section --</option>
+                {% for sec in sections %}
+                <option value="{{ sec.name }}">{{ sec.name }}</option>
+                {% endfor %}
+            </select>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                <a href="/sections" target="_blank" style="color: #16a085;">Manage sections</a> to add new ones
+            </small>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Contact Information
+        </h3>
+
+        <div class="form-group">
+            <label for="extension">Extension</label>
+            <input type="text" id="extension" name="extension" placeholder="e.g., 1234" maxlength="4">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                Must match last 4 digits of fixed line if both provided
+            </small>
         </div>
 
         <div class="form-group">
-            <label for="mobile">Mobile</label>
-            <input type="text" id="mobile" name="mobile" placeholder="e.g., 0412 345 678">
+            <label for="phone_fixed">Fixed Line</label>
+            <input type="text" id="phone_fixed" name="phone_fixed" placeholder="e.g., 02 1234 5678">
         </div>
 
         <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" placeholder="e.g., john@example.com">
+            <label for="phone_mobile">Mobile</label>
+            <input type="text" id="phone_mobile" name="phone_mobile" placeholder="e.g., 0412 345 678">
+        </div>
+
+        <div class="form-group">
+            <label for="work_email">Work Email</label>
+            <input type="email" id="work_email" name="work_email" placeholder="e.g., john@watsonblinds.com.au">
+        </div>
+
+        <div class="form-group">
+            <label for="personal_email">Personal Email</label>
+            <input type="email" id="personal_email" name="personal_email" placeholder="e.g., john@gmail.com">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                For staff without work emails
+            </small>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            System Access
+        </h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="zendesk_access" style="margin-right: 10px;">
+                    <span class="badge" style="background: #9b59b6;">Zendesk</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="buz_access" style="margin-right: 10px;">
+                    <span class="badge" style="background: #3498db;">Buz</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="google_access" style="margin-right: 10px;">
+                    <span class="badge" style="background: #e74c3c;">Google</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="wiki_access" style="margin-right: 10px;">
+                    <span class="badge" style="background: #f39c12;">Wiki</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="voip_access" style="margin-right: 10px;">
+                    <span class="badge" style="background: #1abc9c;">VOIP</span>
+                </label>
+            </div>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Visibility Settings
+        </h3>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" name="show_on_phone_list" checked style="margin-right: 10px;">
+                <span class="badge" style="background: #27ae60;">📋 Show on Phone List</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 25px;">
+                Should this person appear on Pam's public phone directory?
+            </small>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" name="include_in_allstaff" checked style="margin-right: 10px;">
+                <span class="badge" style="background: #2980b9;">👥 Include in All-Staff Group</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 25px;">
+                Should this person be in the allstaff Google Group?
+            </small>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Notes
+        </h3>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;" placeholder="Any additional notes..."></textarea>
         </div>
 
         <div style="margin-top: 20px;">
-            <button type="submit" class="btn">Add Contact</button>
+            <button type="submit" class="btn">Add Staff Member</button>
             <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Cancel</a>
         </div>
     </form>

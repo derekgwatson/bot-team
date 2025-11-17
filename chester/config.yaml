@@ -40,16 +40,20 @@ bot_team:
 
   peter:
     name: Peter
-    description: Phone Directory Manager (Admin Interface)
+    description: Staff Directory (Central HR Database)
     capabilities:
-      - Admin interface for managing phone directory
-      - Sync with Google Sheets
-      - Full CRUD operations on contacts
+      - Manage all staff contact information
+      - Track system access (Zendesk, Google, Wiki, VOIP, Buz)
+      - Manage phone list visibility and all-staff group membership
+      - Section/department management
+      - Staff status tracking (active, inactive, onboarding, offboarding)
     api_endpoints:
       info: /info
       health: /health
       contacts: /api/contacts
-    personality: Systematic administrator, keeps the directory organized
+      staff: /api/staff
+      allstaff_members: /api/staff/allstaff-members
+    personality: Friendly and organized, keeps track of everyone on the team
 
   sally:
     name: Sally

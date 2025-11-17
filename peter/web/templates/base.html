@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Peter - Phone Directory</title>
+    <title>Peter - Staff Directory</title>
     <meta name="robots" content="noindex, nofollow">
     <meta name="googlebot" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -383,19 +383,20 @@
                 <div class="user-email">{{ current_user.email }}</div>
                 <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
             </div>
-            <h1>📱 Peter</h1>
-            <p>Phone Directory Manager</p>
+            <h1>👔 Peter</h1>
+            <p>Staff Directory</p>
             <nav>
-                <a href="/" class="active">Directory</a>
+                <a href="/" class="active">Staff Directory</a>
                 <a href="/search">Search</a>
-                <a href="/add">Add Contact</a>
+                <a href="/add">Add Staff</a>
+                <a href="/sections">Manage Sections</a>
             </nav>
         </div>
     </header>
 
     <div class="container">
         <div class="intro-box">
-            <p><strong>Hi! I'm Peter.</strong> I keep track of everyone's phone numbers and extensions in your organization. Need to find someone's mobile? Want to know who has extension 1234? Just ask me!</p>
+            <p><strong>Hi! I'm Peter.</strong> I keep track of all your staff - their contact details, what systems they can access (Zendesk, Buz, Google, Wiki, VOIP), who should be on the phone list, and who's in the all-staff email group. Need to find someone or update their info? I've got you covered!</p>
         </div>
         {% block content %}{% endblock %}
     </div>

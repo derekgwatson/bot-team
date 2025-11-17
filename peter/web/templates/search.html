@@ -2,10 +2,10 @@
 
 {% block content %}
 <div class="card">
-    <h2>Search Contacts</h2>
+    <h2>Search Staff</h2>
 
     <form method="GET" action="/search" class="search-bar">
-        <input type="text" name="q" placeholder="Search by name, extension, or phone number..." value="{{ query }}" autofocus>
+        <input type="text" name="q" placeholder="Search by name, extension, phone, or email..." value="{{ query }}" autofocus>
     </form>
 
     {% if error %}
@@ -24,37 +24,65 @@
                     <th>Ext</th>
                     <th>Name</th>
                     <th>Section</th>
-                    <th>Fixed Line</th>
-                    <th>Mobile</th>
-                    <th>Email</th>
+                    <th>Contact</th>
+                    <th>System Access</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for contact in results %}
+                {% for staff in results %}
                 <tr>
-                    <td><span class="badge">{{ contact.extension }}</span></td>
-                    <td>{{ contact.name }}</td>
-                    <td>{{ contact.section }}</td>
                     <td>
-                        {% if contact.fixed_line %}
-                        <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
+                        {% if staff.extension %}
+                        <span class="badge">{{ staff.extension }}</span>
                         {% else %}
                         -
                         {% endif %}
                     </td>
                     <td>
-                        {% if contact.mobile %}
-                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
-                        {% else %}
-                        -
+                        <strong>{{ staff.name }}</strong>
+                        {% if staff.position %}
+                        <br><small style="color: #7f8c8d;">{{ staff.position }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ staff.section }}</td>
+                    <td style="min-width: 200px;">
+                        {% if staff.phone_fixed %}
+                        📞 <a href="tel:{{ staff.phone_fixed }}">{{ staff.phone_fixed }}</a><br>
+                        {% endif %}
+                        {% if staff.phone_mobile %}
+                        📱 <a href="tel:{{ staff.phone_mobile }}">{{ staff.phone_mobile }}</a><br>
+                        {% endif %}
+                        {% if staff.work_email %}
+                        ✉️ <a href="mailto:{{ staff.work_email }}">{{ staff.work_email }}</a>
+                        {% elif staff.personal_email %}
+                        ✉️ <a href="mailto:{{ staff.personal_email }}">{{ staff.personal_email }}</a>
                         {% endif %}
                     </td>
                     <td>
-                        {% if contact.email %}
-                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
-                        {% else %}
-                        -
+                        {% if staff.zendesk_access %}
+                        <span class="badge" style="background: #9b59b6; font-size: 10px; margin: 2px;">Zendesk</span>
                         {% endif %}
+                        {% if staff.buz_access %}
+                        <span class="badge" style="background: #3498db; font-size: 10px; margin: 2px;">Buz</span>
+                        {% endif %}
+                        {% if staff.google_access %}
+                        <span class="badge" style="background: #e74c3c; font-size: 10px; margin: 2px;">Google</span>
+                        {% endif %}
+                        {% if staff.wiki_access %}
+                        <span class="badge" style="background: #f39c12; font-size: 10px; margin: 2px;">Wiki</span>
+                        {% endif %}
+                        {% if staff.voip_access %}
+                        <span class="badge" style="background: #1abc9c; font-size: 10px; margin: 2px;">VOIP</span>
+                        {% endif %}
+                        {% if not (staff.zendesk_access or staff.buz_access or staff.google_access or staff.wiki_access or staff.voip_access) %}
+                        <span style="color: #999;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/edit/{{ staff.id }}" class="btn btn-small" style="background: #3498db;">
+                            Edit
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -63,7 +91,7 @@
         {% else %}
         <div class="empty-state">
             <h3>No results found</h3>
-            <p>No contacts match "{{ query }}"</p>
+            <p>No staff match "{{ query }}"</p>
         </div>
         {% endif %}
     {% endif %}
