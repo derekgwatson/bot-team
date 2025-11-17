@@ -1,0 +1,31 @@
+[Unit]
+Description={{BOT_NAME_TITLE}} - {{BOT_DESCRIPTION}}
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=gunicorn-{{BOT_NAME}}
+WorkingDirectory=/var/www/bot-team/{{BOT_NAME}}
+Environment="PATH=/var/www/bot-team/{{BOT_NAME}}/.venv/bin:$PATH"
+EnvironmentFile=/var/www/bot-team/{{BOT_NAME}}/.env
+ExecStart=/var/www/bot-team/{{BOT_NAME}}/.venv/bin/gunicorn \
+  --workers 3 \
+  --worker-tmp-dir /dev/shm \
+  --bind 0.0.0.0:{{PORT}} \
+  --log-level debug \
+  --capture-output \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=30
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
