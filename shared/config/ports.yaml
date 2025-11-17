@@ -1,0 +1,24 @@
+# Bot Team Port Assignments
+#
+# This is the single source of truth for all bot port assignments.
+# All bots read from this file to get their assigned port.
+#
+# Port Range: 8001-8020 (reserved for bot-team)
+#
+# Usage:
+#   from shared.config.ports import get_port
+#   port = get_port('peter')  # Returns 8003
+
+ports:
+  fred: 8001      # Google Workspace User Management
+  iris: 8002      # Google Workspace Reporting & Analytics
+  peter: 8003     # Staff Directory (Central HR Database)
+  sally: 8004     # SSH Command Executor (internal only)
+  dorothy: 8005   # Deployment Orchestrator
+  quinn: 8006     # External Staff Access Manager
+  zac: 8007       # Zendesk User Management
+  chester: 8008   # Bot Team Concierge
+  pam: 8009       # Phone Directory Presenter (public-facing)
+  sadie: 8010     # Zendesk Ticket Information
+
+# Next available port: 8011
