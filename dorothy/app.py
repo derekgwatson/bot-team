@@ -1,3 +1,8 @@
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
 import os
 from flask import Flask, jsonify
 from config import config
