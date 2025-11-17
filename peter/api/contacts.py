@@ -12,16 +12,16 @@ def intro():
     """
     return jsonify({
         'name': 'Peter',
-        'greeting': "Hi! I'm Peter, your HR database manager.",
-        'description': "I'm the single source of truth for all staff information in your organization. I know everyone's contact details, what systems they have access to, and who should be on the phone list or in the all-staff group. Need to find someone's mobile? Want to know who has Zendesk access? Just ask me!",
+        'greeting': "Hi! I'm Peter, your staff directory.",
+        'description': "I keep track of all your staff - their contact details, what systems they can access, who should be on the phone list, and who's in the all-staff email group. Need to find someone's mobile? Want to know who has Zendesk access? Just ask me!",
         'capabilities': [
-            'Maintain complete staff database with contact info',
+            'Keep track of all staff contact information',
             'Track system access (Zendesk, Buz, Google, Wiki, VOIP)',
-            'Manage phone list visibility',
-            'Provide all-staff group membership list',
-            'Search for staff by name, extension, or phone number',
-            'Add, update, and manage staff records',
-            'REST API for bot-to-bot integration'
+            'Manage who appears on the phone list',
+            'Manage who\'s in the all-staff email group',
+            'Search for staff by name, extension, or phone',
+            'Add, update, and manage staff information',
+            'API for other bots to access staff info'
         ]
     })
 
