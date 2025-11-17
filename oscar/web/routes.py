@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-web_bp = Blueprint('web', __name__)
+web_bp = Blueprint('web', __name__, template_folder='templates')
 
 
 @web_bp.route('/')
