@@ -91,6 +91,7 @@
         font-family: 'Courier New', monospace;
         font-size: 0.9em;
         margin: 15px 0;
+        white-space: pre-wrap;
     }
 
     .info-box {
@@ -129,7 +130,7 @@
     }
 
     .checklist li:before {
-        content: "☐ ";
+        content: "• ";
         color: #28a745;
         font-size: 1.2em;
         margin-right: 8px;
@@ -365,12 +366,21 @@ pip install -r requirements.txt</div>
 
     <div class="step">
         <h3><span class="step-number">9</span>Deploy to Production</h3>
-        <p>Use Dorothy (the deployment orchestrator) to deploy your bot!</p>
+        <p>Use Dorothy (the deployment orchestrator) to deploy your bot! 🎉</p>
 
         <div class="info-box">
-            <strong>Note:</strong> You'll need to create systemd service and nginx configuration files.
-            See <code>/home/user/bot-team/deployment/</code> for examples.
+            <strong>Good News:</strong> Dorothy automatically creates the systemd service and nginx configuration files for you!
+            Just tell Dorothy to deploy your bot and she'll handle all the server setup.
         </div>
+
+        <p style="margin-top: 15px;">Dorothy will:</p>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+            <li>Generate systemd service file</li>
+            <li>Generate nginx configuration</li>
+            <li>Set up SSL certificates</li>
+            <li>Configure gunicorn workers</li>
+            <li>Verify the deployment</li>
+        </ul>
     </div>
 
     <div class="next-steps">
