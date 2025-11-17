@@ -3,8 +3,13 @@ Database service for Peter's staff database
 """
 import sqlite3
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
+
+# Add shared directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.migrations import MigrationRunner
 
 class StaffDatabase:
     """SQLite database for staff information"""
@@ -14,22 +19,16 @@ class StaffDatabase:
         self._ensure_database()
 
     def _ensure_database(self):
-        """Ensure database and tables exist"""
+        """Ensure database and tables exist using migrations"""
         # Create database directory if needed
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
 
-        # Create tables if they don't exist
-        schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
-        if os.path.exists(schema_path):
-            with open(schema_path, 'r') as f:
-                schema = f.read()
-
-            conn = self.get_connection()
-            conn.executescript(schema)
-            conn.commit()
-            conn.close()
+        # Run migrations
+        migrations_dir = os.path.join(os.path.dirname(__file__), 'migrations')
+        runner = MigrationRunner(db_path=self.db_path, migrations_dir=migrations_dir)
+        runner.run_pending_migrations(verbose=False)
 
     def get_connection(self):
         """Get database connection"""

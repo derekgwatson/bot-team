@@ -4,7 +4,6 @@ from api.contacts import api_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
 from services.auth import init_auth
-from database.migrations import auto_migrate
 import os
 
 app = Flask(__name__)
@@ -56,9 +55,6 @@ if __name__ == '__main__':
     print("   Staff Directory")
     print(f"   Running on http://localhost:{config.server_port}")
     print("="*50 + "\n")
-
-    # Run auto-migration on startup
-    auto_migrate()
 
     app.run(
         host=config.server_host,
