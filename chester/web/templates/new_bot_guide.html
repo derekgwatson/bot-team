@@ -251,8 +251,8 @@ FLASK_DEBUG=False
         </div>
 
         <p>Then install them:</p>
-        <div class="code-block">python3 -m venv venv
-source venv/bin/activate
+        <div class="code-block">python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt</div>
     </div>
 
@@ -316,7 +316,55 @@ pip install -r requirements.txt</div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">8</span>Deploy to Production</h3>
+        <h3><span class="step-number">8</span>Configure DNS and OAuth</h3>
+        <p>Before deploying to production, set up DNS and OAuth authentication:</p>
+
+        <h4 style="margin-top: 20px; color: #2a5298;">DNS Configuration (Cloudflare)</h4>
+        <div class="checklist">
+            <ul>
+                <li>Log into Cloudflare</li>
+                <li>Select the <strong>watsonblinds.com.au</strong> domain</li>
+                <li>Go to <strong>DNS</strong> > <strong>Records</strong></li>
+                <li>Add an <strong>A record</strong>:
+                    <ul style="padding-left: 20px; margin-top: 8px;">
+                        <li>Name: <code>your-bot-name</code> (e.g., <code>oscar</code>)</li>
+                        <li>IPv4 address: Your server IP</li>
+                        <li>Proxy status: <strong>Proxied</strong> (orange cloud)</li>
+                        <li>TTL: <strong>Auto</strong></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <h4 style="margin-top: 20px; color: #2a5298;">Google OAuth Configuration</h4>
+        <p>Add OAuth callback URLs for both development and production:</p>
+
+        <div class="info-box">
+            <strong>Navigation Path:</strong>
+            <ol style="padding-left: 20px; margin-top: 10px; line-height: 1.8;">
+                <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+                <li>Select your project (top dropdown near "Google Cloud")</li>
+                <li>Click the hamburger menu (☰) → <strong>APIs & Services</strong> → <strong>Credentials</strong></li>
+                <li>Find your OAuth 2.0 Client ID (under "OAuth 2.0 Client IDs")</li>
+                <li>Click the client ID name to edit it</li>
+                <li>Scroll to <strong>"Authorized redirect URIs"</strong></li>
+                <li>Click <strong>"+ ADD URI"</strong> and add both:
+                    <ul style="padding-left: 20px; margin-top: 8px;">
+                        <li><code>http://localhost:8011/auth/callback</code> (for local dev)</li>
+                        <li><code>https://your-bot-name.watsonblinds.com.au/auth/callback</code> (for production)</li>
+                    </ul>
+                </li>
+                <li>Click <strong>"Save"</strong> at the bottom</li>
+            </ol>
+        </div>
+
+        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+            <strong>⚠️ Important:</strong> Replace <code>your-bot-name</code> and port number (<code>8011</code>) with your actual bot's name and port!
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">9</span>Deploy to Production</h3>
         <p>Use Dorothy (the deployment orchestrator) to deploy your bot!</p>
 
         <div class="info-box">
