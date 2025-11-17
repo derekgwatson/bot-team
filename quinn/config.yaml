@@ -1,14 +1,22 @@
 # Quinn's Configuration
 name: quinn
-description: "External staff access manager"
-version: "0.1.0"
+description: "All-staff group manager"
+version: "0.2.0"
 
 # Server configuration
 server:
   host: "0.0.0.0"
   port: 8006
 
-# Database configuration
+# Peter API configuration (Quinn's source of truth for staff info)
+peter_url: "http://peter:8003"
+
+# Sync configuration
+sync:
+  # How often to sync the allstaff group with Peter's database (in seconds)
+  interval_seconds: 300  # 5 minutes
+
+# Database configuration (deprecated - Quinn no longer uses a database)
 database:
   path: "database/external_staff.db"
 
