@@ -28,7 +28,7 @@ class StaffDatabase:
         # Run migrations
         migrations_dir = os.path.join(os.path.dirname(__file__), 'migrations')
         runner = MigrationRunner(db_path=self.db_path, migrations_dir=migrations_dir)
-        runner.run_pending_migrations(verbose=False)
+        runner.run_pending_migrations(verbose=True)
 
     def get_connection(self):
         """Get database connection"""
