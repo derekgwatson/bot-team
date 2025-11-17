@@ -195,23 +195,3 @@ def delete_section(section_id):
 
     # In a real app, use flash messages for errors
     return redirect(url_for('web.sections'))
-
-@web_bp.route('/sections/auto-populate', methods=['POST'])
-@login_required
-def auto_populate_sections():
-    """Auto-populate sections from existing staff data"""
-    # Get all staff
-    all_staff = staff_db.get_all_staff(status='all')
-
-    # Extract unique sections
-    unique_sections = set()
-    for staff in all_staff:
-        section = staff.get('section', '').strip()
-        if section and section != 'Unknown':
-            unique_sections.add(section.title())
-
-    # Add each section
-    for i, section_name in enumerate(sorted(unique_sections)):
-        staff_db.add_section(name=section_name, display_order=i+1)
-
-    return redirect(url_for('web.sections'))
