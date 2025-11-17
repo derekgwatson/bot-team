@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
-from services.google_sheets import sheets_service
+from database.db import staff_db
 from services.auth import login_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
@@ -8,22 +8,21 @@ web_bp = Blueprint('web', __name__, template_folder='templates')
 @web_bp.route('/')
 @login_required
 def index():
-    """Home page showing all contacts"""
-    contacts = sheets_service.get_all_contacts()
-
-    if isinstance(contacts, dict) and 'error' in contacts:
-        error = contacts['error']
-        contacts = []
-    else:
+    """Home page showing all staff"""
+    try:
+        staff_list = staff_db.get_all_staff(status='active')
         error = None
+    except Exception as e:
+        error = str(e)
+        staff_list = []
 
-    # Group contacts by section
+    # Group staff by section
     sections = {}
-    for contact in contacts:
-        section = contact['section']
+    for staff in staff_list:
+        section = staff.get('section', 'Unknown')
         if section not in sections:
             sections[section] = []
-        sections[section].append(contact)
+        sections[section].append(staff)
 
     return render_template('index.html', sections=sections, error=error)
 
@@ -34,13 +33,12 @@ def search():
     query = request.args.get('q', '')
 
     if query:
-        results = sheets_service.search_contacts(query)
-
-        if isinstance(results, dict) and 'error' in results:
-            error = results['error']
-            results = []
-        else:
+        try:
+            results = staff_db.search_staff(query)
             error = None
+        except Exception as e:
+            error = str(e)
+            results = []
     else:
         results = []
         error = None
@@ -49,94 +47,84 @@ def search():
 
 @web_bp.route('/add', methods=['GET', 'POST'])
 @login_required
-def add_contact():
-    """Add new contact page"""
+def add_staff():
+    """Add new staff member page"""
     if request.method == 'POST':
-        section = request.form.get('section')
-        extension = request.form.get('extension')
-        name = request.form.get('name')
-        position = request.form.get('position')
-        fixed_line = request.form.get('fixed_line')
-        mobile = request.form.get('mobile')
-        email = request.form.get('email')
-
-        result = sheets_service.add_contact(
-            section=section,
-            extension=extension or '',
-            name=name,
-            position=position or '',
-            fixed_line=fixed_line or '',
-            mobile=mobile or '',
-            email=email or ''
+        result = staff_db.add_staff(
+            name=request.form.get('name', ''),
+            position=request.form.get('position', ''),
+            section=request.form.get('section', ''),
+            extension=request.form.get('extension', ''),
+            phone_fixed=request.form.get('phone_fixed', ''),
+            phone_mobile=request.form.get('phone_mobile', ''),
+            work_email=request.form.get('work_email', ''),
+            personal_email=request.form.get('personal_email', ''),
+            zendesk_access='zendesk_access' in request.form,
+            buz_access='buz_access' in request.form,
+            google_access='google_access' in request.form,
+            wiki_access='wiki_access' in request.form,
+            voip_access='voip_access' in request.form,
+            show_on_phone_list='show_on_phone_list' in request.form,
+            include_in_allstaff='include_in_allstaff' in request.form,
+            created_by=current_user.email,
+            notes=request.form.get('notes', '')
         )
 
-        if isinstance(result, dict) and 'error' in result:
+        if 'error' in result:
             return render_template('add.html', error=result['error'])
 
         return redirect(url_for('web.index'))
 
     return render_template('add.html')
 
-@web_bp.route('/edit/<int:row>', methods=['GET', 'POST'])
+@web_bp.route('/edit/<int:staff_id>', methods=['GET', 'POST'])
 @login_required
-def edit_contact(row):
-    """Edit contact page"""
+def edit_staff(staff_id):
+    """Edit staff member page"""
     if request.method == 'POST':
-        extension = request.form.get('extension')
-        name = request.form.get('name')
-        position = request.form.get('position')
-        fixed_line = request.form.get('fixed_line')
-        mobile = request.form.get('mobile')
-        email = request.form.get('email')
-
-        result = sheets_service.update_contact(
-            row_number=row,
-            extension=extension or '',
-            name=name,
-            position=position or '',
-            fixed_line=fixed_line or '',
-            mobile=mobile or '',
-            email=email or ''
+        result = staff_db.update_staff(
+            staff_id=staff_id,
+            name=request.form.get('name'),
+            position=request.form.get('position'),
+            section=request.form.get('section'),
+            extension=request.form.get('extension'),
+            phone_fixed=request.form.get('phone_fixed'),
+            phone_mobile=request.form.get('phone_mobile'),
+            work_email=request.form.get('work_email'),
+            personal_email=request.form.get('personal_email'),
+            zendesk_access='zendesk_access' in request.form,
+            buz_access='buz_access' in request.form,
+            google_access='google_access' in request.form,
+            wiki_access='wiki_access' in request.form,
+            voip_access='voip_access' in request.form,
+            show_on_phone_list='show_on_phone_list' in request.form,
+            include_in_allstaff='include_in_allstaff' in request.form,
+            status=request.form.get('status', 'active'),
+            modified_by=current_user.email,
+            notes=request.form.get('notes')
         )
 
-        if isinstance(result, dict) and 'error' in result:
-            # Get the contact again to re-populate the form
-            contacts = sheets_service.get_all_contacts()
-            contact = None
-            if not isinstance(contacts, dict):
-                for c in contacts:
-                    if c['row'] == row:
-                        contact = c
-                        break
-            return render_template('edit.html', contact=contact, error=result['error'])
+        if 'error' in result:
+            staff = staff_db.get_staff_by_id(staff_id)
+            return render_template('edit.html', staff=staff, error=result['error'])
 
         return redirect(url_for('web.index'))
 
-    # GET - load the contact to edit
-    contacts = sheets_service.get_all_contacts()
+    # GET - load the staff member to edit
+    staff = staff_db.get_staff_by_id(staff_id)
 
-    if isinstance(contacts, dict) and 'error' in contacts:
-        return render_template('edit.html', contact=None, error=contacts['error'])
+    if not staff:
+        return render_template('edit.html', staff=None, error='Staff member not found')
 
-    # Find the contact with this row number
-    contact = None
-    for c in contacts:
-        if c['row'] == row:
-            contact = c
-            break
+    return render_template('edit.html', staff=staff)
 
-    if not contact:
-        return render_template('edit.html', contact=None, error='Contact not found')
-
-    return render_template('edit.html', contact=contact)
-
-@web_bp.route('/delete/<int:row>', methods=['POST'])
+@web_bp.route('/delete/<int:staff_id>', methods=['POST'])
 @login_required
-def delete_contact(row):
-    """Delete contact action"""
-    result = sheets_service.delete_contact(row)
+def delete_staff(staff_id):
+    """Delete (deactivate) staff member action"""
+    result = staff_db.delete_staff(staff_id)
 
-    if isinstance(result, dict) and 'error' in result:
+    if 'error' in result:
         # In a real app, you'd want flash messages
         pass
 
