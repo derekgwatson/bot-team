@@ -29,7 +29,7 @@ def seed_sections():
     for staff in all_staff:
         section = staff.get('section', '').strip()
         if section and section != 'Unknown':
-            unique_sections.add(section)
+            unique_sections.add(section.title())
 
     print(f"Found {len(unique_sections)} unique sections: {sorted(unique_sections)}")
     print()

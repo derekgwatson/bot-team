@@ -37,7 +37,7 @@ def migrate():
     for contact in contacts:
         section = contact.get('section', '').strip()
         if section and section != 'Unknown':
-            unique_sections.add(section)
+            unique_sections.add(section.title())
 
     sections_added = 0
     for i, section_name in enumerate(sorted(unique_sections)):

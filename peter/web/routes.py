@@ -208,7 +208,7 @@ def auto_populate_sections():
     for staff in all_staff:
         section = staff.get('section', '').strip()
         if section and section != 'Unknown':
-            unique_sections.add(section)
+            unique_sections.add(section.title())
 
     # Add each section
     for i, section_name in enumerate(sorted(unique_sections)):
