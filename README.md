@@ -58,9 +58,18 @@ Dorothy knows how to deploy and manage bots. She orchestrates complex deployment
 
 Zac manages your Zendesk users. He can create, update, suspend, and delete Zendesk users (end-users, agents, and admins). Zac provides a friendly web interface for managing your support team and a REST API for automation. Perfect for onboarding new support agents or managing customer accounts.
 
-- Port: 7
+- Port: 8007
 - API: http://localhost:8007/api/
 - [Read Zac's documentation →](zac/README.md)
+
+### 🎉 Oscar
+**Staff Onboarding Orchestrator**
+
+Oscar coordinates the entire staff onboarding process. He provides a simple web form for initiating onboarding and automatically orchestrates the workflow across multiple bots: notifying HR, creating Google Workspace accounts (via Fred), creating Zendesk accounts (via Zac), registering staff in the HR database (via Peter), and creating VOIP setup tickets (via Sadie). Oscar tracks the entire workflow with detailed status and activity logging, and manages manual tasks that require human intervention.
+
+- Port: 8011
+- API: http://localhost:8011/api/
+- [Read Oscar's documentation →](oscar/README.md)
 
 ## How Bots Work Together
 
@@ -73,8 +82,12 @@ Each bot:
 
 Example workflows:
 ```
-# Onboarding
-Onboarding bot → Fred (create user) → Notification bot (send welcome email)
+# Staff Onboarding
+Oscar (orchestrate) → Email notification to HR
+                    → Fred (create Google user)
+                    → Zac (create Zendesk account)
+                    → Peter (register in HR database)
+                    → Sadie (create VOIP setup ticket)
 
 # Cleanup
 Analytics bot → Iris (find heavy storage users)
@@ -102,14 +115,18 @@ Admin → Sally (run server command) → Production Server
 ## Running Bots
 
 Each bot runs on its own port:
-- **Fred** (User Management): `http://localhost:8001`
-- **Iris** (Reporting): `http://localhost:8002`
-- **Peter** (Phone Directory): `http://localhost:8003`
-- **Sally** (SSH Executor): `http://localhost:8004`
+- **Fred** (Google Workspace User Management): `http://localhost:8001`
+- **Iris** (Google Workspace Reporting): `http://localhost:8002`
+- **Peter** (Staff Directory / HR Database): `http://localhost:8003`
+- **Sally** (SSH Command Executor): `http://localhost:8004`
 - **Dorothy** (Deployment Orchestrator): `http://localhost:8005`
-- **Quinn** (Zendesk User Management): `http://localhost:8006`
+- **Quinn** (External Staff Access Manager): `http://localhost:8006`
 - **Zac** (Zendesk User Management): `http://localhost:8007`
-- (Future bots will use 8008, 8009, etc.)
+- **Chester** (Bot Team Concierge): `http://localhost:8008`
+- **Pam** (Phone Directory Presenter): `http://localhost:8009`
+- **Sadie** (Zendesk Ticket Information): `http://localhost:8010`
+- **Oscar** (Staff Onboarding Orchestrator): `http://localhost:8011`
+- (Future bots will use 8012, 8013, etc.)
 
 For production deployment, use nginx to route domains/paths to different bots.
 

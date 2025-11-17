@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Tasks - Oscar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .task-list { list-style: none; }
+    .task-item { background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+    .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .task-title { font-weight: 600; color: #333; font-size: 16px; }
+    .task-meta { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .task-instructions { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; font-size: 14px; color: #333; }
+    .complete-form { display: flex; gap: 10px; align-items: flex-end; }
+    .complete-form input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+    .empty-state-icon { font-size: 64px; margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 30px;">Manual Tasks</h1>
+
+{% if tasks %}
+<p style="color: #666; margin-bottom: 20px;">The following tasks require manual action. Complete them and mark as done when finished.</p>
+
+<ul class="task-list">
+    {% for task in tasks %}
+    <li class="task-item">
+        <div class="task-header">
+            <div class="task-title">{{ task.step_name|replace('_', ' ')|title }}</div>
+            <span style="background: #ffc107; color: #856404; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 600;">PENDING</span>
+        </div>
+
+        <div class="task-meta">
+            <strong>Staff:</strong> {{ task.full_name }} ({{ task.position }})<br>
+            {% if task.started_date %}
+            <strong>Started:</strong> {{ task.started_date }}
+            {% endif %}
+        </div>
+
+        {% if task.manual_action_instructions %}
+        <div class="task-instructions">
+            <strong>Instructions:</strong><br>
+            {{ task.manual_action_instructions }}
+        </div>
+        {% endif %}
+
+        {% if task.zendesk_ticket_id %}
+        <div style="margin: 10px 0; color: #667eea;">
+            🎫 <strong>Zendesk Ticket:</strong> #{{ task.zendesk_ticket_id }}
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('web.complete_task', task_id=task.id) }}" method="POST" class="complete-form">
+            <input type="text" name="notes" placeholder="Add completion notes (optional)...">
+            <button type="submit" class="btn btn-success">✓ Mark as Complete</button>
+        </form>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">✅</div>
+    <h2>All Clear!</h2>
+    <p>No manual tasks requiring attention.</p>
+    <p style="margin-top: 20px;">
+        <a href="{{ url_for('web.index') }}" class="btn btn-primary">Back to Dashboard</a>
+    </p>
+</div>
+{% endif %}
+{% endblock %}

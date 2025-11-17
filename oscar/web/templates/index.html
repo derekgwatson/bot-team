@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Oscar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card .number {
+        font-size: 48px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .stat-card .label {
+        font-size: 14px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .stat-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .stat-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .section {
+        margin-bottom: 30px;
+    }
+
+    .section h2 {
+        color: #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #667eea;
+    }
+
+    .request-list {
+        list-style: none;
+    }
+
+    .request-item {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: transform 0.2s;
+    }
+
+    .request-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .request-info {
+        flex: 1;
+    }
+
+    .request-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .request-meta {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-pending {
+        background: #ffc107;
+        color: #856404;
+    }
+
+    .status-in_progress {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .status-completed {
+        background: #28a745;
+        color: white;
+    }
+
+    .status-failed {
+        background: #dc3545;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 15px;
+    }
+
+    .action-buttons {
+        margin-top: 30px;
+        text-align: center;
+    }
+
+    .task-alert {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .task-alert strong {
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 30px;">Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="number">{{ stats.pending }}</div>
+        <div class="label">Pending</div>
+    </div>
+    <div class="stat-card info">
+        <div class="number">{{ stats.in_progress }}</div>
+        <div class="label">In Progress</div>
+    </div>
+    <div class="stat-card success">
+        <div class="number">{{ stats.completed }}</div>
+        <div class="label">Completed</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="number">{{ stats.failed }}</div>
+        <div class="label">Failed</div>
+    </div>
+</div>
+
+{% if manual_tasks %}
+<div class="task-alert">
+    <strong>⚠️ {{ manual_tasks|length }} manual task(s) require attention!</strong>
+    <a href="{{ url_for('web.manual_tasks') }}" style="margin-left: 10px;">View Tasks →</a>
+</div>
+{% endif %}
+
+<div class="section">
+    <h2>Recent Onboarding Requests</h2>
+
+    {% if recent_requests %}
+    <ul class="request-list">
+        {% for req in recent_requests %}
+        <li class="request-item">
+            <div class="request-info">
+                <div class="request-name">{{ req.full_name }}</div>
+                <div class="request-meta">
+                    {{ req.position }} - {{ req.section }} | Start: {{ req.start_date }}
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="status-badge status-{{ req.status }}">{{ req.status }}</span>
+                <a href="{{ url_for('web.view_onboard', request_id=req.id) }}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">View</a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>No onboarding requests yet.</p>
+        <p style="margin-top: 10px;">
+            <a href="{{ url_for('web.new_onboard') }}" class="btn btn-primary">Create First Request</a>
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('web.new_onboard') }}" class="btn btn-primary" style="font-size: 16px; padding: 15px 30px;">
+        ➕ New Onboarding Request
+    </a>
+    <a href="{{ url_for('web.all_requests') }}" class="btn btn-secondary" style="font-size: 16px; padding: 15px 30px; margin-left: 10px;">
+        📋 View All Requests
+    </a>
+</div>
+{% endblock %}

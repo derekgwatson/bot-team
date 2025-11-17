@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}New Onboarding - Oscar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .form-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+
+    .form-section h3 {
+        color: #667eea;
+        margin-bottom: 20px;
+        font-size: 18px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .form-group label.required::after {
+        content: " *";
+        color: #dc3545;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group input[type="date"],
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        margin: 0;
+        font-weight: normal;
+        cursor: pointer;
+    }
+
+    .form-help {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .form-actions {
+        text-align: center;
+        padding-top: 20px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <a href="{{ url_for('web.index') }}" class="back-link">← Back to Dashboard</a>
+
+    <h1 style="margin-bottom: 10px;">New Staff Onboarding</h1>
+    <p style="color: #666; margin-bottom: 30px;">Fill out the form below to start the onboarding process for a new staff member.</p>
+
+    <form action="{{ url_for('web.submit_onboard') }}" method="POST">
+        <div class="form-section">
+            <h3>Personal Information</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="full_name" class="required">Full Name</label>
+                    <input type="text" id="full_name" name="full_name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="preferred_name">Preferred Name</label>
+                    <input type="text" id="preferred_name" name="preferred_name">
+                    <div class="form-help">Leave blank if same as full name</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="position" class="required">Position</label>
+                    <input type="text" id="position" name="position" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="section" class="required">Department/Section</label>
+                    <select id="section" name="section" required>
+                        <option value="">Select...</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Administration">Administration</option>
+                        <option value="Production">Production</option>
+                        <option value="IT">IT</option>
+                        <option value="Finance">Finance</option>
+                        <option value="HR">HR</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Operations">Operations</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="start_date" class="required">Start Date</label>
+                <input type="date" id="start_date" name="start_date" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Contact Information</h3>
+
+            <div class="form-group">
+                <label for="personal_email" class="required">Personal Email</label>
+                <input type="email" id="personal_email" name="personal_email" required>
+                <div class="form-help">Used for account recovery and initial notifications</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone_mobile">Mobile Phone</label>
+                    <input type="text" id="phone_mobile" name="phone_mobile" placeholder="0412 345 678">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone_fixed">Fixed Line</label>
+                    <input type="text" id="phone_fixed" name="phone_fixed" placeholder="02 1234 5678">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>System Access Requirements</h3>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="google_access" name="google_access" checked>
+                <label for="google_access">Google Workspace (Email, Drive, Calendar)</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="zendesk_access" name="zendesk_access">
+                <label for="zendesk_access">Zendesk (Support System)</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="voip_access" name="voip_access">
+                <label for="voip_access">VOIP Phone System</label>
+            </div>
+
+            <div class="form-help" style="margin-top: 10px;">
+                Select all systems the new staff member needs access to.
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Additional Notes</h3>
+
+            <div class="form-group">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" placeholder="Any additional information or special requirements..."></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="font-size: 16px; padding: 15px 40px;">
+                🚀 Start Onboarding
+            </button>
+            <a href="{{ url_for('web.index') }}" class="btn btn-secondary" style="font-size: 16px; padding: 15px 40px; margin-left: 10px;">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

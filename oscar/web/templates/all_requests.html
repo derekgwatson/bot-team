@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}All Requests - Oscar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .filter-bar { background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+    .filter-bar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; }
+    .request-table { width: 100%; border-collapse: collapse; }
+    .request-table th { background: #667eea; color: white; padding: 12px; text-align: left; font-weight: 600; }
+    .request-table td { padding: 12px; border-bottom: 1px solid #ddd; }
+    .request-table tr:hover { background: #f8f9fa; }
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; display: inline-block; }
+    .status-pending { background: #ffc107; color: #856404; }
+    .status-in_progress { background: #17a2b8; color: white; }
+    .status-completed { background: #28a745; color: white; }
+    .status-failed { background: #dc3545; color: white; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px;">All Onboarding Requests</h1>
+
+<div class="filter-bar">
+    <span style="font-weight: 600;">Filter by status:</span>
+    <select id="statusFilter" onchange="window.location.href='{{ url_for('web.all_requests') }}?status=' + this.value">
+        <option value="">All</option>
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+    </select>
+    <span style="margin-left: auto; color: #666;">{{ requests|length }} request(s)</span>
+</div>
+
+{% if requests %}
+<table class="request-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Position</th>
+            <th>Section</th>
+            <th>Start Date</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for req in requests %}
+        <tr>
+            <td><strong>{{ req.full_name }}</strong></td>
+            <td>{{ req.position }}</td>
+            <td>{{ req.section }}</td>
+            <td>{{ req.start_date }}</td>
+            <td>{{ req.created_date[:10] }}</td>
+            <td><span class="status-badge status-{{ req.status }}">{{ req.status }}</span></td>
+            <td><a href="{{ url_for('web.view_onboard', request_id=req.id) }}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">View</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No onboarding requests found{% if status_filter %} with status "{{ status_filter }}"{% endif %}.</p>
+    <p style="margin-top: 20px;">
+        <a href="{{ url_for('web.new_onboard') }}" class="btn btn-primary">Create New Request</a>
+    </p>
+</div>
+{% endif %}
+{% endblock %}
