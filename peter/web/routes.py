@@ -71,11 +71,13 @@ def add_staff():
         )
 
         if 'error' in result:
-            return render_template('add.html', error=result['error'])
+            sections = staff_db.get_all_sections()
+            return render_template('add.html', error=result['error'], sections=sections)
 
         return redirect(url_for('web.index'))
 
-    return render_template('add.html')
+    sections = staff_db.get_all_sections()
+    return render_template('add.html', sections=sections)
 
 @web_bp.route('/edit/<int:staff_id>', methods=['GET', 'POST'])
 @login_required
@@ -106,7 +108,8 @@ def edit_staff(staff_id):
 
         if 'error' in result:
             staff = staff_db.get_staff_by_id(staff_id)
-            return render_template('edit.html', staff=staff, error=result['error'])
+            sections = staff_db.get_all_sections()
+            return render_template('edit.html', staff=staff, error=result['error'], sections=sections)
 
         return redirect(url_for('web.index'))
 
@@ -114,9 +117,10 @@ def edit_staff(staff_id):
     staff = staff_db.get_staff_by_id(staff_id)
 
     if not staff:
-        return render_template('edit.html', staff=None, error='Staff member not found')
+        return render_template('edit.html', staff=None, error='Staff member not found', sections=[])
 
-    return render_template('edit.html', staff=staff)
+    sections = staff_db.get_all_sections()
+    return render_template('edit.html', staff=staff, sections=sections)
 
 @web_bp.route('/delete/<int:staff_id>', methods=['POST'])
 @login_required
@@ -129,3 +133,39 @@ def delete_staff(staff_id):
         pass
 
     return redirect(url_for('web.index'))
+
+@web_bp.route('/sections', methods=['GET'])
+@login_required
+def sections():
+    """Manage sections page"""
+    try:
+        sections_list = staff_db.get_all_sections()
+        error = None
+    except Exception as e:
+        error = str(e)
+        sections_list = []
+
+    return render_template('sections.html', sections=sections_list, error=error)
+
+@web_bp.route('/sections/add', methods=['POST'])
+@login_required
+def add_section():
+    """Add new section"""
+    name = request.form.get('name', '').strip()
+
+    if not name:
+        return redirect(url_for('web.sections'))
+
+    result = staff_db.add_section(name=name)
+
+    # In a real app, use flash messages for errors
+    return redirect(url_for('web.sections'))
+
+@web_bp.route('/sections/<int:section_id>/delete', methods=['POST'])
+@login_required
+def delete_section(section_id):
+    """Delete section"""
+    result = staff_db.delete_section(section_id)
+
+    # In a real app, use flash messages for errors
+    return redirect(url_for('web.sections'))

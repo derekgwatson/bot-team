@@ -27,9 +27,14 @@
 
         <div class="form-group">
             <label for="section">Section *</label>
-            <input type="text" id="section" name="section" required placeholder="e.g., SALES, ADMIN">
+            <select id="section" name="section" required>
+                <option value="">-- Select a section --</option>
+                {% for sec in sections %}
+                <option value="{{ sec.name }}">{{ sec.name }}</option>
+                {% endfor %}
+            </select>
             <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                Department or section (typically in CAPS)
+                <a href="/sections" target="_blank" style="color: #16a085;">Manage sections</a> to add new ones
             </small>
         </div>
 

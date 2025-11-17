@@ -31,12 +31,31 @@ def migrate():
     print(f"Found {len(contacts)} contacts in Google Sheets")
     print()
 
+    # First, collect all unique sections and add them to the sections table
+    print("Populating sections table...")
+    unique_sections = set()
+    for contact in contacts:
+        section = contact.get('section', '').strip()
+        if section and section != 'Unknown':
+            unique_sections.add(section)
+
+    sections_added = 0
+    for i, section_name in enumerate(sorted(unique_sections)):
+        result = staff_db.add_section(name=section_name, display_order=i+1)
+        if 'success' in result:
+            sections_added += 1
+            print(f"  ✓ Added section: {section_name}")
+
+    print(f"Added {sections_added} sections")
+    print()
+
     # Track migration stats
     added = 0
     skipped = 0
     errors = []
 
     # Migrate each contact
+    print("Migrating staff...")
     for contact in contacts:
         name = contact.get('name', '').strip()
         if not name:

@@ -54,3 +54,14 @@ AFTER UPDATE ON staff
 BEGIN
     UPDATE staff SET modified_date = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
+
+-- Sections table for managing departments/teams
+CREATE TABLE IF NOT EXISTS sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    display_order INTEGER DEFAULT 0,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for section ordering
+CREATE INDEX IF NOT EXISTS idx_sections_order ON sections(display_order);

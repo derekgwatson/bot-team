@@ -320,5 +320,146 @@ class StaffDatabase:
             'message': f'Permanently deleted {name}'
         }
 
+    # Section management methods
+
+    def get_all_sections(self):
+        """
+        Get all sections ordered by display_order
+
+        Returns:
+            List of section dictionaries
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('SELECT * FROM sections ORDER BY display_order, name')
+        sections = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return sections
+
+    def add_section(self, name, display_order=None):
+        """
+        Add a new section
+
+        Args:
+            name: Section name
+            display_order: Optional display order (defaults to max + 1)
+
+        Returns:
+            Dictionary with success status
+        """
+        conn = self.get_connection()
+
+        # If no display order provided, use max + 1
+        if display_order is None:
+            cursor = conn.execute('SELECT MAX(display_order) as max_order FROM sections')
+            row = cursor.fetchone()
+            display_order = (row['max_order'] or 0) + 1
+
+        try:
+            cursor = conn.execute(
+                'INSERT INTO sections (name, display_order) VALUES (?, ?)',
+                (name, display_order)
+            )
+            section_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'id': section_id,
+                'message': f'Added section {name}'
+            }
+        except Exception as e:
+            conn.close()
+            return {'error': str(e)}
+
+    def update_section(self, section_id, name=None, display_order=None):
+        """
+        Update a section
+
+        Args:
+            section_id: Section ID
+            name: New name (optional)
+            display_order: New display order (optional)
+
+        Returns:
+            Dictionary with success status
+        """
+        conn = self.get_connection()
+
+        updates = []
+        values = []
+
+        if name is not None:
+            updates.append('name = ?')
+            values.append(name)
+
+        if display_order is not None:
+            updates.append('display_order = ?')
+            values.append(display_order)
+
+        if not updates:
+            conn.close()
+            return {'error': 'No fields to update'}
+
+        values.append(section_id)
+
+        try:
+            conn.execute(
+                f'UPDATE sections SET {", ".join(updates)} WHERE id = ?',
+                values
+            )
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'message': 'Section updated'
+            }
+        except Exception as e:
+            conn.close()
+            return {'error': str(e)}
+
+    def delete_section(self, section_id):
+        """
+        Delete a section
+
+        Args:
+            section_id: Section ID
+
+        Returns:
+            Dictionary with success status
+        """
+        conn = self.get_connection()
+
+        # Get section name first
+        cursor = conn.execute('SELECT name FROM sections WHERE id = ?', (section_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return {'error': 'Section not found'}
+
+        section_name = row['name']
+
+        # Check if any staff are in this section
+        cursor = conn.execute('SELECT COUNT(*) as count FROM staff WHERE section = ?', (section_name,))
+        count = cursor.fetchone()['count']
+
+        if count > 0:
+            conn.close()
+            return {
+                'error': f'Cannot delete section "{section_name}" because {count} staff member(s) are assigned to it'
+            }
+
+        # Delete the section
+        conn.execute('DELETE FROM sections WHERE id = ?', (section_id,))
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'message': f'Deleted section {section_name}'
+        }
+
 # Singleton instance
 staff_db = StaffDatabase()
