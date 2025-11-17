@@ -20,5 +20,6 @@ ports:
   chester: 8008   # Bot Team Concierge
   pam: 8009       # Phone Directory Presenter (public-facing)
   sadie: 8010     # Zendesk Ticket Information
+  oscar: 8011     # Staff Onboarding Orchestrator
 
-# Next available port: 8011
+# Next available port: 8012

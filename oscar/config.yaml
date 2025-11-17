@@ -1,0 +1,40 @@
+# Oscar's Configuration
+name: oscar
+description: "Staff Onboarding Orchestrator"
+version: "1.0.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8011
+
+# Shared organization config
+shared_config: "../shared/config/organization.yaml"
+
+# Bot endpoints for orchestration
+bots:
+  fred:
+    url: "http://localhost:8001"
+    description: "Google Workspace User Management"
+  zac:
+    url: "http://localhost:8007"
+    description: "Zendesk User Management"
+  peter:
+    url: "http://localhost:8003"
+    description: "Staff Directory (Central HR Database)"
+  sadie:
+    url: "http://localhost:8010"
+    description: "Zendesk Ticket Information"
+
+# Email configuration
+email:
+  # HR/Payroll notification recipient (stored in .env)
+  # NOTIFICATION_EMAIL=ian@example.com
+  from_address: "oscar@watsonblinds.com.au"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+
+# Authentication configuration
+auth:
+  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
+  # See .env.example for required environment variables

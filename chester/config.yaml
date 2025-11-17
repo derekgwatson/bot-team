@@ -110,8 +110,9 @@ bot_team:
 
   sadie:
     name: Sadie
-    description: Zendesk Ticket Information
+    description: Zendesk Ticket Manager
     capabilities:
+      - Create new Zendesk tickets
       - View and search Zendesk tickets
       - Get ticket details and comments
       - Filter tickets by status and priority
@@ -120,7 +121,7 @@ bot_team:
       info: /info
       health: /health
       tickets: /api/tickets
-    personality: Helpful and informative, provides ticket insights
+    personality: Helpful and proactive, manages tickets and provides insights
 
   pam:
     name: Pam
@@ -134,6 +135,24 @@ bot_team:
       health: /health
       directory: /api/directory
     personality: Welcoming and helpful, presents information clearly
+
+  oscar:
+    name: Oscar
+    description: Staff Onboarding Orchestrator
+    capabilities:
+      - Coordinate staff onboarding workflow
+      - Create Google Workspace accounts (via Fred)
+      - Create Zendesk accounts (via Zac)
+      - Register staff in HR database (via Peter)
+      - Create VOIP setup tickets (via Sadie)
+      - Send email notifications to HR/Payroll
+      - Track onboarding progress and manage manual tasks
+    api_endpoints:
+      info: /info
+      health: /health
+      onboard: /api/onboard
+      dependencies: /api/dependencies
+    personality: Enthusiastic and organized, orchestrates the onboarding celebration
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
