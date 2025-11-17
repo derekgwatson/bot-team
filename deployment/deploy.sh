@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="/var/www/bot-team"
-BOTS=("fred" "iris" "peter" "pam" "quinn")
+BOTS=("fred" "iris" "peter" "pam" "quinn" "dorothy" "chester" "sally")
 
 # Function to print colored messages
 info() {

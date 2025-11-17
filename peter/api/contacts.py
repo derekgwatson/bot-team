@@ -244,3 +244,191 @@ def get_allstaff_members():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# Access Request Endpoints
+
+@api_bp.route('/access-requests', methods=['POST'])
+def submit_access_request():
+    """
+    POST /api/access-requests
+
+    Submit a new access request (public endpoint for external staff)
+
+    Body:
+        name: Person's name (required)
+        email: Personal email address (required)
+        phone: Phone number (optional)
+        reason: Reason for access request (optional)
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Request body is required'}), 400
+
+    name = data.get('name', '').strip()
+    email = data.get('email', '').strip()
+    phone = data.get('phone', '').strip()
+    reason = data.get('reason', '').strip()
+
+    if not name or not email:
+        return jsonify({'error': 'Name and email are required'}), 400
+
+    try:
+        result = staff_db.submit_access_request(name, email, phone, reason)
+
+        if 'error' in result:
+            status_code = 400 if result.get('already_approved') or result.get('already_pending') else 500
+            return jsonify(result), status_code
+
+        return jsonify(result), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/access-requests', methods=['GET'])
+def get_access_requests():
+    """
+    GET /api/access-requests?status=pending
+
+    Get access requests (admin only)
+
+    Query params:
+        status: Filter by status ('pending', 'approved', 'denied', or omit for all)
+    """
+    status = request.args.get('status', 'pending')
+    if status == 'all':
+        status = None
+
+    try:
+        requests = staff_db.get_access_requests(status=status)
+        return jsonify({
+            'requests': requests,
+            'count': len(requests)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/access-requests/<int:request_id>', methods=['GET'])
+def get_access_request(request_id):
+    """
+    GET /api/access-requests/<request_id>
+
+    Get a specific access request
+    """
+    try:
+        access_request = staff_db.get_access_request_by_id(request_id)
+        if not access_request:
+            return jsonify({'error': 'Access request not found'}), 404
+
+        return jsonify(access_request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/access-requests/<int:request_id>/approve', methods=['POST'])
+def approve_access_request(request_id):
+    """
+    POST /api/access-requests/<request_id>/approve
+
+    Approve an access request (admin only)
+
+    Body:
+        reviewed_by: Email of person approving (required)
+        create_staff: Whether to create staff entry (optional, default true)
+    """
+    data = request.get_json() or {}
+    reviewed_by = data.get('reviewed_by')
+
+    if not reviewed_by:
+        return jsonify({'error': 'reviewed_by is required'}), 400
+
+    create_staff = data.get('create_staff', True)
+
+    try:
+        result = staff_db.approve_access_request(request_id, reviewed_by, create_staff)
+
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/access-requests/<int:request_id>/deny', methods=['POST'])
+def deny_access_request(request_id):
+    """
+    POST /api/access-requests/<request_id>/deny
+
+    Deny an access request (admin only)
+
+    Body:
+        reviewed_by: Email of person denying (required)
+        notes: Reason for denial (optional)
+    """
+    data = request.get_json() or {}
+    reviewed_by = data.get('reviewed_by')
+    notes = data.get('notes', '')
+
+    if not reviewed_by:
+        return jsonify({'error': 'reviewed_by is required'}), 400
+
+    try:
+        result = staff_db.deny_access_request(request_id, reviewed_by, notes)
+
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/is-approved', methods=['GET'])
+def is_approved():
+    """
+    GET /api/is-approved?email=someone@example.com
+
+    Check if an email is approved for access
+    (For other bots like Pam to check external staff access)
+
+    Returns:
+        approved: boolean
+        name: staff name (if approved)
+        email: email address
+    """
+    email = request.args.get('email', '').strip()
+
+    if not email:
+        return jsonify({'error': 'email parameter is required'}), 400
+
+    try:
+        # Search for staff by email (work or personal)
+        conn = staff_db.get_connection()
+        cursor = conn.execute(
+            '''SELECT name, work_email, personal_email FROM staff
+               WHERE (work_email = ? OR personal_email = ?) AND status = 'active' ''',
+            (email, email)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return jsonify({
+                'approved': True,
+                'name': row['name'],
+                'email': email
+            })
+        else:
+            return jsonify({
+                'approved': False,
+                'email': email
+            })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -14,20 +14,18 @@ def sally_health():
 @api_bp.route('/bots', methods=['GET'])
 def list_bots():
     """List all configured bots"""
-    bots = config.bots
+    bots = config.get_all_bots()
     bot_list = []
 
-    for name in bots.keys():
-        # Get full bot config with defaults applied
-        bot_config = config.get_bot_config(name)
+    for bot in bots:
         bot_list.append({
-            'name': name,
-            'port': bot_config.get('port'),
-            'domain': bot_config.get('domain'),
-            'path': bot_config.get('path'),
-            'service': bot_config.get('service'),
-            'workers': bot_config.get('workers'),
-            'description': bot_config.get('description')
+            'name': bot.get('name'),
+            'port': bot.get('port'),
+            'domain': bot.get('domain'),
+            'path': bot.get('path'),
+            'service': bot.get('service'),
+            'workers': bot.get('workers'),
+            'description': bot.get('description')
         })
 
     return jsonify({
@@ -46,7 +44,9 @@ def verify_bot(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
@@ -65,7 +65,9 @@ def get_deployment_plan(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
@@ -84,7 +86,9 @@ def deploy_bot(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
@@ -134,12 +138,12 @@ def health_check_bot(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists and get config
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
-
-    bot_config = config.get_bot_config(bot_name)
     domain = bot_config.get('domain')
     skip_nginx = bot_config.get('skip_nginx', False)
     port = bot_config.get('port')
@@ -211,12 +215,12 @@ def start_service(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists and get config
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
-
-    bot_config = config.get_bot_config(bot_name)
     service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
 
     result = deployment_orchestrator._call_sally(
@@ -374,7 +378,9 @@ def update_bot(bot_name):
     data = request.get_json() or {}
     server = data.get('server', config.default_server)
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
@@ -397,7 +403,9 @@ def teardown_bot(bot_name):
     remove_code = data.get('remove_code', False)
     remove_from_config = data.get('remove_from_config', False)
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404
@@ -423,7 +431,9 @@ def setup_ssl(bot_name):
             'error': 'Email is required for SSL setup'
         }), 400
 
-    if bot_name not in config.bots:
+    # Check if bot exists
+    bot_config = config.get_bot_config(bot_name)
+    if not bot_config:
         return jsonify({
             'error': f"Bot '{bot_name}' not configured"
         }), 404

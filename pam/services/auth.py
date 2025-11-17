@@ -65,7 +65,7 @@ def is_email_allowed(email):
 
     Allows access to:
     1. Anyone from company domains (watsonblinds.com.au, etc.)
-    2. External staff approved by Quinn
+    2. External staff approved in Peter's database
 
     Args:
         email: Email address to check
@@ -80,10 +80,10 @@ def is_email_allowed(email):
         if email.endswith(f'@{domain}'):
             return True
 
-    # 2. Check if approved by Quinn (external staff)
+    # 2. Check if approved in Peter's database (external staff)
     try:
         response = requests.get(
-            f'{config.quinn_api_url}/api/check',
+            f'{config.peter_api_url}/api/is-approved',
             params={'email': email},
             timeout=3
         )
@@ -92,8 +92,8 @@ def is_email_allowed(email):
             if data.get('approved'):
                 return True
     except Exception as e:
-        # If Quinn is down, log error but don't crash
-        print(f"Warning: Could not reach Quinn to check approval: {e}")
+        # If Peter is down, log error but don't crash
+        print(f"Warning: Could not reach Peter to check approval: {e}")
         # Fall through to deny access
 
     return False

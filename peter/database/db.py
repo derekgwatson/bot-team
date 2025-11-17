@@ -460,5 +460,201 @@ class StaffDatabase:
             'message': f'Deleted section {section_name}'
         }
 
+    # Access request methods
+
+    def submit_access_request(self, name, email, phone=None, reason=None):
+        """
+        Submit a new access request (for external staff without Google accounts)
+
+        Args:
+            name: Person's name
+            email: Personal email address
+            phone: Phone number (optional)
+            reason: Reason for access request (optional)
+
+        Returns:
+            Dictionary with success status or error
+        """
+        conn = self.get_connection()
+
+        # Check if email already exists as active staff
+        cursor = conn.execute(
+            'SELECT id FROM staff WHERE (work_email = ? OR personal_email = ?) AND status = ?',
+            (email, email, 'active')
+        )
+        if cursor.fetchone():
+            conn.close()
+            return {
+                'error': 'This email is already approved for access',
+                'already_approved': True
+            }
+
+        # Check if there's already a pending request
+        cursor = conn.execute(
+            'SELECT id FROM access_requests WHERE email = ? AND status = ?',
+            (email, 'pending')
+        )
+        if cursor.fetchone():
+            conn.close()
+            return {
+                'error': 'A request for this email is already pending review',
+                'already_pending': True
+            }
+
+        # Create the request
+        cursor = conn.execute(
+            '''INSERT INTO access_requests (name, email, phone, reason)
+               VALUES (?, ?, ?, ?)''',
+            (name, email, phone, reason)
+        )
+        request_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'request_id': request_id,
+            'message': 'Access request submitted successfully'
+        }
+
+    def get_access_requests(self, status='pending'):
+        """
+        Get access requests
+
+        Args:
+            status: Filter by status ('pending', 'approved', 'denied', or None for all)
+
+        Returns:
+            List of request dictionaries
+        """
+        conn = self.get_connection()
+
+        if status:
+            cursor = conn.execute(
+                'SELECT * FROM access_requests WHERE status = ? ORDER BY request_date DESC',
+                (status,)
+            )
+        else:
+            cursor = conn.execute('SELECT * FROM access_requests ORDER BY request_date DESC')
+
+        requests = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return requests
+
+    def get_access_request_by_id(self, request_id):
+        """Get a specific access request by ID"""
+        conn = self.get_connection()
+        cursor = conn.execute('SELECT * FROM access_requests WHERE id = ?', (request_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def approve_access_request(self, request_id, reviewed_by, create_staff=True):
+        """
+        Approve an access request
+
+        Args:
+            request_id: Request ID
+            reviewed_by: Email of person approving
+            create_staff: Whether to automatically create staff entry (default True)
+
+        Returns:
+            Dictionary with success status
+        """
+        conn = self.get_connection()
+
+        # Get request details
+        cursor = conn.execute('SELECT * FROM access_requests WHERE id = ?', (request_id,))
+        request = cursor.fetchone()
+
+        if not request:
+            conn.close()
+            return {'error': 'Request not found'}
+
+        if request['status'] != 'pending':
+            conn.close()
+            return {'error': f'Request is already {request["status"]}'}
+
+        # Update request status
+        conn.execute(
+            '''UPDATE access_requests
+               SET status = 'approved', reviewed_by = ?, reviewed_date = CURRENT_TIMESTAMP
+               WHERE id = ?''',
+            (reviewed_by, request_id)
+        )
+
+        staff_id = None
+
+        # Optionally create staff entry
+        if create_staff:
+            try:
+                cursor = conn.execute(
+                    '''INSERT INTO staff (name, personal_email, phone_mobile, status, include_in_allstaff,
+                                         show_on_phone_list, created_by, modified_by, notes)
+                       VALUES (?, ?, ?, 'active', 1, 0, ?, ?, ?)''',
+                    (
+                        request['name'],
+                        request['email'],
+                        request['phone'] or '',
+                        reviewed_by,
+                        reviewed_by,
+                        f"Access approved via request on {datetime.now().strftime('%Y-%m-%d')}. Reason: {request['reason'] or 'N/A'}"
+                    )
+                )
+                staff_id = cursor.lastrowid
+            except Exception as e:
+                conn.close()
+                return {'error': f'Failed to create staff entry: {str(e)}'}
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'message': f'Access request approved for {request["name"]}',
+            'staff_id': staff_id
+        }
+
+    def deny_access_request(self, request_id, reviewed_by, notes=None):
+        """
+        Deny an access request
+
+        Args:
+            request_id: Request ID
+            reviewed_by: Email of person denying
+            notes: Reason for denial (optional)
+
+        Returns:
+            Dictionary with success status
+        """
+        conn = self.get_connection()
+
+        # Get request details
+        cursor = conn.execute('SELECT * FROM access_requests WHERE id = ?', (request_id,))
+        request = cursor.fetchone()
+
+        if not request:
+            conn.close()
+            return {'error': 'Request not found'}
+
+        if request['status'] != 'pending':
+            conn.close()
+            return {'error': f'Request is already {request["status"]}'}
+
+        # Update request status
+        conn.execute(
+            '''UPDATE access_requests
+               SET status = 'denied', reviewed_by = ?, reviewed_date = CURRENT_TIMESTAMP, notes = ?
+               WHERE id = ?''',
+            (reviewed_by, notes, request_id)
+        )
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'message': f'Access request denied for {request["name"]}'
+        }
+
 # Singleton instance
 staff_db = StaffDatabase()
