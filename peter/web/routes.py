@@ -161,6 +161,32 @@ def add_section():
     # In a real app, use flash messages for errors
     return redirect(url_for('web.sections'))
 
+@web_bp.route('/sections/<int:section_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_section(section_id):
+    """Edit section name"""
+    if request.method == 'POST':
+        new_name = request.form.get('name', '').strip()
+
+        if new_name:
+            result = staff_db.update_section(section_id, name=new_name)
+
+        return redirect(url_for('web.sections'))
+
+    # GET - show the edit form
+    sections_list = staff_db.get_all_sections()
+    current_section = None
+
+    for section in sections_list:
+        if section['id'] == section_id:
+            current_section = section
+            break
+
+    if not current_section:
+        return redirect(url_for('web.sections'))
+
+    return render_template('edit_section.html', section=current_section)
+
 @web_bp.route('/sections/<int:section_id>/delete', methods=['POST'])
 @login_required
 def delete_section(section_id):

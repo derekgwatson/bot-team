@@ -52,6 +52,7 @@
                 <td><strong>{{ section.name }}</strong></td>
                 <td>{{ section.created_date[:10] }}</td>
                 <td>
+                    <a href="/sections/{{ section.id }}/edit" class="btn btn-small" style="background: #3498db; margin-right: 5px;">Edit</a>
                     <form method="POST" action="/sections/{{ section.id }}/delete" style="display: inline;">
                         <button type="submit" class="btn btn-danger btn-small"
                                 onclick="return confirm('Delete section {{ section.name }}? This only works if no staff are assigned to it.')">
