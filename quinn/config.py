@@ -20,7 +20,14 @@ class Config:
         self.server_host = data['server']['host']
         self.server_port = data['server']['port']
 
-        # Database config
+        # Peter API config
+        self.peter_url = data.get('peter_url', 'http://peter:8003')
+
+        # Sync config
+        sync_config = data.get('sync', {})
+        self.sync_interval_seconds = sync_config.get('interval_seconds', 300)
+
+        # Database config (deprecated - Quinn no longer uses a database)
         self.database_path = os.path.join(os.path.dirname(__file__), data['database']['path'])
 
         # Load shared organization config

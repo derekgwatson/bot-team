@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="card">
-    <h2>Edit Contact</h2>
+    <h2>Edit Staff Member</h2>
 
     {% if error %}
     <div class="error">
@@ -10,39 +10,158 @@
     </div>
     {% endif %}
 
-    {% if contact %}
-    <form method="POST" action="/edit/{{ contact.row }}">
-        <div class="form-group">
-            <label for="extension">Extension</label>
-            <input type="text" id="extension" name="extension" value="{{ contact.extension }}" maxlength="4">
-            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                Optional. Must match last 4 digits of fixed line if provided.
-            </small>
-        </div>
+    {% if staff %}
+    <form method="POST" action="/edit/{{ staff.id }}">
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Basic Information
+        </h3>
 
         <div class="form-group">
             <label for="name">Name *</label>
-            <input type="text" id="name" name="name" value="{{ contact.name }}" required>
+            <input type="text" id="name" name="name" value="{{ staff.name }}" required>
         </div>
 
         <div class="form-group">
             <label for="position">Position</label>
-            <input type="text" id="position" name="position" value="{{ contact.position }}">
+            <input type="text" id="position" name="position" value="{{ staff.position or '' }}">
         </div>
 
         <div class="form-group">
-            <label for="fixed_line">Fixed Line</label>
-            <input type="text" id="fixed_line" name="fixed_line" value="{{ contact.fixed_line }}" placeholder="e.g., 02 1234 5678">
+            <label for="section">Section *</label>
+            <select id="section" name="section" required>
+                <option value="">-- Select a section --</option>
+                {% for sec in sections %}
+                <option value="{{ sec.name }}" {% if staff.section == sec.name %}selected{% endif %}>{{ sec.name }}</option>
+                {% endfor %}
+            </select>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                <a href="/sections" target="_blank" style="color: #16a085;">Manage sections</a> to add new ones
+            </small>
         </div>
 
         <div class="form-group">
-            <label for="mobile">Mobile</label>
-            <input type="text" id="mobile" name="mobile" value="{{ contact.mobile }}" placeholder="e.g., 0412 345 678">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="active" {% if staff.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if staff.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                <option value="onboarding" {% if staff.status == 'onboarding' %}selected{% endif %}>Onboarding</option>
+                <option value="offboarding" {% if staff.status == 'offboarding' %}selected{% endif %}>Offboarding</option>
+            </select>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Contact Information
+        </h3>
+
+        <div class="form-group">
+            <label for="extension">Extension</label>
+            <input type="text" id="extension" name="extension" value="{{ staff.extension or '' }}" maxlength="4">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                Must match last 4 digits of fixed line if both provided
+            </small>
         </div>
 
         <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" value="{{ contact.email }}" placeholder="e.g., john@example.com">
+            <label for="phone_fixed">Fixed Line</label>
+            <input type="text" id="phone_fixed" name="phone_fixed" value="{{ staff.phone_fixed or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="phone_mobile">Mobile</label>
+            <input type="text" id="phone_mobile" name="phone_mobile" value="{{ staff.phone_mobile or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="work_email">Work Email</label>
+            <input type="email" id="work_email" name="work_email" value="{{ staff.work_email or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="personal_email">Personal Email</label>
+            <input type="email" id="personal_email" name="personal_email" value="{{ staff.personal_email or '' }}">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                For staff without work emails
+            </small>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            System Access
+        </h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="zendesk_access" {% if staff.zendesk_access %}checked{% endif %} style="margin-right: 10px;">
+                    <span class="badge" style="background: #9b59b6;">Zendesk</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="buz_access" {% if staff.buz_access %}checked{% endif %} style="margin-right: 10px;">
+                    <span class="badge" style="background: #3498db;">Buz</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="google_access" {% if staff.google_access %}checked{% endif %} style="margin-right: 10px;">
+                    <span class="badge" style="background: #e74c3c;">Google</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="wiki_access" {% if staff.wiki_access %}checked{% endif %} style="margin-right: 10px;">
+                    <span class="badge" style="background: #f39c12;">Wiki</span>
+                </label>
+            </div>
+
+            <div>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="voip_access" {% if staff.voip_access %}checked{% endif %} style="margin-right: 10px;">
+                    <span class="badge" style="background: #1abc9c;">VOIP</span>
+                </label>
+            </div>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Visibility Settings
+        </h3>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" name="show_on_phone_list" {% if staff.show_on_phone_list %}checked{% endif %} style="margin-right: 10px;">
+                <span class="badge" style="background: #27ae60;">📋 Show on Phone List</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 25px;">
+                Should this person appear on Pam's public phone directory?
+            </small>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" name="include_in_allstaff" {% if staff.include_in_allstaff %}checked{% endif %} style="margin-right: 10px;">
+                <span class="badge" style="background: #2980b9;">👥 Include in All-Staff Group</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 25px;">
+                Should this person be in the allstaff Google Group?
+            </small>
+        </div>
+
+        <h3 style="margin: 20px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #16a085; padding-bottom: 5px;">
+            Notes
+        </h3>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;">{{ staff.notes or '' }}</textarea>
+        </div>
+
+        <div style="background: #ecf0f1; padding: 15px; border-radius: 4px; margin-top: 20px; font-size: 0.9em;">
+            <strong>Audit Information</strong><br>
+            Created: {{ staff.created_date }} by {{ staff.created_by }}<br>
+            Last Modified: {{ staff.modified_date }} by {{ staff.modified_by }}
         </div>
 
         <div style="margin-top: 20px;">
@@ -51,7 +170,7 @@
         </div>
     </form>
     {% else %}
-    <p>Contact not found.</p>
+    <p>Staff member not found.</p>
     <a href="/" class="btn">Back to Directory</a>
     {% endif %}
 </div>

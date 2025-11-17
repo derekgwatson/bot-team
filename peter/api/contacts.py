@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from services.google_sheets import sheets_service
+from database.db import staff_db
 
 api_bp = Blueprint('api', __name__)
 
@@ -12,16 +12,16 @@ def intro():
     """
     return jsonify({
         'name': 'Peter',
-        'greeting': "Hi! I'm Peter, your phone directory manager.",
-        'description': "I keep track of everyone's phone numbers and extensions in your organization. Need to find someone's mobile? Want to know who has extension 1234? Just ask me! I sync with your Google Sheet phone list and make it easy to search, add, or update contacts.",
+        'greeting': "Hi! I'm Peter, your staff directory.",
+        'description': "I keep track of all your staff - their contact details, what systems they can access, who should be on the phone list, and who's in the all-staff email group. Need to find someone's mobile? Want to know who has Zendesk access? Just ask me!",
         'capabilities': [
-            'List all contacts in the phone directory',
-            'Search for contacts by name, extension, or phone number',
-            'Add new contacts to the directory',
-            'Update existing contact information',
-            'Delete contacts from the directory',
-            'Organize contacts by department/section',
-            'REST API for bot-to-bot integration'
+            'Keep track of all staff contact information',
+            'Track system access (Zendesk, Buz, Google, Wiki, VOIP)',
+            'Manage who appears on the phone list',
+            'Manage who\'s in the all-staff email group',
+            'Search for staff by name, extension, or phone',
+            'Add, update, and manage staff information',
+            'API for other bots to access staff info'
         ]
     })
 
@@ -30,17 +30,32 @@ def get_contacts():
     """
     GET /api/contacts
 
-    Returns all contacts from the phone directory
+    Returns contacts that should appear on the phone list
+    (for backward compatibility with Pam)
     """
-    contacts = sheets_service.get_all_contacts()
+    try:
+        contacts = staff_db.get_phone_list_staff()
 
-    if isinstance(contacts, dict) and 'error' in contacts:
-        return jsonify(contacts), 500
+        # Convert to old format for compatibility
+        formatted = []
+        for staff in contacts:
+            formatted.append({
+                'row': staff['id'],
+                'extension': staff['extension'],
+                'name': staff['name'],
+                'position': staff['position'],
+                'fixed_line': staff['phone_fixed'],
+                'mobile': staff['phone_mobile'],
+                'email': staff['work_email'],
+                'section': staff['section']
+            })
 
-    return jsonify({
-        'contacts': contacts,
-        'count': len(contacts)
-    })
+        return jsonify({
+            'contacts': formatted,
+            'count': len(formatted)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/contacts/search', methods=['GET'])
 def search_contacts():
@@ -54,16 +69,30 @@ def search_contacts():
     if not query:
         return jsonify({'error': 'Query parameter "q" is required'}), 400
 
-    results = sheets_service.search_contacts(query)
+    try:
+        results = staff_db.search_staff(query)
 
-    if isinstance(results, dict) and 'error' in results:
-        return jsonify(results), 500
+        # Convert to old format for compatibility
+        formatted = []
+        for staff in results:
+            formatted.append({
+                'row': staff['id'],
+                'extension': staff['extension'],
+                'name': staff['name'],
+                'position': staff['position'],
+                'fixed_line': staff['phone_fixed'],
+                'mobile': staff['phone_mobile'],
+                'email': staff['work_email'],
+                'section': staff['section']
+            })
 
-    return jsonify({
-        'results': results,
-        'count': len(results),
-        'query': query
-    })
+        return jsonify({
+            'results': formatted,
+            'count': len(formatted),
+            'query': query
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/contacts', methods=['POST'])
 def add_contact():
@@ -72,69 +101,146 @@ def add_contact():
 
     Body (JSON):
         {
+            "name": "John Doe",
+            "position": "Sales Manager",
             "section": "SALES",
             "extension": "1234",
-            "name": "John Doe",
-            "fixed_line": "02 1234 5678",
-            "mobile": "0412 345 678",
-            "email": "john@example.com"
+            "phone_fixed": "02 1234 5678",
+            "phone_mobile": "0412 345 678",
+            "work_email": "john@watsonblinds.com.au",
+            "personal_email": "john@gmail.com",
+            "show_on_phone_list": true,
+            "include_in_allstaff": true
         }
 
-    Adds a new contact
+    Adds a new staff member
     """
     data = request.get_json()
 
     # Validate required fields
-    if 'section' not in data or 'name' not in data:
-        return jsonify({'error': 'section and name are required'}), 400
+    if 'name' not in data:
+        return jsonify({'error': 'name is required'}), 400
 
-    result = sheets_service.add_contact(
-        section=data['section'],
-        extension=data.get('extension', ''),
+    result = staff_db.add_staff(
         name=data['name'],
-        fixed_line=data.get('fixed_line', ''),
-        mobile=data.get('mobile', ''),
-        email=data.get('email', '')
+        position=data.get('position', ''),
+        section=data.get('section', ''),
+        extension=data.get('extension', ''),
+        phone_fixed=data.get('phone_fixed', data.get('fixed_line', '')),  # Support old field name
+        phone_mobile=data.get('phone_mobile', data.get('mobile', '')),  # Support old field name
+        work_email=data.get('work_email', data.get('email', '')),  # Support old field name
+        personal_email=data.get('personal_email', ''),
+        show_on_phone_list=data.get('show_on_phone_list', True),
+        include_in_allstaff=data.get('include_in_allstaff', True),
+        created_by=data.get('created_by', 'api')
     )
 
-    if isinstance(result, dict) and 'error' in result:
-        return jsonify(result), 500
+    if 'error' in result:
+        return jsonify(result), 400
 
     return jsonify(result), 201
 
-@api_bp.route('/contacts/<int:row>', methods=['PUT'])
-def update_contact(row):
+@api_bp.route('/contacts/<int:staff_id>', methods=['PUT'])
+def update_contact(staff_id):
     """
-    PUT /api/contacts/<row>
+    PUT /api/contacts/<staff_id>
 
-    Updates a contact at the specified row
+    Updates a staff member
     """
     data = request.get_json()
 
-    result = sheets_service.update_contact(
-        row_number=row,
-        extension=data.get('extension', ''),
-        name=data.get('name', ''),
-        fixed_line=data.get('fixed_line', ''),
-        mobile=data.get('mobile', ''),
-        email=data.get('email', '')
+    # Map old field names to new ones
+    update_data = {}
+    field_mapping = {
+        'fixed_line': 'phone_fixed',
+        'mobile': 'phone_mobile',
+        'email': 'work_email'
+    }
+
+    for key, value in data.items():
+        # Map old field names
+        if key in field_mapping:
+            update_data[field_mapping[key]] = value
+        else:
+            update_data[key] = value
+
+    result = staff_db.update_staff(
+        staff_id=staff_id,
+        modified_by=data.get('modified_by', 'api'),
+        **update_data
     )
 
-    if isinstance(result, dict) and 'error' in result:
-        return jsonify(result), 500
+    if 'error' in result:
+        return jsonify(result), 400
 
     return jsonify(result)
 
-@api_bp.route('/contacts/<int:row>', methods=['DELETE'])
-def delete_contact(row):
+@api_bp.route('/contacts/<int:staff_id>', methods=['DELETE'])
+def delete_contact(staff_id):
     """
-    DELETE /api/contacts/<row>
+    DELETE /api/contacts/<staff_id>
 
-    Deletes a contact at the specified row
+    Deletes a staff member (sets status to inactive)
     """
-    result = sheets_service.delete_contact(row)
+    result = staff_db.delete_staff(staff_id)
 
-    if isinstance(result, dict) and 'error' in result:
-        return jsonify(result), 500
+    if 'error' in result:
+        return jsonify(result), 400
 
     return jsonify(result)
+
+
+# New staff-focused endpoints
+
+@api_bp.route('/staff', methods=['GET'])
+def get_all_staff():
+    """
+    GET /api/staff?status=active
+
+    Returns all staff members (not filtered by phone list)
+    """
+    status = request.args.get('status', 'active')
+
+    try:
+        staff = staff_db.get_all_staff(status=status)
+        return jsonify({
+            'staff': staff,
+            'count': len(staff)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/staff/<int:staff_id>', methods=['GET'])
+def get_staff(staff_id):
+    """
+    GET /api/staff/<staff_id>
+
+    Returns a specific staff member
+    """
+    try:
+        staff = staff_db.get_staff_by_id(staff_id)
+        if not staff:
+            return jsonify({'error': 'Staff member not found'}), 404
+
+        return jsonify(staff)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/staff/allstaff-members', methods=['GET'])
+def get_allstaff_members():
+    """
+    GET /api/staff/allstaff-members
+
+    Returns email addresses for all-staff group
+    (This is what Quinn will call to sync the Google Group)
+    """
+    try:
+        emails = staff_db.get_allstaff_members()
+        return jsonify({
+            'emails': emails,
+            'count': len(emails)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

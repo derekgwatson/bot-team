@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="card">
-    <h2>Phone Directory</h2>
+    <h2>Staff Directory</h2>
 
     {% if error %}
     <div class="error">
@@ -11,7 +11,7 @@
     {% endif %}
 
     {% if sections %}
-        {% for section_name, contacts in sections.items() %}
+        {% for section_name, staff_list in sections.items() %}
         <div class="section-header">{{ section_name }}</div>
 
         <table>
@@ -20,53 +20,75 @@
                     <th>Ext</th>
                     <th>Name</th>
                     <th>Position</th>
-                    <th>Fixed Line</th>
-                    <th>Mobile</th>
-                    <th>Email</th>
+                    <th>Contact</th>
+                    <th>System Access</th>
+                    <th>Visibility</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for contact in contacts %}
+                {% for staff in staff_list %}
                 <tr>
                     <td>
-                        {% if contact.extension %}
-                        <span class="badge">{{ contact.extension }}</span>
+                        {% if staff.extension %}
+                        <span class="badge">{{ staff.extension }}</span>
                         {% else %}
                         -
                         {% endif %}
                     </td>
-                    <td>{{ contact.name }}</td>
-                    <td>{{ contact.position if contact.position else '-' }}</td>
-                    <td>
-                        {% if contact.fixed_line %}
-                        <a href="tel:{{ contact.fixed_line }}">{{ contact.fixed_line }}</a>
-                        {% else %}
-                        -
+                    <td style="min-width: 150px;">
+                        <strong>{{ staff.name }}</strong>
+                    </td>
+                    <td>{{ staff.position if staff.position else '-' }}</td>
+                    <td style="min-width: 200px;">
+                        {% if staff.phone_fixed %}
+                        📞 <a href="tel:{{ staff.phone_fixed }}">{{ staff.phone_fixed }}</a><br>
+                        {% endif %}
+                        {% if staff.phone_mobile %}
+                        📱 <a href="tel:{{ staff.phone_mobile }}">{{ staff.phone_mobile }}</a><br>
+                        {% endif %}
+                        {% if staff.work_email %}
+                        ✉️ <a href="mailto:{{ staff.work_email }}">{{ staff.work_email }}</a>
+                        {% elif staff.personal_email %}
+                        ✉️ <a href="mailto:{{ staff.personal_email }}">{{ staff.personal_email }}</a>
                         {% endif %}
                     </td>
                     <td>
-                        {% if contact.mobile %}
-                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
-                        {% else %}
-                        -
+                        {% if staff.zendesk_access %}
+                        <span class="badge" style="background: #9b59b6; font-size: 10px; margin: 2px;">Zendesk</span>
+                        {% endif %}
+                        {% if staff.buz_access %}
+                        <span class="badge" style="background: #3498db; font-size: 10px; margin: 2px;">Buz</span>
+                        {% endif %}
+                        {% if staff.google_access %}
+                        <span class="badge" style="background: #e74c3c; font-size: 10px; margin: 2px;">Google</span>
+                        {% endif %}
+                        {% if staff.wiki_access %}
+                        <span class="badge" style="background: #f39c12; font-size: 10px; margin: 2px;">Wiki</span>
+                        {% endif %}
+                        {% if staff.voip_access %}
+                        <span class="badge" style="background: #1abc9c; font-size: 10px; margin: 2px;">VOIP</span>
+                        {% endif %}
+                        {% if not (staff.zendesk_access or staff.buz_access or staff.google_access or staff.wiki_access or staff.voip_access) %}
+                        <span style="color: #999;">-</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if contact.email %}
-                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
-                        {% else %}
-                        -
+                        {% if staff.show_on_phone_list %}
+                        <span class="badge" style="background: #27ae60; font-size: 10px;">📋 Phone List</span>
+                        {% endif %}
+                        {% if staff.include_in_allstaff %}
+                        <span class="badge" style="background: #2980b9; font-size: 10px;">👥 All-Staff</span>
                         {% endif %}
                     </td>
                     <td>
-                        <a href="/edit/{{ contact.row }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
+                        <a href="/edit/{{ staff.id }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
                             Edit
                         </a>
-                        <form method="POST" action="/delete/{{ contact.row }}" style="display: inline;">
+                        <form method="POST" action="/delete/{{ staff.id }}" style="display: inline;">
                             <button type="submit" class="btn btn-danger btn-small"
-                                    onclick="return confirm('Delete {{ contact.name }}?')">
-                                Delete
+                                    onclick="return confirm('Deactivate {{ staff.name }}? This will set their status to inactive.')">
+                                Deactivate
                             </button>
                         </form>
                     </td>
@@ -77,9 +99,9 @@
         {% endfor %}
     {% else %}
     <div class="empty-state">
-        <h3>No contacts found</h3>
-        <p>The phone directory is empty.</p>
-        <a href="/add" class="btn" style="margin-top: 20px;">Add Your First Contact</a>
+        <h3>No staff found</h3>
+        <p>The staff directory is empty.</p>
+        <a href="/add" class="btn" style="margin-top: 20px;">Add Your First Staff Member</a>
     </div>
     {% endif %}
 </div>
