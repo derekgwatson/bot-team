@@ -1,39 +1,30 @@
-# Quinn - External Staff Access Manager
+# Quinn - All-Staff Google Group Sync Service
 
-Quinn manages access for external staff who don't have company email addresses. He maintains a registry of approved external staff and automatically manages Google Groups membership.
+Quinn is a simple background service that keeps the all-staff Google Group perfectly synchronized with Peter's HR database.
 
 ## What Quinn Does
 
-Quinn is the gatekeeper for external staff access. Think of him as HR for people who don't have company email accounts.
+Quinn has one job: **Keep the all-staff Google Group in sync with Peter's database.**
 
-**Key Features:**
-- Maintains external staff registry in SQLite database
-- Provides API for other bots to check if someone is approved
-- Automatically manages allstaff@watsonblinds.com.au Google Group
-- Web UI for adding/editing external staff
-- Admin-only access (whitelist-based)
-- Tracks who added each person and when
+Every 5 minutes (configurable), Quinn:
+1. Asks Peter who should be in the all-staff group
+2. Checks the current Google Group membership
+3. Adds anyone who should be there but isn't
+4. Removes anyone who shouldn't be there
 
-## How It Works
+**Peter is the single source of truth** - manage all staff there, and Quinn will automatically sync the Google Group.
+
+## Architecture
 
 ```
-External Staff → Quinn (Registry) → Pam, other bots
-                      ↓
-              Google Groups API
-                      ↓
-           allstaff@watsonblinds.com.au
+Peter (HR Database) → Quinn (Sync Service) → Google Groups API
+                                                     ↓
+                                          allstaff@company.com
 ```
 
-**When you add someone to Quinn:**
-1. They're saved to the database
-2. Automatically added to allstaff Google Group
-3. Other bots can check their approval status
-4. They can now access Pam and other tools
-
-**When you deactivate someone:**
-1. Status changed to "inactive" in database
-2. Automatically removed from allstaff Google Group
-3. They lose access to all bot tools
+- **Peter** manages ALL staff (employees + external staff)
+- **Quinn** just syncs the Google Group from Peter's data
+- **No manual management** needed - everything flows from Peter
 
 ## Setup
 
@@ -44,122 +35,156 @@ External Staff → Quinn (Registry) → Pam, other bots
 
 2. **Configure Quinn:**
    - Copy `.env.example` to `.env`
-   - Add your Google OAuth credentials
-   - Update `config.yaml` with your admin email and allstaff group address
+   - Set `PETER_URL` (default: http://localhost:8003)
 
-3. **Add service account credentials:**
+3. **Add Google service account credentials:**
    - Copy your `credentials.json` to the `quinn/` directory
    - Service account needs domain-wide delegation for Groups API
 
-4. **Run Quinn:**
+4. **Configure sync interval:**
+   - Edit `config.yaml` to change `sync.interval_seconds` (default: 300 = 5 minutes)
+
+5. **Run Quinn:**
    ```bash
    python app.py
    ```
 
-5. **Access Quinn:**
-   - Web UI: http://localhost:8006
-   - API: http://localhost:8006/api/intro
+6. **Access Quinn:**
+   - Status page: http://localhost:8006
+   - API: http://localhost:8006/api/sync/status
    - Health: http://localhost:8006/health
 
 ## API Endpoints
 
-### For Other Bots
+### Sync Management
 
-**Check if email is approved:**
+**Get sync status:**
 ```
-GET /api/is-approved?email=john@personal.com
-
-Response:
-{
-  "approved": true,
-  "name": "John Doe",
-  "email": "john@personal.com",
-  "role": "Contractor"
-}
-```
-
-**Get all external staff:**
-```
-GET /api/staff?status=active
+GET /api/sync/status
 
 Response:
 {
-  "staff": [...],
-  "count": 5
+  "running": true,
+  "interval_seconds": 300,
+  "last_sync": 1234567890,
+  "last_sync_result": {
+    "success": true,
+    "desired_count": 45,
+    "current_count": 45,
+    "added": [],
+    "removed": [],
+    "elapsed_seconds": 2.5
+  }
 }
 ```
 
-### Admin Operations
-
-**Add staff member:**
+**Trigger immediate sync:**
 ```
-POST /api/staff
+POST /api/sync/now
+
+Response:
 {
-  "name": "John Doe",
-  "email": "john@personal.com",
-  "phone": "0412 345 678",
-  "role": "Contractor",
-  "notes": "Works in warehouse"
+  "success": true,
+  "desired_count": 45,
+  "current_count": 45,
+  "added": ["newperson@example.com"],
+  "removed": [],
+  "elapsed_seconds": 3.2
 }
 ```
 
-**Update staff member:**
-```
-PUT /api/staff/1
-{
-  "status": "inactive"
-}
-```
+### Legacy Endpoints (Deprecated)
+
+These endpoints are deprecated and will be removed. Use Peter's endpoints instead:
+
+- `/api/is-approved` → Use `GET /api/is-approved` on Peter
+- `/api/staff` → Use `GET /api/staff` on Peter
+- All staff management endpoints → Use Peter's web UI or API
 
 ## Integration with Other Bots
 
-**Pam automatically checks with Quinn:**
-- User tries to log in with Google
-- If email is not in allowed domains, Pam asks Quinn
-- If Quinn says they're approved, access granted
-- If not approved, access denied
+**Pam checks with Peter:**
+- For access control, Pam calls Peter's `/api/is-approved` endpoint
+- Pam no longer checks with Quinn
 
-**To integrate Quinn with your bot:**
-```python
-# In your bot's config.yaml
-auth:
-  quinn_api_url: "http://localhost:8006"
+**To add someone to the all-staff group:**
+1. Add them to Peter's database with `include_in_allstaff = 1`
+2. Quinn will automatically add them within 5 minutes
+3. Or trigger immediate sync: `POST /api/sync/now`
 
-# The shared auth module will automatically check Quinn
+## Configuration
+
+Quinn's configuration is in `config.yaml`:
+
+```yaml
+# Peter API configuration (Quinn's source of truth for staff info)
+peter_url: "http://peter:8003"
+
+# Sync configuration
+sync:
+  # How often to sync the allstaff group with Peter's database (in seconds)
+  interval_seconds: 300  # 5 minutes
 ```
 
-## Database Schema
+## Status Page
 
-```sql
-external_staff:
-  - id (primary key)
-  - name
-  - email (unique)
-  - phone
-  - role
-  - status (active/inactive)
-  - added_date
-  - added_by
-  - modified_date
-  - notes
+Quinn's web interface shows:
+- Sync service status (running/stopped)
+- Last sync time and results
+- How many members were added/removed
+- Quick access to API endpoints
+
+No authentication required - it's just a read-only status page.
+
+## What Changed?
+
+Quinn used to manage external staff directly (with its own database and web UI). That functionality has been moved to Peter to create a cleaner architecture:
+
+- **Before:** Quinn managed external staff + synced Google Group
+- **After:** Quinn just syncs Google Group from Peter
+
+This makes Peter the single source of truth for ALL staff, simplifying the system.
+
+## Development
+
+### Project Structure
+
+```
+quinn/
+├── app.py                      # Main Flask application
+├── config.py                   # Configuration loader
+├── config.yaml                 # Configuration file
+├── requirements.txt            # Python dependencies
+├── api/
+│   └── routes.py               # API endpoints
+├── web/
+│   └── simple_routes.py        # Simple status page
+├── services/
+│   ├── sync_service.py         # Background sync service
+│   ├── peter_client.py         # Peter API client
+│   └── google_groups.py        # Google Groups API client
+└── database/
+    └── (deprecated - no longer used)
 ```
 
-Database is stored at: `database/external_staff.db`
+### Running Tests
 
-## Security
-
-- **Admin-only access**: Only emails in `config.yaml` admin_emails list can access Quinn
-- **OAuth authentication**: Uses Google OAuth for login
-- **Database**: SQLite file - should be backed up regularly
-- **Google Groups**: Automatic sync keeps group membership accurate
-
-## Backup
-
-The SQLite database is a single file at `database/external_staff.db`.
-
-To backup:
 ```bash
-cp database/external_staff.db database/external_staff_backup_$(date +%Y%m%d).db
+# From bot-team root directory
+pytest tests/unit/test_quinn.py
+pytest tests/integration/test_quinn.py
 ```
 
-Consider setting up automated backups of this file.
+## Production Deployment
+
+See `/home/user/bot-team/deployment/DEPLOYMENT.md` for production deployment instructions.
+
+Quinn should be deployed with:
+- Systemd service (`quinn.service`)
+- Running as `www-data` user
+- 2 gunicorn workers
+- No nginx needed (internal service)
+
+## Version
+
+Current version: 0.3.0 (Simplified sync-only architecture)

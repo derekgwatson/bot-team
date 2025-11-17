@@ -1,3 +1,39 @@
+# 📱 Peter - HR & Phone Directory Manager
+
+**Peter is your organization's central HR system, managing ALL staff information.**
+
+Peter has evolved from a simple phone directory to a complete HR management system. He now:
+- **Manages ALL staff** (employees + external/contract staff)
+- **Handles access requests** from people without company Google accounts
+- **Provides phone directory** for internal use (Pam displays this publicly)
+- **Syncs with Quinn** to keep the all-staff Google Group up-to-date
+- **Provides access control** for other bots (Pam checks with Peter for authorization)
+
+## 🆕 New Features (v2.0)
+
+### Access Request System
+External staff (contractors, people without company emails) can request access via Peter's API:
+- `POST /api/access-requests` - Submit access request (public endpoint)
+- `GET /api/access-requests` - View pending requests (admin)
+- `POST /api/access-requests/<id>/approve` - Approve and auto-create staff entry
+- `POST /api/access-requests/<id>/deny` - Deny request
+
+### Staff Database (SQLite)
+Peter now uses a local SQLite database instead of Google Sheets:
+- All staff information stored in `database/staff.db`
+- Supports migrations for schema changes
+- Flags like `include_in_allstaff`, `show_on_phone_list` control visibility
+- Tracks work email and personal email separately
+
+### Integration Endpoints
+- `GET /api/staff/allstaff-members` - Quinn calls this to sync Google Group
+- `GET /api/is-approved?email=...` - Pam calls this for access control
+- `GET /api/staff` - Get all staff (not just phone list)
+
+---
+
+## Original Features (Phone Directory)
+
 # 📱 Peter
 
 **Peter manages your organization's phone directory.**
