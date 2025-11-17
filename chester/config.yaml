@@ -135,6 +135,24 @@ bot_team:
       directory: /api/directory
     personality: Welcoming and helpful, presents information clearly
 
+  oscar:
+    name: Oscar
+    description: Staff Onboarding Orchestrator
+    capabilities:
+      - Coordinate staff onboarding workflow
+      - Create Google Workspace accounts (via Fred)
+      - Create Zendesk accounts (via Zac)
+      - Register staff in HR database (via Peter)
+      - Create VOIP setup tickets (via Sadie)
+      - Send email notifications to HR/Payroll
+      - Track onboarding progress and manage manual tasks
+    api_endpoints:
+      info: /info
+      health: /health
+      onboard: /api/onboard
+      dependencies: /api/dependencies
+    personality: Enthusiastic and organized, orchestrates the onboarding celebration
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

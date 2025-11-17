@@ -16,10 +16,30 @@ class OnboardingOrchestrator:
     """Orchestrates the onboarding workflow across multiple bots"""
 
     def __init__(self):
-        self.fred_url = config.bots.get('fred', {}).get('url')
-        self.zac_url = config.bots.get('zac', {}).get('url')
-        self.peter_url = config.bots.get('peter', {}).get('url')
-        self.sadie_url = config.bots.get('sadie', {}).get('url')
+        # Bot URLs will be determined dynamically based on dev config
+        pass
+
+    def _get_bot_url(self, bot_name: str) -> str:
+        """
+        Get the URL for a bot, respecting dev mode configuration.
+
+        In dev mode, checks Flask session for overrides:
+        - If session says use 'prod' for this bot, use prod URL
+        - Otherwise use localhost (dev default)
+
+        Returns the URL for the bot API
+        """
+        from flask import session, has_request_context
+
+        # Check if we're in a request context and have dev config
+        if has_request_context():
+            dev_config = session.get('dev_bot_config', {})
+            if dev_config.get(bot_name) == 'prod':
+                # Use production URL
+                return f"https://{bot_name}.watsonblinds.com.au"
+
+        # Default to config.yaml (localhost for dev)
+        return config.bots.get(bot_name, {}).get('url', f'http://localhost:800{ord(bot_name[0]) % 10}')
 
     def start_onboarding(self, request_id: int) -> Dict[str, Any]:
         """
@@ -246,7 +266,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
 
             # Call Fred's API
             response = requests.post(
-                f"{self.fred_url}/api/users",
+                f"{self._get_bot_url('fred')}/api/users",
                 json={
                     'email': email,
                     'first_name': first_name.capitalize(),
@@ -280,7 +300,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             email = request_data.get('google_user_email') or request_data['personal_email']
 
             response = requests.post(
-                f"{self.zac_url}/api/users",
+                f"{self._get_bot_url('zac')}/api/users",
                 json={
                     'name': request_data['full_name'],
                     'email': email,
@@ -314,7 +334,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             work_email = request_data.get('google_user_email', '')
 
             response = requests.post(
-                f"{self.peter_url}/api/staff",
+                f"{self._get_bot_url('peter')}/api/staff",
                 json={
                     'name': request_data['full_name'],
                     'position': request_data['position'],
@@ -374,7 +394,7 @@ Automated request from Oscar (Staff Onboarding Bot)
 """
 
             response = requests.post(
-                f"{self.sadie_url}/api/tickets",
+                f"{self._get_bot_url('sadie')}/api/tickets",
                 json={
                     'subject': f"VOIP Setup Required: {request_data['full_name']}",
                     'description': description,

@@ -185,6 +185,66 @@
             margin-top: 30px;
             font-size: 14px;
         }
+
+        /* Dev Widget Styles */
+        .dev-widget {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .dev-widget-header {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dev-bot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #ffeaa7;
+        }
+
+        .dev-bot-item:last-child {
+            border-bottom: none;
+        }
+
+        .dev-bot-name {
+            font-size: 13px;
+            color: #333;
+        }
+
+        .dev-bot-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .dev-mode-btn {
+            padding: 4px 10px;
+            border: 1px solid #856404;
+            background: white;
+            color: #856404;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dev-mode-btn:hover {
+            background: #ffeaa7;
+        }
+
+        .dev-mode-btn.active {
+            background: #856404;
+            color: white;
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -201,6 +261,17 @@
                     <div>{{ user.email }}</div>
                     <a href="{{ url_for('auth.logout') }}" style="color: #667eea; text-decoration: none; margin-top: 5px; display: inline-block;">Logout</a>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- Dev Mode Widget (only shows on localhost) -->
+        <div id="devWidget" class="dev-widget" style="display: none;">
+            <div class="dev-widget-header">
+                <span>🔧 Development Dependencies</span>
+                <span id="devWidgetToggle" style="cursor: pointer; font-size: 12px;">hide</span>
+            </div>
+            <div id="devBotList">
+                <div style="text-align: center; padding: 10px; color: #666;">Loading...</div>
             </div>
         </div>
 
@@ -229,6 +300,100 @@
             Oscar v1.0.0 - Part of the Watson Blinds Bot Team
         </div>
     </div>
+
+    <!-- Dev Widget Script -->
+    <script>
+        // Bot metadata (could fetch from Chester in future)
+        const BOT_INFO = {
+            'fred': { name: 'Fred', port: 8001, description: 'Google Workspace' },
+            'zac': { name: 'Zac', port: 8007, description: 'Zendesk' },
+            'peter': { name: 'Peter', port: 8003, description: 'HR Database' },
+            'sadie': { name: 'Sadie', port: 8010, description: 'Zendesk Tickets' }
+        };
+
+        // Check if we're on localhost (dev mode)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            const devWidget = document.getElementById('devWidget');
+            devWidget.style.display = 'block';
+
+            // Load dependencies and current config
+            Promise.all([
+                fetch('/api/dependencies').then(r => r.json()),
+                fetch('/api/dev-config').then(r => r.json())
+            ]).then(([depsData, config]) => {
+                const deps = depsData.dependencies || [];
+                renderBotList(deps, config);
+            }).catch(err => {
+                console.error('Failed to load dev config:', err);
+            });
+
+            // Toggle widget visibility
+            document.getElementById('devWidgetToggle').addEventListener('click', function() {
+                const botList = document.getElementById('devBotList');
+                const isHidden = botList.style.display === 'none';
+                botList.style.display = isHidden ? 'block' : 'none';
+                this.textContent = isHidden ? 'hide' : 'show';
+
+                // Save preference
+                localStorage.setItem('devWidgetExpanded', isHidden);
+            });
+
+            // Restore widget state
+            const wasExpanded = localStorage.getItem('devWidgetExpanded');
+            if (wasExpanded === 'false') {
+                document.getElementById('devBotList').style.display = 'none';
+                document.getElementById('devWidgetToggle').textContent = 'show';
+            }
+        }
+
+        function renderBotList(deps, config) {
+            const botList = document.getElementById('devBotList');
+            botList.innerHTML = '';
+
+            deps.forEach(botName => {
+                const info = BOT_INFO[botName] || { name: botName, port: '???', description: '' };
+                const currentMode = config[botName] || 'dev';
+
+                const item = document.createElement('div');
+                item.className = 'dev-bot-item';
+                item.innerHTML = `
+                    <div class="dev-bot-name">
+                        <strong>${info.name}</strong> (${info.description}) - :${info.port}
+                    </div>
+                    <div class="dev-bot-controls">
+                        <button class="dev-mode-btn ${currentMode === 'dev' ? 'active' : ''}"
+                                onclick="switchBotMode('${botName}', 'dev')">
+                            Dev
+                        </button>
+                        <button class="dev-mode-btn ${currentMode === 'prod' ? 'active' : ''}"
+                                onclick="switchBotMode('${botName}', 'prod')">
+                            Prod
+                        </button>
+                    </div>
+                `;
+                botList.appendChild(item);
+            });
+        }
+
+        async function switchBotMode(botName, mode) {
+            // Update server (Flask session)
+            const response = await fetch('/api/dev-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [botName]: mode })
+            });
+
+            if (response.ok) {
+                // Reload to update UI
+                const depsData = await fetch('/api/dependencies').then(r => r.json());
+                const config = await fetch('/api/dev-config').then(r => r.json());
+                renderBotList(depsData.dependencies, config);
+            } else {
+                alert('Failed to update bot mode');
+            }
+        }
+    </script>
+
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
