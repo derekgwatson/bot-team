@@ -6,7 +6,7 @@ api_bp = Blueprint('api', __name__)
 def get_dependencies():
     """Get list of bots that Pam depends on"""
     return jsonify({
-        'dependencies': ['peter', 'quinn']
+        'dependencies': ['peter']
     })
 
 @api_bp.route('/dev-config', methods=['GET'])
