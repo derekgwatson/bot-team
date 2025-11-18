@@ -1,5 +1,12 @@
 """Add Oscar bot to the bot team."""
 
+import sys
+from pathlib import Path
+
+# Add shared directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.migrations.bot_helper import prepare_bot_for_migration
+
 
 def up(conn):
     """Insert Oscar bot data."""
@@ -9,11 +16,12 @@ def up(conn):
     cursor.execute('SELECT * FROM deployment_defaults WHERE id = 1')
     defaults = cursor.fetchone()
 
-    # Add Oscar
-    name = 'oscar'
-    description = 'Staff Onboarding Orchestrator'
-    port = 8011
-    skip_nginx = 0
+    # Read Oscar's configuration from config files (single source of truth)
+    bot_data = prepare_bot_for_migration('oscar')
+    name = bot_data['name']
+    description = bot_data['description']
+    port = bot_data['port']
+    skip_nginx = 1 if bot_data['skip_nginx'] else 0
 
     cursor.execute('''
         INSERT OR IGNORE INTO bots

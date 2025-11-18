@@ -240,7 +240,22 @@ FLASK_DEBUG=False
     </div>
 
     <div class="step">
-        <h3><span class="step-number">4</span>Install Dependencies</h3>
+        <h3><span class="step-number">4</span>Register Port Assignment</h3>
+        <p>Add your bot's port to the shared port registry at <code>shared/config/ports.yaml</code>:</p>
+
+        <div class="code-block">ports:
+  fred: 8001
+  # ... other bots ...
+  oscar: 8011
+  yourbot: 8012  # Add your bot here with next available port</div>
+
+        <div class="info-box">
+            <strong>Why?</strong> This is the single source of truth for port assignments. Your bot's config.yaml should read from this file using <code>from shared.config.ports import get_port</code>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">5</span>Install Dependencies</h3>
         <p>Create <code>requirements.txt</code> with standard dependencies:</p>
 
         <div class="dep-list">
@@ -258,7 +273,7 @@ pip install -r requirements.txt</div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">5</span>Build Your Bot</h3>
+        <h3><span class="step-number">6</span>Build Your Bot</h3>
         <p>Follow the established patterns:</p>
 
         <ul style="padding-left: 20px; margin-top: 15px;">
@@ -276,15 +291,13 @@ pip install -r requirements.txt</div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">6</span>Register with Chester</h3>
+        <h3><span class="step-number">7</span>Register with Chester (Metadata)</h3>
         <p>Add your bot to Chester's registry so the team knows about it!</p>
 
         <p>Edit <code>/home/user/bot-team/chester/config.yaml</code> and add your bot to the <code>bot_team</code> section:</p>
 
         <div class="code-block">  yourbot:
     name: YourBotName
-    port: 8010
-    url: http://localhost:8010
     description: Brief description
     capabilities:
       - First capability
@@ -295,10 +308,72 @@ pip install -r requirements.txt</div>
       health: /health
       # your endpoints
     personality: Bot's personality</div>
+
+        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+            <strong>⚠️ Note:</strong> Do NOT include port or URL here - those come from your bot's config.yaml and shared/config/ports.yaml. This section is for capabilities and metadata only.
+        </div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">7</span>Test Locally</h3>
+        <h3><span class="step-number">8</span>Add Chester Database Migration</h3>
+        <p>Create a migration to register your bot for deployment. This is what Dorothy uses to deploy your bot!</p>
+
+        <p>Create <code>/home/user/bot-team/chester/migrations/00X_add_yourbot.py</code>:</p>
+
+        <div class="code-block">"""Add YourBot to the bot team."""
+
+import sys
+from pathlib import Path
+
+# Add shared directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.migrations.bot_helper import prepare_bot_for_migration
+
+
+def up(conn):
+    """Insert YourBot data."""
+    cursor = conn.cursor()
+
+    # Get deployment defaults for template substitution
+    cursor.execute('SELECT * FROM deployment_defaults WHERE id = 1')
+    defaults = cursor.fetchone()
+
+    # Read bot config from yaml files (single source of truth!)
+    bot_data = prepare_bot_for_migration('yourbot')
+    name = bot_data['name']
+    description = bot_data['description']
+    port = bot_data['port']
+    skip_nginx = 1 if bot_data['skip_nginx'] else 0
+
+    cursor.execute('''
+        INSERT OR IGNORE INTO bots
+        (name, description, port, repo, path, service, domain,
+         nginx_config_name, workers, skip_nginx)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        name, description, port,
+        defaults[1],  # repo
+        defaults[2].format(bot_name=name),  # path_template
+        defaults[3].format(bot_name=name),  # service_template
+        defaults[4].format(bot_name=name),  # domain_template
+        defaults[5].format(bot_name=name),  # nginx_config_template
+        defaults[6],  # workers
+        skip_nginx
+    ))
+
+
+def down(conn):
+    """Remove YourBot data."""
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM bots WHERE name = 'yourbot'")</div>
+
+        <div class="info-box">
+            <strong>💡 Key Benefit:</strong> The migration automatically reads your bot's description and port from config files - no duplication! Just replace 'yourbot' with your actual bot name.
+        </div>
+    </div>
+
+    <div class="step">
+        <h3><span class="step-number">9</span>Test Locally</h3>
         <p>Run your bot and test all functionality:</p>
 
         <div class="code-block">python app.py</div>
@@ -312,12 +387,14 @@ pip install -r requirements.txt</div>
                 <li>Web interface loads properly</li>
                 <li>API endpoints work as expected</li>
                 <li>Integration with other bots (if applicable)</li>
+                <li>Chester migration runs successfully (restart Chester to test)</li>
+                <li>Your bot appears in Dorothy's bot list</li>
             </ul>
         </div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">8</span>Configure DNS and OAuth</h3>
+        <h3><span class="step-number">10</span>Configure DNS and OAuth</h3>
         <p>Before deploying to production, set up DNS and OAuth authentication:</p>
 
         <h4 style="margin-top: 20px; color: #2a5298;">DNS Configuration (Cloudflare)</h4>
@@ -365,7 +442,7 @@ pip install -r requirements.txt</div>
     </div>
 
     <div class="step">
-        <h3><span class="step-number">9</span>Deploy to Production</h3>
+        <h3><span class="step-number">11</span>Deploy to Production</h3>
         <p>Use Dorothy (the deployment orchestrator) to deploy your bot! 🎉</p>
 
         <div class="info-box">
