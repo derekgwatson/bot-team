@@ -1,0 +1,47 @@
+# Olive's Configuration
+name: olive
+description: "Staff Offboarding Orchestrator"
+version: "1.0.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8012
+
+# Shared organization config
+shared_config: "../shared/config/organization.yaml"
+
+# Bot endpoints for orchestration
+bots:
+  peter:
+    url: "http://localhost:8003"
+    description: "Staff Directory (Central HR Database)"
+  zac:
+    url: "http://localhost:8007"
+    description: "Zendesk User Management"
+  ian:
+    url: "http://localhost:8002"
+    description: "Email Notification Service"
+  fred:
+    url: "http://localhost:8001"
+    description: "Google Workspace User Management"
+  sadie:
+    url: "http://localhost:8010"
+    description: "Zendesk Ticket Information"
+  # Buz will be stubbed for now - we'll add URLs when Buz bot is ready
+  # buz_crm:
+  #   url: "http://localhost:8XXX"
+  #   description: "Buz CRM Instance Management"
+
+# Email configuration
+email:
+  # HR/IT notification recipient (stored in .env)
+  # NOTIFICATION_EMAIL=hr@example.com
+  from_address: "olive@watsonblinds.com.au"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+
+# Authentication configuration
+auth:
+  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
+  # See .env.example for required environment variables

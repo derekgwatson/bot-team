@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}New Offboarding - Olive{% endblock %}
+
+{% block content %}
+<h2>New Staff Offboarding</h2>
+<p style="color: #666; margin-bottom: 30px;">
+    Complete this form to initiate the offboarding process. Olive will automatically check and remove access from all systems.
+</p>
+
+<form method="POST" action="{{ url_for('web.submit_offboard') }}">
+    <div class="form-group">
+        <label for="full_name">Full Name *</label>
+        <input type="text" id="full_name" name="full_name" required placeholder="e.g., John Smith">
+    </div>
+
+    <div class="form-group">
+        <label for="position">Position</label>
+        <input type="text" id="position" name="position" placeholder="e.g., Sales Representative">
+    </div>
+
+    <div class="form-group">
+        <label for="section">Section/Department</label>
+        <input type="text" id="section" name="section" placeholder="e.g., Sales">
+    </div>
+
+    <div class="form-group">
+        <label for="last_day">Last Day *</label>
+        <input type="date" id="last_day" name="last_day" required>
+    </div>
+
+    <div class="form-group">
+        <label for="personal_email">Personal Email</label>
+        <input type="email" id="personal_email" name="personal_email" placeholder="john.smith@gmail.com">
+    </div>
+
+    <div class="form-group">
+        <label for="phone_mobile">Mobile Phone</label>
+        <input type="tel" id="phone_mobile" name="phone_mobile" placeholder="0400 000 000">
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="4" placeholder="Any additional notes about the offboarding..."></textarea>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary">Start Offboarding Process</button>
+        <a href="{{ url_for('web.index') }}" class="btn" style="margin-left: 10px; background: #6c757d; color: white;">Cancel</a>
+    </div>
+</form>
+
+<div style="margin-top: 40px; padding: 20px; background: #fff3cd; border-radius: 5px; border: 1px solid #ffc107;">
+    <h3 style="margin-bottom: 10px; color: #856404;">What happens next?</h3>
+    <p style="color: #856404; margin-bottom: 10px;">When you submit this form, Olive will:</p>
+    <ul style="color: #856404; margin-left: 20px;">
+        <li>Check Peter for the staff member's system access</li>
+        <li>Suspend their Google Workspace account (if they have one)</li>
+        <li>Deactivate their Zendesk account (if they have one)</li>
+        <li>Remove Wiki access (if they have it)</li>
+        <li>Remove Buz CRM access (if they have it)</li>
+        <li>Update Peter with the finish date</li>
+        <li>Send notifications to HR and IT</li>
+    </ul>
+</div>
+{% endblock %}

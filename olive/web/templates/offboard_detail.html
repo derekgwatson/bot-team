@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Offboarding Request #{{ request.id }} - Olive{% endblock %}
+
+{% block content %}
+<h2>Offboarding Request #{{ request.id }}</h2>
+
+<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="margin-bottom: 15px;">Staff Details</h3>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+        <div><strong>Name:</strong> {{ request.full_name }}</div>
+        <div><strong>Position:</strong> {{ request.position or 'N/A' }}</div>
+        <div><strong>Section:</strong> {{ request.section or 'N/A' }}</div>
+        <div><strong>Last Day:</strong> {{ request.last_day }}</div>
+        <div><strong>Status:</strong>
+            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px;
+                {% if request.status == 'completed' %}background: #d4edda; color: #155724;
+                {% elif request.status == 'in_progress' %}background: #d1ecf1; color: #0c5460;
+                {% elif request.status == 'failed' %}background: #f8d7da; color: #721c24;
+                {% else %}background: #fff3cd; color: #856404;{% endif %}">
+                {{ request.status }}
+            </span>
+        </div>
+        <div><strong>Created:</strong> {{ request.created_date }}</div>
+    </div>
+</div>
+
+<h3 style="margin-top: 30px; margin-bottom: 15px;">Workflow Steps</h3>
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #f8f9fa; text-align: left;">
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Step</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Description</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Status</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Result</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for step in steps %}
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ step.step_order }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ step.step_name }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px;
+                    {% if step.status == 'completed' %}background: #d4edda; color: #155724;
+                    {% elif step.status == 'in_progress' %}background: #d1ecf1; color: #0c5460;
+                    {% elif step.status == 'failed' %}background: #f8d7da; color: #721c24;
+                    {% else %}background: #fff3cd; color: #856404;{% endif %}">
+                    {{ step.status }}
+                </span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                {% if step.success %}✓ Success
+                {% elif step.error_message %}❌ {{ step.error_message }}
+                {% else %}-{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="margin-top: 30px;">
+    <a href="{{ url_for('web.index') }}" class="btn" style="background: #6c757d; color: white;">Back to Dashboard</a>
+</div>
+{% endblock %}

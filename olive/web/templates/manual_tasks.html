@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Tasks - Olive{% endblock %}
+
+{% block content %}
+<h2>Pending Manual Tasks</h2>
+
+<p style="color: #666; margin-bottom: 20px;">
+    These tasks require manual intervention. Mark them as complete when done.
+</p>
+
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #f8f9fa; text-align: left;">
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Task ID</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Staff Name</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Task</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Status</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in tasks %}
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ task.id }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ task.full_name }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ task.step_name }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; background: #d1ecf1; color: #0c5460;">
+                    {{ task.status }}
+                </span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                <form method="POST" action="{{ url_for('web.complete_task', task_id=task.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Mark Complete</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5" style="padding: 20px; text-align: center; color: #666;">No pending manual tasks</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
