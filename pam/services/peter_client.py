@@ -7,9 +7,48 @@ class PeterClient:
     """
 
     def __init__(self):
-        self.base_url = config.peter_api_url
+        # Don't cache the base_url - read it dynamically from config to support session-based switching
         self.contacts_endpoint = config.peter_contacts_endpoint
         self.search_endpoint = config.peter_search_endpoint
+
+    @property
+    def base_url(self):
+        """Get Peter's base URL dynamically (respects session-based dev/prod switching)"""
+        return config.peter_api_url
+
+    def check_health(self):
+        """
+        Check if Peter is available and responding
+
+        Returns:
+            Dict with 'healthy' (bool) and 'error' (str) if unhealthy
+        """
+        try:
+            url = f"{self.base_url}/health"
+            response = requests.get(url, timeout=3)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get('status') == 'healthy':
+                return {'healthy': True}
+            else:
+                return {'healthy': False, 'error': 'Peter is not healthy'}
+
+        except requests.exceptions.ConnectionError:
+            return {
+                'healthy': False,
+                'error': f"Can't reach Peter at {self.base_url}. He might not be running."
+            }
+        except requests.exceptions.Timeout:
+            return {
+                'healthy': False,
+                'error': 'Peter is taking too long to respond'
+            }
+        except Exception as e:
+            return {
+                'healthy': False,
+                'error': f'Error checking Peter: {str(e)}'
+            }
 
     def get_all_contacts(self):
         """
@@ -26,9 +65,18 @@ class PeterClient:
             data = response.json()
             return data.get('contacts', [])
 
+        except requests.exceptions.ConnectionError as e:
+            print(f"Error calling Peter's API: {e}")
+            return {
+                'error': "📞 Can't reach Peter right now. He's probably not running. "
+                        "Try starting Peter first, or check the dev widget above to switch to prod."
+            }
+        except requests.exceptions.Timeout:
+            print("Peter API timeout")
+            return {'error': "📞 Peter is taking too long to respond. He might be busy."}
         except requests.exceptions.RequestException as e:
             print(f"Error calling Peter's API: {e}")
-            return {'error': f'Could not connect to Peter: {str(e)}'}
+            return {'error': f"📞 Problem talking to Peter: {str(e)}"}
         except Exception as e:
             print(f"Unexpected error: {e}")
             return {'error': f'Unexpected error: {str(e)}'}
@@ -51,9 +99,18 @@ class PeterClient:
             data = response.json()
             return data.get('results', [])
 
+        except requests.exceptions.ConnectionError as e:
+            print(f"Error calling Peter's API: {e}")
+            return {
+                'error': "📞 Can't reach Peter right now. He's probably not running. "
+                        "Try starting Peter first, or check the dev widget above to switch to prod."
+            }
+        except requests.exceptions.Timeout:
+            print("Peter API timeout")
+            return {'error': "📞 Peter is taking too long to respond. He might be busy."}
         except requests.exceptions.RequestException as e:
             print(f"Error calling Peter's API: {e}")
-            return {'error': f'Could not connect to Peter: {str(e)}'}
+            return {'error': f"📞 Problem talking to Peter: {str(e)}"}
         except Exception as e:
             print(f"Unexpected error: {e}")
             return {'error': f'Unexpected error: {str(e)}'}

@@ -196,6 +196,7 @@
 <div class="bot-grid">
     {% for bot_name, bot_info in bots.items() %}
     {% set health = health_map.get(bot_name, {}) %}
+    <a href="https://{{ bot_info.name }}.watsonblinds.com.au" target="_blank">
     <div class="bot-card">
         <div class="bot-card-header">
             <div>
@@ -226,6 +227,7 @@
             {% endif %}
         </div>
     </div>
+    </a>
     {% endfor %}
 </div>
 

@@ -20,6 +20,34 @@ class DeploymentOrchestrator:
         self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
+    def _get_bot_url(self, bot_name: str) -> str:
+        """
+        Get the URL for a bot, respecting dev mode configuration.
+
+        In dev mode, checks Flask session for overrides:
+        - If session says use 'prod' for this bot, use prod URL
+        - Otherwise use localhost (dev default)
+
+        Returns the URL for the bot API
+        """
+        from flask import session, has_request_context
+
+        # Check if we're in a request context and have dev config
+        if has_request_context():
+            dev_config = session.get('dev_bot_config', {})
+            if dev_config.get(bot_name) == 'prod':
+                # Use production URL
+                return f"https://{bot_name}.watsonblinds.com.au"
+
+        # Default to localhost for dev
+        if bot_name == 'sally':
+            return config.sally_url
+        elif bot_name == 'chester':
+            return config.chester_url
+        else:
+            # Fallback for unknown bots
+            return f"http://localhost:800{ord(bot_name[0]) % 10}"
+
     def check_sally_health(self) -> Dict:
         """
         Check if Sally is healthy and responding
@@ -27,9 +55,10 @@ class DeploymentOrchestrator:
         Returns:
             Dict with Sally's health status
         """
+        sally_url = self._get_bot_url('sally')
         try:
             response = requests.get(
-                f"{self.sally_url}/health",
+                f"{sally_url}/health",
                 timeout=5
             )
             response.raise_for_status()
@@ -37,7 +66,7 @@ class DeploymentOrchestrator:
             return {
                 'success': True,
                 'healthy': data.get('status') == 'healthy',
-                'url': self.sally_url,
+                'url': sally_url,
                 'version': data.get('version'),
                 'response_time_ms': int(response.elapsed.total_seconds() * 1000)
             }
@@ -45,15 +74,15 @@ class DeploymentOrchestrator:
             return {
                 'success': False,
                 'healthy': False,
-                'url': self.sally_url,
+                'url': sally_url,
                 'error': 'Connection refused - Sally is not running or not accessible',
-                'hint': f'Make sure Sally is running on {self.sally_url}'
+                'hint': f'Make sure Sally is running on {sally_url}'
             }
         except requests.exceptions.Timeout:
             return {
                 'success': False,
                 'healthy': False,
-                'url': self.sally_url,
+                'url': sally_url,
                 'error': 'Connection timeout - Sally is not responding',
                 'hint': 'Sally may be running but overloaded or unresponsive'
             }
@@ -61,7 +90,7 @@ class DeploymentOrchestrator:
             return {
                 'success': False,
                 'healthy': False,
-                'url': self.sally_url,
+                'url': sally_url,
                 'error': f'Failed to check Sally health: {str(e)}'
             }
 
@@ -77,6 +106,7 @@ class DeploymentOrchestrator:
         Returns:
             Result from Sally
         """
+        sally_url = self._get_bot_url('sally')
         try:
             payload = {
                 'server': server,
@@ -86,7 +116,7 @@ class DeploymentOrchestrator:
                 payload['timeout'] = timeout
 
             response = requests.post(
-                f"{self.sally_url}/api/execute",
+                f"{sally_url}/api/execute",
                 json=payload,
                 timeout=30
             )

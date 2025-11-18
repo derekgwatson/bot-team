@@ -14,10 +14,7 @@ class Config:
         self.base_dir = Path(__file__).parent
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
-
-        # Initialize Chester service for bot configuration
-        chester_url = os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
-        self.chester = ChesterService(chester_url)
+        self._chester_service = None
 
     def _load_config(self):
         """
@@ -70,15 +67,43 @@ class Config:
     def server_port(self):
         return self._config.get('server', {}).get('port', 8005)
 
+    def _get_bot_url(self, bot_name: str, default_url: str) -> str:
+        """
+        Get the URL for a bot, respecting dev mode configuration.
+
+        In dev mode, checks Flask session for overrides:
+        - If session says use 'prod' for this bot, use prod URL
+        - Otherwise use default (localhost for dev)
+
+        Returns the URL for the bot API
+        """
+        try:
+            from flask import session, has_request_context
+
+            # Check if we're in a request context and have dev config
+            if has_request_context():
+                dev_config = session.get('dev_bot_config', {})
+                if dev_config.get(bot_name) == 'prod':
+                    # Use production URL
+                    return f"https://{bot_name}.watsonblinds.com.au"
+        except:
+            # If Flask isn't available or there's no request context, use default
+            pass
+
+        # Default to environment variable or config (localhost for dev)
+        return default_url
+
     @property
     def sally_url(self):
         """Get Sally's API URL"""
-        return os.environ.get('SALLY_URL') or self._config.get('sally', {}).get('url', 'http://localhost:8004')
+        default = os.environ.get('SALLY_URL') or self._config.get('sally', {}).get('url', 'http://localhost:8004')
+        return self._get_bot_url('sally', default)
 
     @property
     def chester_url(self):
         """Get Chester's API URL"""
-        return os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+        default = os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
+        return self._get_bot_url('chester', default)
 
     @property
     def default_server(self):
@@ -91,6 +116,12 @@ class Config:
     @property
     def verification_checks(self):
         return self._config.get('deployment', {}).get('verification_checks', [])
+
+    @property
+    def chester(self):
+        """Get Chester service with current URL (session-aware)"""
+        # Always create a new instance with the current URL to respect session changes
+        return ChesterService(self.chester_url)
 
     def get_all_bots(self):
         """

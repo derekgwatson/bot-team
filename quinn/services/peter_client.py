@@ -9,7 +9,13 @@ class PeterClient:
     """Client for calling Peter's API"""
 
     def __init__(self):
-        self.base_url = config.peter_url
+        # Don't cache the base_url - read it dynamically from config to support session-based switching
+        pass
+
+    @property
+    def base_url(self):
+        """Get Peter's base URL dynamically (respects session-based dev/prod switching)"""
+        return config.peter_url
 
     def get_allstaff_emails(self):
         """
