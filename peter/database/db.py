@@ -157,7 +157,7 @@ class StaffDatabase:
                   zendesk_access=False, buz_access=False, google_access=False,
                   wiki_access=False, voip_access=False,
                   show_on_phone_list=True, include_in_allstaff=True,
-                  created_by='system', notes=''):
+                  status='active', created_by='system', notes=''):
         """
         Add a new staff member
 
@@ -180,9 +180,9 @@ class StaffDatabase:
                 name, position, section, extension, phone_fixed, phone_mobile,
                 work_email, personal_email,
                 zendesk_access, buz_access, google_access, wiki_access, voip_access,
-                show_on_phone_list, include_in_allstaff,
+                show_on_phone_list, include_in_allstaff, status,
                 created_by, modified_by, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             name, position, section, extension, phone_fixed, phone_mobile,
             work_email, personal_email,
@@ -193,6 +193,7 @@ class StaffDatabase:
             1 if voip_access else 0,
             1 if show_on_phone_list else 0,
             1 if include_in_allstaff else 0,
+            status,
             created_by, created_by, notes
         ))
 
@@ -236,7 +237,7 @@ class StaffDatabase:
             'name', 'position', 'section', 'extension', 'phone_fixed', 'phone_mobile',
             'work_email', 'personal_email',
             'zendesk_access', 'buz_access', 'google_access', 'wiki_access', 'voip_access',
-            'show_on_phone_list', 'include_in_allstaff', 'status', 'notes'
+            'show_on_phone_list', 'include_in_allstaff', 'status', 'notes', 'finish_date'
         ]
 
         update_fields = []

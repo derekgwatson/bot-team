@@ -200,13 +200,63 @@ def get_all_staff():
     Returns all staff members (not filtered by phone list)
     """
     status = request.args.get('status', 'active')
+    name = request.args.get('name')
 
     try:
-        staff = staff_db.get_all_staff(status=status)
+        if name:
+            # Search by name
+            staff = staff_db.search_staff(name)
+        else:
+            staff = staff_db.get_all_staff(status=status)
+
         return jsonify({
             'staff': staff,
             'count': len(staff)
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/staff', methods=['POST'])
+def create_staff():
+    """
+    POST /api/staff
+
+    Creates a new staff member
+    Used by Oscar onboarding bot and other automation
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if 'name' not in data:
+            return jsonify({'error': 'name is required'}), 400
+
+        result = staff_db.add_staff(
+            name=data['name'],
+            position=data.get('position', ''),
+            section=data.get('section', ''),
+            extension=data.get('extension', ''),
+            phone_fixed=data.get('phone_fixed', ''),
+            phone_mobile=data.get('phone_mobile', ''),
+            work_email=data.get('work_email', ''),
+            personal_email=data.get('personal_email', ''),
+            zendesk_access=data.get('zendesk_access', False),
+            buz_access=data.get('buz_access', False),
+            google_access=data.get('google_access', False),
+            wiki_access=data.get('wiki_access', False),
+            voip_access=data.get('voip_access', False),
+            show_on_phone_list=data.get('show_on_phone_list', True),
+            include_in_allstaff=data.get('include_in_allstaff', True),
+            status=data.get('status', 'active'),
+            notes=data.get('notes', ''),
+            created_by=data.get('created_by', 'api')
+        )
+
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify(result), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -224,6 +274,40 @@ def get_staff(staff_id):
             return jsonify({'error': 'Staff member not found'}), 404
 
         return jsonify(staff)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/staff/<int:staff_id>', methods=['PATCH'])
+def update_staff(staff_id):
+    """
+    PATCH /api/staff/<staff_id>
+
+    Updates specific fields for a staff member
+    Commonly used by Olive offboarding bot to set finish_date and status
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Check if staff exists
+        staff = staff_db.get_staff_by_id(staff_id)
+        if not staff:
+            return jsonify({'error': 'Staff member not found'}), 404
+
+        # Update the staff member
+        result = staff_db.update_staff(
+            staff_id=staff_id,
+            modified_by=data.get('modified_by', 'api'),
+            **{k: v for k, v in data.items() if k != 'modified_by'}
+        )
+
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

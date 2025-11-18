@@ -154,6 +154,26 @@ bot_team:
       dependencies: /api/dependencies
     personality: Enthusiastic and organized, orchestrates the onboarding celebration
 
+  olive:
+    name: Olive
+    description: Staff Offboarding Orchestrator
+    capabilities:
+      - Coordinate staff offboarding workflow
+      - Check staff system access in Peter
+      - Suspend Google Workspace accounts (via Fred)
+      - Deactivate Zendesk accounts (via Zac)
+      - Remove Wiki access (stubbed)
+      - Remove Buz CRM access (stubbed)
+      - Update Peter with finish dates
+      - Send email notifications to HR/IT
+      - Track offboarding progress and manage manual tasks
+    api_endpoints:
+      info: /info
+      health: /health
+      offboard: /api/offboard
+      dependencies: /api/dependencies
+    personality: Professional and thorough, handles departures with care and dignity
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

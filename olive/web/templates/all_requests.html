@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}All Offboarding Requests - Olive{% endblock %}
+
+{% block content %}
+<h2>All Offboarding Requests</h2>
+
+<div style="margin: 20px 0;">
+    <a href="{{ url_for('web.all_requests') }}" style="margin-right: 10px; {% if not status_filter %}font-weight: bold;{% endif %}">All</a>
+    <a href="{{ url_for('web.all_requests', status='pending') }}" style="margin-right: 10px; {% if status_filter == 'pending' %}font-weight: bold;{% endif %}">Pending</a>
+    <a href="{{ url_for('web.all_requests', status='in_progress') }}" style="margin-right: 10px; {% if status_filter == 'in_progress' %}font-weight: bold;{% endif %}">In Progress</a>
+    <a href="{{ url_for('web.all_requests', status='completed') }}" style="margin-right: 10px; {% if status_filter == 'completed' %}font-weight: bold;{% endif %}">Completed</a>
+    <a href="{{ url_for('web.all_requests', status='failed') }}" style="{% if status_filter == 'failed' %}font-weight: bold;{% endif %}">Failed</a>
+</div>
+
+<table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+    <thead>
+        <tr style="background: #f8f9fa; text-align: left;">
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">ID</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Name</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Position</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Last Day</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Status</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Created</th>
+            <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for request in requests %}
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ request.id }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ request.full_name }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ request.position or 'N/A' }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ request.last_day }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px;
+                    {% if request.status == 'completed' %}background: #d4edda; color: #155724;
+                    {% elif request.status == 'in_progress' %}background: #d1ecf1; color: #0c5460;
+                    {% elif request.status == 'failed' %}background: #f8d7da; color: #721c24;
+                    {% else %}background: #fff3cd; color: #856404;{% endif %}">
+                    {{ request.status }}
+                </span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{{ request.created_date }}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                <a href="{{ url_for('web.view_offboard', request_id=request.id) }}" style="color: #d9534f;">View</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" style="padding: 20px; text-align: center; color: #666;">No offboarding requests found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
