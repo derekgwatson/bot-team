@@ -27,9 +27,9 @@ CREATE TABLE IF NOT EXISTS staff (
     show_on_phone_list BOOLEAN DEFAULT 1,
     include_in_allstaff BOOLEAN DEFAULT 1,
 
-    -- Status
+    -- Status and Offboarding
     status TEXT DEFAULT 'active',  -- active, inactive, onboarding, offboarding, finished
-    finish_date DATE,  -- Date when staff member left (set by offboarding process)
+    finish_date DATE,  -- Date when staff member left (set by Olive offboarding bot)
 
     -- Audit Fields
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -54,6 +54,16 @@ bots_data = [
         'name': 'pam',
         'description': 'Phone Directory Presenter',
         'port': 8009
+    },
+    {
+        'name': 'oscar',
+        'description': 'Staff Onboarding Orchestrator',
+        'port': 8011
+    },
+    {
+        'name': 'olive',
+        'description': 'Staff Offboarding Orchestrator',
+        'port': 8012
     }
 ]
 
