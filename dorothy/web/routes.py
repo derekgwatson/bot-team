@@ -303,7 +303,11 @@ def index():
                 {% endfor %}
             </div>
             {% else %}
-            <p>No bots configured. Add bots in config.yaml</p>
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 4px;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">⚠️ Cannot connect to Chester</p>
+                <p style="margin: 0; color: #856404;">Dorothy needs Chester to be running to retrieve bot deployment configurations.</p>
+                <p style="margin: 10px 0 0 0; color: #856404;">Make sure Chester is running at: <code>{{ config.chester_url }}</code></p>
+            </div>
             {% endif %}
         </div>
 
