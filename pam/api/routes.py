@@ -1,6 +1,39 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, session, request
 
 api_bp = Blueprint('api', __name__)
+
+@api_bp.route('/dependencies', methods=['GET'])
+def get_dependencies():
+    """Get list of bots that Pam depends on"""
+    return jsonify({
+        'dependencies': ['peter', 'quinn']
+    })
+
+@api_bp.route('/dev-config', methods=['GET'])
+def get_dev_config():
+    """Get current dev bot configuration (from session)"""
+    return jsonify(session.get('dev_bot_config', {}))
+
+@api_bp.route('/dev-config', methods=['POST'])
+def update_dev_config():
+    """Update dev bot configuration (stores in session)"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    # Get existing config or create new
+    dev_config = session.get('dev_bot_config', {})
+
+    # Update with new settings
+    dev_config.update(data)
+
+    # Store in session
+    session['dev_bot_config'] = dev_config
+
+    return jsonify({
+        'success': True,
+        'config': dev_config
+    })
 
 @api_bp.route('/intro', methods=['GET'])
 def intro():
