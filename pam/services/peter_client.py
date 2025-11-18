@@ -7,9 +7,14 @@ class PeterClient:
     """
 
     def __init__(self):
-        self.base_url = config.peter_api_url
+        # Don't cache the base_url - read it dynamically from config to support session-based switching
         self.contacts_endpoint = config.peter_contacts_endpoint
         self.search_endpoint = config.peter_search_endpoint
+
+    @property
+    def base_url(self):
+        """Get Peter's base URL dynamically (respects session-based dev/prod switching)"""
+        return config.peter_api_url
 
     def check_health(self):
         """
