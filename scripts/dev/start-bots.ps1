@@ -1,5 +1,4 @@
 # start-bots.ps1
-
 $bots = @(
     @{
         Name       = 'Pam'
@@ -27,10 +26,11 @@ foreach ($bot in $bots) {
     $job = Start-Job -Name $bot.Name -ScriptBlock {
         param($workingDir, $venvPython)
 
-        Set-Location $workingDir
+        # Make the job’s console / Python IO use UTF-8
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+        $env:PYTHONIOENCODING = 'utf-8'
 
-        # If you prefer, you can do: & python .\app.py
-        # but using the venv's python is cleaner
+        Set-Location $workingDir
         & $venvPython .\app.py
     } -ArgumentList $bot.WorkingDir, $bot.VenvPython
 
