@@ -21,5 +21,6 @@ ports:
   pam: 8009       # Phone Directory Presenter (public-facing)
   sadie: 8010     # Zendesk Ticket Information
   oscar: 8011     # Staff Onboarding Orchestrator
+  olive: 8012     # Staff Offboarding Orchestrator
 
 # Next available port: 8012
