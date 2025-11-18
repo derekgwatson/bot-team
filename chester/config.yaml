@@ -163,7 +163,7 @@ bot_team:
       - Suspend Google Workspace accounts (via Fred)
       - Deactivate Zendesk accounts (via Zac)
       - Remove Wiki access (stubbed)
-      - Remove Buz CRM access (stubbed)
+      - Remove Buz access (stubbed)
       - Update Peter with finish dates
       - Send email notifications to HR/IT
       - Track offboarding progress and manage manual tasks

@@ -31,7 +31,7 @@ bots:
   # Buz will be stubbed for now - we'll add URLs when Buz bot is ready
   # buz_crm:
   #   url: "http://localhost:8XXX"
-  #   description: "Buz CRM Instance Management"
+  #   description: "Buz Instance Management"
 
 # Email configuration
 email:

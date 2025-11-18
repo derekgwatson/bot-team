@@ -136,7 +136,7 @@ class OffboardingOrchestrator:
         steps.append({
             'name': 'remove_buz_access',
             'order': order,
-            'description': 'Remove Buz CRM access',
+            'description': 'Remove Buz access',
             'critical': False
         })
         order += 1
@@ -362,7 +362,7 @@ class OffboardingOrchestrator:
         }
 
     def _remove_buz_access(self, request_data: Dict) -> Dict[str, Any]:
-        """Remove Buz CRM access - STUBBED for now"""
+        """Remove Buz access - STUBBED for now"""
         # TODO: Implement Buz bot integration when available
         logger.info("Buz access removal - STUBBED (to be implemented)")
 

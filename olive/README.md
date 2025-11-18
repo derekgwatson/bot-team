@@ -16,7 +16,7 @@ Olive automates the offboarding process for departing staff members by coordinat
 - **Google Workspace** (via Fred): Suspend Google accounts
 - **Zendesk** (via Zac): Deactivate Zendesk accounts
 - **Wiki**: Remove wiki access (stubbed - to be implemented)
-- **Buz CRM**: Remove CRM access (stubbed - to be implemented)
+- **Buz**: Remove CRM access (stubbed - to be implemented)
 
 ## Installation
 
@@ -88,7 +88,7 @@ When an offboarding request is submitted, Olive:
 3. **Disables Google**: Suspends Google Workspace account (if applicable)
 4. **Deactivates Zendesk**: Deactivates Zendesk account (if applicable)
 5. **Removes Wiki Access**: Removes wiki access (stubbed)
-6. **Removes Buz Access**: Removes Buz CRM access (stubbed)
+6. **Removes Buz Access**: Removes Buz access (stubbed)
 7. **Updates Peter**: Sets finish date and marks staff as finished
 
 ## Development Status
@@ -100,7 +100,7 @@ When an offboarding request is submitted, Olive:
 
 **Stubbed (Coming Soon):**
 - Wiki access removal
-- Buz CRM access removal
+- Buz access removal
 
 ## Security
 

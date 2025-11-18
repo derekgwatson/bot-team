@@ -19,14 +19,14 @@ def intro():
     return jsonify({
         'name': 'Olive',
         'role': 'Staff Offboarding Orchestrator',
-        'description': 'I coordinate the offboarding process for departing staff members by removing system access from Google Workspace, Zendesk, Wiki, and Buz CRM, and updating Peter with finish dates.',
+        'description': 'I coordinate the offboarding process for departing staff members by removing system access from Google Workspace, Zendesk, Wiki, and Buz, and updating Peter with finish dates.',
         'capabilities': [
             'Process offboarding requests',
             'Check staff access in Peter',
             'Suspend Google Workspace accounts',
             'Deactivate Zendesk accounts',
             'Remove Wiki access',
-            'Remove Buz CRM access',
+            'Remove Buz access',
             'Update Peter with finish dates',
             'Send notifications to HR/IT',
             'Track offboarding workflow progress'
