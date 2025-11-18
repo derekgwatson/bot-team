@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS staff (
     include_in_allstaff BOOLEAN DEFAULT 1,
 
     -- Status
-    status TEXT DEFAULT 'active',  -- active, inactive, onboarding, offboarding
+    status TEXT DEFAULT 'active',  -- active, inactive, onboarding, offboarding, finished
+    finish_date DATE,  -- Date when staff member left (set by offboarding process)
 
     -- Audit Fields
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
