@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Hi {{ user.name or user.email }} 👋</h1>
+  <p>You’re logged in with your work Google account ({{ user.email }}).</p>
+  <p>All staff with a work Google account are automatically added to the all-staff mailing list.</p>
+  <p>If you think you’re not receiving all-staff emails, please contact IT.</p>
+{% endblock %}

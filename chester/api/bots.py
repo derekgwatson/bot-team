@@ -2,11 +2,13 @@
 from flask import Blueprint, jsonify, request
 from services.bot_service import bot_service
 from services.database import db
+from shared.auth.bot_api import api_key_required
 
 bots_bp = Blueprint('bots', __name__)
 
 
 @bots_bp.route('/bots', methods=['GET'])
+@api_key_required
 def get_all_bots():
     """Get information about all bots."""
     bots = bot_service.get_all_bots()
@@ -17,6 +19,7 @@ def get_all_bots():
 
 
 @bots_bp.route('/bots/<bot_name>', methods=['GET'])
+@api_key_required
 def get_bot(bot_name):
     """Get information about a specific bot."""
     bot_info = bot_service.get_bot_info(bot_name)
@@ -34,6 +37,7 @@ def get_bot(bot_name):
 
 
 @bots_bp.route('/health/all', methods=['GET'])
+@api_key_required
 def check_all_health():
     """Check health of all bots."""
     results = bot_service.check_all_bots_health()
@@ -54,6 +58,7 @@ def check_all_health():
 
 
 @bots_bp.route('/health/<bot_name>', methods=['GET'])
+@api_key_required
 def check_bot_health(bot_name):
     """Check health of a specific bot."""
     result = bot_service.check_bot_health(bot_name)
@@ -65,6 +70,7 @@ def check_bot_health(bot_name):
 
 
 @bots_bp.route('/health/public/all', methods=['GET'])
+@api_key_required
 def check_public_bots_health():
     """Check health of only public-facing bots (for async loading)."""
     # Get public bots from database
@@ -84,6 +90,7 @@ def check_public_bots_health():
 
 
 @bots_bp.route('/capabilities/<bot_name>', methods=['GET'])
+@api_key_required
 def get_bot_capabilities(bot_name):
     """Get capabilities of a specific bot."""
     capabilities = bot_service.get_bot_capabilities(bot_name)
@@ -102,6 +109,7 @@ def get_bot_capabilities(bot_name):
 
 
 @bots_bp.route('/search', methods=['GET'])
+@api_key_required
 def search_bots():
     """Search for bots by capability keyword."""
     keyword = request.args.get('q', '')
@@ -123,6 +131,7 @@ def search_bots():
 
 
 @bots_bp.route('/summary', methods=['GET'])
+@api_key_required
 def get_team_summary():
     """Get a summary of the bot team."""
     summary = bot_service.get_team_summary()

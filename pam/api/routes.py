@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, session, request
+from shared.auth.bot_api import api_key_required
 
 api_bp = Blueprint('api', __name__)
 
+
 @api_bp.route('/dependencies', methods=['GET'])
+@api_key_required
 def get_dependencies():
     """Get list of bots that Pam depends on"""
     return jsonify({
@@ -10,11 +13,14 @@ def get_dependencies():
     })
 
 @api_bp.route('/dev-config', methods=['GET'])
+@api_key_required
+
 def get_dev_config():
     """Get current dev bot configuration (from session)"""
     return jsonify(session.get('dev_bot_config', {}))
 
 @api_bp.route('/dev-config', methods=['POST'])
+@api_key_required
 def update_dev_config():
     """Update dev bot configuration (stores in session)"""
     data = request.get_json()
@@ -36,6 +42,7 @@ def update_dev_config():
     })
 
 @api_bp.route('/intro', methods=['GET'])
+@api_key_required
 def intro():
     """
     GET /api/intro

@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from database.db import db
 from services.orchestrator import orchestrator
 import logging
+from shared.auth.bot_api import api_key_required
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ api_bp = Blueprint('api', __name__)
 
 
 @api_bp.route('/intro', methods=['GET'])
+@api_key_required
 def intro():
     """Return Olive's introduction"""
     return jsonify({
@@ -43,6 +45,7 @@ def intro():
 
 
 @api_bp.route('/offboard', methods=['POST'])
+@api_key_required
 def create_offboarding():
     """Create a new offboarding request"""
     try:
@@ -81,6 +84,7 @@ def create_offboarding():
 
 
 @api_bp.route('/offboard/<int:request_id>', methods=['GET'])
+@api_key_required
 def get_offboarding(request_id):
     """Get offboarding request details"""
     try:
@@ -106,6 +110,7 @@ def get_offboarding(request_id):
 
 
 @api_bp.route('/offboard', methods=['GET'])
+@api_key_required
 def list_offboarding():
     """List all offboarding requests"""
     try:
@@ -123,6 +128,7 @@ def list_offboarding():
 
 
 @api_bp.route('/offboard/<int:request_id>/start', methods=['POST'])
+@api_key_required
 def start_offboarding(request_id):
     """Start the offboarding workflow for a request"""
     try:
@@ -146,6 +152,7 @@ def start_offboarding(request_id):
 
 
 @api_bp.route('/tasks', methods=['GET'])
+@api_key_required
 def get_manual_tasks():
     """Get all pending manual tasks"""
     try:
@@ -162,6 +169,7 @@ def get_manual_tasks():
 
 
 @api_bp.route('/tasks/<int:task_id>/complete', methods=['POST'])
+@api_key_required
 def complete_manual_task(task_id):
     """Mark a manual task as complete"""
     try:
@@ -213,6 +221,7 @@ def complete_manual_task(task_id):
 
 
 @api_bp.route('/stats', methods=['GET'])
+@api_key_required
 def get_stats():
     """Get offboarding statistics"""
     try:
@@ -250,6 +259,7 @@ def get_stats():
 
 
 @api_bp.route('/dependencies', methods=['GET'])
+@api_key_required
 def get_dependencies():
     """Get list of bots that Olive depends on"""
     return jsonify({
@@ -258,6 +268,7 @@ def get_dependencies():
 
 
 @api_bp.route('/dev-config', methods=['GET'])
+@api_key_required
 def get_dev_config():
     """Get current dev bot configuration (from session)"""
     from flask import session
@@ -265,6 +276,7 @@ def get_dev_config():
 
 
 @api_bp.route('/dev-config', methods=['POST'])
+@api_key_required
 def update_dev_config():
     """Update dev bot configuration (stores in session)"""
     from flask import session

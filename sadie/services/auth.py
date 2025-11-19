@@ -69,18 +69,3 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def api_key_required(f):
-    """Decorator to require API key for API routes"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check for API key in header
-        api_key = request.headers.get('X-API-Key')
-
-        if not api_key:
-            return jsonify({'error': 'API key required'}), 401
-
-        if api_key != config.bot_api_key:
-            return jsonify({'error': 'Invalid API key'}), 403
-
-        return f(*args, **kwargs)
-    return decorated_function

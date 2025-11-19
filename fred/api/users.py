@@ -1,9 +1,12 @@
 from flask import Blueprint, jsonify, request
 from services.google_workspace import workspace_service
+from shared.auth.bot_api import api_key_required
 
 api_bp = Blueprint('api', __name__)
 
+
 @api_bp.route('/intro', methods=['GET'])
+@api_key_required
 def intro():
     """
     GET /api/intro
@@ -24,6 +27,7 @@ def intro():
     })
 
 @api_bp.route('/users', methods=['GET'])
+@api_key_required
 def list_users():
     """
     GET /api/users
@@ -48,6 +52,7 @@ def list_users():
     })
 
 @api_bp.route('/users/<email>', methods=['GET'])
+@api_key_required
 def get_user(email):
     """
     GET /api/users/<email>
@@ -63,6 +68,7 @@ def get_user(email):
     return jsonify(user)
 
 @api_bp.route('/users', methods=['POST'])
+@api_key_required
 def create_user():
     """
     POST /api/users
@@ -98,6 +104,7 @@ def create_user():
     return jsonify(result), 201
 
 @api_bp.route('/users/<email>/archive', methods=['POST'])
+@api_key_required
 def archive_user(email):
     """
     POST /api/users/<email>/archive
@@ -113,6 +120,7 @@ def archive_user(email):
     return jsonify(result)
 
 @api_bp.route('/users/<email>', methods=['DELETE'])
+@api_key_required
 def delete_user(email):
     """
     DELETE /api/users/<email>

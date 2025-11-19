@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from services.auth import api_key_required
+from shared.auth.bot_api import api_key_required
 from services.zendesk import zendesk_service
 import logging
 

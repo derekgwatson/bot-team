@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 class Config:
     """Configuration loader for Sally"""
 
@@ -13,6 +14,9 @@ class Config:
         self.base_dir = Path(__file__).parent
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
+
+        # Flask secret key
+        self.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
     def _load_config(self):
         """
@@ -86,5 +90,6 @@ class Config:
     def servers(self):
         """Get configured servers"""
         return self._config.get('servers') or {}
+
 
 config = Config()

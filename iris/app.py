@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 
 # Configure Flask for sessions and OAuth
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Initialize authentication
 init_auth(app)

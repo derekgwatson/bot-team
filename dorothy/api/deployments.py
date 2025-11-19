@@ -1,10 +1,13 @@
 from flask import Blueprint, request, jsonify, session
 from services.deployment_orchestrator import deployment_orchestrator
 from config import config
+from shared.auth.bot_api import api_key_required
 
 api_bp = Blueprint('api', __name__)
 
+
 @api_bp.route('/dependencies', methods=['GET'])
+@api_key_required
 def get_dependencies():
     """Get list of bots that Dorothy depends on"""
     return jsonify({
@@ -12,11 +15,13 @@ def get_dependencies():
     })
 
 @api_bp.route('/dev-config', methods=['GET'])
+@api_key_required
 def get_dev_config():
     """Get current dev bot configuration (from session)"""
     return jsonify(session.get('dev_bot_config', {}))
 
 @api_bp.route('/dev-config', methods=['POST'])
+@api_key_required
 def update_dev_config():
     """Update dev bot configuration (stores in session)"""
     data = request.get_json()
@@ -38,6 +43,7 @@ def update_dev_config():
     })
 
 @api_bp.route('/sally/health', methods=['GET'])
+@api_key_required
 def sally_health():
     """Check if Sally is healthy and responding"""
     health = deployment_orchestrator.check_sally_health()
@@ -45,6 +51,7 @@ def sally_health():
     return jsonify(health), status_code
 
 @api_bp.route('/bots', methods=['GET'])
+@api_key_required
 def list_bots():
     """List all configured bots"""
     bots = config.get_all_bots()
@@ -67,6 +74,7 @@ def list_bots():
     })
 
 @api_bp.route('/verify/<bot_name>', methods=['POST'])
+@api_key_required
 def verify_bot(bot_name):
     """
     Verify a bot's deployment on a server
@@ -88,6 +96,7 @@ def verify_bot(bot_name):
     return jsonify(result)
 
 @api_bp.route('/plan/<bot_name>', methods=['POST'])
+@api_key_required
 def get_deployment_plan(bot_name):
     """
     Get deployment plan (dry-run) - shows what would be executed
@@ -109,6 +118,7 @@ def get_deployment_plan(bot_name):
     return jsonify(plan)
 
 @api_bp.route('/deploy/<bot_name>', methods=['POST'])
+@api_key_required
 def deploy_bot(bot_name):
     """
     Deploy a bot to a server
@@ -130,6 +140,7 @@ def deploy_bot(bot_name):
     return jsonify(result)
 
 @api_bp.route('/deployments', methods=['GET'])
+@api_key_required
 def list_deployments():
     """List all deployment history"""
     deployments = list(deployment_orchestrator.deployments.values())
@@ -141,6 +152,7 @@ def list_deployments():
     })
 
 @api_bp.route('/deployments/<deployment_id>', methods=['GET'])
+@api_key_required
 def get_deployment(deployment_id):
     """Get details of a specific deployment"""
     deployment = deployment_orchestrator.get_deployment_status(deployment_id)
@@ -151,6 +163,7 @@ def get_deployment(deployment_id):
     return jsonify(deployment)
 
 @api_bp.route('/verifications/<verification_id>', methods=['GET'])
+@api_key_required
 def get_verification(verification_id):
     """Get status of a verification"""
     verification = deployment_orchestrator.get_verification_status(verification_id)
@@ -161,6 +174,7 @@ def get_verification(verification_id):
     return jsonify(verification)
 
 @api_bp.route('/health-check/<bot_name>', methods=['POST'])
+@api_key_required
 def health_check_bot(bot_name):
     """
     Check if a bot is running and responding
@@ -238,6 +252,7 @@ def health_check_bot(bot_name):
     })
 
 @api_bp.route('/start-service/<bot_name>', methods=['POST'])
+@api_key_required
 def start_service(bot_name):
     """
     Start the systemd service for a bot
@@ -270,6 +285,7 @@ def start_service(bot_name):
     })
 
 @api_bp.route('/add-bot', methods=['POST'])
+@api_key_required
 def add_bot():
     """
     Add a new bot to config.local.yaml and restart Dorothy
@@ -373,6 +389,7 @@ def add_bot():
     })
 
 @api_bp.route('/restart-dorothy', methods=['POST'])
+@api_key_required
 def restart_dorothy():
     """
     Restart Dorothy's own service (to reload config changes)
@@ -401,6 +418,7 @@ def restart_dorothy():
     })
 
 @api_bp.route('/update/<bot_name>', methods=['POST'])
+@api_key_required
 def update_bot(bot_name):
     """
     Update a bot (simpler than full deploy - just pull code and restart)
@@ -422,6 +440,7 @@ def update_bot(bot_name):
     return jsonify(result)
 
 @api_bp.route('/teardown/<bot_name>', methods=['POST'])
+@api_key_required
 def teardown_bot(bot_name):
     """
     Remove/teardown a bot from the server
@@ -447,6 +466,7 @@ def teardown_bot(bot_name):
     return jsonify(result)
 
 @api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
+@api_key_required
 def setup_ssl(bot_name):
     """
     Set up SSL certificate with certbot

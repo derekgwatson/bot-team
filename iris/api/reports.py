@@ -1,9 +1,12 @@
 from flask import Blueprint, jsonify, request
 from services.google_reports import reports_service
+from shared.auth.bot_api import api_key_required
 
 api_bp = Blueprint('api', __name__)
 
+
 @api_bp.route('/intro', methods=['GET'])
+@api_key_required
 def intro():
     """
     GET /api/intro
@@ -25,6 +28,7 @@ def intro():
     })
 
 @api_bp.route('/usage', methods=['GET'])
+@api_key_required
 def get_usage():
     """
     GET /api/usage
@@ -49,6 +53,7 @@ def get_usage():
     })
 
 @api_bp.route('/usage/<email>', methods=['GET'])
+@api_key_required
 def get_user_usage(email):
     """
     GET /api/usage/<email>

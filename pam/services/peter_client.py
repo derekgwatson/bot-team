@@ -1,5 +1,7 @@
-import requests
+import requests  # only needed if you want to keep using the exception types
 from config import config
+from shared.http_client import BotHttpClient
+
 
 class PeterClient:
     """
@@ -16,6 +18,16 @@ class PeterClient:
         """Get Peter's base URL dynamically (respects session-based dev/prod switching)"""
         return config.peter_api_url
 
+    @property
+    def client(self) -> BotHttpClient:
+        """
+        Build a BotHttpClient for the current base_url.
+
+        This means if config.peter_api_url switches between dev/prod
+        for the session, we always hit the right one.
+        """
+        return BotHttpClient(self.base_url)
+
     def check_health(self):
         """
         Check if Peter is available and responding
@@ -24,30 +36,29 @@ class PeterClient:
             Dict with 'healthy' (bool) and 'error' (str) if unhealthy
         """
         try:
-            url = f"{self.base_url}/health"
-            response = requests.get(url, timeout=3)
+            response = self.client.get("/health", timeout=3)
             response.raise_for_status()
             data = response.json()
 
-            if data.get('status') == 'healthy':
-                return {'healthy': True}
+            if data.get("status") == "healthy":
+                return {"healthy": True}
             else:
-                return {'healthy': False, 'error': 'Peter is not healthy'}
+                return {"healthy": False, "error": "Peter is not healthy"}
 
         except requests.exceptions.ConnectionError:
             return {
-                'healthy': False,
-                'error': f"Can't reach Peter at {self.base_url}. He might not be running."
+                "healthy": False,
+                "error": f"Can't reach Peter at {self.base_url}. He might not be running.",
             }
         except requests.exceptions.Timeout:
             return {
-                'healthy': False,
-                'error': 'Peter is taking too long to respond'
+                "healthy": False,
+                "error": "Peter is taking too long to respond",
             }
         except Exception as e:
             return {
-                'healthy': False,
-                'error': f'Error checking Peter: {str(e)}'
+                "healthy": False,
+                "error": f"Error checking Peter: {str(e)}",
             }
 
     def get_all_contacts(self):
@@ -58,28 +69,27 @@ class PeterClient:
             List of contact dictionaries, or error dict
         """
         try:
-            url = f"{self.base_url}{self.contacts_endpoint}"
-            response = requests.get(url, timeout=10)
+            response = self.client.get(self.contacts_endpoint, timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            return data.get('contacts', [])
+            return data.get("contacts", [])
 
         except requests.exceptions.ConnectionError as e:
             print(f"Error calling Peter's API: {e}")
             return {
-                'error': "📞 Can't reach Peter right now. He's probably not running. "
-                        "Try starting Peter first, or check the dev widget above to switch to prod."
+                "error": "📞 Can't reach Peter right now. He's probably not running. "
+                         "Try starting Peter first, or check the dev widget above to switch to prod."
             }
         except requests.exceptions.Timeout:
             print("Peter API timeout")
-            return {'error': "📞 Peter is taking too long to respond. He might be busy."}
+            return {"error": "📞 Peter is taking too long to respond. He might be busy."}
         except requests.exceptions.RequestException as e:
             print(f"Error calling Peter's API: {e}")
-            return {'error': f"📞 Problem talking to Peter: {str(e)}"}
+            return {"error": f"📞 Problem talking to Peter: {str(e)}"}
         except Exception as e:
             print(f"Unexpected error: {e}")
-            return {'error': f'Unexpected error: {str(e)}'}
+            return {"error": f"Unexpected error: {str(e)}"}
 
     def search_contacts(self, query):
         """
@@ -92,46 +102,32 @@ class PeterClient:
             List of matching contacts, or error dict
         """
         try:
-            url = f"{self.base_url}{self.search_endpoint}"
-            response = requests.get(url, params={'q': query}, timeout=10)
+            response = self.client.get(
+                self.search_endpoint,
+                params={"q": query},
+                timeout=10,
+            )
             response.raise_for_status()
 
             data = response.json()
-            return data.get('results', [])
+            return data.get("results", [])
 
         except requests.exceptions.ConnectionError as e:
             print(f"Error calling Peter's API: {e}")
             return {
-                'error': "📞 Can't reach Peter right now. He's probably not running. "
-                        "Try starting Peter first, or check the dev widget above to switch to prod."
+                "error": "📞 Can't reach Peter right now. He's probably not running. "
+                         "Try starting Peter first, or check the dev widget above to switch to prod."
             }
         except requests.exceptions.Timeout:
             print("Peter API timeout")
-            return {'error': "📞 Peter is taking too long to respond. He might be busy."}
+            return {"error": "📞 Peter is taking too long to respond. He might be busy."}
         except requests.exceptions.RequestException as e:
             print(f"Error calling Peter's API: {e}")
-            return {'error': f"📞 Problem talking to Peter: {str(e)}"}
+            return {"error": f"📞 Problem talking to Peter: {str(e)}"}
         except Exception as e:
             print(f"Unexpected error: {e}")
-            return {'error': f'Unexpected error: {str(e)}'}
+            return {"error": f"Unexpected error: {str(e)}"}
 
-    def group_by_section(self, contacts):
-        """
-        Group contacts by section for display
-
-        Args:
-            contacts: List of contact dictionaries
-
-        Returns:
-            Dictionary with sections as keys, contact lists as values
-        """
-        sections = {}
-        for contact in contacts:
-            section = contact.get('section', 'Unknown')
-            if section not in sections:
-                sections[section] = []
-            sections[section].append(contact)
-        return sections
 
 # Global client instance
 peter_client = PeterClient()

@@ -1,0 +1,22 @@
+# Peter's Configuration
+name: rita
+description: "User access manager"
+version: "0.1.0"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8013
+
+# Shared organization config
+# See ../shared/config/organization.yaml for domain definitions
+shared_config: "../shared/config/organization.yaml"
+
+database:
+  path: "database/rita.db"
+
+# Authentication configuration
+auth:
+  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
+  # See .env.example for required environment variables
+

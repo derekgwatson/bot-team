@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.ssh_executor import ssh_executor
+from shared.auth.bot_api import api_key_required
 from config import config
 import time
 import uuid
@@ -9,7 +10,9 @@ api_bp = Blueprint('api', __name__)
 # Store command history
 command_history = {}
 
+
 @api_bp.route('/servers', methods=['GET'])
+@api_key_required
 def list_servers():
     """List all configured servers"""
     servers = config.servers
@@ -29,12 +32,14 @@ def list_servers():
     })
 
 @api_bp.route('/test/<server_name>', methods=['GET'])
+@api_key_required
 def test_connection(server_name):
     """Test connection to a server"""
     result = ssh_executor.test_connection(server_name)
     return jsonify(result)
 
 @api_bp.route('/execute', methods=['POST'])
+@api_key_required
 def execute_command():
     """
     Execute a command on a remote server
@@ -69,6 +74,7 @@ def execute_command():
     return jsonify(result)
 
 @api_bp.route('/history', methods=['GET'])
+@api_key_required
 def get_history():
     """Get command execution history"""
     limit = request.args.get('limit', 50, type=int)
@@ -83,6 +89,7 @@ def get_history():
     })
 
 @api_bp.route('/history/<exec_id>', methods=['GET'])
+@api_key_required
 def get_execution(exec_id):
     """Get details of a specific execution"""
     if exec_id not in command_history:

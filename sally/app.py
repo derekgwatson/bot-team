@@ -7,9 +7,11 @@ from flask import Flask, jsonify
 from config import config
 from api.execute import api_bp
 from web.routes import web_bp
-
+import os
 
 app = Flask(__name__)
+
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')

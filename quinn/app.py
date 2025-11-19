@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 
 # Configure Flask for sessions
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Start the sync service
 sync_service.interval_seconds = config.sync_interval_seconds

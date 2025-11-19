@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Access Requests ({{ status }})</h1>
+
+  <p>
+    <a href="{{ url_for('web.admin_requests', status='pending') }}">Pending</a> |
+    <a href="{{ url_for('web.admin_requests', status='approved') }}">Approved</a> |
+    <a href="{{ url_for('web.admin_requests', status='denied') }}">Denied</a>
+  </p>
+
+  {% if requests %}
+    <table border="1" cellpadding="5" cellspacing="0">
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Reason</th>
+        <th>Requested</th>
+        <th>Actions</th>
+      </tr>
+      {% for r in requests %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.email }}</td>
+          <td>{{ r.phone or '' }}</td>
+          <td>{{ r.reason or '' }}</td>
+          <td>{{ r.request_date }}</td>
+          <td>
+            {% if status == 'pending' %}
+              <form method="post"
+                    action="{{ url_for('web.admin_approve_request', request_id=r.id) }}"
+                    style="display:inline;">
+                <button type="submit">Approve</button>
+              </form>
+              <form method="post"
+                    action="{{ url_for('web.admin_deny_request', request_id=r.id) }}"
+                    style="display:inline;">
+                <button type="submit">Deny</button>
+              </form>
+            {% else %}
+              {{ r.status }}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No {{ status }} requests.</p>
+  {% endif %}
+{% endblock %}
