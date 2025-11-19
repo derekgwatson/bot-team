@@ -105,8 +105,17 @@ class DeploymentOrchestrator:
         Returns:
             Result from Sally
         """
+        import os
         sally_url = self._get_bot_url('sally')
         client = BotHttpClient(sally_url)
+
+        # Debug: Check if BOT_API_KEY is available
+        api_key = os.getenv('BOT_API_KEY', '')
+        if not api_key:
+            print(f"⚠️  WARNING: BOT_API_KEY not set in environment!")
+        else:
+            print(f"✓ BOT_API_KEY is set (first 8 chars: {api_key[:8]}...)")
+
         try:
             payload = {
                 'server': server,
