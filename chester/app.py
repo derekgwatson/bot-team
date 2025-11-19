@@ -1,10 +1,10 @@
 """Chester - Bot Team Concierge."""
 import os
 from flask import Flask, jsonify
-from .config import config
-from .api.bots import bots_bp
-from .api.deployment import deployment_bp
-from .web.routes import web_bp
+from chester.config import config
+from chester.api.bots import bots_bp
+from chester.api.deployment import deployment_bp
+from chester.web.routes import web_bp
 
 # Create Flask app
 app = Flask(__name__)

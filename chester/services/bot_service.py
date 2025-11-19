@@ -1,8 +1,8 @@
 """Bot team service - handles health checks and bot information."""
 import requests
 from typing import Dict, List, Optional
-from ..config import config
-from .database import Database
+from chester.config import config
+from chester.services.database import Database
 
 
 class BotService:
