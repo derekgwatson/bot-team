@@ -1,10 +1,12 @@
 import yaml
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file in pam directory
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 class Config:
