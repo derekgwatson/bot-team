@@ -3,62 +3,74 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 
+from shared.config.loader import load_shared_yaml
+from shared.config.ports import get_port
+
 # Load environment variables from .env file
 load_dotenv()
+
 
 class Config:
     """Configuration loader for Iris"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
-        self.config_file = self.base_dir / 'config.yaml'
-        self._config = self._load_config()
+        config_file = self.base_dir / "config.yaml"
 
-    def _load_config(self):
-        """Load configuration from YAML file"""
-        with open(self.config_file, 'r') as f:
-            return yaml.safe_load(f)
+        # ── Bot-local config.yaml ─────────────────────────────
+        with open(config_file, "r") as f:
+            data = yaml.safe_load(f) or {}
 
-    @property
-    def name(self):
-        return self._config.get('name', 'iris')
+        # ── Shared organization config ────────────────────────
+        org_cfg = load_shared_yaml("organization").get("organization", {}) or {}
+        self.organization_name = org_cfg.get("name", "Watson Blinds Group")
+        self.organization_domains = org_cfg.get("domains", []) or []
+        self.organization_primary_domain = org_cfg.get("primary_domain", "")
 
-    @property
-    def description(self):
-        return self._config.get('description', '')
+        # ── Bot info (from YAML) ──────────────────────────────
+        self.name = data.get("name", "iris")
+        self.description = data.get("description", "")
+        self.version = data.get("version", "0.0.0")
 
-    @property
-    def version(self):
-        return self._config.get('version', '0.0.0')
+        # ── Server config ─────────────────────────────────────
+        server = data.get("server", {}) or {}
+        # Host still comes from Iris's own config
+        self.server_host = server.get("host", "0.0.0.0")
+        # Port from shared ports.yaml, with local default fallback
+        self.server_port = get_port("iris", default=None)
+        if self.server_port is None:
+            raise RuntimeError("Iris has no port assigned in ports.yaml")
 
-    @property
-    def server_host(self):
-        return self._config.get('server', {}).get('host', '0.0.0.0')
+        # ── Google Workspace config ───────────────────────────
+        gw = data.get("google_workspace", {}) or {}
 
-    @property
-    def server_port(self):
-        return self._config.get('server', {}).get('port', 8002)
+        # credentials file path (relative to Iris's directory if not absolute)
+        credentials_path = gw.get("credentials_file", "credentials.json")
+        if not os.path.isabs(credentials_path):
+            credentials_path = self.base_dir / credentials_path
+        self.google_credentials_file = str(credentials_path)
 
-    @property
-    def google_credentials_file(self):
-        path = self._config.get('google_workspace', {}).get('credentials_file', 'credentials.json')
-        # Make it relative to iris's directory
-        if not os.path.isabs(path):
-            path = self.base_dir / path
-        return str(path)
+        # domain & admin email: env overrides YAML
+        self.google_domain = (
+            os.environ.get("GOOGLE_WORKSPACE_DOMAIN")
+            or gw.get("domain", "example.com")
+        )
 
-    @property
-    def google_domain(self):
-        # Read from environment variable first, fallback to config file
-        return os.environ.get('GOOGLE_WORKSPACE_DOMAIN') or self._config.get('google_workspace', {}).get('domain', 'example.com')
+        self.google_admin_email = (
+            os.environ.get("GOOGLE_WORKSPACE_ADMIN_EMAIL")
+            or gw.get("admin_email", "")
+        )
 
-    @property
-    def google_admin_email(self):
-        # Read from environment variable first, fallback to config file
-        return os.environ.get('GOOGLE_WORKSPACE_ADMIN_EMAIL') or self._config.get('google_workspace', {}).get('admin_email', '')
+        # ── Bots registry (from YAML) ─────────────────────────
+        self.bots = data.get("bots", {}) or {}
 
-    @property
-    def bots(self):
-        return self._config.get('bots', {})
+        # ── Common shared bits (from .env) ────────────────────
+        self.secret_key = os.environ.get(
+            "FLASK_SECRET_KEY",
+            "dev-secret-key-change-in-production",
+        )
+
+        self.bot_api_key = os.environ.get("BOT_API_KEY")
+
 
 config = Config()

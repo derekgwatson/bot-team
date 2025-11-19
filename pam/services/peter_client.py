@@ -78,8 +78,11 @@ class PeterClient:
         except requests.exceptions.ConnectionError as e:
             print(f"Error calling Peter's API: {e}")
             return {
-                "error": "📞 Can't reach Peter right now. He's probably not running. "
-                         "Try starting Peter first, or check the dev widget above to switch to prod."
+                "error": (
+                    "Could not connect to Peter. "            
+                    "📞 Can't reach Peter right now. He's probably not running. "            
+                    "Try starting Peter first, or check the dev widget above to switch to prod."
+                )
             }
         except requests.exceptions.Timeout:
             print("Peter API timeout")
@@ -115,8 +118,11 @@ class PeterClient:
         except requests.exceptions.ConnectionError as e:
             print(f"Error calling Peter's API: {e}")
             return {
-                "error": "📞 Can't reach Peter right now. He's probably not running. "
-                         "Try starting Peter first, or check the dev widget above to switch to prod."
+                "error": (
+                    "Could not connect to Peter. "
+                    "📞 Can't reach Peter right now. He's probably not running. "
+                    "Try starting Peter first, or check the dev widget above to switch to prod."
+                )
             }
         except requests.exceptions.Timeout:
             print("Peter API timeout")

@@ -2,9 +2,46 @@ name: dorothy
 description: Deployment Orchestrator - Knows how to deploy and manage bots
 version: 0.1.0
 
+defaults:
+  repo: git@github.com:derekgwatson/bot-team.git
+  path: "/var/www/bot-team/{bot_name}"
+  service: "gunicorn-bot-team-{bot_name}"
+  domain: "{bot_name}.watsonblinds.com.au"
+  nginx_config_name: "bot-team-{bot_name}.conf"
+  workers: 3
+
 server:
   host: 0.0.0.0
   port: 8005
+
+bots:
+  # Each bot only needs to specify what's unique (description)
+  # Everything else inherits from defaults above
+
+  iris:
+    description: Google Workspace Reporting & Analytics
+
+  peter:
+    description: Phone Directory Manager
+
+  pam:
+    description: Phone Directory Presenter Bot
+
+  sally:
+    description: SSH Command Executor
+    skip_nginx: true  # Set to true for internal-only bots (skips nginx/SSL setup)
+
+  fred:
+    description: Google Workspace User Management
+
+  quinn:
+    description: External Staff Access Manager
+
+  zac:
+    description: Zendesk User Manager
+
+  chester:
+    description: Concierge
 
 sally:
   # Sally's API endpoint

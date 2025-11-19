@@ -1,158 +1,96 @@
+"""Configuration loader for Chester."""
 import os
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
-from services.chester_service import ChesterService
 
-# Load environment variables from .env file
+# Load environment variables from .env
 load_dotenv()
 
+
 class Config:
-    """Configuration loader for Dorothy"""
+    """Configuration management for Chester."""
 
     def __init__(self):
-        self.base_dir = Path(__file__).parent
-        self.config_file = self.base_dir / 'config.yaml'
-        self._config = self._load_config()
-        self._chester_service = None
+        base_dir = Path(__file__).parent
+        config_path = base_dir / "config.yaml"
 
-    def _load_config(self):
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f) or {}
+
+        # ── Bot info (from YAML) ───────────────────────────────
+        self.name = data.get("name", "Chester")
+        self.description = data.get("description", "")
+        self.version = data.get("version", "1.0.0")
+        self.personality = data.get("personality", "")
+
+        # ── Server config (from YAML) ─────────────────────────
+        server = data.get("server", {}) or {}
+        self.server_host = server.get("host", "0.0.0.0")
+        self.server_port = server.get("port", 8008)
+
+        # ── Bot team registry (from YAML) ─────────────────────
+        # e.g. {"sally": {"url": "..."}, "zac": {"url": "..."}, ...}
+        self.bot_team = data.get("bot_team", {}) or {}
+
+        # ── Health check config (from YAML) ───────────────────
+        health = data.get("health_check", {}) or {}
+        self.health_check_timeout = health.get("timeout", 0.5)
+        self.health_check_interval = health.get("check_interval", 60)
+        self.health_check_enabled = health.get("enabled", True)
+
+        # ── New bot template config (from YAML) ───────────────
+        self.new_bot_template = data.get("new_bot_template", {}) or {}
+
+        # ── Secrets / env-specific settings (from .env) ───────
+
+        # Flask secret key
+        self.secret_key = os.environ.get(
+            "FLASK_SECRET_KEY",
+            "dev-secret-key-change-in-production",
+        )
+
+        # Shared bot API key for bot-to-bot communication
+        self.bot_api_key = os.environ.get("BOT_API_KEY")
+
+    # ─────────────────────────────────────────────────────────
+    # Helper methods for bot registry
+    # ─────────────────────────────────────────────────────────
+
+    def get_bot_config(self, bot_name: str) -> dict | None:
         """
-        Load configuration from YAML file with local override support
-
-        Loads config.yaml (base config in git) and merges with config.local.yaml
-        (local overrides, gitignored) if it exists.
-        """
-        # Load base config
-        with open(self.config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
-
-        # Load local config if it exists
-        local_config_file = self.base_dir / 'config.local.yaml'
-        if local_config_file.exists():
-            with open(local_config_file, 'r') as f:
-                local_config = yaml.safe_load(f) or {}
-                # Deep merge: local config overrides base config
-                config = self._deep_merge(config, local_config)
-
-        return config
-
-    def _deep_merge(self, base: dict, override: dict) -> dict:
-        """Deep merge two dictionaries, with override taking precedence"""
-        result = base.copy()
-        for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                result[key] = self._deep_merge(result[key], value)
-            else:
-                result[key] = value
-        return result
-
-    @property
-    def name(self):
-        return self._config.get('name', 'dorothy')
-
-    @property
-    def description(self):
-        return self._config.get('description', '')
-
-    @property
-    def version(self):
-        return self._config.get('version', '0.0.0')
-
-    @property
-    def server_host(self):
-        return self._config.get('server', {}).get('host', '0.0.0.0')
-
-    @property
-    def server_port(self):
-        return self._config.get('server', {}).get('port', 8005)
-
-    def _get_bot_url(self, bot_name: str, default_url: str) -> str:
-        """
-        Get the URL for a bot, respecting dev mode configuration.
-
-        In dev mode, checks Flask session for overrides:
-        - If session says use 'prod' for this bot, use prod URL
-        - Otherwise use default (localhost for dev)
-
-        Returns the URL for the bot API
-        """
-        try:
-            from flask import session, has_request_context
-
-            # Check if we're in a request context and have dev config
-            if has_request_context():
-                dev_config = session.get('dev_bot_config', {})
-                if dev_config.get(bot_name) == 'prod':
-                    # Use production URL
-                    return f"https://{bot_name}.watsonblinds.com.au"
-        except:
-            # If Flask isn't available or there's no request context, use default
-            pass
-
-        # Default to environment variable or config (localhost for dev)
-        return default_url
-
-    @property
-    def sally_url(self):
-        """Get Sally's API URL"""
-        default = os.environ.get('SALLY_URL') or self._config.get('sally', {}).get('url', 'http://localhost:8004')
-        return self._get_bot_url('sally', default)
-
-    @property
-    def chester_url(self):
-        """Get Chester's API URL"""
-        default = os.environ.get('CHESTER_URL') or self._config.get('chester', {}).get('url', 'http://localhost:8008')
-        return self._get_bot_url('chester', default)
-
-    @property
-    def default_server(self):
-        return self._config.get('deployment', {}).get('default_server', 'prod')
-
-    @property
-    def deployment_timeout(self):
-        return self._config.get('deployment', {}).get('deployment_timeout', 600)
-
-    @property
-    def verification_checks(self):
-        return self._config.get('deployment', {}).get('verification_checks', [])
-
-    @property
-    def chester(self):
-        """Get Chester service with current URL (session-aware)"""
-        # Always create a new instance with the current URL to respect session changes
-        return ChesterService(self.chester_url)
-
-    def get_all_bots(self):
-        """
-        Get all bot configurations from Chester.
+        Get the config entry for a specific bot, e.g. 'sally', 'zac', 'pam'.
 
         Returns:
-            Dict of bot configurations keyed by name, or empty dict if Chester unavailable
+            Dict for that bot (from bot_team), or None if not found.
         """
-        chester_bots = self.chester.get_all_bots()
+        return self.bot_team.get(bot_name)
 
-        if chester_bots:
-            # Convert list to dict keyed by name for compatibility
-            return {bot['name']: bot for bot in chester_bots}
-
-        # Chester is unavailable
-        print("Warning: Chester is not available. Cannot retrieve bot configurations.")
-        return {}
-
-    def get_bot_config(self, bot_name):
+    def get_bot_url(self, bot_name: str, default: str | None = None) -> str | None:
         """
-        Get configuration for a specific bot from Chester.
+        Get the base URL for a specific bot from the bot_team section.
 
         Returns:
-            Bot configuration dict, or None if not found or Chester unavailable
+            URL string, or default / None if not found.
         """
-        chester_config = self.chester.get_bot_config(bot_name)
+        bot_cfg = self.get_bot_config(bot_name)
+        if not bot_cfg:
+            return default
+        return bot_cfg.get("url", default)
 
-        if not chester_config:
-            print(f"Warning: Could not get configuration for {bot_name} from Chester.")
+    def get_all_bots(self) -> list[str]:
+        """
+        Get a list of all bot names defined in the bot_team section.
+        """
+        return list(self.bot_team.keys())
 
-        return chester_config
+    @property
+    def sally_url(self) -> str | None:
+        """
+        Convenience property for Sally's URL.
+        """
+        return self.get_bot_url("sally")
 
 
+# Global config instance
 config = Config()

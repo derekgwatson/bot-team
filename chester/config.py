@@ -2,65 +2,54 @@
 import os
 import yaml
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 class Config:
     """Configuration management for Chester."""
 
     def __init__(self):
-        self.config_path = Path(__file__).parent / 'config.yaml'
-        self.config = self._load_config()
+        base_dir = Path(__file__).parent
+        config_path = base_dir / "config.yaml"
 
-    def _load_config(self):
-        """Load configuration from YAML file."""
-        with open(self.config_path, 'r') as f:
-            return yaml.safe_load(f)
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f) or {}
 
-    @property
-    def name(self):
-        return self.config.get('name', 'Chester')
+        # Bot info
+        self.name = data.get("name", "Chester")
+        self.description = data.get("description", "")
+        self.version = data.get("version", "1.0.0")
+        self.personality = data.get("personality", "")
 
-    @property
-    def description(self):
-        return self.config.get('description', '')
+        # Server config
+        server_cfg = data.get("server", {}) or {}
+        self.server_host = server_cfg.get("host", "0.0.0.0")
+        self.server_port = server_cfg.get("port", 8008)
 
-    @property
-    def version(self):
-        return self.config.get('version', '1.0.0')
+        # Bot team registry
+        self.bot_team = data.get("bot_team", {}) or {}
 
-    @property
-    def personality(self):
-        return self.config.get('personality', '')
+        # Health check config
+        health_cfg = data.get("health_check", {}) or {}
+        self.health_check_timeout = health_cfg.get("timeout", 0.5)
+        self.health_check_interval = health_cfg.get("check_interval", 60)
+        self.health_check_enabled = health_cfg.get("enabled", True)
 
-    @property
-    def server_host(self):
-        return self.config.get('server', {}).get('host', '0.0.0.0')
+        # New bot template config
+        self.new_bot_template = data.get("new_bot_template", {}) or {}
 
-    @property
-    def server_port(self):
-        return self.config.get('server', {}).get('port', 8008)
+        # Flask secret key (env)
+        self.secret_key = os.environ.get(
+            "FLASK_SECRET_KEY",
+            "dev-secret-key-change-in-production",
+        )
 
-    @property
-    def bot_team(self):
-        """Get the bot team registry."""
-        return self.config.get('bot_team', {})
+        # Bot API key for bot-to-bot communication (env)
+        self.bot_api_key = os.environ.get("BOT_API_KEY")
 
-    @property
-    def health_check_timeout(self):
-        return self.config.get('health_check', {}).get('timeout', 0.5)
-
-    @property
-    def health_check_interval(self):
-        return self.config.get('health_check', {}).get('check_interval', 60)
-
-    @property
-    def health_check_enabled(self):
-        """Check if health checks are enabled (can be disabled in dev)."""
-        return self.config.get('health_check', {}).get('enabled', True)
-
-    @property
-    def new_bot_template(self):
-        """Get the new bot template configuration."""
-        return self.config.get('new_bot_template', {})
 
 # Global config instance
 config = Config()

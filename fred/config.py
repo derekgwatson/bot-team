@@ -6,59 +6,59 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 class Config:
     """Configuration loader for Fred"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
-        self.config_file = self.base_dir / 'config.yaml'
-        self._config = self._load_config()
+        config_file = self.base_dir / "config.yaml"
 
-    def _load_config(self):
-        """Load configuration from YAML file"""
-        with open(self.config_file, 'r') as f:
-            return yaml.safe_load(f)
+        with open(config_file, "r") as f:
+            data = yaml.safe_load(f) or {}
 
-    @property
-    def name(self):
-        return self._config.get('name', 'fred')
+        # ── Bot info (from YAML) ───────────────────────────────
+        self.name = data.get("name", "fred")
+        self.description = data.get("description", "")
+        self.version = data.get("version", "0.0.0")
 
-    @property
-    def description(self):
-        return self._config.get('description', '')
+        # ── Server config (from YAML) ─────────────────────────
+        server = data.get("server", {}) or {}
+        self.server_host = server.get("host", "0.0.0.0")
+        self.server_port = server.get("port", 8001)
 
-    @property
-    def version(self):
-        return self._config.get('version', '0.0.0')
+        # ── Google Workspace config ───────────────────────────
+        gw = data.get("google_workspace", {}) or {}
 
-    @property
-    def server_host(self):
-        return self._config.get('server', {}).get('host', '0.0.0.0')
+        # credentials file path (relative to Fred's directory if not absolute)
+        credentials_path = gw.get("credentials_file", "credentials.json")
+        if not os.path.isabs(credentials_path):
+            credentials_path = self.base_dir / credentials_path
+        self.google_credentials_file = str(credentials_path)
 
-    @property
-    def server_port(self):
-        return self._config.get('server', {}).get('port', 8001)
+        # domain & admin email: env overrides YAML
+        self.google_domain = (
+            os.environ.get("GOOGLE_WORKSPACE_DOMAIN")
+            or gw.get("domain", "example.com")
+        )
 
-    @property
-    def google_credentials_file(self):
-        path = self._config.get('google_workspace', {}).get('credentials_file', 'credentials.json')
-        # Make it relative to fred's directory
-        if not os.path.isabs(path):
-            path = self.base_dir / path
-        return str(path)
+        self.google_admin_email = (
+            os.environ.get("GOOGLE_WORKSPACE_ADMIN_EMAIL")
+            or gw.get("admin_email", "")
+        )
 
-    @property
-    def google_domain(self):
-        # Read from environment variable first, fallback to config file
-        return os.environ.get('GOOGLE_WORKSPACE_DOMAIN') or self._config.get('google_workspace', {}).get('domain', 'example.com')
+        # ── Bots registry (from YAML) ─────────────────────────
+        # e.g. URLs / metadata for other bots Fred talks to
+        self.bots = data.get("bots", {}) or {}
 
-    @property
-    def google_admin_email(self):
-        # Read from environment variable first, fallback to config file
-        return os.environ.get('GOOGLE_WORKSPACE_ADMIN_EMAIL') or self._config.get('google_workspace', {}).get('admin_email', '')
+        # ── Common shared bits (from .env) ────────────────────
+        # Optional: align with other bots
+        self.secret_key = os.environ.get(
+            "FLASK_SECRET_KEY",
+            "dev-secret-key-change-in-production",
+        )
 
-    @property
-    def bots(self):
-        return self._config.get('bots', {})
+        self.bot_api_key = os.environ.get("BOT_API_KEY")
+
 
 config = Config()

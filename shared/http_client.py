@@ -27,19 +27,27 @@ class BotHttpClient:
 
     def get(self, path: str, **kwargs):
         url = urljoin(self.base_url, path.lstrip("/"))
+
+        # Use per-call timeout if provided, otherwise default
+        timeout = kwargs.pop("timeout", self.timeout)
+
         return requests.get(
             url,
             headers=self._headers(),
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )
 
     def post(self, path: str, json=None, **kwargs):
         url = urljoin(self.base_url, path.lstrip("/"))
+
+        # Use per-call timeout if provided, otherwise default
+        timeout = kwargs.pop("timeout", self.timeout)
+
         return requests.post(
             url,
             headers=self._headers(),
             json=json,
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )

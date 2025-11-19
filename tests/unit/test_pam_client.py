@@ -47,6 +47,9 @@ def mock_config(monkeypatch):
     """Mock Pam's config."""
     class MockConfig:
         peter_api_url = 'http://localhost:8003'
+        # For PeterClient.__init__
+        peter_contacts_endpoint = '/api/contacts'
+        peter_search_endpoint = '/api/contacts/search'
 
     import config as pam_config
     monkeypatch.setattr(pam_config, 'config', MockConfig())

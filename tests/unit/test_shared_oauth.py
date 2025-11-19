@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 from flask import Flask, session
+from urllib.parse import urlparse
 
 # Add shared directory to path
 shared_path = Path(__file__).parent.parent.parent / 'shared'
@@ -465,7 +466,7 @@ def test_logout_route_clears_session(flask_app, mock_config_domain):
 
 @pytest.mark.unit
 @pytest.mark.shared
-def test_logout_route_redirects_to_login(flask_app, mock_config_domain):
+def test_logout_route_redirects_to_home(flask_app, mock_config_domain):
     """Test that logout redirects to login page."""
     auth = GoogleAuth(flask_app, mock_config_domain)
 
@@ -473,7 +474,9 @@ def test_logout_route_redirects_to_login(flask_app, mock_config_domain):
         response = auth.logout_route()
 
         assert response.status_code == 302
-        assert 'login' in response.location
+        # Parse the redirect location and assert it goes to '/'
+        path = urlparse(response.location).path
+        assert path == '/'
 
 
 # ==============================================================================

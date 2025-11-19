@@ -3,91 +3,81 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 
+from shared.config.loader import load_shared_yaml
+from shared.config.ports import get_port
+
 # Load environment variables from .env file
 load_dotenv()
+
 
 class Config:
     """Configuration loader for Olive"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
-        self.config_file = self.base_dir / 'config.yaml'
-        self._config = self._load_config()
+        config_file = self.base_dir / "config.yaml"
 
-        # Load shared organization config
-        shared_config_path = self.base_dir / self._config['shared_config']
-        with open(shared_config_path, 'r') as f:
-            self._shared_config = yaml.safe_load(f)
+        # ── Bot-local config.yaml ──────────────────────────────
+        with open(config_file, "r") as f:
+            data = yaml.safe_load(f) or {}
 
-    def _load_config(self):
-        """Load configuration from YAML file"""
-        with open(self.config_file, 'r') as f:
-            return yaml.safe_load(f)
+        # ── Shared organization config ────────────────────────
+        org_cfg = load_shared_yaml("organization").get("organization", {}) or {}
+        self.organization_name = org_cfg.get("name", "Watson Blinds Group")
+        self.organization_domains = org_cfg.get("domains", []) or []
+        self.organization_primary_domain = org_cfg.get("primary_domain", "")
 
-    @property
-    def name(self):
-        return self._config.get('name', 'olive')
+        # ── Basic bot info (from YAML) ────────────────────────
+        self.name = data.get("name", "olive")
+        self.description = data.get("description", "")
+        self.version = data.get("version", "0.0.0")
 
-    @property
-    def description(self):
-        return self._config.get('description', '')
+        # ── Server config ─────────────────────────────────────
+        server = data.get("server", {}) or {}
+        # Host still comes from Olive's own config
+        self.server_host = server.get("host", "0.0.0.0")
+        # Port from shared ports.yaml, with local default fallback
+        self.server_port = get_port("olive", server.get("port", 8012))
 
-    @property
-    def version(self):
-        return self._config.get('version', '0.0.0')
-
-    @property
-    def server_host(self):
-        return self._config.get('server', {}).get('host', '0.0.0.0')
-
-    @property
-    def server_port(self):
-        return self._config.get('server', {}).get('port', 8012)
-
-    @property
-    def organization_domains(self):
-        return self._shared_config['organization']['domains']
-
-    @property
-    def admin_emails(self):
-        # Read from environment variable (comma-separated list)
-        env_emails = os.environ.get('ADMIN_EMAILS', '')
+        # ── Admin emails (env override, then YAML) ────────────
+        env_emails = os.environ.get("ADMIN_EMAILS", "")
         if env_emails:
-            return [email.strip() for email in env_emails.split(',') if email.strip()]
-        # Fallback to config file (for backward compatibility)
-        return self._config.get('auth', {}).get('admin_emails', [])
+            self.admin_emails = [
+                email.strip()
+                for email in env_emails.split(",")
+                if email.strip()
+            ]
+        else:
+            self.admin_emails = data.get("auth", {}).get("admin_emails", []) or []
 
-    @property
-    def bots(self):
-        return self._config.get('bots', {})
+        # ── Bots registry (from Olive's config) ───────────────
+        self.bots = data.get("bots", {}) or {}
 
-    @property
-    def secret_key(self):
-        return os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+        # ── Secrets / env-specific settings ───────────────────
 
-    # Email configuration
-    @property
-    def notification_email(self):
-        return os.environ.get('NOTIFICATION_EMAIL', '')
+        # Flask secret key (support FLASK_SECRET_KEY and legacy SECRET_KEY)
+        self.secret_key = (
+            os.environ.get("FLASK_SECRET_KEY")
+            or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+        )
 
-    @property
-    def smtp_host(self):
-        return self._config.get('email', {}).get('smtp_host', 'smtp.gmail.com')
+        # Shared bot API key for bot-to-bot communication
+        self.bot_api_key = os.environ.get("BOT_API_KEY")
 
-    @property
-    def smtp_port(self):
-        return self._config.get('email', {}).get('smtp_port', 587)
+        # ── Email configuration ───────────────────────────────
+        self.notification_email = os.environ.get("NOTIFICATION_EMAIL", "")
 
-    @property
-    def smtp_username(self):
-        return os.environ.get('SMTP_USERNAME', '')
+        email_cfg = data.get("email", {}) or {}
+        self.smtp_host = email_cfg.get("smtp_host", "smtp.gmail.com")
+        self.smtp_port = email_cfg.get("smtp_port", 587)
 
-    @property
-    def smtp_password(self):
-        return os.environ.get('SMTP_PASSWORD', '')
+        self.smtp_username = os.environ.get("SMTP_USERNAME", "")
+        self.smtp_password = os.environ.get("SMTP_PASSWORD", "")
 
-    @property
-    def email_from_address(self):
-        return self._config.get('email', {}).get('from_address', 'olive@watsonblinds.com.au')
+        self.email_from_address = email_cfg.get(
+            "from_address",
+            "olive@watsonblinds.com.au",
+        )
+
 
 config = Config()
