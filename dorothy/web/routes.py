@@ -3,6 +3,7 @@ from flask_login import current_user
 from config import config
 from services.auth import login_required
 from services.deployment_orchestrator import deployment_orchestrator
+from services.chester_service import ChesterService
 
 web_bp = Blueprint('web', __name__)
 
@@ -11,8 +12,15 @@ web_bp = Blueprint('web', __name__)
 @login_required
 def index():
     """Dorothy's home page"""
-    # Get all bots from Chester via Config helper
-    bots = config.get_all_bots()
+    # Get all bots from Chester's database (single source of truth)
+    try:
+        chester = ChesterService()
+        bots_list = chester.get_all_bots()
+        # Convert list of bot dicts to dict keyed by bot name for template
+        bots = {bot['name']: bot for bot in bots_list} if bots_list else {}
+    except Exception as e:
+        print(f"Warning: Could not query Chester for bots: {e}")
+        bots = {}
 
     # Get Sally's health status
     sally_status = deployment_orchestrator.check_sally_health()
