@@ -81,8 +81,17 @@ def callback():
 @auth_bp.route('/logout')
 def logout():
     """Log out the current user"""
+    # Clear Flask-Login's current user
     logout_user()
+
+    # Remove user from session (this is what load_user checks)
+    session.pop('user', None)
+
+    # Clear any other session data
     session.clear()
+
+    # Ensure session changes are saved
+    session.modified = True
 
     return render_template_string('''
         <html>
