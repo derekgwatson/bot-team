@@ -1,9 +1,8 @@
 from flask import Flask
 from config import config
 from web.routes import web_bp
-from web.auth_routes import auth_bp
 from api.access import api_bp
-from services.auth import init_auth
+from web.auth_routes import auth_bp
 import os
 
 app = Flask(__name__)

@@ -2,51 +2,51 @@ import requests
 import time
 import uuid
 import threading
-import sys
-from typing import Dict, List, Optional
+from typing import Dict,  Optional
 from pathlib import Path
-from config import config
-
-# Add shared directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from dorothy.config import config
+from shared.http_client import BotHttpClient
 from shared.config.ports import get_port
+
 
 class DeploymentOrchestrator:
     """Orchestrates bot deployments by calling Sally to execute commands"""
 
     def __init__(self):
-        self.sally_url = config.sally_url
         self.deployments = {}
         self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
     def _get_bot_url(self, bot_name: str) -> str:
         """
-        Get the URL for a bot, respecting dev mode configuration.
+        Get the URL for a bot.
 
-        In dev mode, checks Flask session for overrides:
-        - If session says use 'prod' for this bot, use prod URL
-        - Otherwise use localhost (dev default)
+        Logic:
+        - If we're in a request context and session dev config says 'prod'
+          for this bot, use the public HTTPS domain.
+        - Otherwise, use localhost with the port from shared/config/ports.yaml.
 
-        Returns the URL for the bot API
+        Returns the base URL for the bot API, e.g.:
+            https://pam.watsonblinds.com.au    (prod)
+            http://localhost:8004              (dev, from ports.yaml)
         """
         from flask import session, has_request_context
 
-        # Check if we're in a request context and have dev config
+        # 1) Optional "prod" override from dev session
         if has_request_context():
             dev_config = session.get('dev_bot_config', {})
             if dev_config.get(bot_name) == 'prod':
-                # Use production URL
                 return f"https://{bot_name}.watsonblinds.com.au"
 
-        # Default to localhost for dev
-        if bot_name == 'sally':
-            return config.sally_url
-        elif bot_name == 'chester':
-            return config.chester_url
-        else:
-            # Fallback for unknown bots
-            return f"http://localhost:800{ord(bot_name[0]) % 10}"
+        # 2) Default: localhost + port from ports.yaml
+        port = get_port(bot_name)
+        if port is None:
+            raise ValueError(
+                f"No port configured for bot '{bot_name}' in shared/config/ports.yaml"
+            )
+
+        # Always use loopback for dev access
+        return f"http://localhost:{port}"
 
     def check_sally_health(self) -> Dict:
         """
@@ -56,11 +56,10 @@ class DeploymentOrchestrator:
             Dict with Sally's health status
         """
         sally_url = self._get_bot_url('sally')
+        client = BotHttpClient(sally_url)
+
         try:
-            response = requests.get(
-                f"{sally_url}/health",
-                timeout=5
-            )
+            response = client.get("health", timeout=5)
             response.raise_for_status()
             data = response.json()
             return {
@@ -107,6 +106,7 @@ class DeploymentOrchestrator:
             Result from Sally
         """
         sally_url = self._get_bot_url('sally')
+        client = BotHttpClient(sally_url)
         try:
             payload = {
                 'server': server,
@@ -115,11 +115,7 @@ class DeploymentOrchestrator:
             if timeout:
                 payload['timeout'] = timeout
 
-            response = requests.post(
-                f"{sally_url}/api/execute",
-                json=payload,
-                timeout=30
-            )
+            response = client.post("api/execute", json=payload, timeout=30)
             response.raise_for_status()
             return response.json()
         except Exception as e:

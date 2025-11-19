@@ -6,6 +6,7 @@ from services.deployment_orchestrator import deployment_orchestrator
 
 web_bp = Blueprint('web', __name__)
 
+
 @web_bp.route('/')
 @login_required
 def index():

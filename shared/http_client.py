@@ -20,9 +20,13 @@ class BotHttpClient:
         self.timeout = timeout
 
     def _headers(self) -> dict:
-        headers = {}
-        if BOT_API_KEY:
-            headers["X-API-Key"] = BOT_API_KEY
+        headers: dict = {}
+
+        # Look up the key at call time, not import time
+        api_key = os.getenv("BOT_API_KEY", "")
+        if api_key:
+            headers["X-API-Key"] = api_key
+
         return headers
 
     def get(self, path: str, **kwargs):

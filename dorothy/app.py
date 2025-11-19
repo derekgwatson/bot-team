@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure project root (bot-team/) is on sys.path so `shared` imports work
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
 
@@ -25,12 +33,14 @@ app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 
+
 @app.route('/robots.txt')
 def robots():
     """Robots.txt to block all search engine crawlers"""
     return """User-agent: *
 Disallow: /
 """, 200, {'Content-Type': 'text/plain'}
+
 
 @app.route('/health')
 def health():
@@ -40,6 +50,7 @@ def health():
         'bot': config.name,
         'version': config.version
     })
+
 
 @app.route('/info')
 def info():
@@ -58,6 +69,7 @@ def info():
             'sally_health': '/api/sally/health'
         }
     })
+
 
 if __name__ == '__main__':
     print("\n" + "="*50)

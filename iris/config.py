@@ -2,9 +2,9 @@ import os
 import yaml
 from pathlib import Path
 from dotenv import load_dotenv
-
 from shared.config.loader import load_shared_yaml
 from shared.config.ports import get_port
+from shared.config.env_loader import SHARED_ENV  # noqa: F401
 
 # Load environment variables from .env file
 load_dotenv()

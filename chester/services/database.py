@@ -1,12 +1,8 @@
 """Database service for Chester - manages bot deployment configuration."""
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 from contextlib import contextmanager
-
-# Add shared directory to path for migrations import
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared.migrations import MigrationRunner
 
 

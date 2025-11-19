@@ -1,8 +1,9 @@
 from flask import Blueprint, redirect, url_for, session, render_template_string
 from flask_login import login_user, logout_user, current_user
-from services.auth import oauth, User, is_email_allowed
+from pam.services.auth import oauth, User, is_email_allowed
 
 auth_bp = Blueprint('auth', __name__)
+
 
 @auth_bp.route('/login')
 def login():
@@ -13,6 +14,7 @@ def login():
     # Get the OAuth redirect URI
     redirect_uri = url_for('auth.callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
+
 
 @auth_bp.route('/auth/callback')
 def callback():

@@ -1,8 +1,10 @@
 import yaml
 import os
+from shared.config.env_loader import SHARED_ENV  # noqa: F401
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class Config:
     def __init__(self):

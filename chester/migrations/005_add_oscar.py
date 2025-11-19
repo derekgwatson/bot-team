@@ -1,10 +1,4 @@
 """Add Oscar bot to the bot team."""
-
-import sys
-from pathlib import Path
-
-# Add shared directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared.migrations.bot_helper import prepare_bot_for_migration
 
 

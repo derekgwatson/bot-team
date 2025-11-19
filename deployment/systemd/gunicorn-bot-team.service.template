@@ -9,6 +9,7 @@ Group=www-data
 RuntimeDirectory=gunicorn-{{BOT_NAME}}
 WorkingDirectory=/var/www/bot-team/{{BOT_NAME}}
 Environment="PATH=/var/www/bot-team/{{BOT_NAME}}/.venv/bin:$PATH"
+EnvironmentFile=/etc/bot-team/bot-team.env
 EnvironmentFile=/var/www/bot-team/{{BOT_NAME}}/.env
 ExecStart=/var/www/bot-team/{{BOT_NAME}}/.venv/bin/gunicorn \
   --workers 3 \
@@ -18,7 +19,8 @@ ExecStart=/var/www/bot-team/{{BOT_NAME}}/.venv/bin/gunicorn \
   --capture-output \
   --access-logfile - \
   --error-logfile - \
-  app:app
+  --chdir /var/www/bot-team \
+  {{BOT_NAME}}.app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=30

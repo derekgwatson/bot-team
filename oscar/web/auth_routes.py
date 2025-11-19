@@ -1,9 +1,10 @@
 from flask import Blueprint, redirect, url_for, session, render_template_string
 from flask_login import login_user, logout_user, current_user
-from services.auth import oauth, User, is_admin_user
-from config import config
+from oscar.services.auth import oauth, User
+from oscar.config import config
 
 auth_bp = Blueprint('auth', __name__)
+
 
 @auth_bp.route('/login')
 def login():
@@ -14,6 +15,7 @@ def login():
     # Get the OAuth redirect URI
     redirect_uri = url_for('auth.callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
+
 
 @auth_bp.route('/auth/callback')
 def callback():
@@ -79,6 +81,7 @@ def callback():
             </body>
             </html>
         ''', error=str(e))
+
 
 @auth_bp.route('/logout')
 def logout():

@@ -1,7 +1,7 @@
 """API endpoints for bot information and health checks."""
 from flask import Blueprint, jsonify, request
-from services.bot_service import bot_service
-from services.database import db
+from ..services.bot_service import bot_service
+from ..services.database import db
 from shared.auth.bot_api import api_key_required
 
 bots_bp = Blueprint('bots', __name__)

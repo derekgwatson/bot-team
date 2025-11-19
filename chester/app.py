@@ -1,14 +1,10 @@
 """Chester - Bot Team Concierge."""
 import os
 from flask import Flask, jsonify
-from dotenv import load_dotenv
-from config import config
-from api.bots import bots_bp
-from api.deployment import deployment_bp
-from web.routes import web_bp
-
-# Load environment variables
-load_dotenv()
+from .config import config
+from .api.bots import bots_bp
+from .api.deployment import deployment_bp
+from .web.routes import web_bp
 
 # Create Flask app
 app = Flask(__name__)

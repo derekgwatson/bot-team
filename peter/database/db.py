@@ -3,13 +3,9 @@ Database service for Peter's staff database
 """
 import sqlite3
 import os
-import sys
 from datetime import datetime
-from pathlib import Path
-
-# Add shared directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared.migrations import MigrationRunner
+
 
 class StaffDatabase:
     """SQLite database for staff information"""

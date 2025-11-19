@@ -1,6 +1,7 @@
 import yaml
 import os
 from dotenv import load_dotenv
+from shared.config.env_loader import SHARED_ENV  # noqa: F401
 
 load_dotenv()
 

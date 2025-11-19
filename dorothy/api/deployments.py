@@ -14,11 +14,13 @@ def get_dependencies():
         'dependencies': ['sally', 'chester']
     })
 
+
 @api_bp.route('/dev-config', methods=['GET'])
 @api_key_required
 def get_dev_config():
     """Get current dev bot configuration (from session)"""
     return jsonify(session.get('dev_bot_config', {}))
+
 
 @api_bp.route('/dev-config', methods=['POST'])
 @api_key_required
@@ -42,6 +44,7 @@ def update_dev_config():
         'config': dev_config
     })
 
+
 @api_bp.route('/sally/health', methods=['GET'])
 @api_key_required
 def sally_health():
@@ -49,6 +52,7 @@ def sally_health():
     health = deployment_orchestrator.check_sally_health()
     status_code = 200 if health.get('healthy') else 503
     return jsonify(health), status_code
+
 
 @api_bp.route('/bots', methods=['GET'])
 @api_key_required
@@ -73,6 +77,7 @@ def list_bots():
         'count': len(bot_list)
     })
 
+
 @api_bp.route('/verify/<bot_name>', methods=['POST'])
 @api_key_required
 def verify_bot(bot_name):
@@ -94,6 +99,7 @@ def verify_bot(bot_name):
 
     result = deployment_orchestrator.verify_deployment(server, bot_name)
     return jsonify(result)
+
 
 @api_bp.route('/plan/<bot_name>', methods=['POST'])
 @api_key_required
@@ -117,6 +123,7 @@ def get_deployment_plan(bot_name):
     plan = deployment_orchestrator.get_deployment_plan(server, bot_name)
     return jsonify(plan)
 
+
 @api_bp.route('/deploy/<bot_name>', methods=['POST'])
 @api_key_required
 def deploy_bot(bot_name):
@@ -139,6 +146,7 @@ def deploy_bot(bot_name):
     result = deployment_orchestrator.deploy_bot(server, bot_name)
     return jsonify(result)
 
+
 @api_bp.route('/deployments', methods=['GET'])
 @api_key_required
 def list_deployments():
@@ -150,6 +158,7 @@ def list_deployments():
         'deployments': deployments,
         'total': len(deployments)
     })
+
 
 @api_bp.route('/deployments/<deployment_id>', methods=['GET'])
 @api_key_required
@@ -172,6 +181,7 @@ def get_verification(verification_id):
         return jsonify({'error': 'Verification not found'}), 404
 
     return jsonify(verification)
+
 
 @api_bp.route('/health-check/<bot_name>', methods=['POST'])
 @api_key_required
@@ -251,6 +261,7 @@ def health_check_bot(bot_name):
         'success': result.get('success')
     })
 
+
 @api_bp.route('/start-service/<bot_name>', methods=['POST'])
 @api_key_required
 def start_service(bot_name):
@@ -283,6 +294,7 @@ def start_service(bot_name):
         'stderr': result.get('stderr', ''),
         'exit_code': result.get('exit_code')
     })
+
 
 @api_bp.route('/add-bot', methods=['POST'])
 @api_key_required
@@ -388,6 +400,7 @@ def add_bot():
         'restart_result': restart_result
     })
 
+
 @api_bp.route('/restart-dorothy', methods=['POST'])
 @api_key_required
 def restart_dorothy():
@@ -417,6 +430,7 @@ def restart_dorothy():
         'exit_code': result.get('exit_code')
     })
 
+
 @api_bp.route('/update/<bot_name>', methods=['POST'])
 @api_key_required
 def update_bot(bot_name):
@@ -438,6 +452,7 @@ def update_bot(bot_name):
 
     result = deployment_orchestrator.update_bot(server, bot_name)
     return jsonify(result)
+
 
 @api_bp.route('/teardown/<bot_name>', methods=['POST'])
 @api_key_required
@@ -464,6 +479,7 @@ def teardown_bot(bot_name):
 
     result = deployment_orchestrator.teardown_bot(server, bot_name, remove_code, remove_from_config)
     return jsonify(result)
+
 
 @api_bp.route('/setup-ssl/<bot_name>', methods=['POST'])
 @api_key_required

@@ -1,6 +1,6 @@
 """API endpoints for bot deployment configuration."""
 from flask import Blueprint, jsonify, request
-from services.database import db
+from ..services.database import db
 from shared.auth.bot_api import api_key_required
 
 deployment_bp = Blueprint('deployment', __name__)
