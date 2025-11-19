@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, url_for, session, render_template_string
 from flask_login import login_user, logout_user, current_user
-from oscar.services.auth import oauth, User
-from oscar.config import config
+from services.auth import oauth, User
+from config import config
 
 auth_bp = Blueprint('auth', __name__)
 

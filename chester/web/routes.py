@@ -1,8 +1,8 @@
 """Web interface routes for Chester."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from chester.services.bot_service import bot_service
-from chester.services.database import db
-from chester.config import config
+from services.bot_service import bot_service
+from services.database import db
+from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
