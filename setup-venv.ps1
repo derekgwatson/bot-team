@@ -1,6 +1,6 @@
 # Setup script for consolidated virtual environment (PowerShell)
 
-Write-Host "🔧 Setting up consolidated virtual environment for bot-team" -ForegroundColor Cyan
+Write-Host "Setting up consolidated virtual environment for bot-team" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -9,21 +9,22 @@ Set-Location $PSScriptRoot
 
 # Create virtual environment at root if it doesn't exist
 if (-not (Test-Path ".venv")) {
-    Write-Host "📦 Creating virtual environment at project root..." -ForegroundColor Yellow
+    Write-Host "Creating virtual environment at project root..." -ForegroundColor Yellow
     python -m venv .venv
-    Write-Host "✅ Virtual environment created" -ForegroundColor Green
-} else {
-    Write-Host "ℹ️  Virtual environment already exists at project root" -ForegroundColor Blue
+    Write-Host "Virtual environment created" -ForegroundColor Green
+}
+else {
+    Write-Host "Virtual environment already exists at project root" -ForegroundColor Blue
 }
 
 Write-Host ""
-Write-Host "📥 Installing dependencies..." -ForegroundColor Yellow
+Write-Host "Installing dependencies..." -ForegroundColor Yellow
 & .\.venv\Scripts\Activate.ps1
 pip install --upgrade pip
 pip install -r requirements.txt
 
 Write-Host ""
-Write-Host "✅ Setup complete!" -ForegroundColor Green
+Write-Host "Setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "To activate the virtual environment:" -ForegroundColor Cyan
 Write-Host "  .venv\Scripts\Activate.ps1" -ForegroundColor White
