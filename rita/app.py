@@ -8,6 +8,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from flask import Flask
 from config import config
+from services.auth import init_auth
 from web.routes import web_bp
 from api.access import api_bp
 from web.auth_routes import auth_bp
