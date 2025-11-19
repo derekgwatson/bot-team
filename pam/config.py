@@ -2,11 +2,11 @@ import yaml
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.env_loader import SHARED_ENV  # Loads root .env automatically
 
-# Load environment variables from .env file in pam directory
-env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
+# Load bot-specific .env (can override global values)
+bot_env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=bot_env_path)
 
 
 class Config:
