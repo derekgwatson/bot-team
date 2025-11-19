@@ -1,6 +1,6 @@
 from flask import Blueprint, redirect, url_for, session, render_template_string
 from flask_login import login_user, logout_user, current_user
-from pam.services.auth import oauth, User, is_email_allowed
+from services.auth import oauth, User, is_email_allowed
 
 auth_bp = Blueprint('auth', __name__)
 
