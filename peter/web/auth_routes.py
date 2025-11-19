@@ -88,12 +88,11 @@ def logout():
         <html>
         <head>
             <title>Logged Out</title>
-            <meta http-equiv="refresh" content="2;url={{ url_for('auth.login') }}">
         </head>
         <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
             <h1>👋 Logged Out</h1>
             <p>You have been successfully logged out.</p>
-            <p>Redirecting to login page...</p>
+            <p><a href="{{ url_for('auth.login') }}" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #2a5298; color: white; text-decoration: none; border-radius: 5px;">Log In Again</a></p>
         </body>
         </html>
     ''')
