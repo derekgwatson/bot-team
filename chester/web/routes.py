@@ -2,18 +2,21 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from services.bot_service import bot_service
 from services.database import db
+from services.auth import login_required
 from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 
 @web_bp.route('/')
+@login_required
 def index():
     """Main dashboard page."""
     return render_template('index.html', config=config)
 
 
 @web_bp.route('/dashboard')
+@login_required
 def dashboard():
     """Interactive dashboard with health checks."""
     # Get all bots
@@ -39,6 +42,7 @@ def dashboard():
 
 
 @web_bp.route('/public')
+@login_required
 def public_directory():
     """Public-facing directory - shows only bots marked as public_facing."""
     # Get only public-facing bots from database
@@ -67,6 +71,7 @@ def public_directory():
 
 
 @web_bp.route('/bot/<bot_name>')
+@login_required
 def bot_details(bot_name):
     """Detailed page for a specific bot."""
     bot_info = bot_service.get_bot_info(bot_name)
@@ -90,6 +95,7 @@ def bot_details(bot_name):
 
 
 @web_bp.route('/search')
+@login_required
 def search():
     """Search for bots by capability."""
     query = request.args.get('q', '')
@@ -107,6 +113,7 @@ def search():
 
 
 @web_bp.route('/new-bot-guide')
+@login_required
 def new_bot_guide():
     """Guide for adding a new bot to the team."""
     template_config = config.new_bot_template
@@ -119,6 +126,7 @@ def new_bot_guide():
 
 
 @web_bp.route('/manage')
+@login_required
 def manage_bots():
     """Manage bot deployment configurations."""
     bots = db.get_all_bots()
@@ -133,6 +141,7 @@ def manage_bots():
 
 
 @web_bp.route('/manage/bot/<bot_name>')
+@login_required
 def manage_bot(bot_name):
     """Edit a specific bot's deployment configuration."""
     bot = db.get_bot(bot_name)
@@ -151,6 +160,7 @@ def manage_bot(bot_name):
 
 
 @web_bp.route('/manage/add-bot')
+@login_required
 def add_bot_form():
     """Form for adding a new bot."""
     defaults = db.get_deployment_defaults()
