@@ -21,9 +21,13 @@ flask-login==0.6.3
 paramiko==3.3.1
 
 # ── Google Workspace APIs (Fred, Iris) ─────────────────
-google-api-python-client==2.108.0
-google-auth-httplib2==0.1.1
-google-auth-oauthlib==1.1.0
+google-auth==2.25.2
+google-api-python-client==2.110.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+
+# ── Zendesk Integration (Zac, Sadie) ──────────────────
+zenpy==2.0.40
 
 # ── Testing ────────────────────────────────────────────
 pytest==7.4.3
