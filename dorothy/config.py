@@ -57,6 +57,9 @@ class Config:
         # This is *descriptive only* – actual deployment config lives in Chester.
         self.bots: dict = data.get("bots", {}) or {}
 
+        # ── Dependencies (other bots Dorothy needs) ──────────
+        self.dependencies: list[str] = data.get("dependencies", [])
+
         # ── Services (chester, sally, etc.) ──────────────────
         # Supports env overrides like CHESTER_URL, SALLY_URL.
         raw_services = data.get("services", {}) or {}
@@ -185,6 +188,27 @@ class Config:
         Backwards-compatible alias for existing code that expects config.get_all_bots().
         """
         return self.get_all_bot_names()
+
+    def get_bot_config(self, bot_name: str):
+        """
+        Get configuration for a specific bot from Chester.
+
+        Returns:
+            Bot configuration dict, or None if not found or Chester unavailable
+        """
+        from dorothy.services.chester_service import ChesterService
+
+        try:
+            chester = ChesterService()
+            chester_config = chester.get_bot_config(bot_name)
+
+            if not chester_config:
+                print(f"Warning: Could not get configuration for {bot_name} from Chester.")
+
+            return chester_config
+        except Exception as e:
+            print(f"Error querying Chester for {bot_name}: {e}")
+            return None
 
 
 # Global config instance
