@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify, session
 from services.deployment_orchestrator import deployment_orchestrator
 from config import config
 from shared.auth.bot_api import api_key_required
+from services.auth import login_required
 
 api_bp = Blueprint('api', __name__)
 
 
 @api_bp.route('/dependencies', methods=['GET'])
-@api_key_required
+@login_required
 def get_dependencies():
     """Get list of bots that Dorothy depends on"""
     return jsonify({
@@ -16,14 +17,14 @@ def get_dependencies():
 
 
 @api_bp.route('/dev-config', methods=['GET'])
-@api_key_required
+@login_required
 def get_dev_config():
     """Get current dev bot configuration (from session)"""
     return jsonify(session.get('dev_bot_config', {}))
 
 
 @api_bp.route('/dev-config', methods=['POST'])
-@api_key_required
+@login_required
 def update_dev_config():
     """Update dev bot configuration (stores in session)"""
     data = request.get_json()
@@ -46,7 +47,7 @@ def update_dev_config():
 
 
 @api_bp.route('/sally/health', methods=['GET'])
-@api_key_required
+@login_required
 def sally_health():
     """Check if Sally is healthy and responding"""
     health = deployment_orchestrator.check_sally_health()
