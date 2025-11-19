@@ -1,7 +1,6 @@
 from flask import Blueprint, redirect, url_for, session, render_template_string
 from flask_login import login_user, logout_user, current_user
-from services.auth import oauth, User
-from config import config
+from services.auth import oauth, User, is_email_allowed
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -32,7 +31,7 @@ def callback():
                 <html>
                 <head><title>Login Failed</title></head>
                 <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                    <h1>❌ Login Failed</h1>
+                    <h1>Login Failed</h1>
                     <p>Could not retrieve user information from Google.</p>
                     <p><a href="{{ url_for('auth.login') }}">Try Again</a></p>
                 </body>
@@ -42,15 +41,14 @@ def callback():
         email = user_info.get('email')
         name = user_info.get('name', email)
 
-        # Check if email is an admin
-        if email not in config.admin_emails:
+        # Check if email is allowed
+        if not is_email_allowed(email):
             return render_template_string('''
                 <html>
                 <head><title>Access Denied</title></head>
                 <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                    <h1>🚫 Access Denied</h1>
-                    <p>Your email address ({{ email }}) is not authorized to access Oscar.</p>
-                    <p>Only admin users can access the onboarding system.</p>
+                    <h1>Access Denied</h1>
+                    <p>Your email address ({{ email }}) is not authorized to access Chester.</p>
                     <p>Contact the administrator to request access.</p>
                 </body>
                 </html>
@@ -75,13 +73,12 @@ def callback():
             <html>
             <head><title>Login Error</title></head>
             <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                <h1>❌ Login Error</h1>
+                <h1>Login Error</h1>
                 <p>An error occurred during login: {{ error }}</p>
                 <p><a href="{{ url_for('auth.login') }}">Try Again</a></p>
             </body>
             </html>
         ''', error=str(e))
-
 
 @auth_bp.route('/logout')
 def logout():
@@ -96,7 +93,7 @@ def logout():
             <meta http-equiv="refresh" content="2;url={{ url_for('auth.login') }}">
         </head>
         <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-            <h1>👋 Logged Out</h1>
+            <h1>Logged Out</h1>
             <p>You have been successfully logged out.</p>
             <p>Redirecting to login page...</p>
         </body>

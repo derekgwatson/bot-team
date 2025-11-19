@@ -51,6 +51,15 @@ class Config:
         # Bot API key for bot-to-bot communication (env)
         self.bot_api_key = os.environ.get("BOT_API_KEY")
 
+        # Load shared organization config for allowed domains
+        shared_config_path = base_dir.parent / "shared" / "config" / "organization.yaml"
+        with open(shared_config_path, "r") as f:
+            shared_data = yaml.safe_load(f) or {}
+
+        # Organization config - allowed domains for authentication
+        organization = shared_data.get("organization", {}) or {}
+        self.allowed_domains = organization.get("domains", [])
+
 
 # Global config instance
 config = Config()

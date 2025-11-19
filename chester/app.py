@@ -9,16 +9,22 @@ if str(ROOT_DIR) not in sys.path:
 
 import os
 from flask import Flask, jsonify
-from chester.config import config
-from chester.api.bots import bots_bp
-from chester.api.deployment import deployment_bp
-from chester.web.routes import web_bp
+from config import config
+from services.auth import init_auth
+from api.bots import bots_bp
+from api.deployment import deployment_bp
+from web.routes import web_bp
+from web.auth_routes import auth_bp
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)
 app.register_blueprint(bots_bp, url_prefix='/api')
 app.register_blueprint(deployment_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
