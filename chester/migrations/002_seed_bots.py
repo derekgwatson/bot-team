@@ -15,6 +15,9 @@ def up(conn):
         ('zac', 'Zendesk User Manager', 8007, 0),
         ('chester', 'Bot Team Concierge', 8008, 0),
         ('pam', 'Phone Directory Presenter', 8009, 0),
+        ('sadie', 'Zendesk Ticket Manager', 8010, 0),
+        ('oscar', 'Staff Onboarding Orchestrator', 8011, 0),
+        ('rita', 'User Access Manager', 8013, 0),
     ]
 
     # Get deployment defaults for template substitution
