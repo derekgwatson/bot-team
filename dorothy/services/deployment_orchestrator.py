@@ -105,8 +105,17 @@ class DeploymentOrchestrator:
         Returns:
             Result from Sally
         """
+        import os
         sally_url = self._get_bot_url('sally')
         client = BotHttpClient(sally_url)
+
+        # Debug: Check if BOT_API_KEY is available
+        api_key = os.getenv('BOT_API_KEY', '')
+        if not api_key:
+            print(f"⚠️  WARNING: BOT_API_KEY not set in environment!")
+        else:
+            print(f"✓ BOT_API_KEY is set (first 8 chars: {api_key[:8]}...)")
+
         try:
             payload = {
                 'server': server,
@@ -119,9 +128,15 @@ class DeploymentOrchestrator:
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            error_msg = f"Failed to call Sally: {str(e)}"
+
+            # Add debug info if API key is missing
+            if not api_key:
+                error_msg += " [DEBUG: BOT_API_KEY not set in Dorothy's environment]"
+
             return {
                 'success': False,
-                'error': f"Failed to call Sally: {str(e)}"
+                'error': error_msg
             }
 
     def _load_template(self, template_name: str, **kwargs) -> str:
@@ -300,15 +315,10 @@ class DeploymentOrchestrator:
         }
 
     def verify_virtualenv(self, server: str, bot_name: str) -> Dict:
-        """Verify virtual environment exists and has requirements installed"""
-        bot_config = config.get_bot_config(bot_name)
-        if not bot_config:
-            return {'check': 'virtualenv', 'success': False, 'error': f"Bot {bot_name} not configured"}
+        """Verify root virtual environment exists (shared by all bots)"""
+        # Check root venv (shared by all bots)
+        venv_path = "/var/www/bot-team/.venv"
 
-        path = bot_config.get('path', f"/var/www/bot-team/{bot_name}")
-        venv_path = f"{path}/.venv"
-
-        # Check if venv exists
         check_result = self._call_sally(
             server,
             f"test -d {venv_path} && echo 'exists' || echo 'missing'"
@@ -338,7 +348,8 @@ class DeploymentOrchestrator:
             'venv_path': venv_path,
             'packages_installed': packages_ok,
             'path': venv_path,
-            'command': check_result.get('command')
+            'command': check_result.get('command'),
+            'note': 'Using shared root venv for all bots'
         }
 
     def verify_permissions(self, server: str, bot_name: str) -> Dict:
@@ -488,7 +499,6 @@ class DeploymentOrchestrator:
         description = bot_config.get('description', bot_name)
         ssl_email = bot_config.get('ssl_email')
         skip_nginx = bot_config.get('skip_nginx', False)
-        venv_path = f"{path}/.venv"
 
         # Build the plan
         plan = {
@@ -516,21 +526,7 @@ class DeploymentOrchestrator:
             }
         })
 
-        # Step 2: Virtual environment
-        plan['steps'].append({
-            'name': 'Virtual environment setup',
-            'description': 'Create Python virtual environment if needed',
-            'command': f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
-        })
-
-        # Step 3: Install dependencies
-        plan['steps'].append({
-            'name': 'Install dependencies',
-            'description': 'Install Python packages from requirements.txt',
-            'command': f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
-        })
-
-        # Step 4: Nginx config (skip for internal-only bots)
+        # Step 2: Nginx config (skip for internal-only bots)
         if not skip_nginx:
             try:
                 nginx_config = self._load_template(
@@ -558,7 +554,7 @@ class DeploymentOrchestrator:
                     'error': str(e)
                 })
 
-        # Step 5: Systemd service
+        # Step 3: Systemd service
         try:
             service_config = self._load_template(
                 'gunicorn.service.template',
@@ -585,7 +581,7 @@ class DeploymentOrchestrator:
                 'error': str(e)
             })
 
-        # Step 6: SSL certificate (if configured and not skipping nginx)
+        # Step 4: SSL certificate (if configured and not skipping nginx)
         if ssl_email and not skip_nginx:
             plan['steps'].append({
                 'name': 'SSL certificate',
@@ -593,7 +589,7 @@ class DeploymentOrchestrator:
                 'command': f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}"
             })
 
-        # Step 7: Reload nginx (skip for internal-only bots)
+        # Step 5: Reload nginx (skip for internal-only bots)
         if not skip_nginx:
             plan['steps'].append({
                 'name': 'Reload nginx',
@@ -601,7 +597,7 @@ class DeploymentOrchestrator:
                 'command': 'sudo systemctl reload nginx'
             })
 
-        # Step 8: Start service
+        # Step 6: Start service
         plan['steps'].append({
             'name': 'Start service',
             'description': 'Start or restart the gunicorn service',
@@ -684,75 +680,7 @@ class DeploymentOrchestrator:
             deployment['end_time'] = time.time()
             return deployment
 
-        # Step 2: Set up virtual environment
-        deployment['steps'].append({'name': 'Virtual environment setup', 'status': 'in_progress'})
-
-        venv_path = f"{path}/.venv"
-        venv_result = self._call_sally(
-            server,
-            f"[ -d {path}/.venv ] || sudo su -s /bin/bash -c 'cd {path} && python3 -m venv --without-pip .venv && {path}/.venv/bin/python3 -m ensurepip --default-pip' www-data"
-        )
-
-        deployment['steps'][-1]['status'] = 'completed' if venv_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {
-            'success': venv_result.get('success'),
-            'stdout': venv_result.get('stdout', ''),
-            'stderr': venv_result.get('stderr', ''),
-            'exit_code': venv_result.get('exit_code')
-        }
-
-        # Stop if venv setup failed
-        if not venv_result.get('success'):
-            deployment['status'] = 'failed'
-            error_parts = []
-            if venv_result.get('stderr'):
-                error_parts.append(f"stderr: {venv_result['stderr']}")
-            if venv_result.get('stdout'):
-                error_parts.append(f"stdout: {venv_result['stdout']}")
-            if venv_result.get('error'):
-                error_parts.append(f"error: {venv_result['error']}")
-            if venv_result.get('exit_code') is not None:
-                error_parts.append(f"exit_code: {venv_result['exit_code']}")
-            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
-            deployment['error'] = f"Virtual environment setup failed: {error_details}"
-            deployment['end_time'] = time.time()
-            return deployment
-
-        # Step 3: Install dependencies
-        deployment['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
-
-        install_result = self._call_sally(
-            server,
-            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data",
-            timeout=300
-        )
-
-        deployment['steps'][-1]['status'] = 'completed' if install_result.get('success') else 'failed'
-        deployment['steps'][-1]['result'] = {
-            'success': install_result.get('success'),
-            'stdout': install_result.get('stdout', ''),
-            'stderr': install_result.get('stderr', ''),
-            'exit_code': install_result.get('exit_code')
-        }
-
-        # Stop if dependency installation failed
-        if not install_result.get('success'):
-            deployment['status'] = 'failed'
-            error_parts = []
-            if install_result.get('stderr'):
-                error_parts.append(f"stderr: {install_result['stderr']}")
-            if install_result.get('stdout'):
-                error_parts.append(f"stdout: {install_result['stdout']}")
-            if install_result.get('error'):
-                error_parts.append(f"error: {install_result['error']}")
-            if install_result.get('exit_code') is not None:
-                error_parts.append(f"exit_code: {install_result['exit_code']}")
-            error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
-            deployment['error'] = f"Dependency installation failed: {error_details}"
-            deployment['end_time'] = time.time()
-            return deployment
-
-        # Step 3.5: Create config files from examples if they don't exist
+        # Step 2: Create config files from examples if they don't exist
         deployment['steps'].append({'name': 'Configuration files setup', 'status': 'in_progress'})
 
         # Check and setup .env file
@@ -1130,7 +1058,6 @@ class DeploymentOrchestrator:
 
         path = bot_config.get('path')
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
-        venv_path = f"{path}/.venv"
 
         update_result = {
             'bot': bot_name,
@@ -1154,22 +1081,7 @@ class DeploymentOrchestrator:
             update_result['error'] = 'Failed to pull latest code'
             return update_result
 
-        # Step 2: Install dependencies (in case requirements changed)
-        update_result['steps'].append({'name': 'Install dependencies', 'status': 'in_progress'})
-        deps_result = self._call_sally(
-            server,
-            f"sudo su -s /bin/bash -c 'cd {path} && {venv_path}/bin/pip install -r requirements.txt' www-data"
-        )
-
-        update_result['steps'][-1]['status'] = 'completed' if deps_result.get('success') else 'failed'
-        update_result['steps'][-1]['result'] = deps_result
-
-        if not deps_result.get('success'):
-            update_result['success'] = False
-            update_result['error'] = 'Failed to install dependencies'
-            return update_result
-
-        # Step 3: Restart service
+        # Step 2: Restart service
         update_result['steps'].append({'name': 'Restart service', 'status': 'in_progress'})
         restart_result = self._call_sally(
             server,

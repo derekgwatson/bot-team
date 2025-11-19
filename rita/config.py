@@ -66,6 +66,11 @@ class Config:
         return self._shared_config['organization']['domains']
 
     @property
+    def allowed_domains(self):
+        """Alias for organization_domains - used by auth module"""
+        return self.organization_domains
+
+    @property
     def admin_emails(self):
         # Read from environment variable (comma-separated list)
         env_emails = os.environ.get('ADMIN_EMAILS', '')
