@@ -1,7 +1,7 @@
 """Chester service - queries Chester for bot deployment configurations."""
 from typing import Dict, List, Optional
 
-from ..config import config
+from dorothy.config import config
 from shared.http_client import BotHttpClient
 
 
