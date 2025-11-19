@@ -128,9 +128,15 @@ class DeploymentOrchestrator:
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            error_msg = f"Failed to call Sally: {str(e)}"
+
+            # Add debug info if API key is missing
+            if not api_key:
+                error_msg += " [DEBUG: BOT_API_KEY not set in Dorothy's environment]"
+
             return {
                 'success': False,
-                'error': f"Failed to call Sally: {str(e)}"
+                'error': error_msg
             }
 
     def _load_template(self, template_name: str, **kwargs) -> str:
