@@ -132,12 +132,41 @@ For production deployment, use nginx to route domains/paths to different bots.
 
 ## Development
 
-Each bot has its own `requirements.txt` and can be developed independently:
+### Quick Start
+
+All bots use a single consolidated virtual environment at the project root:
+
+**Windows:**
+```powershell
+.\setup-venv.ps1
+.venv\Scripts\Activate.ps1
+```
+
+**Linux/Mac:**
+```bash
+./setup-venv.sh
+source .venv/bin/activate
+```
+
+### Running Bots
+
+Once the venv is activated, run any bot:
 
 ```bash
-cd <bot-name>
+python chester/app.py
+python dorothy/app.py
+python sally/app.py
+# ... etc
+```
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
-python app.py
 ```
 
 ---

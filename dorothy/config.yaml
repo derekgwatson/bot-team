@@ -17,6 +17,11 @@ deployment:
     - virtualenv
     - permissions
 
+# Dependencies: Other bots that Dorothy requires to function
+dependencies:
+  - sally    # SSH command executor - required for deployments
+  - chester  # Bot configuration database - required for bot configs
+
 services:
   chester:
     # Base URL – dev vs prod is handled by env var

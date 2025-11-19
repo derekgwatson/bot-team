@@ -31,8 +31,9 @@ class Config:
         self.allowed_domains = shared_data['organization']['domains']
 
         # Peter API config (keep endpoints from yaml)
-        self.peter_contacts_endpoint = data['peter_api']['contacts_endpoint']
-        self.peter_search_endpoint = data['peter_api']['search_endpoint']
+        peter_api = data.get('peter_api', {})
+        self.peter_contacts_endpoint = peter_api.get('contacts_endpoint', '/api/contacts')
+        self.peter_search_endpoint = peter_api.get('search_endpoint', '/api/contacts/search')
 
     def _get_bot_url(self, bot_name: str, default_url: str) -> str:
         """
