@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, url_for, session, render_template_string
+from flask import Blueprint, redirect, url_for, session, render_template_string, make_response, current_app
 from flask_login import login_user, logout_user, current_user
 from services.auth import oauth, User, is_email_allowed
 
@@ -84,16 +84,11 @@ def logout():
     # Clear Flask-Login's current user
     logout_user()
 
-    # Remove user from session (this is what load_user checks)
-    session.pop('user', None)
-
-    # Clear any other session data
+    # Clear all session data - this removes the 'user' key that load_user checks
     session.clear()
 
-    # Ensure session changes are saved
-    session.modified = True
-
-    return render_template_string('''
+    # Create the response
+    response = make_response(render_template_string('''
         <html>
         <head>
             <title>Logged Out</title>
@@ -104,4 +99,11 @@ def logout():
             <p><a href="{{ url_for('auth.login') }}" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #2a5298; color: white; text-decoration: none; border-radius: 5px;">Log In Again</a></p>
         </body>
         </html>
-    ''')
+    '''))
+
+    # Explicitly delete the session cookie to ensure logout
+    # Use the app's configured session cookie name (defaults to 'session')
+    session_cookie_name = current_app.config.get('SESSION_COOKIE_NAME', 'session')
+    response.delete_cookie(session_cookie_name)
+
+    return response
