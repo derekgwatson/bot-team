@@ -102,6 +102,9 @@ class EnvValidator:
                     example_value = match.group(2)
 
                     description = ' '.join(current_comments)
+                    # Remove Unicode box-drawing characters that may not render in all terminals
+                    description = re.sub(r'[─═│║┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬]', '', description)
+                    description = description.strip()
 
                     # Determine if required (not optional)
                     is_optional = any(
