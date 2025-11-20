@@ -41,7 +41,7 @@ class Config:
             self.allowed_domains = auth_section.get('allowed_domains', [])
 
         # Flask secret key
-        self.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+        self.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
         # Bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get('BOT_API_KEY')

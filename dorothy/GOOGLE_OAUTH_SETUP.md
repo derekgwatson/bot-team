@@ -40,7 +40,7 @@ Dorothy uses Google OAuth to ensure only authorized users can access the deploym
    GOOGLE_CLIENT_SECRET=your-client-secret
 
    # Flask secret key (generate a random one)
-   SECRET_KEY=your-secret-key-here
+   FLASK_SECRET_KEY=your-secret-key-here
 
    # Allowed email addresses (comma-separated)
    ALLOWED_EMAILS=your@email.com
@@ -50,7 +50,7 @@ Dorothy uses Google OAuth to ensure only authorized users can access the deploym
    ```bash
    python -c "import secrets; print(secrets.token_hex(32))"
    ```
-   Copy the output to `SECRET_KEY` in your `.env` file
+   Copy the output to `FLASK_SECRET_KEY` in your `.env` file
 
 4. Set your email in `ALLOWED_EMAILS` (only these emails can log in)
 
@@ -88,7 +88,7 @@ Visit `http://localhost:8005` and you should be redirected to Google login.
 - Only emails listed in `ALLOWED_EMAILS` can access Dorothy
 - The OAuth callback must match exactly what's configured in Google Cloud Console
 - Use HTTPS in production for secure OAuth flow
-- Keep `SECRET_KEY` secure and never share it
+- Keep `FLASK_SECRET_KEY` secure and never share it
 
 ## Troubleshooting
 
@@ -102,7 +102,7 @@ Visit `http://localhost:8005` and you should be redirected to Google login.
 - Check for typos or extra spaces in the email list
 
 **Session issues:**
-- Ensure `SECRET_KEY` is set and doesn't change between restarts
+- Ensure `FLASK_SECRET_KEY` is set and doesn't change between restarts
 - Clear browser cookies and try again
 
 **Development with multiple domains:**
