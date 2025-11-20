@@ -152,9 +152,20 @@ def heartbeat():
             except (ValueError, AttributeError):
                 pass
 
-        # Get optional network metrics
+        # Get optional network metrics (convert to float if provided)
         latency_ms = data.get('latency_ms')
+        if latency_ms is not None:
+            try:
+                latency_ms = float(latency_ms)
+            except (ValueError, TypeError):
+                latency_ms = None
+
         download_mbps = data.get('download_mbps')
+        if download_mbps is not None:
+            try:
+                download_mbps = float(download_mbps)
+            except (ValueError, TypeError):
+                download_mbps = None
 
         # Get public IP from request
         # Check for X-Forwarded-For header (if behind proxy/nginx)
