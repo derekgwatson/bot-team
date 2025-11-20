@@ -142,7 +142,7 @@ FLASK_DEBUG=True python app.py
 python app.py
 ```
 
-Banji runs on **port 8012** by default.
+Banji runs on **port 8014** by default.
 
 ## Directory Structure
 
@@ -282,7 +282,7 @@ pytest tests/ --cov=banji --cov-report=html
 from shared.http_client import BotHttpClient
 
 # Initialize client
-banji = BotHttpClient("http://localhost:8012")
+banji = BotHttpClient("http://localhost:8014")
 
 # Refresh quote pricing
 response = banji.post('/api/quotes/refresh-pricing', {

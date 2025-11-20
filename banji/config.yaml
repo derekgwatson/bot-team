@@ -5,7 +5,7 @@ personality: Precise and reliable, navigates Buz with expertise. Handles browser
 
 server:
   host: 0.0.0.0
-  port: 8012
+  port: 8014
 
 # Browser configuration
 browser:
