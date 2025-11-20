@@ -1,74 +1,90 @@
 """
 Email Service for Olive
-Sends email notifications for offboarding events
+Sends email notifications via Mabel (the centralized email bot)
 """
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Optional
+import os
 import logging
+import requests
+from typing import Optional
 from config import config
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending email notifications"""
+    """Service for sending email notifications via Mabel"""
 
     def __init__(self):
-        self.smtp_host = config.smtp_host
-        self.smtp_port = config.smtp_port
-        self.smtp_username = config.smtp_username
-        self.smtp_password = config.smtp_password
+        self.mabel_url = config.mabel_url
+        self.bot_api_key = os.getenv("BOT_API_KEY")
         self.from_address = config.email_from_address
 
     def send_email(self, to_email: str, subject: str, body: str,
                    html_body: Optional[str] = None) -> bool:
         """
-        Send an email
+        Send an email via Mabel
+
         Args:
             to_email: Recipient email address
             subject: Email subject
             body: Plain text email body
             html_body: Optional HTML email body
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['From'] = self.from_address
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            # Prepare request payload for Mabel
+            payload = {
+                "to": to_email,
+                "subject": subject,
+                "text_body": body,
+                "metadata": {
+                    "caller": "olive",
+                    "correlation_id": f"olive-{os.urandom(8).hex()}"
+                }
+            }
 
-            # Attach plain text version
-            text_part = MIMEText(body, 'plain')
-            msg.attach(text_part)
-
-            # Attach HTML version if provided
+            # Add HTML body if provided
             if html_body:
-                html_part = MIMEText(html_body, 'html')
-                msg.attach(html_part)
+                payload["html_body"] = html_body
 
-            # Send email
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
+            # Add from address if configured
+            if self.from_address:
+                payload["from_address"] = self.from_address
 
-            logger.info(f"Email sent successfully to {to_email}")
-            return True
+            # Send request to Mabel
+            headers = {
+                "Content-Type": "application/json",
+                "X-Internal-Api-Key": self.bot_api_key
+            }
+
+            response = requests.post(
+                f"{self.mabel_url}/api/send-email",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                logger.info(f"Email sent successfully to {to_email} via Mabel")
+                return True
+            else:
+                logger.error(f"Mabel returned error: {response.status_code} - {response.text}")
+                return False
 
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
+            logger.error(f"Failed to send email via Mabel: {str(e)}")
             return False
 
     def send_offboarding_notification(self, request_data: dict) -> bool:
         """
         Send offboarding notification to HR/IT
+
         Args:
             request_data: Dictionary with offboarding request data
+
         Returns:
             bool: True if email sent successfully
         """

@@ -37,9 +37,9 @@ bots:
 email:
   # HR/IT notification recipient (stored in .env)
   # NOTIFICATION_EMAIL=hr@example.com
+  # Emails are sent via Mabel (the centralized email bot)
+  # Set MABEL_URL in .env if not using default http://localhost:8010
   from_address: "olive@watsonblinds.com.au"
-  smtp_host: "smtp.gmail.com"
-  smtp_port: 587
 
 # Authentication configuration
 auth:
