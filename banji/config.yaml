@@ -17,7 +17,7 @@ browser:
 
 # Buz application settings
 buz:
-  # Base URL from BUZ_BASE_URL env var (e.g., https://buz.example.com)
+  # Timeouts are safety nets - code watches for actual completion indicators
   login_timeout: 10000       # 10 seconds - login page load
   navigation_timeout: 5000   # 5 seconds - quick lookup navigation
-  save_timeout: 60000        # 60 seconds - bulk edit save can take time for price recalc
+  save_timeout: 180000       # 3 minutes - bulk edit save (watches network idle, not arbitrary wait)

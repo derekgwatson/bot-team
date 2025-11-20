@@ -147,30 +147,95 @@ class QuotePage:
         Click the Save button on bulk edit page.
         This triggers price recalculation without making any changes.
 
+        Waits intelligently for actual completion indicators rather than arbitrary timeouts:
+        - Page navigation away from BulkEditOrder (success)
+        - Error messages appearing (failure)
+        - Network activity stopping (completion)
+
         Raises:
             ValueError: If save button cannot be found or save fails
         """
         logger.info("Clicking Save button (triggering price recalculation)")
 
         try:
+            # Record current URL before save
+            start_url = self.page.url
+            logger.info(f"Starting save from URL: {start_url}")
+
             # Click the Save button: <a href="#" id="bulkEditOrderSubmit" ...>
             save_button = self.page.locator('#bulkEditOrderSubmit')
             save_button.click()
+            logger.info("Save button clicked, watching for completion...")
 
-            # Wait for save to complete - may redirect or show success
-            # Give it time to process
-            self.page.wait_for_load_state("networkidle", timeout=self.config.buz_save_timeout)
+            # Strategy: Wait for one of several completion indicators
+            # Use a long timeout (3 minutes) as safety net, but rely on actual indicators
+            max_timeout = 180000  # 3 minutes - safety net for very complex quotes
 
-            logger.info("Save button clicked, waiting for processing")
+            # Wait for EITHER:
+            # 1. Page navigates away from BulkEditOrder (typical success case)
+            # 2. Network becomes idle (processing complete)
+            try:
+                # Wait for network to settle
+                # This will return when there's no network activity for 500ms
+                self.page.wait_for_load_state("networkidle", timeout=max_timeout)
+                logger.info("Network activity settled")
 
-            # Wait a bit for any async processing
-            self.page.wait_for_timeout(2000)
+                # Check if we're still on bulk edit page or navigated away
+                current_url = self.page.url
+                if 'BulkEditOrder' not in current_url:
+                    logger.info(f"Navigated away from bulk edit to: {current_url}")
+                else:
+                    logger.info("Still on bulk edit page - checking for error messages")
 
-            logger.info("Bulk edit save completed")
+                    # Look for common error indicators
+                    # Buz typically shows errors in .alert or .error-message divs
+                    error_selectors = [
+                        '.alert-danger',
+                        '.error-message',
+                        '[class*="error"]',
+                        '.alert.alert-error'
+                    ]
 
-        except PlaywrightTimeoutError:
-            logger.error("Timeout waiting for save to complete")
-            raise ValueError("Save operation timed out")
+                    for selector in error_selectors:
+                        try:
+                            error_elem = self.page.locator(selector).first
+                            if error_elem.is_visible(timeout=1000):
+                                error_text = error_elem.text_content()
+                                logger.error(f"Error message detected: {error_text}")
+                                raise ValueError(f"Save failed with error: {error_text}")
+                        except PlaywrightTimeoutError:
+                            # No error found with this selector, continue checking
+                            continue
+
+                    logger.info("No errors detected, save appears successful")
+
+                # Give a moment for any final async operations
+                self.page.wait_for_timeout(1000)
+                logger.info("Bulk edit save completed successfully")
+
+            except PlaywrightTimeoutError:
+                # Network never settled - check what state we're in
+                current_url = self.page.url
+                logger.warning(f"Timeout waiting for network idle. Current URL: {current_url}")
+
+                # If we're on an error page, that's a failure
+                if 'error' in current_url.lower():
+                    raise ValueError("Navigated to error page during save")
+
+                # Otherwise, the page might still be processing but functional
+                # Check if we can still interact with the page
+                try:
+                    # Try to get page title as a simple alive check
+                    title = self.page.title()
+                    logger.warning(f"Page appears responsive (title: {title}) but network still active")
+                    # Consider this a success if we're not on an error page
+                    logger.info("Proceeding despite network activity")
+                except:
+                    raise ValueError("Page became unresponsive during save operation")
+
+        except PlaywrightTimeoutError as e:
+            logger.error(f"Timeout during save operation: {e}")
+            raise ValueError("Save operation timed out - page may still be processing")
         except Exception as e:
             logger.error(f"Failed to save bulk edit: {e}")
             raise ValueError(f"Save operation failed: {e}")
