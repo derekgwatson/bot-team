@@ -59,12 +59,12 @@ def init_auth(app):
 
 def is_email_allowed(email):
     """Check if email is in the allowed list"""
-    allowed_emails = os.getenv('ALLOWED_EMAILS', '')
-    if not allowed_emails:
-        # If no allowed emails configured, deny all access
+    admin_emails = os.getenv('ADMIN_EMAILS', '')
+    if not admin_emails:
+        # If no admin emails configured, deny all access
         return False
 
-    allowed_list = [e.strip() for e in allowed_emails.split(',')]
+    allowed_list = [e.strip() for e in admin_emails.split(',')]
     return email in allowed_list
 
 def login_required(f):
