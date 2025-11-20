@@ -45,16 +45,18 @@ class Config:
         # Cache for bot URLs (avoid hitting Chester on every request)
         self._bot_url_cache = {}
 
-    def _query_chester_for_bot_url(self, bot_name: str, fallback_url: str) -> str:
+    def _query_chester_for_bot_url(self, bot_name: str) -> str:
         """
         Query Chester's service registry for a bot's URL.
 
         Args:
             bot_name: Name of the bot to look up
-            fallback_url: Fallback URL if Chester is unavailable
 
         Returns:
             Bot's API URL
+
+        Raises:
+            RuntimeError: If Chester is unavailable or bot not found
         """
         # Check cache first
         if bot_name in self._bot_url_cache:
@@ -75,57 +77,46 @@ class Config:
                     # Cache the result
                     self._bot_url_cache[bot_name] = bot_url
                     return bot_url
-        except Exception as e:
-            # Chester unavailable - use fallback
-            pass
+                else:
+                    raise RuntimeError(f"Bot '{bot_name}' not found in Chester's registry")
+            else:
+                raise RuntimeError(f"Chester returned status {response.status_code}")
 
-        # Fallback to default (localhost for dev)
-        return fallback_url
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to contact Chester at {self.chester_url}: {e}\n"
+                f"Make sure Chester is running and CHESTER_API_URL is correct."
+            )
 
-    def _get_bot_url(self, bot_name: str, fallback_localhost_port: int) -> str:
+    def _get_bot_url(self, bot_name: str) -> str:
         """
         Get the URL for a bot via Chester's service registry.
 
         Flow:
         1. Check Flask session for dev mode override (prod vs localhost)
         2. Query Chester's registry for the bot's URL
-        3. Fall back to localhost if Chester is unavailable
 
         Args:
             bot_name: Name of the bot to look up
-            fallback_localhost_port: Port to use for localhost fallback
 
         Returns:
             Bot's API URL
+
+        Raises:
+            RuntimeError: If Chester is unavailable
         """
-        try:
-            from flask import session, has_request_context
-
-            # Check if we're in a request context and have dev config override
-            if has_request_context():
-                dev_config = session.get('dev_bot_config', {})
-                if dev_config.get(bot_name) == 'prod':
-                    # User explicitly wants prod for this bot - query Chester
-                    return self._query_chester_for_bot_url(
-                        bot_name,
-                        f"https://{bot_name}.watsonblinds.com.au"
-                    )
-        except:
-            # If Flask isn't available or there's no request context, continue
-            pass
-
-        # Query Chester with localhost fallback
-        fallback_url = f"http://localhost:{fallback_localhost_port}"
-        return self._query_chester_for_bot_url(bot_name, fallback_url)
+        # Note: Dev mode overrides are handled by Chester's database
+        # We always query Chester - he knows whether we're in dev or prod
+        return self._query_chester_for_bot_url(bot_name)
 
     @property
     def quinn_api_url(self):
         """Get Quinn's API URL from Chester's service registry"""
-        return self._get_bot_url('quinn', 8006)
+        return self._get_bot_url('quinn')
 
     @property
     def peter_api_url(self):
         """Get Peter's API URL from Chester's service registry"""
-        return self._get_bot_url('peter', 8003)
+        return self._get_bot_url('peter')
 
 config = Config()
