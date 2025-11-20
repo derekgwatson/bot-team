@@ -16,8 +16,13 @@ from api.session_endpoints import sessions_bp
 from web.routes import web_bp
 from services.session_manager import init_session_manager, get_session_manager
 
-# Create Flask app
-app = Flask(__name__)
+# Create Flask app with template folder
+banji_dir = Path(__file__).parent
+app = Flask(
+    __name__,
+    template_folder=str(banji_dir / 'web' / 'templates'),
+    static_folder=str(banji_dir / 'web' / 'static')
+)
 app.secret_key = config.secret_key
 
 # Initialize session manager
