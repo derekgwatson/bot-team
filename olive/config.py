@@ -66,11 +66,9 @@ class Config:
         self.notification_email = os.environ.get("NOTIFICATION_EMAIL", "")
 
         email_cfg = data.get("email", {}) or {}
-        self.smtp_host = email_cfg.get("smtp_host", "smtp.gmail.com")
-        self.smtp_port = email_cfg.get("smtp_port", 587)
 
-        self.smtp_username = os.environ.get("SMTP_USERNAME", "")
-        self.smtp_password = os.environ.get("SMTP_PASSWORD", "")
+        # Mabel (email bot) URL for sending emails
+        self.mabel_url = os.environ.get("MABEL_URL", "http://localhost:8010")
 
         self.email_from_address = email_cfg.get(
             "from_address",
