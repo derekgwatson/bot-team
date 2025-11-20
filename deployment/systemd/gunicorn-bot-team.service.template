@@ -11,7 +11,7 @@ WorkingDirectory=/var/www/bot-team/{{BOT_NAME}}
 Environment="PATH=/var/www/bot-team/{{BOT_NAME}}/.venv/bin:$PATH"
 EnvironmentFile=/etc/bot-team/bot-team.env
 EnvironmentFile=/var/www/bot-team/{{BOT_NAME}}/.env
-ExecStart=/var/www/bot-team/{{BOT_NAME}}/.venv/bin/gunicorn \
+ExecStart=/var/www/bot-team/.venv/bin/gunicorn \
   --workers 3 \
   --worker-tmp-dir /dev/shm \
   --bind 0.0.0.0:{{PORT}} \
