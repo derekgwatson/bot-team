@@ -30,6 +30,12 @@ def get_bot(bot_name):
             'error': f'Bot {bot_name} not found'
         }), 404
 
+    # Add the bot's API URL to the response
+    bot_url = bot_service.get_bot_url(bot_name)
+    if bot_url:
+        bot_info = bot_info.copy()  # Don't modify the original
+        bot_info['url'] = bot_url
+
     return jsonify({
         'success': True,
         'bot': bot_info

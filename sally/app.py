@@ -65,5 +65,5 @@ if __name__ == '__main__':
     app.run(
         host=config.server_host,
         port=config.server_port,
-        debug=True
+        debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     )

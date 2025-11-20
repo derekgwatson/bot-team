@@ -1,5 +1,6 @@
 import yaml
 import os
+import requests
 from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # Loads root .env automatically
@@ -37,42 +38,90 @@ class Config:
         self.peter_contacts_endpoint = peter_api.get('contacts_endpoint', '/api/contacts')
         self.peter_search_endpoint = peter_api.get('search_endpoint', '/api/contacts/search')
 
-    def _get_bot_url(self, bot_name: str, default_url: str) -> str:
-        """
-        Get the URL for a bot, respecting dev mode configuration.
+        # Chester URL - service registry (required)
+        self.chester_url = os.environ.get('CHESTER_API_URL')
+        if not self.chester_url:
+            raise RuntimeError(
+                "CHESTER_API_URL is required but not set.\n"
+                "Add it to your shared .env file (e.g., CHESTER_API_URL=http://localhost:8008)"
+            )
+        self.bot_api_key = os.environ.get('BOT_API_KEY')
 
-        In dev mode, checks Flask session for overrides:
-        - If session says use 'prod' for this bot, use prod URL
-        - Otherwise use default (localhost for dev)
+        # Cache for bot URLs (avoid hitting Chester on every request)
+        self._bot_url_cache = {}
 
-        Returns the URL for the bot API
+    def _query_chester_for_bot_url(self, bot_name: str) -> str:
         """
+        Query Chester's service registry for a bot's URL.
+
+        Args:
+            bot_name: Name of the bot to look up
+
+        Returns:
+            Bot's API URL
+
+        Raises:
+            RuntimeError: If Chester is unavailable or bot not found
+        """
+        # Check cache first
+        if bot_name in self._bot_url_cache:
+            return self._bot_url_cache[bot_name]
+
         try:
-            from flask import session, has_request_context
+            # Query Chester's registry
+            response = requests.get(
+                f"{self.chester_url}/api/bots/{bot_name}",
+                headers={'X-API-Key': self.bot_api_key},
+                timeout=2
+            )
 
-            # Check if we're in a request context and have dev config
-            if has_request_context():
-                dev_config = session.get('dev_bot_config', {})
-                if dev_config.get(bot_name) == 'prod':
-                    # Use production URL
-                    return f"https://{bot_name}.watsonblinds.com.au"
-        except:
-            # If Flask isn't available or there's no request context, use default
-            pass
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success') and data.get('bot', {}).get('url'):
+                    bot_url = data['bot']['url']
+                    # Cache the result
+                    self._bot_url_cache[bot_name] = bot_url
+                    return bot_url
+                else:
+                    raise RuntimeError(f"Bot '{bot_name}' not found in Chester's registry")
+            else:
+                raise RuntimeError(f"Chester returned status {response.status_code}")
 
-        # Default to environment variable or default (localhost for dev)
-        return default_url
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(
+                f"Failed to contact Chester at {self.chester_url}: {e}\n"
+                f"Make sure Chester is running and CHESTER_API_URL is correct."
+            )
+
+    def _get_bot_url(self, bot_name: str) -> str:
+        """
+        Get the URL for a bot via Chester's service registry.
+
+        Flow:
+        1. Check Flask session for dev mode override (prod vs localhost)
+        2. Query Chester's registry for the bot's URL
+
+        Args:
+            bot_name: Name of the bot to look up
+
+        Returns:
+            Bot's API URL
+
+        Raises:
+            RuntimeError: If Chester is unavailable
+        """
+        # Note: Dev mode overrides are handled by Chester's database
+        # We always query Chester - he knows whether we're in dev or prod
+        return self._query_chester_for_bot_url(bot_name)
 
     @property
     def quinn_api_url(self):
-        """Get Quinn's API URL"""
-        default = os.environ.get('QUINN_API_URL', 'http://localhost:8006')
-        return self._get_bot_url('quinn', default)
+        """Get Quinn's API URL from Chester's service registry"""
+        return self._get_bot_url('quinn')
 
     @property
     def peter_api_url(self):
-        """Get Peter's API URL"""
-        default = os.environ.get('PETER_API_URL', 'http://localhost:8003')
-        return self._get_bot_url('peter', default)
+        """Get Peter's API URL from Chester's service registry"""
+        return self._get_bot_url('peter')
 
 config = Config()

@@ -20,6 +20,30 @@ class BotService:
         """Get information about a specific bot."""
         return config.bot_team.get(bot_name)
 
+    def get_bot_url(self, bot_name: str) -> Optional[str]:
+        """
+        Get the API base URL for a bot from database configuration.
+
+        For bots with skip_nginx=True (Sally): http://localhost:{port}
+        For all other bots in production: https://{domain}
+        For bots in development: http://localhost:{port}
+
+        Returns:
+            Bot API base URL, or None if bot not found in database
+        """
+        bot_config = self.db.get_bot(bot_name)
+        if not bot_config:
+            return None
+
+        if bot_config.get('skip_nginx'):
+            # Sally uses localhost
+            port = bot_config.get('port', 8004)
+            return f"http://localhost:{port}"
+        else:
+            # Production bots use their domain
+            domain = bot_config.get('domain')
+            return f"https://{domain}"
+
     def _build_health_url(self, bot_name: str) -> Optional[str]:
         """
         Build health check URL for a bot from database configuration.
@@ -30,18 +54,8 @@ class BotService:
         Returns:
             Health check URL, or None if bot not found in database
         """
-        bot_config = self.db.get_bot(bot_name)
-        if not bot_config:
-            return None
-
-        if bot_config.get('skip_nginx'):
-            # Sally uses localhost
-            port = bot_config.get('port', 8004)
-            return f"http://localhost:{port}/health"
-        else:
-            # Production bots use their domain
-            domain = bot_config.get('domain')
-            return f"https://{domain}/health"
+        base_url = self.get_bot_url(bot_name)
+        return f"{base_url}/health" if base_url else None
 
     def check_bot_health(self, bot_name: str) -> Dict:
         """
@@ -138,9 +152,8 @@ class BotService:
             ]
 
             if matching_capabilities:
-                # Get domain from database for the bot's URL
-                bot_config = self.db.get_bot(bot_name)
-                bot_url = f"https://{bot_config['domain']}" if bot_config else 'Unknown'
+                # Get URL for the bot
+                bot_url = self.get_bot_url(bot_name) or 'Unknown'
 
                 results.append({
                     'bot': bot_name,
