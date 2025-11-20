@@ -178,14 +178,15 @@ class QuotePage:
             start_url = self.page.url
             logger.info(f"Starting save from URL: {start_url}")
 
-            # Click the Save button: <a href="#" id="bulkEditOrderSubmit" ...>
-            save_button = self.page.locator('#bulkEditOrderSubmit')
-            save_button.click()
-            logger.info("Save button clicked, watching for completion...")
+            # Use configured timeout as our safety net (3 minutes by default)
+            max_timeout = self.config.buz_save_timeout
+            logger.info(f"Using save timeout: {max_timeout}ms")
 
-            # Strategy: Wait for one of several completion indicators
-            # Use a long timeout (3 minutes) as safety net, but rely on actual indicators
-            max_timeout = 180000  # 3 minutes - safety net for very complex quotes
+            # Click the Save button: <a href="#" id="bulkEditOrderSubmit" ...>
+            # Use no_wait_after=True because we'll explicitly wait for completion indicators
+            save_button = self.page.locator('#bulkEditOrderSubmit')
+            save_button.click(timeout=max_timeout, no_wait_after=True)
+            logger.info("Save button clicked, watching for completion...")
 
             # Wait for EITHER:
             # 1. Page navigates away from BulkEditOrder (typical success case)
