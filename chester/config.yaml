@@ -202,6 +202,24 @@ bot_team:
       refresh_pricing: /api/quotes/refresh-pricing
     personality: Precise and reliable, navigates Buz with expertise
 
+  monica:
+    name: Monica
+    description: ChromeOS Monitoring Agent
+    capabilities:
+      - Monitor ChromeOS device heartbeats in retail stores
+      - Track network health metrics (latency, download speed)
+      - Real-time traffic-light status dashboard (online/degraded/offline)
+      - Zero-installation web-based agent (pinned tab)
+      - Multi-store device organization
+      - Historical heartbeat data and device tracking
+    api_endpoints:
+      info: /info
+      health: /health
+      register: /api/register
+      heartbeat: /api/heartbeat
+      devices: /api/devices
+    personality: Vigilant and reliable, keeps watch over all retail store devices
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

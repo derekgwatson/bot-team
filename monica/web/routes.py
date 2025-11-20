@@ -1,0 +1,803 @@
+"""
+Monica Web Routes
+Dashboard and agent page
+"""
+
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from flask import Blueprint, render_template_string, request
+from collections import defaultdict
+import logging
+
+from monica.database.db import db
+from monica.services.status_service import status_service
+from monica.config import config
+
+logger = logging.getLogger(__name__)
+
+web_bp = Blueprint('web', __name__)
+
+
+@web_bp.route('/')
+def index():
+    """Home page with links to dashboard and agent"""
+    template = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ config.emoji }} {{ config.name }} - ChromeOS Monitoring</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 16px;
+            color: #1f2937;
+        }
+        p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            font-size: 1.1em;
+        }
+        .links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 16px 32px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 1.1em;
+        }
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn.secondary {
+            background: #10b981;
+        }
+        .btn.secondary:hover {
+            background: #059669;
+        }
+        .info {
+            margin-top: 32px;
+            padding: 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+        .info strong {
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ config.emoji }} {{ config.name }}</h1>
+        <p>{{ config.description }}</p>
+
+        <div class="links">
+            <a href="/dashboard" class="btn">📊 View Dashboard</a>
+            <a href="/agent?store=EXAMPLE&device=Test" class="btn secondary">📡 Agent Page</a>
+        </div>
+
+        <div class="info">
+            <strong>API Endpoints:</strong><br>
+            POST /api/register - Register a new device<br>
+            POST /api/heartbeat - Record heartbeat<br>
+            GET /api/devices - List all devices<br>
+            <br>
+            <strong>Version:</strong> {{ config.version }}
+        </div>
+    </div>
+</body>
+</html>
+    """
+    return render_template_string(template, config=config)
+
+
+@web_bp.route('/dashboard')
+def dashboard():
+    """Dashboard showing all devices with traffic-light status"""
+    # Get all devices with store info
+    devices = db.get_all_devices_with_stores()
+
+    # Enrich with computed status
+    enriched_devices = [status_service.enrich_device(d) for d in devices]
+
+    # Group by store
+    stores = defaultdict(list)
+    for device in enriched_devices:
+        store_code = device['store_code']
+        stores[store_code].append(device)
+
+    # Sort stores and devices
+    sorted_stores = sorted(stores.items(), key=lambda x: x[0])
+
+    template = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>📊 Dashboard - {{ config.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        h1 {
+            font-size: 2em;
+            color: #1f2937;
+        }
+        .refresh-info {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        .store-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .store-header {
+            font-size: 1.5em;
+            color: #1f2937;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .devices-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        }
+        .device-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.3s;
+        }
+        .device-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .device-card.online { border-left: 4px solid #10b981; }
+        .device-card.degraded { border-left: 4px solid #f59e0b; }
+        .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .device-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .device-info {
+            font-size: 0.9em;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        .device-info strong {
+            color: #1f2937;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .status-badge.online {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.degraded {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 48px;
+            color: #9ca3af;
+        }
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 16px;
+        }
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .legend {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #6b7280;
+        }
+    </style>
+    <script>
+        // Auto-refresh every {{ config.auto_refresh }} seconds
+        setTimeout(function() {
+            location.reload();
+        }, {{ config.auto_refresh * 1000 }});
+    </script>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>📊 Device Dashboard</h1>
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+        <div class="refresh-info">
+            Auto-refreshes every {{ config.auto_refresh }}s
+        </div>
+    </div>
+
+    <div class="header legend">
+        <div class="legend-item">
+            <span>🟢</span> <strong>Online:</strong> Last seen ≤ {{ config.online_threshold }} min
+        </div>
+        <div class="legend-item">
+            <span>🟡</span> <strong>Degraded:</strong> Last seen {{ config.online_threshold }}-{{ config.degraded_threshold }} min
+        </div>
+        <div class="legend-item">
+            <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
+        </div>
+    </div>
+
+    {% if stores %}
+        {% for store_code, store_devices in stores %}
+        <div class="store-section">
+            <div class="store-header">
+                🏪 {{ store_code }}
+            </div>
+            <div class="devices-grid">
+                {% for device in store_devices %}
+                <div class="device-card {{ device.computed_status }}">
+                    <div class="device-header">
+                        <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
+                        <div class="device-name">{{ device.device_label }}</div>
+                    </div>
+                    <div class="device-info">
+                        <strong>Status:</strong>
+                        <span class="status-badge {{ device.computed_status }}">
+                            {{ device.status_label }}
+                        </span>
+                        <br>
+                        <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
+                        {% if device.last_public_ip %}
+                        <strong>IP:</strong> {{ device.last_public_ip }}<br>
+                        {% endif %}
+                        {% if device.last_heartbeat_at %}
+                        <strong>Timestamp:</strong> {{ device.last_heartbeat_at }}<br>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="store-section">
+            <div class="empty-state">
+                <div class="empty-state-icon">📡</div>
+                <h2>No devices registered yet</h2>
+                <p>Register a device by visiting the agent page with store and device parameters.</p>
+                <a href="/agent?store=EXAMPLE&device=Test" class="back-link">Go to Agent Page →</a>
+            </div>
+        </div>
+    {% endif %}
+</body>
+</html>
+    """
+    return render_template_string(template, config=config, stores=sorted_stores)
+
+
+@web_bp.route('/agent')
+def agent():
+    """Agent page for ChromeOS devices to register and send heartbeats"""
+    store_code = request.args.get('store', '')
+    device_label = request.args.get('device', '')
+
+    template = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>📡 {{ config.name }} Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .agent-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 16px;
+            color: #1f2937;
+            text-align: center;
+        }
+        .status-indicator {
+            text-align: center;
+            padding: 24px;
+            border-radius: 12px;
+            margin: 24px 0;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        .status-indicator.initializing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status-indicator.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-indicator.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .info-grid {
+            display: grid;
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .info-item {
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .info-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 1.1em;
+            color: #1f2937;
+            font-weight: 600;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .metric-card {
+            padding: 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .metric-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .logs {
+            margin-top: 24px;
+            padding: 16px;
+            background: #1f2937;
+            color: #10b981;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 4px 0;
+        }
+        .log-time {
+            color: #6b7280;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .pulse {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-right: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="agent-container">
+        <h1>📡 Monitoring Agent</h1>
+
+        <div id="status" class="status-indicator initializing">
+            <span class="pulse"></span>
+            <span id="status-text">Initializing...</span>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Store</div>
+                <div class="info-value" id="store-name">{{ store_code or 'Not specified' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Device</div>
+                <div class="info-value" id="device-name">{{ device_label or 'Not specified' }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Device ID</div>
+                <div class="info-value" id="device-id">-</div>
+            </div>
+        </div>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-label">Heartbeats Sent</div>
+                <div class="metric-value" id="heartbeat-count">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Latency (ms)</div>
+                <div class="metric-value" id="latency">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Speed (Mbps)</div>
+                <div class="metric-value" id="speed">-</div>
+            </div>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div class="logs" id="logs">
+            <div class="log-entry">Agent starting...</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const STORE_CODE = "{{ store_code }}";
+        const DEVICE_LABEL = "{{ device_label }}";
+        const HEARTBEAT_INTERVAL = {{ config.heartbeat_interval * 1000 }};  // ms
+        const NETWORK_TEST_INTERVAL = {{ config.network_test_interval * 1000 }};  // ms
+        const NETWORK_TEST_FILE_SIZE = {{ config.network_test_file_size }};  // bytes
+
+        // State
+        let agentToken = null;
+        let deviceId = null;
+        let heartbeatCount = 0;
+        let heartbeatTimer = null;
+        let networkTestTimer = null;
+        let lastLatency = null;
+        let lastSpeed = null;
+
+        // Logging
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function setStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('status-text');
+            statusDiv.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        // Registration
+        async function register() {
+            if (!STORE_CODE || !DEVICE_LABEL) {
+                showError('Missing store or device parameters in URL. Example: /agent?store=FYSHWICK&device=Front%20Counter');
+                setStatus('disconnected', 'Configuration Error');
+                return false;
+            }
+
+            // Check if already registered
+            const stored = localStorage.getItem('monica_agent');
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    if (data.store_code === STORE_CODE && data.device_label === DEVICE_LABEL) {
+                        agentToken = data.agent_token;
+                        deviceId = data.device_id;
+                        document.getElementById('device-id').textContent = deviceId;
+                        log('✓ Loaded existing registration from storage');
+                        return true;
+                    }
+                } catch (e) {
+                    log('⚠ Could not parse stored registration, re-registering');
+                }
+            }
+
+            // Register with server
+            log('Registering with server...');
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_code: STORE_CODE,
+                        device_label: DEVICE_LABEL
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    agentToken = data.agent_token;
+                    deviceId = data.device_id;
+
+                    // Save to localStorage
+                    localStorage.setItem('monica_agent', JSON.stringify({
+                        store_code: STORE_CODE,
+                        device_label: DEVICE_LABEL,
+                        agent_token: agentToken,
+                        device_id: deviceId
+                    }));
+
+                    document.getElementById('device-id').textContent = deviceId;
+                    log(`✓ Registered successfully (ID: ${deviceId})`);
+                    return true;
+                } else {
+                    throw new Error(data.error || 'Registration failed');
+                }
+            } catch (error) {
+                log(`✗ Registration failed: ${error.message}`);
+                showError(`Registration failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        // Heartbeat
+        async function sendHeartbeat() {
+            if (!agentToken) {
+                log('✗ Cannot send heartbeat: not registered');
+                return;
+            }
+
+            try {
+                const payload = {
+                    timestamp: new Date().toISOString()
+                };
+
+                // Include network metrics if available
+                if (lastLatency !== null) {
+                    payload.latency_ms = lastLatency;
+                }
+                if (lastSpeed !== null) {
+                    payload.download_mbps = lastSpeed;
+                }
+
+                const response = await fetch('/api/heartbeat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Agent-Token': agentToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    heartbeatCount++;
+                    document.getElementById('heartbeat-count').textContent = heartbeatCount;
+                    setStatus('connected', '🟢 Connected');
+                    clearError();
+                    log(`♥ Heartbeat #${heartbeatCount} sent`);
+                } else {
+                    throw new Error(data.error || 'Heartbeat failed');
+                }
+            } catch (error) {
+                log(`✗ Heartbeat failed: ${error.message}`);
+                setStatus('disconnected', '🔴 Disconnected');
+                showError(`Connection error: ${error.message}`);
+            }
+        }
+
+        // Network test
+        async function runNetworkTest() {
+            log('Running network test...');
+
+            // Latency test: measure round-trip time to /health endpoint
+            try {
+                const start = performance.now();
+                const response = await fetch('/health', { cache: 'no-store' });
+                const end = performance.now();
+
+                if (response.ok) {
+                    lastLatency = Math.round(end - start);
+                    document.getElementById('latency').textContent = lastLatency;
+                    log(`✓ Latency: ${lastLatency}ms`);
+                }
+            } catch (error) {
+                log(`✗ Latency test failed: ${error.message}`);
+            }
+
+            // Speed test: download a test payload
+            // For MVP, we'll create a simple test by downloading data
+            // In production, you'd want a dedicated test file endpoint
+            try {
+                const start = performance.now();
+                // Generate random data of specified size
+                const testData = new Array(NETWORK_TEST_FILE_SIZE / 8).fill(0).map(() =>
+                    Math.random().toString(36).substring(2, 15)
+                ).join('');
+                const blob = new Blob([testData]);
+                const url = URL.createObjectURL(blob);
+
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                const end = performance.now();
+
+                const durationSeconds = (end - start) / 1000;
+                const sizeMb = arrayBuffer.byteLength / (1024 * 1024);
+                lastSpeed = (sizeMb / durationSeconds).toFixed(2);
+
+                document.getElementById('speed').textContent = lastSpeed;
+                log(`✓ Download speed: ${lastSpeed} Mbps`);
+
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                log(`✗ Speed test failed: ${error.message}`);
+            }
+        }
+
+        // Initialize
+        async function init() {
+            log('Monica Agent v{{ config.version }}');
+            log(`Store: ${STORE_CODE}, Device: ${DEVICE_LABEL}`);
+
+            // Register
+            const registered = await register();
+            if (!registered) {
+                setStatus('disconnected', '⚠️ Registration Failed');
+                return;
+            }
+
+            // Send initial heartbeat
+            await sendHeartbeat();
+
+            // Run initial network test
+            await runNetworkTest();
+
+            // Start periodic heartbeats
+            heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+            log(`✓ Heartbeat timer started (every ${HEARTBEAT_INTERVAL / 1000}s)`);
+
+            // Start periodic network tests
+            networkTestTimer = setInterval(runNetworkTest, NETWORK_TEST_INTERVAL);
+            log(`✓ Network test timer started (every ${NETWORK_TEST_INTERVAL / 1000}s)`);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            if (networkTestTimer) clearInterval(networkTestTimer);
+        });
+
+        // Start agent
+        init();
+    </script>
+</body>
+</html>
+    """
+    return render_template_string(template, config=config, store_code=store_code, device_label=device_label)
+
+
+@web_bp.route('/robots.txt')
+def robots():
+    """Block search engine crawlers"""
+    return """User-agent: *
+Disallow: /
+""", 200, {'Content-Type': 'text/plain'}
