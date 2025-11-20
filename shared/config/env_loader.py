@@ -38,6 +38,13 @@ if not os.environ.get('SKIP_ENV_VALIDATION'):
             except (ValueError, IndexError):
                 continue
 
+        # Load bot-specific .env file before validation
+        # This ensures validation can check bot-specific variables
+        if bot_name:
+            bot_env = ROOT_DIR / bot_name / '.env'
+            if bot_env.exists():
+                load_dotenv(bot_env, override=False)
+
         # Import validator here to avoid circular imports
         from shared.config.env_validator import validate_env
 
