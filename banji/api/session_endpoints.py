@@ -1,7 +1,7 @@
 """Session-based API endpoints for atomic browser operations."""
 import logging
 from flask import Blueprint, request, jsonify
-from shared.middleware.api_key import api_key_required
+from shared.auth.bot_api import api_key_required
 from config import config
 from services.session_manager import get_session_manager
 
