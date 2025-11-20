@@ -42,8 +42,8 @@ Dorothy uses Google OAuth to ensure only authorized users can access the deploym
    # Flask secret key (generate a random one)
    FLASK_SECRET_KEY=your-secret-key-here
 
-   # Allowed email addresses (comma-separated)
-   ALLOWED_EMAILS=your@email.com
+   # Admin email addresses (comma-separated)
+   ADMIN_EMAILS=your@email.com
    ```
 
 3. Generate a secure secret key:
@@ -52,7 +52,7 @@ Dorothy uses Google OAuth to ensure only authorized users can access the deploym
    ```
    Copy the output to `FLASK_SECRET_KEY` in your `.env` file
 
-4. Set your email in `ALLOWED_EMAILS` (only these emails can log in)
+4. Set your email in `ADMIN_EMAILS` (only these emails can log in)
 
 ## Step 3: Install Dependencies
 
@@ -85,7 +85,7 @@ Visit `http://localhost:8005` and you should be redirected to Google login.
 ## Security Notes
 
 - **Never commit `.env` to git** - it contains sensitive credentials
-- Only emails listed in `ALLOWED_EMAILS` can access Dorothy
+- Only emails listed in `ADMIN_EMAILS` can access Dorothy
 - The OAuth callback must match exactly what's configured in Google Cloud Console
 - Use HTTPS in production for secure OAuth flow
 - Keep `FLASK_SECRET_KEY` secure and never share it
@@ -98,7 +98,7 @@ Visit `http://localhost:8005` and you should be redirected to Google login.
 - Check for trailing slashes
 
 **Access Denied:**
-- Verify your email is listed in `ALLOWED_EMAILS`
+- Verify your email is listed in `ADMIN_EMAILS`
 - Check for typos or extra spaces in the email list
 
 **Session issues:**
