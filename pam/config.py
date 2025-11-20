@@ -38,8 +38,13 @@ class Config:
         self.peter_contacts_endpoint = peter_api.get('contacts_endpoint', '/api/contacts')
         self.peter_search_endpoint = peter_api.get('search_endpoint', '/api/contacts/search')
 
-        # Chester URL - service registry
-        self.chester_url = os.environ.get('CHESTER_API_URL', 'http://localhost:8008')
+        # Chester URL - service registry (required)
+        self.chester_url = os.environ.get('CHESTER_API_URL')
+        if not self.chester_url:
+            raise RuntimeError(
+                "CHESTER_API_URL is required but not set.\n"
+                "Add it to your shared .env file (e.g., CHESTER_API_URL=http://localhost:8008)"
+            )
         self.bot_api_key = os.environ.get('BOT_API_KEY')
 
         # Cache for bot URLs (avoid hitting Chester on every request)
