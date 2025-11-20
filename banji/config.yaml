@@ -18,6 +18,6 @@ browser:
 # Buz application settings
 buz:
   # Base URL from BUZ_BASE_URL env var (e.g., https://buz.example.com)
-  login_timeout: 10000
-  navigation_timeout: 5000
-  save_timeout: 10000
+  login_timeout: 10000       # 10 seconds - login page load
+  navigation_timeout: 5000   # 5 seconds - quick lookup navigation
+  save_timeout: 60000        # 60 seconds - bulk edit save can take time for price recalc
