@@ -286,3 +286,36 @@ def get_device_heartbeats(device_id: int):
             'success': False,
             'error': 'Internal server error'
         }), 500
+
+
+@api_bp.route('/devices/<int:device_id>', methods=['DELETE'])
+def delete_device(device_id: int):
+    """
+    Delete a device and all its associated heartbeats
+
+    Response JSON:
+        {
+            "success": true,
+            "message": "Device deleted successfully"
+        }
+    """
+    try:
+        deleted = db.delete_device(device_id)
+
+        if deleted:
+            return jsonify({
+                'success': True,
+                'message': 'Device deleted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Device not found'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Delete device error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
