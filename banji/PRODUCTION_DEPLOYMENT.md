@@ -534,9 +534,28 @@ buz:
   save_timeout: 10000       # 10 seconds
 ```
 
+### Threading Configuration
+
+**IMPORTANT:** Banji uses Playwright's synchronous API, which is **not thread-safe**. You must run Banji in single-threaded mode.
+
+The development server (`python app.py`) is already configured with `threaded=False`.
+
+**For production with Gunicorn:**
+```bash
+# Single worker, no threads
+gunicorn -w 1 --threads 1 --bind 0.0.0.0:8014 app:app
+
+# Or use the simpler approach
+gunicorn --workers=1 --bind 0.0.0.0:8014 app:app
+```
+
+**DO NOT** use multiple workers or threads with Banji. Each session must be accessed from the same thread that created it.
+
 ### Concurrent Sessions
 
 Monitor and limit based on server resources. Each browser session uses ~100-200MB RAM.
+
+Even with single-threaded operation, Banji can handle multiple concurrent sessions because each session maintains its own browser instance. The single thread just processes requests sequentially.
 
 ## Support
 

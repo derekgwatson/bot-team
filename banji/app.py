@@ -106,5 +106,7 @@ if __name__ == '__main__':
     app.run(
         host=config.server_host,
         port=config.server_port,
-        debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+        debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true',
+        threaded=False,  # Playwright sync API is not thread-safe
+        use_reloader=False  # Prevent reloader from causing threading issues
     )
