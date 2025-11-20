@@ -187,6 +187,21 @@ bot_team:
       health: /health
     personality: Helpful and responsive, manages staff access requests efficiently
 
+  banji:
+    name: Banji
+    description: Playwright Browser Automation for Buz
+    capabilities:
+      - Automate Buz UI interactions via Playwright
+      - Refresh quote pricing via bulk edit workflow
+      - Compare before/after pricing to detect changes
+      - Screenshot capture on failures for debugging
+      - Headless execution in production, headed in development
+    api_endpoints:
+      info: /info
+      health: /health
+      refresh_pricing: /api/quotes/refresh-pricing
+    personality: Precise and reliable, navigates Buz with expertise
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.
