@@ -209,7 +209,8 @@ class BanjiIntegrationTest:
         try:
             response = self._request(
                 'POST',
-                f'/api/sessions/{self.session_id}/bulk-edit/open'
+                f'/api/sessions/{self.session_id}/bulk-edit/open',
+                json={}  # Empty body but sets Content-Type header
             )
             response.raise_for_status()
 
@@ -236,7 +237,8 @@ class BanjiIntegrationTest:
         try:
             response = self._request(
                 'POST',
-                f'/api/sessions/{self.session_id}/bulk-edit/save'
+                f'/api/sessions/{self.session_id}/bulk-edit/save',
+                json={}  # Empty body but sets Content-Type header
             )
             response.raise_for_status()
 
