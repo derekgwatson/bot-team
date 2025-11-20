@@ -52,7 +52,7 @@ def index():
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             padding: 48px;
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
         }
         h1 {
@@ -60,27 +60,48 @@ def index():
             margin-bottom: 16px;
             color: #1f2937;
         }
-        p {
+        p.subtitle {
             color: #6b7280;
             line-height: 1.6;
             margin-bottom: 32px;
             font-size: 1.1em;
         }
-        .links {
+        .section {
+            margin: 32px 0;
+            padding: 24px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            font-size: 1.3em;
+            color: #1f2937;
+            margin-bottom: 12px;
             display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .section p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .section.admin {
+            border-left-color: #667eea;
+        }
+        .section.device {
+            border-left-color: #10b981;
         }
         .btn {
             display: inline-block;
-            padding: 16px 32px;
+            padding: 12px 24px;
             background: #667eea;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
             transition: all 0.3s;
-            font-size: 1.1em;
+            font-size: 1em;
         }
         .btn:hover {
             background: #5a67d8;
@@ -92,6 +113,32 @@ def index():
         }
         .btn.secondary:hover {
             background: #059669;
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+        }
+        .instructions {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        .instructions h3 {
+            font-size: 1em;
+            color: #92400e;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .instructions p {
+            color: #78350f;
+            font-size: 0.95em;
+            margin-bottom: 8px;
+        }
+        .instructions code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #92400e;
         }
         .info {
             margin-top: 32px;
@@ -108,11 +155,27 @@ def index():
 <body>
     <div class="container">
         <h1>{{ config.emoji }} {{ config.name }}</h1>
-        <p>{{ config.description }}</p>
+        <p class="subtitle">{{ config.description }}</p>
 
-        <div class="links">
-            <a href="/dashboard" class="btn">📊 View Dashboard</a>
-            <a href="/agent?store=EXAMPLE&device=Test" class="btn secondary">📡 Agent Page</a>
+        <div class="section admin">
+            <h2>📊 For Managers: View Dashboard</h2>
+            <p>Monitor all registered ChromeOS devices across your retail stores. See real-time status with traffic-light indicators (green/amber/red) showing device health.</p>
+            <a href="/dashboard" class="btn">Open Dashboard</a>
+        </div>
+
+        <div class="section device">
+            <h2>📡 For ChromeOS Devices: Register New Device</h2>
+            <p>Each ChromeOS device needs to run the monitoring agent in a pinned browser tab. The agent automatically sends heartbeats and network metrics to the server.</p>
+
+            <div class="instructions">
+                <h3>How to Add a New Device:</h3>
+                <p><strong>1.</strong> On the ChromeOS device, open a new browser tab</p>
+                <p><strong>2.</strong> Navigate to this URL format:</p>
+                <p><code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
+                <p><strong>3.</strong> Example: <code>/agent?store=FYSHWICK&device=Front%20Counter</code></p>
+                <p><strong>4.</strong> Pin the tab so it stays open</p>
+                <p><strong>5.</strong> The device will auto-register and start sending heartbeats</p>
+            </div>
         </div>
 
         <div class="info">
@@ -120,6 +183,7 @@ def index():
             POST /api/register - Register a new device<br>
             POST /api/heartbeat - Record heartbeat<br>
             GET /api/devices - List all devices<br>
+            DELETE /api/devices/&lt;id&gt; - Delete a device<br>
             <br>
             <strong>Version:</strong> {{ config.version }}
         </div>
@@ -221,11 +285,32 @@ def dashboard():
             align-items: center;
             gap: 8px;
             margin-bottom: 12px;
+            justify-content: space-between;
+        }
+        .device-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .device-name {
             font-size: 1.2em;
             font-weight: 600;
             color: #1f2937;
+        }
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .delete-btn:hover {
+            background: #dc2626;
+            transform: scale(1.05);
         }
         .device-info {
             font-size: 0.9em;
@@ -259,6 +344,21 @@ def dashboard():
             padding: 48px;
             color: #9ca3af;
         }
+        .empty-state h2 {
+            margin-bottom: 16px;
+        }
+        .empty-state p {
+            margin-bottom: 12px;
+        }
+        .empty-state code {
+            background: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: monospace;
+            color: #1f2937;
+            display: inline-block;
+            margin: 8px 0;
+        }
         .empty-state-icon {
             font-size: 4em;
             margin-bottom: 16px;
@@ -289,9 +389,35 @@ def dashboard():
     </style>
     <script>
         // Auto-refresh every {{ config.auto_refresh }} seconds
-        setTimeout(function() {
+        let autoRefreshTimer = setTimeout(function() {
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
+
+        // Delete device
+        async function deleteDevice(deviceId, deviceName) {
+            if (!confirm(`Are you sure you want to delete "${deviceName}"?\n\nThis will remove the device and all its heartbeat history.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Device "${deviceName}" deleted successfully`);
+                    // Clear auto-refresh timer and reload immediately
+                    clearTimeout(autoRefreshTimer);
+                    location.reload();
+                } else {
+                    alert(`Failed to delete device: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error deleting device: ${error.message}`);
+            }
+        }
     </script>
 </head>
 <body>
@@ -327,8 +453,11 @@ def dashboard():
                 {% for device in store_devices %}
                 <div class="device-card {{ device.computed_status }}">
                     <div class="device-header">
-                        <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
-                        <div class="device-name">{{ device.device_label }}</div>
+                        <div class="device-title">
+                            <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
+                            <div class="device-name">{{ device.device_label }}</div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
                     </div>
                     <div class="device-info">
                         <strong>Status:</strong>
@@ -354,8 +483,9 @@ def dashboard():
             <div class="empty-state">
                 <div class="empty-state-icon">📡</div>
                 <h2>No devices registered yet</h2>
-                <p>Register a device by visiting the agent page with store and device parameters.</p>
-                <a href="/agent?store=EXAMPLE&device=Test" class="back-link">Go to Agent Page →</a>
+                <p>To register a device, open this URL on the ChromeOS device:</p>
+                <p><code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
+                <a href="/" class="back-link">← Back to Home for Instructions</a>
             </div>
         </div>
     {% endif %}

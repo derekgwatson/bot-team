@@ -231,6 +231,30 @@ class Database:
         finally:
             conn.close()
 
+    def delete_device(self, device_id: int) -> bool:
+        """
+        Delete a device and all its associated heartbeats
+
+        Args:
+            device_id: Device ID to delete
+
+        Returns:
+            True if device was deleted, False if not found
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                "DELETE FROM devices WHERE id = ?",
+                (device_id,)
+            )
+            conn.commit()
+            deleted = cursor.rowcount > 0
+            if deleted:
+                logger.info(f"Deleted device {device_id}")
+            return deleted
+        finally:
+            conn.close()
+
     # Heartbeat operations
 
     def record_heartbeat(
