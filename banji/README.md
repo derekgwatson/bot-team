@@ -83,7 +83,16 @@ Refresh pricing for a quote and return before/after comparison.
 
 ### Multi-Organization Support
 
-Buz is multi-tenant - different organizations have different login credentials and URLs. Banji supports multiple organizations simultaneously, allowing you to work with Designer Drapes, Canberra, Tweed, and other organizations from a single bot instance.
+Buz is multi-tenant - different organizations have different authentication sessions. Banji supports multiple organizations simultaneously, allowing you to work with Designer Drapes, Canberra, Tweed, and other organizations from a single bot instance.
+
+### Authentication Approach
+
+**Banji uses Playwright storage state files** instead of storing passwords. This is more secure and handles complex auth flows:
+
+- ✅ **No passwords in .env files** - Only session tokens
+- ✅ **Handles MFA automatically** - Auth happens in real browser during bootstrap
+- ✅ **Works with complex flows** - Org selection, multiple domains (go.buzmanager.com, console1.buzmanager.com)
+- ✅ **Easy to revoke/regenerate** - Just re-run the bootstrap tool
 
 ### Environment Variables
 
@@ -91,22 +100,15 @@ Buz is multi-tenant - different organizations have different login credentials a
 - `BUZ_ORGS` - Comma-separated list of organization names (e.g., `designer_drapes,canberra,tweed`)
 - `BOT_API_KEY` - Shared API key for bot-to-bot communication
 
-**For each organization, you need:**
-- `BUZ_{ORG}_URL` - Base URL for that organization's Buz instance
-- `BUZ_{ORG}_USERNAME` - Login username for that organization
-- `BUZ_{ORG}_PASSWORD` - Login password for that organization
+**For each organization:**
+- You need a **storage state file** (not passwords!)
+- Files are stored in `.secrets/buz_storage_state_{org_name}.json`
+- Generated using the bootstrap tool (see Setup section below)
 
-**Example:**
+**Example .env:**
 ```bash
 BUZ_ORGS=designer_drapes,canberra,tweed
-
-BUZ_DESIGNER_DRAPES_URL=https://designerdrapes.buz.com
-BUZ_DESIGNER_DRAPES_USERNAME=sales@designerdrapes.com
-BUZ_DESIGNER_DRAPES_PASSWORD=password123
-
-BUZ_CANBERRA_URL=https://canberra.buz.com
-BUZ_CANBERRA_USERNAME=sales@canberra.com
-BUZ_CANBERRA_PASSWORD=password456
+BOT_API_KEY=your-bot-api-key-here
 ```
 
 **Optional:**
@@ -149,11 +151,45 @@ playwright install chromium
 # Copy example environment file
 cp banji/.env.example banji/.env
 
-# Edit .env with your Buz credentials
+# Edit .env - just set BUZ_ORGS with your organization names
 nano banji/.env
 ```
 
-### 3. Run Banji
+Example `.env`:
+```bash
+BUZ_ORGS=designer_drapes,canberra,tweed
+BOT_API_KEY=your-bot-api-key-here
+FLASK_DEBUG=True
+```
+
+### 3. Bootstrap Authentication
+
+**For each organization**, run the bootstrap tool to generate the authentication storage state:
+
+```bash
+cd banji
+
+# Bootstrap Designer Drapes
+python tools/buz_auth_bootstrap.py designer_drapes
+
+# Bootstrap Canberra
+python tools/buz_auth_bootstrap.py canberra
+
+# Bootstrap Tweed
+python tools/buz_auth_bootstrap.py tweed
+```
+
+**What the bootstrap tool does:**
+1. Opens a browser window
+2. You log in to Buz (including MFA if required)
+3. You select the correct organization
+4. You navigate to Settings > Users to capture console auth
+5. You navigate to console1.buzmanager.com to capture multi-domain auth
+6. Tool saves authenticated session to `.secrets/buz_storage_state_{org}.json`
+
+This only needs to be done once per org (or when sessions expire - usually months).
+
+### 4. Run Banji
 
 ```bash
 # Development mode (headed browser)
@@ -247,20 +283,20 @@ class SomePage:
 
 ## TODO: Buz UI Selectors
 
-⚠️ **Important:** The page objects currently use **placeholder selectors**. You'll need to:
+⚠️ **Important:** The quote page objects currently use **placeholder selectors**. You'll need to:
 
 1. Inspect the actual Buz application UI
 2. Identify stable selectors for:
-   - Login form fields and button
    - Quote page total price element
    - Bulk edit button
    - Save button
-   - Success indicators
+   - Success indicators (after save completes)
 3. Update the selectors in:
-   - `services/quotes/login_page.py`
    - `services/quotes/quote_page.py`
 
 Look for elements with `data-testid`, `id`, or stable `class` attributes. Avoid selectors that might break when Buz's UI changes.
+
+**Note:** Login is handled via storage state (no form filling needed), so no login selectors required!
 
 ## Testing
 
@@ -277,11 +313,25 @@ pytest tests/ --cov=banji --cov-report=html
 
 ## Troubleshooting
 
-### "Login failed - timeout"
-- Check organization URL is correct (e.g., `BUZ_DESIGNER_DRAPES_URL`)
-- Verify credentials in `.env` for the specified org
-- Update login selectors in `login_page.py`
-- Try headed mode to see what's happening: `BUZ_HEADLESS=false`
+### "Storage state file not found"
+- Error: `Storage state file not found for organization 'designer_drapes'`
+- Solution: Run the bootstrap tool to generate the auth file:
+  ```bash
+  python tools/buz_auth_bootstrap.py designer_drapes
+  ```
+
+### "Authentication failed" or "redirected to login"
+- Storage state (session) may have expired
+- Solution: Regenerate the auth file:
+  ```bash
+  python tools/buz_auth_bootstrap.py designer_drapes
+  ```
+- Sessions typically last months but can expire earlier
+
+### "Landed on organization selector page"
+- Warning during workflow execution
+- Storage state is valid but org wasn't selected during bootstrap
+- Solution: Regenerate auth file and make sure to click the organization
 
 ### "Could not find price element"
 - Quote page may have different structure than expected

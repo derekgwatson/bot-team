@@ -8,23 +8,25 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserManager:
-    """Manages Playwright browser lifecycle."""
+    """Manages Playwright browser lifecycle with storage state authentication."""
 
-    def __init__(self, config):
+    def __init__(self, config, org_config=None):
         """
         Initialize browser manager.
 
         Args:
             config: Banji config object with browser settings
+            org_config: Optional org-specific config with storage_state_path
         """
         self.config = config
+        self.org_config = org_config
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
 
     def start(self):
-        """Start browser and create new page."""
+        """Start browser and create new page with storage state if provided."""
         logger.info(f"Starting browser (headless={self.config.browser_headless})")
 
         self.playwright = sync_playwright().start()
@@ -32,9 +34,17 @@ class BrowserManager:
             headless=self.config.browser_headless
         )
 
-        self.context = self.browser.new_context(
-            viewport={'width': 1920, 'height': 1080}
-        )
+        # Create context with storage state if provided (for authentication)
+        context_kwargs = {
+            'viewport': {'width': 1920, 'height': 1080}
+        }
+
+        if self.org_config and 'storage_state_path' in self.org_config:
+            storage_state_path = self.org_config['storage_state_path']
+            logger.info(f"Loading storage state from: {storage_state_path}")
+            context_kwargs['storage_state'] = storage_state_path
+
+        self.context = self.browser.new_context(**context_kwargs)
 
         # Set default timeout
         self.context.set_default_timeout(self.config.browser_default_timeout)

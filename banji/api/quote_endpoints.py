@@ -68,10 +68,11 @@ def refresh_pricing():
         org_config = config.get_org_config(org)
 
         # Use browser manager context to ensure cleanup
-        with BrowserManager(config) as browser_manager:
+        # Pass org_config to load storage state for authentication
+        with BrowserManager(config, org_config) as browser_manager:
             page = browser_manager.page
 
-            # Login to Buz (with org-specific credentials)
+            # Verify authentication (storage state handles actual auth)
             login_page = LoginPage(page, config, org_config)
             login_page.login()
 
