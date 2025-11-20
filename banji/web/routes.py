@@ -14,5 +14,6 @@ def index():
         description=config.description,
         personality=config.personality,
         browser_mode='headless' if config.browser_headless else 'headed',
-        buz_url=config.buz_base_url
+        buz_url='https://go.buzmanager.com',
+        active_orgs=', '.join(config.buz_orgs.keys())
     )
