@@ -18,6 +18,3 @@ email:
     use_tls: true
     username_env_var: "EMAIL_SMTP_USERNAME"
     password_env_var: "EMAIL_SMTP_PASSWORD"
-
-security:
-  api_key_env_var: "MABEL_INTERNAL_API_KEY"   # For inter-bot auth

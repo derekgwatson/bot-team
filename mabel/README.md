@@ -52,12 +52,11 @@ cp .env.example .env
 
 Required environment variables:
 
+**Note**: `BOT_API_KEY` is defined in the root `.env` file (shared by all bots in the bot-team ecosystem) and is automatically loaded via `shared/config/env_loader.py`.
+
 ```bash
 # Flask secret key (generate a random string)
 FLASK_SECRET_KEY=your-secret-key-here
-
-# Internal API key for authentication (shared with other bots)
-MABEL_INTERNAL_API_KEY=your-api-key-here
 
 # SMTP credentials
 EMAIL_SMTP_USERNAME=your-smtp-username@example.com
@@ -364,7 +363,7 @@ Deep health check with SMTP connectivity test (no authentication required).
 ```bash
 curl -X POST http://localhost:8010/api/send-email \
   -H "Content-Type: application/json" \
-  -H "X-Internal-Api-Key: $MABEL_INTERNAL_API_KEY" \
+  -H "X-Internal-Api-Key: $BOT_API_KEY" \
   -d '{
     "to": "user@example.com",
     "subject": "Test Email",
@@ -378,7 +377,7 @@ curl -X POST http://localhost:8010/api/send-email \
 ```bash
 curl -X POST http://localhost:8010/api/send-email \
   -H "Content-Type: application/json" \
-  -H "X-Internal-Api-Key: $MABEL_INTERNAL_API_KEY" \
+  -H "X-Internal-Api-Key: $BOT_API_KEY" \
   -d '{
     "to": ["newuser@example.com"],
     "subject": "Welcome to Our Service",
@@ -401,7 +400,7 @@ FILE_CONTENT=$(base64 -w 0 document.pdf)
 
 curl -X POST http://localhost:8010/api/send-email \
   -H "Content-Type: application/json" \
-  -H "X-Internal-Api-Key: $MABEL_INTERNAL_API_KEY" \
+  -H "X-Internal-Api-Key: $BOT_API_KEY" \
   -d "{
     \"to\": \"client@example.com\",
     \"subject\": \"Your Document\",
@@ -421,7 +420,7 @@ curl -X POST http://localhost:8010/api/send-email \
 ```bash
 curl -X POST http://localhost:8010/api/send-batch \
   -H "Content-Type: application/json" \
-  -H "X-Internal-Api-Key: $MABEL_INTERNAL_API_KEY" \
+  -H "X-Internal-Api-Key: $BOT_API_KEY" \
   -d '{
     "emails": [
       {
@@ -536,17 +535,18 @@ pytest tests/unit/test_email_models.py
 
 Other bots in the bot-team ecosystem can use Mabel by:
 
-1. **Storing the shared API key**: Set `MABEL_INTERNAL_API_KEY` in your bot's environment
+1. **Using the shared API key**: All bots share the `BOT_API_KEY` from the root `.env` file
 2. **Making HTTP requests**: Use the `/api/send-email` endpoint
 3. **Including correlation IDs**: Use `X-Correlation-Id` header for request tracking
 
 ### Python Example
 
 ```python
+import os
 import requests
 
 MABEL_URL = "http://mabel:8010"
-API_KEY = os.getenv("MABEL_INTERNAL_API_KEY")
+API_KEY = os.getenv("BOT_API_KEY")
 
 def send_email(to, subject, body, correlation_id=None):
     headers = {
@@ -577,7 +577,7 @@ def send_email(to, subject, body, correlation_id=None):
 
 ## Security Considerations
 
-- **API Key**: Keep `MABEL_INTERNAL_API_KEY` secret and rotate regularly
+- **API Key**: Keep `BOT_API_KEY` secret and rotate regularly (shared across all bots in root `.env`)
 - **SMTP Credentials**: Never log or expose `EMAIL_SMTP_PASSWORD`
 - **Input Validation**: All inputs are validated via Pydantic models
 - **Template Auto-escaping**: Jinja2 auto-escaping prevents XSS in HTML emails

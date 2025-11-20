@@ -6,6 +6,7 @@ from typing import Optional
 
 import yaml
 from dotenv import load_dotenv
+from shared.config.env_loader import SHARED_ENV  # noqa: F401
 
 
 class ConfigError(Exception):
@@ -53,14 +54,14 @@ class Config:
     def _validate_config(self) -> None:
         """Validate that all required configuration is present."""
         # Check config.yaml structure
-        required_keys = ['name', 'version', 'server', 'email', 'security']
+        required_keys = ['name', 'version', 'server', 'email']
         for key in required_keys:
             if key not in self._config:
                 raise ConfigError(f"Missing required config key: {key}")
 
         # Check required environment variables
         required_env_vars = [
-            'MABEL_INTERNAL_API_KEY',
+            'BOT_API_KEY',
             'EMAIL_SMTP_USERNAME',
             'EMAIL_SMTP_PASSWORD',
             'FLASK_SECRET_KEY'
@@ -155,9 +156,8 @@ class Config:
     # Security configuration
     @property
     def internal_api_key(self) -> str:
-        """Internal API key for inter-bot authentication."""
-        api_key_var = self._config['security']['api_key_env_var']
-        return os.getenv(api_key_var, '')
+        """Internal API key for inter-bot authentication (shared across all bots)."""
+        return os.getenv('BOT_API_KEY', '')
 
     @property
     def flask_secret_key(self) -> str:

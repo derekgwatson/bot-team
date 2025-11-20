@@ -10,7 +10,7 @@ import pytest
 def client():
     """Create a test client for the Flask app."""
     # Set required environment variables for testing
-    os.environ['MABEL_INTERNAL_API_KEY'] = 'test-api-key-12345'
+    os.environ['BOT_API_KEY'] = 'test-api-key-12345'
     os.environ['EMAIL_SMTP_USERNAME'] = 'test@example.com'
     os.environ['EMAIL_SMTP_PASSWORD'] = 'test-password'
     os.environ['FLASK_SECRET_KEY'] = 'test-secret-key-xyz'
