@@ -1,0 +1,23 @@
+name: mabel
+description: "Email-sending bot for the bot-team. Centralizes all outbound email."
+version: "0.1.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8010
+  log_level: "INFO"
+
+email:
+  default_from: "no-reply@example.com"
+  default_reply_to: "support@example.com"
+  default_sender_name: "Bot Team"
+  # Email provider config; some values come from env vars
+  smtp:
+    host: "smtp.example.com"
+    port: 587
+    use_tls: true
+    username_env_var: "EMAIL_SMTP_USERNAME"
+    password_env_var: "EMAIL_SMTP_PASSWORD"
+
+security:
+  api_key_env_var: "MABEL_INTERNAL_API_KEY"   # For inter-bot auth

@@ -1,0 +1,21 @@
+# Web framework
+Flask==3.0.0
+
+# Configuration
+python-dotenv==1.0.0
+PyYAML==6.0.1
+
+# Email validation and models
+pydantic==2.5.2
+email-validator==2.1.0
+
+# Template rendering
+Jinja2==3.1.2
+
+# WSGI server for production
+gunicorn==21.2.0
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+coverage==7.3.3
