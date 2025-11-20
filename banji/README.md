@@ -51,14 +51,18 @@ Detect pricing changes in quotes by triggering a bulk edit save (which forces pr
 
 ## API Endpoints
 
-### `POST /api/quotes/refresh-pricing`
+Banji provides **atomic, session-based API** for browser automation. Start a session, perform operations, then close when done.
 
-Refresh pricing for a quote and return before/after comparison.
+All endpoints require `X-API-Key` header with valid `BOT_API_KEY`.
+
+### Session Management
+
+#### `POST /api/sessions/start`
+Start a new browser session for an organization.
 
 **Request:**
 ```json
 {
-  "quote_id": "Q-12345",
   "org": "designer_drapes"
 }
 ```
@@ -66,18 +70,123 @@ Refresh pricing for a quote and return before/after comparison.
 **Response:**
 ```json
 {
-  "success": true,
-  "quote_id": "Q-12345",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "org": "designer_drapes",
-  "price_before": 1000.00,
-  "price_after": 1200.00,
-  "price_changed": true,
-  "change_amount": 200.00,
-  "change_percent": 20.0
+  "created_at": "2025-01-20T14:30:22",
+  "timeout_minutes": 30
 }
 ```
 
-**Authentication:** Requires `X-API-Key` header with valid `BOT_API_KEY`.
+#### `DELETE /api/sessions/{session_id}`
+Close a browser session and free resources.
+
+**Response:**
+```json
+{
+  "session_id": "550e8400-...",
+  "status": "closed"
+}
+```
+
+#### `GET /api/sessions/{session_id}`
+Get session information.
+
+**Response:**
+```json
+{
+  "session_id": "550e8400-...",
+  "org": "designer_drapes",
+  "created_at": "2025-01-20T14:30:22",
+  "last_activity": "2025-01-20T14:35:10",
+  "current_quote_id": "12345",
+  "current_order_pk_id": "9b7b351a-..."
+}
+```
+
+#### `GET /api/sessions/active`
+List all active sessions.
+
+**Response:**
+```json
+{
+  "session_count": 2,
+  "sessions": [
+    {
+      "session_id": "550e8400-...",
+      "org": "designer_drapes",
+      "created_at": "...",
+      "last_activity": "..."
+    }
+  ]
+}
+```
+
+### Quote Operations
+
+#### `POST /api/sessions/{session_id}/navigate/quote`
+Navigate to a specific quote using Quick Lookup.
+
+**Request:**
+```json
+{
+  "quote_id": "12345"
+}
+```
+
+**Response:**
+```json
+{
+  "quote_id": "12345",
+  "order_pk_id": "9b7b351a-...",
+  "current_url": "https://go.buzmanager.com/Sales/Summary?orderId=..."
+}
+```
+
+#### `GET /api/sessions/{session_id}/quote/total`
+Get the total price from current quote summary page.
+
+**Response:**
+```json
+{
+  "total_price": 1234.56,
+  "quote_id": "12345"
+}
+```
+
+#### `POST /api/sessions/{session_id}/bulk-edit/open`
+Open bulk edit page for current quote.
+
+**Request (optional):**
+```json
+{
+  "order_pk_id": "9b7b351a-..."
+}
+```
+
+**Response:**
+```json
+{
+  "status": "bulk_edit_opened",
+  "order_pk_id": "9b7b351a-...",
+  "current_url": "https://go.buzmanager.com/Sales/BulkEditOrder?..."
+}
+```
+
+#### `POST /api/sessions/{session_id}/bulk-edit/save`
+Click Save button on bulk edit page (triggers price recalculation).
+
+**Response:**
+```json
+{
+  "status": "saved",
+  "current_url": "..."
+}
+```
+
+### Legacy Endpoint
+
+#### `POST /api/quotes/refresh-pricing` (Deprecated)
+High-level endpoint that performs entire pricing refresh workflow in one call. Still available for backward compatibility, but new integrations should use session-based API for more control.
 
 ## Configuration
 
@@ -132,6 +241,10 @@ See `.env.example` for full configuration template.
 - Screenshots captured on failures for debugging
 
 ## Setup
+
+**For production deployment,** see [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for detailed Linux server setup instructions.
+
+**For development,** follow the steps below:
 
 ### 1. Install Dependencies
 
@@ -348,7 +461,9 @@ pytest tests/ --cov=banji --cov-report=html
 
 ## Integration Examples
 
-### Calling Banji from Another Bot
+### Session-Based API Usage
+
+**Basic workflow** for checking a single quote:
 
 ```python
 from shared.http_client import BotHttpClient
@@ -356,50 +471,173 @@ from shared.http_client import BotHttpClient
 # Initialize client
 banji = BotHttpClient("http://localhost:8014")
 
-# Refresh quote pricing for Designer Drapes
-response = banji.post('/api/quotes/refresh-pricing', {
-    'quote_id': 'Q-12345',
-    'org': 'designer_drapes'
-})
+# Start a browser session
+session = banji.post('/api/sessions/start', {'org': 'designer_drapes'})
+session_id = session['session_id']
 
-if response['success']:
-    if response['price_changed']:
-        print(f"⚠️ Price changed in {response['org']}!")
-        print(f"  Quote: {response['quote_id']}")
-        print(f"  Before: ${response['price_before']}")
-        print(f"  After: ${response['price_after']}")
-        print(f"  Change: {response['change_percent']}%")
+try:
+    # Navigate to quote
+    banji.post(f'/api/sessions/{session_id}/navigate/quote', {
+        'quote_id': '12345'
+    })
+
+    # Get price before bulk edit
+    price_before = banji.get(f'/api/sessions/{session_id}/quote/total')['total_price']
+
+    # Open bulk edit and save (triggers price recalc)
+    banji.post(f'/api/sessions/{session_id}/bulk-edit/open')
+    banji.post(f'/api/sessions/{session_id}/bulk-edit/save')
+
+    # Navigate back to summary to get updated price
+    banji.post(f'/api/sessions/{session_id}/navigate/quote', {
+        'quote_id': '12345'
+    })
+    price_after = banji.get(f'/api/sessions/{session_id}/quote/total')['total_price']
+
+    # Check for price change
+    if abs(price_after - price_before) > 0.01:
+        print(f"⚠️ Price changed! ${price_before} → ${price_after}")
     else:
-        print(f"✓ Price unchanged for {response['quote_id']}")
+        print(f"✓ Price unchanged: ${price_before}")
+
+finally:
+    # Always close the session to free browser resources
+    banji.delete(f'/api/sessions/{session_id}')
 ```
 
-### Scheduled Price Checks (Example)
+### Batch Price Checking with Session Reuse
+
+**Efficient workflow** for checking multiple quotes (reuses same browser session):
 
 ```python
-# Example orchestrator bot that checks quotes daily across all orgs
-import schedule
+from shared.http_client import BotHttpClient
 
-def check_open_quotes():
-    # Get open quotes from Buz API or database
-    # Each quote includes its organization
-    quotes = get_open_quotes()  # Returns: [{'id': 'Q-123', 'org': 'designer_drapes'}, ...]
+def check_quote_prices(org: str, quote_ids: list):
+    """Check pricing for multiple quotes in one browser session."""
+    banji = BotHttpClient("http://localhost:8014")
 
-    for quote in quotes:
-        # Call Banji to refresh pricing for this quote's organization
-        result = banji.post('/api/quotes/refresh-pricing', {
-            'quote_id': quote['id'],
-            'org': quote['org']
-        })
+    # Start session once
+    session = banji.post('/api/sessions/start', {'org': org})
+    session_id = session['session_id']
 
-        if result['price_changed']:
-            # Alert someone about the price change
-            send_alert(
-                f"[{result['org']}] Quote {quote['id']} price changed by {result['change_percent']}%"
-            )
+    results = []
 
-# Schedule daily at 9 AM
-schedule.every().day.at("09:00").do(check_open_quotes)
+    try:
+        for quote_id in quote_ids:
+            # Navigate to quote
+            banji.post(f'/api/sessions/{session_id}/navigate/quote', {
+                'quote_id': quote_id
+            })
+
+            # Get price before
+            price_before = banji.get(
+                f'/api/sessions/{session_id}/quote/total'
+            )['total_price']
+
+            # Trigger price recalc via bulk edit
+            banji.post(f'/api/sessions/{session_id}/bulk-edit/open')
+            banji.post(f'/api/sessions/{session_id}/bulk-edit/save')
+
+            # Get price after
+            banji.post(f'/api/sessions/{session_id}/navigate/quote', {
+                'quote_id': quote_id
+            })
+            price_after = banji.get(
+                f'/api/sessions/{session_id}/quote/total'
+            )['total_price']
+
+            # Calculate change
+            change_amount = price_after - price_before
+            price_changed = abs(change_amount) > 0.01
+
+            results.append({
+                'quote_id': quote_id,
+                'price_before': price_before,
+                'price_after': price_after,
+                'price_changed': price_changed,
+                'change_amount': change_amount
+            })
+
+    finally:
+        # Clean up session
+        banji.delete(f'/api/sessions/{session_id}')
+
+    return results
+
+
+# Usage
+results = check_quote_prices('designer_drapes', ['12345', '12346', '12347'])
+
+for result in results:
+    if result['price_changed']:
+        print(f"⚠️ Quote {result['quote_id']}: "
+              f"${result['price_before']} → ${result['price_after']}")
 ```
+
+### Scheduled Price Monitoring
+
+**Automated monitoring** that runs daily:
+
+```python
+import schedule
+from shared.http_client import BotHttpClient
+
+def get_open_quotes(org: str):
+    """Get list of open quotes from your database or Buz API."""
+    # Your implementation here
+    return ['12345', '12346', '12347']
+
+def check_daily_pricing():
+    """Check pricing for all open quotes across all organizations."""
+    banji = BotHttpClient("http://localhost:8014")
+
+    orgs = ['designer_drapes', 'canberra', 'tweed']
+
+    for org in orgs:
+        print(f"\nChecking {org}...")
+
+        # Get quotes for this org
+        quote_ids = get_open_quotes(org)
+
+        # Check prices
+        results = check_quote_prices(org, quote_ids)
+
+        # Alert on changes
+        for result in results:
+            if result['price_changed']:
+                alert_someone(
+                    f"[{org}] Quote {result['quote_id']} "
+                    f"price changed by ${result['change_amount']:.2f}"
+                )
+
+# Run daily at 9 AM
+schedule.every().day.at("09:00").do(check_daily_pricing)
+
+# Keep scheduler running
+while True:
+    schedule.run_pending()
+    time.sleep(60)
+```
+
+### Simple Commands (Atomic Operations)
+
+Banji's atomic API allows orchestrator bots to issue simple commands:
+
+```python
+# Go to quote
+banji.post(f'/api/sessions/{sid}/navigate/quote', {'quote_id': '12345'})
+
+# Get total
+total = banji.get(f'/api/sessions/{sid}/quote/total')['total_price']
+
+# Open bulk edit
+banji.post(f'/api/sessions/{sid}/bulk-edit/open')
+
+# Save
+banji.post(f'/api/sessions/{sid}/bulk-edit/save')
+```
+
+This aligns with the philosophy: **orchestrator bots know WHAT to do, Banji knows HOW**.
 
 ## Contributing
 

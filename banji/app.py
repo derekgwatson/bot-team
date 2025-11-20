@@ -8,17 +8,33 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import os
+import atexit
 from flask import Flask, jsonify
 from config import config
 from api.quote_endpoints import quotes_bp
+from api.session_endpoints import sessions_bp
 from web.routes import web_bp
+from services.session_manager import init_session_manager, get_session_manager
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = config.secret_key
 
+# Initialize session manager
+session_manager = init_session_manager(config, session_timeout_minutes=30)
+
+# Register cleanup on shutdown
+@atexit.register
+def cleanup():
+    """Cleanup sessions on shutdown."""
+    try:
+        get_session_manager().shutdown()
+    except:
+        pass
+
 # Register blueprints
 app.register_blueprint(quotes_bp, url_prefix='/api/quotes')
+app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
 app.register_blueprint(web_bp)
 
 
@@ -36,6 +52,8 @@ def health():
 @app.route('/info')
 def info():
     """Bot information endpoint."""
+    active_sessions = session_manager.get_session_count()
+
     return jsonify({
         'name': config.name,
         'description': config.description,
@@ -46,13 +64,20 @@ def info():
             'api': '/api',
             'health': '/health',
             'info': '/info',
-            'quotes': '/api/quotes'
+            'quotes': '/api/quotes',
+            'sessions': '/api/sessions'
         },
         'capabilities': [
-            'Refresh quote pricing via bulk edit',
-            'Compare before/after pricing',
+            'Session-based browser automation',
+            'Navigate to quotes via Quick Lookup',
+            'Extract quote total prices',
+            'Open and save bulk edit (trigger price recalc)',
+            'Maintain browser state across multiple API calls',
+            'Multi-organization support',
             'Screenshot capture on failures'
-        ]
+        ],
+        'active_sessions': active_sessions,
+        'session_timeout_minutes': session_manager.session_timeout_minutes
     })
 
 
