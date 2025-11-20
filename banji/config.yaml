@@ -17,7 +17,8 @@ browser:
 
 # Buz application settings
 buz:
-  # Timeouts are safety nets - code watches for actual completion indicators
-  login_timeout: 10000       # 10 seconds - login page load
-  navigation_timeout: 5000   # 5 seconds - quick lookup navigation
-  save_timeout: 180000       # 3 minutes - bulk edit save (watches network idle, not arbitrary wait)
+  # Timeouts are EMERGENCY CIRCUIT BREAKERS - code watches browser state for actual completion
+  # These should be so long they almost never trigger - they catch truly broken scenarios
+  login_timeout: 300000      # 5 minutes - emergency safety net
+  navigation_timeout: 120000 # 2 minutes - emergency safety net
+  save_timeout: 1800000      # 30 minutes - emergency safety net (Buz can be slow, we watch network idle)
