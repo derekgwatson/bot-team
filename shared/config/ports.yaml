@@ -22,5 +22,7 @@ ports:
   sadie: 8010     # Zendesk Ticket Information
   oscar: 8011     # Staff Onboarding Orchestrator
   olive: 8012     # Staff Offboarding Orchestrator
-  rita: 8013     # User access requests Orchestrator
-# Next available port: 8013
+  rita: 8013      # User access requests Orchestrator
+  banji: 8014     # Browser Automation (Playwright for Buz)
+  monica: 8015    # ChromeOS Monitoring Agent
+# Next available port: 8016

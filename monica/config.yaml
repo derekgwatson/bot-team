@@ -1,0 +1,32 @@
+# Monica Configuration
+# ChromeOS Monitoring Agent
+
+name: monica
+description: ChromeOS device monitoring agent with heartbeat tracking
+version: 1.0.0
+emoji: 📡
+
+# Server configuration
+server:
+  host: 0.0.0.0
+  port: 8015
+
+# Heartbeat thresholds (in minutes)
+heartbeat:
+  online_threshold: 2      # Green if last seen within 2 minutes
+  degraded_threshold: 10   # Amber if last seen within 10 minutes
+  # Red if last seen > 10 minutes ago
+
+# Agent settings
+agent:
+  heartbeat_interval: 60   # Seconds between heartbeats
+  network_test_interval: 300  # Seconds between network tests (5 minutes)
+  network_test_file_size: 1048576  # 1 MB file for speed test
+
+# Database
+database:
+  cleanup_days: 30  # Keep heartbeats for 30 days
+
+# Dashboard
+dashboard:
+  auto_refresh: 30  # Auto-refresh dashboard every 30 seconds
