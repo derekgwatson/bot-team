@@ -134,6 +134,24 @@ class PeterClient:
             print(f"Unexpected error: {e}")
             return {"error": f"Unexpected error: {str(e)}"}
 
+    def group_by_section(self, contacts):
+        """
+        Group a list of contacts by their section
+
+        Args:
+            contacts: List of contact dictionaries
+
+        Returns:
+            Dictionary with sections as keys and lists of contacts as values
+        """
+        sections = {}
+        for contact in contacts:
+            section = contact.get('section', 'Unknown')
+            if section not in sections:
+                sections[section] = []
+            sections[section].append(contact)
+        return sections
+
 
 # Global client instance
 peter_client = PeterClient()
