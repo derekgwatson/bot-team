@@ -195,6 +195,51 @@ class Database:
             'public_facing': bot['public_facing']
         }
 
+    def sync_bots_from_config(self, verbose: bool = True) -> Dict[str, List[str]]:
+        """
+        Synchronize bots from config.yaml to database.
+
+        This makes config.yaml the single source of truth - any bot in config.yaml
+        that isn't in the database will be automatically added with defaults.
+
+        Returns:
+            Dict with 'added' and 'skipped' lists of bot names
+        """
+        from config import config
+        from shared.config.ports import get_port
+
+        added = []
+        skipped = []
+
+        for bot_name, bot_info in config.bot_team.items():
+            # Check if bot already exists in database
+            existing = self.get_bot(bot_name)
+            if existing:
+                skipped.append(bot_name)
+                continue
+
+            # Get port from shared ports configuration
+            port = get_port(bot_name)
+            if not port:
+                if verbose:
+                    print(f"⚠️  Skipping {bot_name}: no port defined in shared/config/ports.yaml")
+                skipped.append(bot_name)
+                continue
+
+            # Add bot to database with defaults
+            try:
+                description = bot_info.get('description', bot_name)
+                self.add_bot(name=bot_name, description=description, port=port)
+                added.append(bot_name)
+                if verbose:
+                    print(f"✅ Auto-registered {bot_name} (port {port}) from config.yaml")
+            except Exception as e:
+                if verbose:
+                    print(f"❌ Failed to register {bot_name}: {e}")
+                skipped.append(bot_name)
+
+        return {'added': added, 'skipped': skipped}
+
 
 # Global database instance
 db = Database()

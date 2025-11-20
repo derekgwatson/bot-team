@@ -72,6 +72,14 @@ if __name__ == '__main__':
     print(f"   Running on http://localhost:{config.server_port}")
     print("="*50 + "\n")
 
+    # Sync bots from config.yaml to database on startup
+    from services.database import db
+    print("🔄 Syncing bots from config.yaml to database...")
+    result = db.sync_bots_from_config(verbose=True)
+    if result['added']:
+        print(f"   Added: {', '.join(result['added'])}")
+    print()
+
     app.run(
         host=config.server_host,
         port=config.server_port,
