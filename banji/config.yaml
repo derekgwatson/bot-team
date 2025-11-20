@@ -1,0 +1,23 @@
+name: Banji
+description: Playwright-powered browser automation for Buz - handles UI interactions and workflows
+version: 1.0.0
+personality: Precise and reliable, navigates Buz with expertise. Handles browser automation tasks efficiently.
+
+server:
+  host: 0.0.0.0
+  port: 8012
+
+# Browser configuration
+browser:
+  # Headless mode controlled by BUZ_HEADLESS env var
+  # Default: headless in prod, headed in dev for visibility
+  default_timeout: 30000  # milliseconds
+  screenshot_on_failure: true
+  screenshot_dir: screenshots
+
+# Buz application settings
+buz:
+  # Base URL from BUZ_BASE_URL env var (e.g., https://buz.example.com)
+  login_timeout: 10000
+  navigation_timeout: 5000
+  save_timeout: 10000

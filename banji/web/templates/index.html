@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bot_name }} - Browser Automation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .icon {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .personality {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            color: #555;
+            font-style: italic;
+            margin-bottom: 30px;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .capabilities {
+            margin-top: 20px;
+        }
+
+        .capabilities h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .capability-list {
+            list-style: none;
+        }
+
+        .capability-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            color: #555;
+            position: relative;
+            padding-left: 35px;
+        }
+
+        .capability-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 12px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .api-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .api-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .endpoint {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .endpoint-method {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .endpoint-desc {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-headed {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-headless {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🎭</div>
+            <h1>{{ bot_name }}</h1>
+            <div class="subtitle">{{ description }}</div>
+        </div>
+
+        <div class="personality">
+            {{ personality }}
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Status</span>
+                <span class="status-badge status-healthy">Healthy</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Browser Mode</span>
+                <span class="status-badge {% if browser_mode == 'headed' %}status-headed{% else %}status-headless{% endif %}">
+                    {{ browser_mode|upper }}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Target</span>
+                <span class="info-value">{{ buz_url }}</span>
+            </div>
+        </div>
+
+        <div class="capabilities">
+            <h3>Capabilities</h3>
+            <ul class="capability-list">
+                <li>Refresh quote pricing via bulk edit workflow</li>
+                <li>Compare before/after pricing automatically</li>
+                <li>Screenshot capture on failures</li>
+                <li>Headless execution in production</li>
+            </ul>
+        </div>
+
+        <div class="api-section">
+            <h3>API Endpoints</h3>
+            <div class="endpoint">
+                <div>
+                    <span class="endpoint-method">POST</span>
+                    <span class="endpoint-path">/api/quotes/refresh-pricing</span>
+                </div>
+                <div class="endpoint-desc">
+                    Trigger pricing recalculation for a quote by opening bulk edit and saving.
+                    Returns before/after pricing comparison.
+                </div>
+            </div>
+            <div class="endpoint">
+                <div>
+                    <span class="endpoint-method">GET</span>
+                    <span class="endpoint-path">/health</span>
+                </div>
+                <div class="endpoint-desc">
+                    Health check endpoint - returns bot status and configuration.
+                </div>
+            </div>
+            <div class="endpoint">
+                <div>
+                    <span class="endpoint-method">GET</span>
+                    <span class="endpoint-path">/info</span>
+                </div>
+                <div class="endpoint-desc">
+                    Bot information - capabilities, endpoints, and personality.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
