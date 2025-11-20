@@ -19,13 +19,15 @@ def refresh_pricing():
 
     Request body:
         {
-            "quote_id": "Q-12345"
+            "quote_id": "Q-12345",
+            "org": "designer_drapes"  # required: which Buz organization
         }
 
     Returns:
         {
             "success": true,
             "quote_id": "Q-12345",
+            "org": "designer_drapes",
             "price_before": 1000.00,
             "price_after": 1200.00,
             "price_changed": true,
@@ -36,49 +38,71 @@ def refresh_pricing():
     """
     data = request.get_json()
 
-    if not data or 'quote_id' not in data:
+    # Validate required fields
+    if not data:
+        return jsonify({
+            'success': False,
+            'error': 'Request body is required'
+        }), 400
+
+    if 'quote_id' not in data:
         return jsonify({
             'success': False,
             'error': 'Missing required field: quote_id'
         }), 400
 
+    if 'org' not in data:
+        available_orgs = ', '.join(config.buz_orgs.keys())
+        return jsonify({
+            'success': False,
+            'error': f'Missing required field: org. Available orgs: {available_orgs}'
+        }), 400
+
     quote_id = data['quote_id']
-    logger.info(f"Received refresh-pricing request for quote: {quote_id}")
+    org = data['org']
+
+    logger.info(f"Received refresh-pricing request for quote: {quote_id}, org: {org}")
 
     try:
+        # Get organization configuration
+        org_config = config.get_org_config(org)
+
         # Use browser manager context to ensure cleanup
         with BrowserManager(config) as browser_manager:
             page = browser_manager.page
 
-            # Login to Buz
-            login_page = LoginPage(page, config)
+            # Login to Buz (with org-specific credentials)
+            login_page = LoginPage(page, config, org_config)
             login_page.login()
 
             # Execute quote pricing refresh workflow
-            quote_page = QuotePage(page, config)
+            quote_page = QuotePage(page, config, org_config)
             result = quote_page.refresh_pricing(quote_id)
 
-            # Add success flag
+            # Add success flag and org info
             result['success'] = True
+            result['org'] = org
 
-            logger.info(f"Pricing refresh successful for {quote_id}")
+            logger.info(f"Pricing refresh successful for {quote_id} (org: {org})")
             return jsonify(result), 200
 
     except ValueError as e:
         # Business logic errors (page not found, selectors failed, etc.)
-        logger.error(f"Pricing refresh failed for {quote_id}: {e}")
+        logger.error(f"Pricing refresh failed for {quote_id} (org: {org}): {e}")
         return jsonify({
             'success': False,
             'quote_id': quote_id,
+            'org': org,
             'error': str(e)
         }), 400
 
     except Exception as e:
         # Unexpected errors
-        logger.exception(f"Unexpected error during pricing refresh for {quote_id}")
+        logger.exception(f"Unexpected error during pricing refresh for {quote_id} (org: {org})")
         return jsonify({
             'success': False,
             'quote_id': quote_id,
+            'org': org,
             'error': f'Internal error: {str(e)}'
         }), 500
 

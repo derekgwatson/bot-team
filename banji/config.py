@@ -51,11 +51,6 @@ class Config:
         # Bot API key for bot-to-bot communication (env)
         self.bot_api_key = os.environ.get("BOT_API_KEY")
 
-        # Buz-specific environment variables
-        self.buz_base_url = os.environ.get("BUZ_BASE_URL")
-        self.buz_username = os.environ.get("BUZ_USERNAME")
-        self.buz_password = os.environ.get("BUZ_PASSWORD")
-
         # Browser headless mode (env var overrides)
         # Default to headless in production (when FLASK_DEBUG is False/unset)
         # Set BUZ_HEADLESS=false explicitly for headed mode
@@ -67,13 +62,96 @@ class Config:
             is_debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
             self.browser_headless = not is_debug
 
-        # Validate required Buz credentials
-        if not self.buz_base_url:
-            raise ValueError("BUZ_BASE_URL environment variable is required")
-        if not self.buz_username:
-            raise ValueError("BUZ_USERNAME environment variable is required")
-        if not self.buz_password:
-            raise ValueError("BUZ_PASSWORD environment variable is required")
+        # Load Buz organizations (multi-tenant support)
+        # Each org has its own credentials and base URL
+        self.buz_orgs = self._load_buz_organizations()
+
+        # Validate at least one org is configured
+        if not self.buz_orgs:
+            raise ValueError(
+                "No Buz organizations configured. Set BUZ_ORGS environment variable "
+                "with comma-separated org names, then configure credentials for each org."
+            )
+
+    def _load_buz_organizations(self):
+        """
+        Load Buz organization configurations from environment variables.
+
+        Expected env vars:
+            BUZ_ORGS=designer_drapes,canberra,tweed
+            BUZ_DESIGNER_DRAPES_URL=https://designerdrapes.buz.com
+            BUZ_DESIGNER_DRAPES_USERNAME=sales@designerdrapes.com
+            BUZ_DESIGNER_DRAPES_PASSWORD=password123
+            BUZ_CANBERRA_URL=https://canberra.buz.com
+            BUZ_CANBERRA_USERNAME=sales@canberra.com
+            BUZ_CANBERRA_PASSWORD=password456
+            ... etc
+
+        Returns:
+            dict: {
+                'designer_drapes': {
+                    'name': 'designer_drapes',
+                    'url': 'https://...',
+                    'username': '...',
+                    'password': '...'
+                },
+                ...
+            }
+        """
+        orgs_env = os.environ.get("BUZ_ORGS", "").strip()
+        if not orgs_env:
+            return {}
+
+        orgs = {}
+        org_names = [name.strip() for name in orgs_env.split(",") if name.strip()]
+
+        for org_name in org_names:
+            # Convert to uppercase for env var names
+            org_upper = org_name.upper()
+
+            # Load credentials for this org
+            url = os.environ.get(f"BUZ_{org_upper}_URL")
+            username = os.environ.get(f"BUZ_{org_upper}_USERNAME")
+            password = os.environ.get(f"BUZ_{org_upper}_PASSWORD")
+
+            # Validate all required fields present
+            if not url:
+                raise ValueError(f"Missing BUZ_{org_upper}_URL for organization '{org_name}'")
+            if not username:
+                raise ValueError(f"Missing BUZ_{org_upper}_USERNAME for organization '{org_name}'")
+            if not password:
+                raise ValueError(f"Missing BUZ_{org_upper}_PASSWORD for organization '{org_name}'")
+
+            # Store org config
+            orgs[org_name] = {
+                'name': org_name,
+                'url': url,
+                'username': username,
+                'password': password
+            }
+
+        return orgs
+
+    def get_org_config(self, org_name):
+        """
+        Get configuration for a specific organization.
+
+        Args:
+            org_name: Name of the organization (e.g., 'designer_drapes')
+
+        Returns:
+            dict: Organization config with url, username, password
+
+        Raises:
+            ValueError: If org_name is not configured
+        """
+        if org_name not in self.buz_orgs:
+            available = ', '.join(self.buz_orgs.keys())
+            raise ValueError(
+                f"Unknown organization '{org_name}'. "
+                f"Available organizations: {available}"
+            )
+        return self.buz_orgs[org_name]
 
 
 # Global config instance

@@ -8,16 +8,18 @@ logger = logging.getLogger(__name__)
 class QuotePage:
     """Represents a Buz quote page with automation methods."""
 
-    def __init__(self, page: Page, config):
+    def __init__(self, page: Page, config, org_config):
         """
         Initialize quote page.
 
         Args:
             page: Playwright page object
-            config: Banji config object
+            config: Banji config object (browser settings, timeouts)
+            org_config: Organization-specific config (url, username, password)
         """
         self.page = page
         self.config = config
+        self.org_config = org_config
 
     def navigate_to_quote(self, quote_id: str):
         """
@@ -28,9 +30,9 @@ class QuotePage:
         """
         # TODO: Update this URL pattern based on actual Buz quote URLs
         # This is a placeholder - you'll need to adjust based on real Buz URLs
-        quote_url = f"{self.config.buz_base_url}/quotes/{quote_id}"
+        quote_url = f"{self.org_config['url']}/quotes/{quote_id}"
 
-        logger.info(f"Navigating to quote: {quote_id}")
+        logger.info(f"Navigating to quote: {quote_id} (org: {self.org_config['name']})")
         self.page.goto(quote_url, timeout=self.config.buz_navigation_timeout)
 
         # Wait for page to be ready (adjust selector based on actual Buz UI)

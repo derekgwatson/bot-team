@@ -58,7 +58,8 @@ Refresh pricing for a quote and return before/after comparison.
 **Request:**
 ```json
 {
-  "quote_id": "Q-12345"
+  "quote_id": "Q-12345",
+  "org": "designer_drapes"
 }
 ```
 
@@ -67,6 +68,7 @@ Refresh pricing for a quote and return before/after comparison.
 {
   "success": true,
   "quote_id": "Q-12345",
+  "org": "designer_drapes",
   "price_before": 1000.00,
   "price_after": 1200.00,
   "price_changed": true,
@@ -79,15 +81,35 @@ Refresh pricing for a quote and return before/after comparison.
 
 ## Configuration
 
+### Multi-Organization Support
+
+Buz is multi-tenant - different organizations have different login credentials and URLs. Banji supports multiple organizations simultaneously, allowing you to work with Designer Drapes, Canberra, Tweed, and other organizations from a single bot instance.
+
 ### Environment Variables
 
-Required:
-- `BUZ_BASE_URL` - Base URL for Buz application (e.g., https://buz.example.com)
-- `BUZ_USERNAME` - Buz login username
-- `BUZ_PASSWORD` - Buz login password
+**Required:**
+- `BUZ_ORGS` - Comma-separated list of organization names (e.g., `designer_drapes,canberra,tweed`)
 - `BOT_API_KEY` - Shared API key for bot-to-bot communication
 
-Optional:
+**For each organization, you need:**
+- `BUZ_{ORG}_URL` - Base URL for that organization's Buz instance
+- `BUZ_{ORG}_USERNAME` - Login username for that organization
+- `BUZ_{ORG}_PASSWORD` - Login password for that organization
+
+**Example:**
+```bash
+BUZ_ORGS=designer_drapes,canberra,tweed
+
+BUZ_DESIGNER_DRAPES_URL=https://designerdrapes.buz.com
+BUZ_DESIGNER_DRAPES_USERNAME=sales@designerdrapes.com
+BUZ_DESIGNER_DRAPES_PASSWORD=password123
+
+BUZ_CANBERRA_URL=https://canberra.buz.com
+BUZ_CANBERRA_USERNAME=sales@canberra.com
+BUZ_CANBERRA_PASSWORD=password456
+```
+
+**Optional:**
 - `BUZ_HEADLESS` - Override browser mode (true/false). Defaults to headless in production, headed in development.
 - `FLASK_DEBUG` - Enable Flask debug mode (default: False)
 - `FLASK_SECRET_KEY` - Flask session secret
@@ -256,8 +278,8 @@ pytest tests/ --cov=banji --cov-report=html
 ## Troubleshooting
 
 ### "Login failed - timeout"
-- Check `BUZ_BASE_URL` is correct
-- Verify credentials in `.env`
+- Check organization URL is correct (e.g., `BUZ_DESIGNER_DRAPES_URL`)
+- Verify credentials in `.env` for the specified org
 - Update login selectors in `login_page.py`
 - Try headed mode to see what's happening: `BUZ_HEADLESS=false`
 
@@ -284,40 +306,46 @@ from shared.http_client import BotHttpClient
 # Initialize client
 banji = BotHttpClient("http://localhost:8014")
 
-# Refresh quote pricing
+# Refresh quote pricing for Designer Drapes
 response = banji.post('/api/quotes/refresh-pricing', {
-    'quote_id': 'Q-12345'
+    'quote_id': 'Q-12345',
+    'org': 'designer_drapes'
 })
 
 if response['success']:
     if response['price_changed']:
-        print(f"⚠️ Price changed!")
+        print(f"⚠️ Price changed in {response['org']}!")
+        print(f"  Quote: {response['quote_id']}")
         print(f"  Before: ${response['price_before']}")
         print(f"  After: ${response['price_after']}")
         print(f"  Change: {response['change_percent']}%")
     else:
-        print("✓ Price unchanged")
+        print(f"✓ Price unchanged for {response['quote_id']}")
 ```
 
 ### Scheduled Price Checks (Example)
 
 ```python
-# Example orchestrator bot that checks quotes daily
+# Example orchestrator bot that checks quotes daily across all orgs
 import schedule
 
 def check_open_quotes():
     # Get open quotes from Buz API or database
-    quotes = get_open_quotes()
+    # Each quote includes its organization
+    quotes = get_open_quotes()  # Returns: [{'id': 'Q-123', 'org': 'designer_drapes'}, ...]
 
     for quote in quotes:
-        # Call Banji to refresh pricing
+        # Call Banji to refresh pricing for this quote's organization
         result = banji.post('/api/quotes/refresh-pricing', {
-            'quote_id': quote['id']
+            'quote_id': quote['id'],
+            'org': quote['org']
         })
 
         if result['price_changed']:
             # Alert someone about the price change
-            send_alert(f"Quote {quote['id']} price changed by {result['change_percent']}%")
+            send_alert(
+                f"[{result['org']}] Quote {quote['id']} price changed by {result['change_percent']}%"
+            )
 
 # Schedule daily at 9 AM
 schedule.every().day.at("09:00").do(check_open_quotes)

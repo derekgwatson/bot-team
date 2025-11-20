@@ -8,36 +8,38 @@ logger = logging.getLogger(__name__)
 class LoginPage:
     """Handles Buz authentication."""
 
-    def __init__(self, page: Page, config):
+    def __init__(self, page: Page, config, org_config):
         """
         Initialize login page.
 
         Args:
             page: Playwright page object
-            config: Banji config object
+            config: Banji config object (browser settings, timeouts)
+            org_config: Organization-specific config (url, username, password)
         """
         self.page = page
         self.config = config
+        self.org_config = org_config
 
     def login(self, username: str = None, password: str = None):
         """
         Login to Buz application.
 
         Args:
-            username: Buz username (defaults to config)
-            password: Buz password (defaults to config)
+            username: Buz username (defaults to org_config)
+            password: Buz password (defaults to org_config)
 
         Raises:
             ValueError: If login fails
         """
-        username = username or self.config.buz_username
-        password = password or self.config.buz_password
+        username = username or self.org_config['username']
+        password = password or self.org_config['password']
 
-        logger.info(f"Logging into Buz as: {username}")
+        logger.info(f"Logging into Buz ({self.org_config['name']}) as: {username}")
 
         try:
             # Navigate to login page
-            login_url = f"{self.config.buz_base_url}/login"
+            login_url = f"{self.org_config['url']}/login"
             self.page.goto(login_url, timeout=self.config.buz_login_timeout)
 
             # TODO: Update selectors based on actual Buz login form
