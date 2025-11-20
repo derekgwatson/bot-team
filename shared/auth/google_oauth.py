@@ -25,13 +25,13 @@ class GoogleAuth:
 
         # Set up Flask session
         # Use a consistent secret key - either from env or generate and store one
-        if not self.app.config.get('SECRET_KEY'):
-            secret_key = os.environ.get('FLASK_SECRET_KEY')
-            if not secret_key:
+        if not self.app.config.get('FLASK_SECRET_KEY'):
+            flask_secret_key = os.environ.get('FLASK_SECRET_KEY')
+            if not flask_secret_key:
                 # Generate a stable secret key (you should set FLASK_SECRET_KEY in production!)
                 import hashlib
-                secret_key = hashlib.sha256(b'bot-team-default-secret').hexdigest()
-            self.app.config['SECRET_KEY'] = secret_key
+                flask_secret_key = hashlib.sha256(b'bot-team-default-secret').hexdigest()
+            self.app.config['FLASK_SECRET_KEY'] = flask_secret_key
 
         # Trust proxy headers (nginx sets X-Forwarded-Proto, X-Forwarded-For, etc.)
         # This MUST be set before session cookie config so Flask knows about HTTPS
