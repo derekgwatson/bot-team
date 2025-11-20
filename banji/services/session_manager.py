@@ -5,9 +5,9 @@ import time
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-from services.browser import BrowserManager
-from services.quotes.login_page import LoginPage
-from services.quotes.quote_page import QuotePage
+from .browser import BrowserManager
+from .quotes.login_page import LoginPage
+from .quotes.quote_page import QuotePage
 
 logger = logging.getLogger(__name__)
 

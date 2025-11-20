@@ -40,9 +40,9 @@ def mock_org_config():
 class TestSessionManager:
     """Test SessionManager class."""
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_create_session(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_create_session(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test creating a new session."""
         from banji.services.session_manager import SessionManager
 
@@ -65,9 +65,9 @@ class TestSessionManager:
         mock_browser.start.assert_called_once()
         mock_login.login.assert_called_once()
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_get_session(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_get_session(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test getting an existing session."""
         from banji.services.session_manager import SessionManager
 
@@ -86,9 +86,9 @@ class TestSessionManager:
         assert retrieved.session_id == session.session_id
         assert retrieved.org_name == 'test_org'
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_get_nonexistent_session(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_get_nonexistent_session(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test getting a session that doesn't exist."""
         from banji.services.session_manager import SessionManager
 
@@ -97,9 +97,9 @@ class TestSessionManager:
         with pytest.raises(ValueError, match="Session not found"):
             session_mgr.get_session('nonexistent-id')
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_close_session(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_close_session(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test closing a session."""
         from banji.services.session_manager import SessionManager
 
@@ -120,9 +120,9 @@ class TestSessionManager:
         assert session_mgr.get_session_count() == 0
         mock_browser.close.assert_called_once()
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_session_expiration(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_session_expiration(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test that expired sessions are detected."""
         from banji.services.session_manager import SessionManager
 
@@ -142,9 +142,9 @@ class TestSessionManager:
         with pytest.raises(ValueError, match="Session expired"):
             session_mgr.get_session(session.session_id)
 
-    @patch('banji.services.session_manager.BrowserManager')
     @patch('banji.services.session_manager.LoginPage')
-    def test_session_touch(self, mock_login_page_class, mock_browser_manager_class, mock_config):
+    @patch('banji.services.session_manager.BrowserManager')
+    def test_session_touch(self, mock_browser_manager_class, mock_login_page_class, mock_config):
         """Test that getting a session updates its activity timestamp."""
         from banji.services.session_manager import SessionManager
 
