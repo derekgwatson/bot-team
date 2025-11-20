@@ -25,6 +25,10 @@ class QuotePage:
         """
         Navigate to a specific quote using Quick Lookup.
 
+        Optimization: Checks if Quick Lookup box is already on current page
+        before navigating to home page. This saves time when navigating from
+        bulk edit or other pages that have the search box.
+
         Args:
             quote_id: The quote number (e.g., '12345')
 
@@ -37,11 +41,23 @@ class QuotePage:
         logger.info(f"Navigating to quote: {quote_id} (org: {self.org_config['name']})")
 
         try:
-            # Go to Buz home page
-            self.page.goto("https://go.buzmanager.com", timeout=self.config.buz_navigation_timeout)
-            self.page.wait_for_load_state("networkidle")
+            # Optimization: Check if Quick Lookup is already on current page
+            # The #LookupText search box is at the top of most Buz pages
+            lookup_input = self.page.locator('#LookupText')
 
-            # Find the Quick Lookup input
+            try:
+                # Wait briefly to see if search box is already visible
+                if lookup_input.is_visible(timeout=1000):
+                    logger.info("Quick Lookup found on current page - using it directly")
+                else:
+                    raise Exception("Not visible")
+            except:
+                # Search box not on current page, navigate to home first
+                logger.info("Quick Lookup not on current page, navigating to home")
+                self.page.goto("https://go.buzmanager.com", timeout=self.config.buz_navigation_timeout)
+                self.page.wait_for_load_state("networkidle")
+
+            # Now use the Quick Lookup (either found or just navigated to it)
             lookup_input = self.page.locator('#LookupText')
             lookup_input.fill(quote_id)
 
