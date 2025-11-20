@@ -174,6 +174,19 @@ bot_team:
       dependencies: /api/dependencies
     personality: Professional and thorough, handles departures with care and dignity
 
+  rita:
+    name: Rita
+    description: Staff Access Request Manager
+    capabilities:
+      - View your current system access
+      - Request access changes
+      - Handle all-staff email requests for staff without work Google accounts
+      - Submit access change requests to IT
+    api_endpoints:
+      info: /info
+      health: /health
+    personality: Helpful and responsive, manages staff access requests efficiently
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

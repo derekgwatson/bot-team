@@ -56,11 +56,8 @@ class Config:
 
         # ── Secrets / env-specific settings ───────────────────
 
-        # Flask secret key (support FLASK_SECRET_KEY and legacy SECRET_KEY)
-        self.secret_key = (
-            os.environ.get("FLASK_SECRET_KEY")
-            or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-        )
+        # Flask secret key
+        self.flask_secret_key = os.environ.get("FLASK_SECRET_KEY")
 
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")

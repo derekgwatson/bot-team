@@ -62,8 +62,8 @@ class Config:
 
         # ── Secrets / env-specific settings ────────────────────
 
-        # Flask secret key (support both FLASK_SECRET_KEY and legacy SECRET_KEY)
-        self.secret_key = (
+        # Flask secret key
+        self.flask_secret_key = (
             os.environ.get("FLASK_SECRET_KEY")
             or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
         )

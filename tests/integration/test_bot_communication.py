@@ -127,7 +127,7 @@ def test_oauth_checks_quinn_for_external_approval(mock_responses, test_env):
     # Create Flask app
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret'
+    app.config['FLASK_SECRET_KEY'] = 'test-secret'
 
     @app.route('/access_denied')
     def access_denied():
@@ -164,7 +164,7 @@ def test_oauth_handles_quinn_unavailable(mock_responses, test_env):
 
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret'
+    app.config['FLASK_SECRET_KEY'] = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
@@ -196,7 +196,7 @@ def test_oauth_combines_domain_and_quinn_checks(mock_responses, test_env):
 
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret'
+    app.config['FLASK_SECRET_KEY'] = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'allowed_domains', 'admin_emails', 'quinn_api_url'])
     mock_config.oauth_client_id = 'test-client-id'
@@ -262,7 +262,7 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
 
     app = Flask(__name__)
     app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret'
+    app.config['FLASK_SECRET_KEY'] = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
