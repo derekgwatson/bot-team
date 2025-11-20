@@ -71,9 +71,9 @@ class EnvValidator:
                 # Collect comments for context
                 if line.startswith('#'):
                     comment_text = line.lstrip('#').strip()
-                    current_comments.append(comment_text)
 
                     # Check for section headers with bot names like "── Google Workspace API (Fred, Iris) ─────"
+                    # Do this BEFORE cleaning the text so we can still match the pattern
                     section_match = re.search(r'──\s*([^(]+)\s*\(([^)]+)\)', comment_text)
                     if section_match:
                         bots_text = section_match.group(2)
@@ -93,6 +93,10 @@ class EnvValidator:
                             if bot.strip()
                         ]
 
+                    # Now clean the comment text and add to list
+                    comment_text = re.sub(r'[─═│║┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬]', '', comment_text).strip()
+                    current_comments.append(comment_text)
+
                     continue
 
                 # Parse variable definitions
@@ -101,10 +105,7 @@ class EnvValidator:
                     var_name = match.group(1)
                     example_value = match.group(2)
 
-                    description = ' '.join(current_comments)
-                    # Remove Unicode box-drawing characters that may not render in all terminals
-                    description = re.sub(r'[─═│║┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬]', '', description)
-                    description = description.strip()
+                    description = ' '.join(current_comments).strip()
 
                     # Determine if required (not optional)
                     is_optional = any(
