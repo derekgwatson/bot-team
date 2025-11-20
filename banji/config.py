@@ -13,6 +13,9 @@ class Config:
     """Configuration management for Banji."""
 
     def __init__(self):
+        # Validate required environment variables upfront
+        self._validate_environment()
+
         base_dir = Path(__file__).parent
         config_path = base_dir / "config.yaml"
 
@@ -72,6 +75,36 @@ class Config:
                 "No Buz organizations configured. Set BUZ_ORGS environment variable "
                 "with comma-separated org names, then configure credentials for each org."
             )
+
+    def _validate_environment(self):
+        """
+        Validate required environment variables are set.
+        Provides helpful error messages for missing configuration.
+        """
+        missing = []
+        warnings = []
+
+        # Check required variables
+        if not os.environ.get("BUZ_ORGS"):
+            missing.append("BUZ_ORGS - Comma-separated list of organization names (e.g., 'watsonblinds,designerdrapes')")
+
+        # Check optional but recommended
+        if not os.environ.get("BOT_API_KEY"):
+            warnings.append("BOT_API_KEY - Required for bot-to-bot communication")
+
+        if missing:
+            error_msg = "\n❌ Missing required environment variables:\n\n"
+            for var in missing:
+                error_msg += f"  • {var}\n"
+            error_msg += "\n📝 Create a .env file in the banji/ directory with these variables."
+            error_msg += "\n💡 See banji/.env.example for a template."
+            raise ValueError(error_msg)
+
+        if warnings:
+            print("\n⚠️  Optional environment variables not set:")
+            for var in warnings:
+                print(f"  • {var}")
+            print()
 
     def _load_buz_organizations(self):
         """
