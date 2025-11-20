@@ -42,6 +42,18 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
+// Load state immediately when service worker starts
+// (Service workers can be terminated and restarted frequently)
+(async () => {
+  console.log('[Monica] Service worker starting...');
+  await loadState();
+  setupAlarms();
+
+  if (state.configured && state.registered) {
+    console.log('[Monica] Already configured and registered, resuming monitoring');
+  }
+})();
+
 // Load state from chrome.storage
 async function loadState() {
   const stored = await chrome.storage.local.get([
