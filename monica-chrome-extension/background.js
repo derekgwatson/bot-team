@@ -66,7 +66,7 @@ async function loadState() {
     'heartbeatCount'
   ]);
 
-  if (stored.monicaUrl && stored.storeCode && stored.deviceLabel) {
+  if (stored.monicaUrl) {
     //Check if we still have permission for the stored URL
     try {
       const urlObj = new URL(stored.monicaUrl);
@@ -80,8 +80,8 @@ async function loadState() {
         // Keep config but clear registration to trigger reconfiguration
         state.configured = true;
         state.monicaUrl = stored.monicaUrl;
-        state.storeCode = stored.storeCode;
-        state.deviceLabel = stored.deviceLabel;
+        state.storeCode = stored.storeCode || null;
+        state.deviceLabel = stored.deviceLabel || null;
         state.registered = false;
         state.agentToken = null;
         state.deviceId = null;
@@ -93,8 +93,8 @@ async function loadState() {
 
     state.configured = true;
     state.monicaUrl = stored.monicaUrl;
-    state.storeCode = stored.storeCode;
-    state.deviceLabel = stored.deviceLabel;
+    state.storeCode = stored.storeCode || null;
+    state.deviceLabel = stored.deviceLabel || null;
     state.agentToken = stored.agentToken || null;
     state.deviceId = stored.deviceId || null;
     state.heartbeatCount = stored.heartbeatCount || 0;
@@ -104,6 +104,8 @@ async function loadState() {
       configured: state.configured,
       registered: state.registered,
       deviceId: state.deviceId,
+      storeCode: state.storeCode,
+      deviceLabel: state.deviceLabel,
       hasPermission: true
     });
   } else {
