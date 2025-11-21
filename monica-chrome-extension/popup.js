@@ -71,10 +71,8 @@ function updateUI() {
       saveButton.textContent = 'Save & Start Monitoring';
     }
 
-    // Pre-fill Monica URL if partially configured
-    if (currentState.monicaUrl) {
-      document.getElementById('monica-url').value = currentState.monicaUrl;
-    }
+    // Note: We intentionally don't pre-fill fields during reconfiguration
+    // to give users a fresh start. Fields are cleared in showConfiguration()
   }
 }
 
@@ -224,6 +222,13 @@ function showConfiguration() {
   isReconfiguring = true; // Prevent auto-refresh from switching back
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
+
+  // Clear the form for a fresh start
+  document.getElementById('monica-url').value = '';
+  document.getElementById('registration-code').value = '';
+
+  // Clear any previous errors
+  document.getElementById('config-error').innerHTML = '';
 
   // Show cancel button and update button text if there's an existing config
   const cancelButton = document.getElementById('cancel-config');
