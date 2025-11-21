@@ -48,6 +48,14 @@ function setupEventListeners() {
       saveConfiguration();
     }
   });
+
+  // Save form values as user types (so they persist if popup closes)
+  document.getElementById('monica-url').addEventListener('input', (e) => {
+    chrome.storage.local.set({ temp_monica_url: e.target.value });
+  });
+  document.getElementById('registration-code').addEventListener('input', (e) => {
+    chrome.storage.local.set({ temp_registration_code: e.target.value });
+  });
 }
 
 // Update UI based on state
@@ -86,11 +94,31 @@ function updateUI() {
     // Note: We intentionally don't pre-fill fields during reconfiguration
     // to give users a fresh start. Fields are cleared in showConfiguration()
 
+    // Restore any temporary form values (in case popup was closed while filling form)
+    restoreTemporaryFormValues();
+
     // Auto-focus the URL input field for better UX
     setTimeout(() => {
       document.getElementById('monica-url').focus();
     }, 100);
   }
+}
+
+// Restore temporary form values from storage
+async function restoreTemporaryFormValues() {
+  const { temp_monica_url, temp_registration_code } = await chrome.storage.local.get(['temp_monica_url', 'temp_registration_code']);
+
+  if (temp_monica_url) {
+    document.getElementById('monica-url').value = temp_monica_url;
+  }
+  if (temp_registration_code) {
+    document.getElementById('registration-code').value = temp_registration_code;
+  }
+}
+
+// Clear temporary form values from storage
+function clearTemporaryFormValues() {
+  chrome.storage.local.remove(['temp_monica_url', 'temp_registration_code']);
 }
 
 // Update status display
@@ -224,6 +252,7 @@ async function saveConfiguration() {
       if (response.success) {
         isReconfiguring = false; // Reset flag so UI can update
         currentState = response.state;
+        clearTemporaryFormValues(); // Clear temporary form values after successful configuration
         updateUI();
       } else {
         // Show the specific error message from registration
@@ -246,6 +275,7 @@ function showConfiguration() {
   // Clear the form for a fresh start
   document.getElementById('monica-url').value = '';
   document.getElementById('registration-code').value = '';
+  clearTemporaryFormValues(); // Clear any stored temporary values for fresh start
 
   // Clear any previous errors
   document.getElementById('config-error').innerHTML = '';
@@ -267,6 +297,7 @@ function showConfiguration() {
 // Cancel configuration and go back to status
 function cancelConfiguration() {
   isReconfiguring = false; // Allow normal UI updates
+  clearTemporaryFormValues(); // Clear temporary form values when canceling
   updateUI(); // This will switch back to status view
 }
 
