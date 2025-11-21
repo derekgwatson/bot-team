@@ -85,8 +85,8 @@ def register():
         # Get or create device
         device = db.get_or_create_device(store_id, device_label, agent_token)
 
-        # Mark code as used
-        db.mark_code_as_used(registration_code, device['id'])
+        # Delete code after successful registration (one-time use)
+        db.delete_registration_code_by_code(registration_code)
 
         logger.info(
             f"Device registered with code {registration_code}: {store_code}/{device_label} "

@@ -18,6 +18,7 @@ from flask import Flask, jsonify
 from monica.config import config
 from monica.api.routes import api_bp
 from monica.web.routes import web_bp
+from monica.database.db import db
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +34,10 @@ app.secret_key = config.secret_key
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
+
+# Clean up expired registration codes on startup
+with app.app_context():
+    db.cleanup_expired_codes()
 
 
 @app.route('/health')

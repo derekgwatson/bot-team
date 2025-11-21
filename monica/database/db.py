@@ -420,25 +420,40 @@ class Database:
         finally:
             conn.close()
 
-    def mark_code_as_used(self, code: str, device_id: int):
+    def delete_registration_code_by_code(self, code: str):
         """
-        Mark a registration code as used
+        Delete a registration code after use
 
         Args:
-            code: Registration code
-            device_id: Device ID that used this code
+            code: Registration code to delete
         """
         conn = self.get_connection()
         try:
-            conn.execute(
-                """UPDATE registration_codes
-                   SET used_at = CURRENT_TIMESTAMP,
-                       used_by_device_id = ?
-                   WHERE code = ?""",
-                (device_id, code)
-            )
+            conn.execute("DELETE FROM registration_codes WHERE code = ?", (code,))
             conn.commit()
-            logger.info(f"Marked code {code} as used by device {device_id}")
+            logger.info(f"Deleted registration code {code}")
+        finally:
+            conn.close()
+
+    def cleanup_expired_codes(self) -> int:
+        """
+        Delete all expired registration codes
+
+        Returns:
+            Number of codes deleted
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                """DELETE FROM registration_codes
+                   WHERE expires_at IS NOT NULL
+                   AND expires_at <= datetime('now')"""
+            )
+            count = cursor.rowcount
+            conn.commit()
+            if count > 0:
+                logger.info(f"Cleaned up {count} expired registration codes")
+            return count
         finally:
             conn.close()
 
