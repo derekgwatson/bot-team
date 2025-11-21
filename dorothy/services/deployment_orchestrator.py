@@ -17,6 +17,26 @@ class DeploymentOrchestrator:
         self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
 
+        # Check if sudo is available/required (default: True for backward compatibility)
+        # Set USE_SUDO=false in environment if sudo is not available
+        import os
+        use_sudo_env = os.getenv('USE_SUDO', 'true').lower()
+        self.use_sudo = use_sudo_env in ('true', '1', 'yes')
+
+    def _sudo(self, command: str) -> str:
+        """
+        Conditionally prefix a command with sudo if USE_SUDO is enabled.
+
+        Args:
+            command: The command to potentially prefix with sudo
+
+        Returns:
+            The command, optionally prefixed with 'sudo '
+        """
+        if self.use_sudo:
+            return f"sudo {command}"
+        return command
+
     def _get_bot_url(self, bot_name: str) -> str:
         """
         Get the URL for a bot.
@@ -212,7 +232,7 @@ class DeploymentOrchestrator:
         exists = 'exists' in check_result.get('stdout', '')
 
         # Test nginx config syntax
-        syntax_result = self._call_sally(server, "sudo nginx -t 2>&1")
+        syntax_result = self._call_sally(server, f"{self._sudo('nginx -t 2>&1')}")
 
         return {
             'check': 'nginx_config',
@@ -247,7 +267,7 @@ class DeploymentOrchestrator:
         # Check service status
         status_result = self._call_sally(
             server,
-            f"sudo systemctl is-active {service_name}"
+            self._sudo(f"systemctl is-active {service_name}")
         )
 
         is_running = 'active' in status_result.get('stdout', '')
@@ -274,7 +294,7 @@ class DeploymentOrchestrator:
         # Check if certificate exists
         check_result = self._call_sally(
             server,
-            f"sudo test -f /etc/letsencrypt/live/{domain}/fullchain.pem && echo 'exists' || echo 'missing'"
+            f"{self._sudo(f'test -f /etc/letsencrypt/live/{domain}/fullchain.pem')} && echo 'exists' || echo 'missing'"
         )
 
         if not check_result.get('success'):
@@ -288,7 +308,7 @@ class DeploymentOrchestrator:
         if exists:
             expiry_result = self._call_sally(
                 server,
-                f"sudo openssl x509 -enddate -noout -in /etc/letsencrypt/live/{domain}/fullchain.pem"
+                self._sudo(f"openssl x509 -enddate -noout -in /etc/letsencrypt/live/{domain}/fullchain.pem")
             )
             if expiry_result.get('success'):
                 expiry = expiry_result.get('stdout', '').strip()
@@ -674,15 +694,24 @@ class DeploymentOrchestrator:
 
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
-            result = self._call_sally(server, f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data")
+            if self.use_sudo:
+                result = self._call_sally(server, f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data")
+            else:
+                result = self._call_sally(server, f"cd {repo_path} && git pull")
         else:
             # Clone - create parent directory and clone
             parent_path = str(Path(repo_path).parent)
             repo_name = Path(repo_path).name
-            result = self._call_sally(
-                server,
-                f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} {repo_name} && sudo chown -R www-data:www-data {repo_path}"
-            )
+            if self.use_sudo:
+                result = self._call_sally(
+                    server,
+                    f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} {repo_name} && sudo chown -R www-data:www-data {repo_path}"
+                )
+            else:
+                result = self._call_sally(
+                    server,
+                    f"mkdir -p {parent_path} && cd {parent_path} && git clone {repo} {repo_name}"
+                )
 
         deployment['steps'][-1]['status'] = 'completed' if result.get('success') else 'failed'
         deployment['steps'][-1]['result'] = {
@@ -729,18 +758,20 @@ class DeploymentOrchestrator:
         deployment['steps'].append({'name': 'Configuration files setup', 'status': 'in_progress'})
 
         # Check and setup .env file
-        env_result = self._call_sally(
-            server,
-            f"[ -f {path}/.env ] && echo 'exists' || "
-            f"([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data && echo 'created' || echo 'no_example')"
-        )
+        if self.use_sudo:
+            env_cmd = f"[ -f {path}/.env ] && echo 'exists' || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data && echo 'created' || echo 'no_example')"
+        else:
+            env_cmd = f"[ -f {path}/.env ] && echo 'exists' || ([ -f {path}/.env.example ] && cp {path}/.env.example {path}/.env && echo 'created' || echo 'no_example')"
+
+        env_result = self._call_sally(server, env_cmd)
 
         # Check and setup config.local.yaml file
-        config_yaml_result = self._call_sally(
-            server,
-            f"[ -f {path}/config.local.yaml ] && echo 'exists' || "
-            f"([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data && echo 'created' || echo 'no_example')"
-        )
+        if self.use_sudo:
+            config_cmd = f"[ -f {path}/config.local.yaml ] && echo 'exists' || ([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data && echo 'created' || echo 'no_example')"
+        else:
+            config_cmd = f"[ -f {path}/config.local.yaml ] && echo 'exists' || ([ -f {path}/config.local.yaml.example ] && cp {path}/config.local.yaml.example {path}/config.local.yaml && echo 'created' || echo 'no_example')"
+
+        config_yaml_result = self._call_sally(server, config_cmd)
 
         # Build detailed result message
         env_status = env_result.get('stdout', '').strip()
@@ -863,9 +894,9 @@ class DeploymentOrchestrator:
                 # Write nginx config
                 nginx_result = self._call_sally(
                     server,
-                    f"echo '{nginx_config_escaped}' | sudo tee /etc/nginx/sites-available/{nginx_config_name} > /dev/null && "
-                    f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name} && "
-                    f"sudo nginx -t"
+                    f"echo '{nginx_config_escaped}' | {self._sudo('tee /etc/nginx/sites-available/' + nginx_config_name)} > /dev/null && "
+                    f"{self._sudo('ln -sf /etc/nginx/sites-available/' + nginx_config_name + ' /etc/nginx/sites-enabled/' + nginx_config_name)} && "
+                    f"{self._sudo('nginx -t')}"
                 )
 
                 deployment['steps'][-1]['status'] = 'completed' if nginx_result.get('success') else 'failed'
@@ -933,9 +964,9 @@ class DeploymentOrchestrator:
             # Write service file and reload systemd
             service_result = self._call_sally(
                 server,
-                f"echo '{service_config_escaped}' | sudo tee /etc/systemd/system/{service_name}.service > /dev/null && "
-                f"sudo systemctl daemon-reload && "
-                f"sudo systemctl enable {service_name}"
+                f"echo '{service_config_escaped}' | {self._sudo('tee /etc/systemd/system/' + service_name + '.service')} > /dev/null && "
+                f"{self._sudo('systemctl daemon-reload')} && "
+                f"{self._sudo('systemctl enable ' + service_name)}"
             )
 
             deployment['steps'][-1]['status'] = 'completed' if service_result.get('success') else 'failed'
@@ -981,7 +1012,7 @@ class DeploymentOrchestrator:
 
             ssl_result = self._call_sally(
                 server,
-                f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}",
+                f"{self._sudo(f'certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}')}",
                 timeout=300
             )
 
@@ -997,7 +1028,7 @@ class DeploymentOrchestrator:
         if not skip_nginx:
             deployment['steps'].append({'name': 'Reload nginx', 'status': 'in_progress'})
 
-            reload_result = self._call_sally(server, "sudo systemctl reload nginx")
+            reload_result = self._call_sally(server, self._sudo("systemctl reload nginx"))
             deployment['steps'][-1]['status'] = 'completed' if reload_result.get('success') else 'failed'
             deployment['steps'][-1]['result'] = {
                 'success': reload_result.get('success'),
@@ -1113,10 +1144,12 @@ class DeploymentOrchestrator:
 
         # Step 1: Git pull
         update_result['steps'].append({'name': 'Pull latest code', 'status': 'in_progress'})
-        pull_result = self._call_sally(
-            server,
-            f"sudo su -s /bin/bash -c 'cd {path} && git pull' www-data"
-        )
+        if self.use_sudo:
+            pull_cmd = f"sudo su -s /bin/bash -c 'cd {path} && git pull' www-data"
+        else:
+            pull_cmd = f"cd {path} && git pull"
+
+        pull_result = self._call_sally(server, pull_cmd)
 
         update_result['steps'][-1]['status'] = 'completed' if pull_result.get('success') else 'failed'
         update_result['steps'][-1]['result'] = pull_result
@@ -1130,7 +1163,7 @@ class DeploymentOrchestrator:
         update_result['steps'].append({'name': 'Restart service', 'status': 'in_progress'})
         restart_result = self._call_sally(
             server,
-            f"sudo systemctl restart {service_name}"
+            self._sudo(f"systemctl restart {service_name}")
         )
 
         update_result['steps'][-1]['status'] = 'completed' if restart_result.get('success') else 'failed'
@@ -1163,7 +1196,7 @@ class DeploymentOrchestrator:
 
         result = self._call_sally(
             server,
-            f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {email}",
+            self._sudo(f"certbot --nginx -d {domain} --non-interactive --agree-tos --email {email}"),
             timeout=300
         )
 
@@ -1215,7 +1248,7 @@ class DeploymentOrchestrator:
         teardown_result['steps'].append({'name': 'Stop and disable service', 'status': 'in_progress'})
         stop_result = self._call_sally(
             server,
-            f"sudo systemctl stop {service_name} && sudo systemctl disable {service_name}"
+            f"{self._sudo(f'systemctl stop {service_name}')} && {self._sudo(f'systemctl disable {service_name}')}"
         )
         teardown_result['steps'][-1]['status'] = 'completed' if stop_result.get('success') else 'failed'
         teardown_result['steps'][-1]['result'] = stop_result
@@ -1224,7 +1257,7 @@ class DeploymentOrchestrator:
         teardown_result['steps'].append({'name': 'Remove systemd service', 'status': 'in_progress'})
         remove_service_result = self._call_sally(
             server,
-            f"sudo rm -f /etc/systemd/system/{service_name}.service && sudo systemctl daemon-reload"
+            f"{self._sudo(f'rm -f /etc/systemd/system/{service_name}.service')} && {self._sudo('systemctl daemon-reload')}"
         )
         teardown_result['steps'][-1]['status'] = 'completed' if remove_service_result.get('success') else 'failed'
         teardown_result['steps'][-1]['result'] = remove_service_result
@@ -1234,9 +1267,9 @@ class DeploymentOrchestrator:
             teardown_result['steps'].append({'name': 'Remove nginx config', 'status': 'in_progress'})
             remove_nginx_result = self._call_sally(
                 server,
-                f"sudo rm -f /etc/nginx/sites-enabled/{nginx_config_name} && "
-                f"sudo rm -f /etc/nginx/sites-available/{nginx_config_name} && "
-                f"sudo nginx -t && sudo systemctl reload nginx"
+                f"{self._sudo(f'rm -f /etc/nginx/sites-enabled/{nginx_config_name}')} && "
+                f"{self._sudo(f'rm -f /etc/nginx/sites-available/{nginx_config_name}')} && "
+                f"{self._sudo('nginx -t')} && {self._sudo('systemctl reload nginx')}"
             )
             teardown_result['steps'][-1]['status'] = 'completed' if remove_nginx_result.get('success') else 'failed'
             teardown_result['steps'][-1]['result'] = remove_nginx_result
@@ -1246,7 +1279,7 @@ class DeploymentOrchestrator:
             teardown_result['steps'].append({'name': 'Remove code directory', 'status': 'in_progress'})
             remove_code_result = self._call_sally(
                 server,
-                f"sudo rm -rf {path}"
+                self._sudo(f"rm -rf {path}")
             )
             teardown_result['steps'][-1]['status'] = 'completed' if remove_code_result.get('success') else 'failed'
             teardown_result['steps'][-1]['result'] = remove_code_result
@@ -1274,14 +1307,14 @@ class DeploymentOrchestrator:
                 escaped_config = new_config.replace("'", "'\\''")
                 write_result = self._call_sally(
                     server,
-                    f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null"
+                    f"echo '{escaped_config}' | {self._sudo(f'tee {config_path}')} > /dev/null"
                 )
 
                 if write_result.get('success'):
                     # Restart Dorothy
                     dorothy_config = config.get_bot_config('dorothy')
                     dorothy_service = dorothy_config.get('service', 'gunicorn-bot-team-dorothy')
-                    restart_result = self._call_sally(server, f"sudo systemctl restart {dorothy_service}")
+                    restart_result = self._call_sally(server, self._sudo(f"systemctl restart {dorothy_service}"))
 
                     if restart_result.get('success'):
                         teardown_result['steps'][-1]['status'] = 'completed'
