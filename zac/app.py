@@ -54,22 +54,22 @@ def info():
         'endpoints': {
             'web': {
                 '/': 'Main dashboard - list all Zendesk users',
-                '/user/<int:user_id>': 'View detailed information about a specific user',
+                '/user/{user_id}': 'View detailed information about a specific user',
                 '/user/create': 'Create a new Zendesk user (GET/POST)',
-                '/user/<int:user_id>/edit': 'Edit an existing user (GET/POST)',
-                '/user/<int:user_id>/suspend': 'Suspend a user (POST)',
-                '/user/<int:user_id>/unsuspend': 'Unsuspend a user (POST)',
-                '/user/<int:user_id>/delete': 'Delete a user (POST)'
+                '/user/{user_id}/edit': 'Edit an existing user (GET/POST)',
+                '/user/{user_id}/suspend': 'Suspend a user (POST)',
+                '/user/{user_id}/unsuspend': 'Unsuspend a user (POST)',
+                '/user/{user_id}/delete': 'Delete a user (POST)'
             },
             'api': {
                 'GET /api/users': 'List all Zendesk users with optional filtering (role, page, per_page)',
-                'GET /api/users/<int:user_id>': 'Get a specific user by ID',
+                'GET /api/users/{user_id}': 'Get a specific user by ID',
                 'GET /api/users/search': 'Search for users by name or email',
                 'POST /api/users': 'Create a new Zendesk user',
-                'PUT/PATCH /api/users/<int:user_id>': 'Update a user\'s properties',
-                'POST /api/users/<int:user_id>/suspend': 'Suspend a user',
-                'POST /api/users/<int:user_id>/unsuspend': 'Unsuspend a user',
-                'DELETE /api/users/<int:user_id>': 'Delete a user'
+                'PUT/PATCH /api/users/{user_id}': 'Update a user\'s properties',
+                'POST /api/users/{user_id}/suspend': 'Suspend a user',
+                'POST /api/users/{user_id}/unsuspend': 'Unsuspend a user',
+                'DELETE /api/users/{user_id}': 'Delete a user'
             },
             'auth': {
                 '/login': 'Google OAuth login',

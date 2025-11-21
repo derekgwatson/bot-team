@@ -54,12 +54,12 @@ def info():
         'endpoints': {
             'web': {
                 '/': 'Home page - Storage usage overview',
-                '/user/<email>': 'User detail page with usage statistics'
+                '/user/{email}': 'User detail page with usage statistics'
             },
             'api': {
                 'GET /api/intro': 'Bot introduction and capabilities',
                 'GET /api/usage': 'Get usage statistics (params: email, date)',
-                'GET /api/usage/<email>': 'Get specific user usage statistics'
+                'GET /api/usage/{email}': 'Get specific user usage statistics'
             },
             'auth': {
                 '/login': 'Google OAuth login',
