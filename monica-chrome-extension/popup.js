@@ -170,7 +170,9 @@ async function saveConfiguration() {
         currentState = response.state;
         updateUI();
       } else {
-        errorDiv.innerHTML = '<div class="error-message">Configuration failed</div>';
+        // Show the specific error message from registration
+        const errorMessage = response.error || 'Configuration failed';
+        errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
         saveButton.disabled = false;
         saveButton.textContent = 'Save & Start Monitoring';
       }

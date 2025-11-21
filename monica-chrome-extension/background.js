@@ -162,12 +162,15 @@ async function initialize() {
 
   if (!state.configured) {
     console.log('[Monica] Cannot initialize - not configured');
-    return;
+    return { success: false, error: 'Not configured' };
   }
 
   // Register if needed
   if (!state.registered) {
-    await register();
+    const registered = await register();
+    if (!registered) {
+      return { success: false, error: state.lastError || 'Registration failed' };
+    }
   }
 
   // Send immediate heartbeat and network test
@@ -175,6 +178,8 @@ async function initialize() {
     await runNetworkTest();
     await sendHeartbeat();
   }
+
+  return { success: true };
 }
 
 // Register with Monica
@@ -343,10 +348,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     state.heartbeatCount = 0;
 
     saveState().then(() => {
-      initialize().then(() => {
+      initialize().then((result) => {
         // Clear registration code after use (not persisted)
         state.registrationCode = null;
-        sendResponse({ success: true, state: state });
+        if (result.success) {
+          sendResponse({ success: true, state: state });
+        } else {
+          sendResponse({ success: false, error: result.error, state: state });
+        }
       });
     });
 
