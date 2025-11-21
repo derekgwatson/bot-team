@@ -50,10 +50,27 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Home page - Storage usage overview',
+                '/user/<email>': 'User detail page with usage statistics'
+            },
+            'api': {
+                'GET /api/intro': 'Bot introduction and capabilities',
+                'GET /api/usage': 'Get usage statistics (params: email, date)',
+                'GET /api/usage/<email>': 'Get specific user usage statistics'
+            },
+            'auth': {
+                '/login': 'Google OAuth login',
+                '/auth/callback': 'OAuth callback handler',
+                '/logout': 'Logout current user'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information',
+                '/robots.txt': 'Search engine crawler rules'
+            }
         }
     })
 

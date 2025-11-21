@@ -63,6 +63,10 @@ class Config:
         return self._config.get('version', '0.0.0')
 
     @property
+    def emoji(self):
+        return self._config.get('emoji', '👩‍💼')
+
+    @property
     def server_host(self):
         return self._config.get('server', {}).get('host', '0.0.0.0')
 

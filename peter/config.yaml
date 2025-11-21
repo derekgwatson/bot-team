@@ -2,6 +2,7 @@
 name: peter
 description: "Phone directory manager"
 version: "0.1.0"
+emoji: "👔"
 
 # Server configuration
 server:

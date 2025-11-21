@@ -49,10 +49,30 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Sync service status page'
+            },
+            'api': {
+                'GET /api/intro': 'Bot introduction and capabilities',
+                'GET /api/dependencies': 'List bot dependencies',
+                'GET /api/dev-config': 'Get dev bot configuration',
+                'POST /api/dev-config': 'Update dev bot configuration',
+                'GET /api/is-approved': 'Check if email is approved (delegates to Peter)',
+                'GET /api/sync/status': 'Get sync service status',
+                'POST /api/sync/now': 'Trigger immediate sync',
+                'GET /api/group/members': 'Get current Google Group members'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        },
+        'sync': {
+            'interval': f'{config.sync_interval_seconds} seconds',
+            'source': 'Peter staff database',
+            'target': 'Google all-staff group'
         }
     })
 

@@ -48,10 +48,29 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Home page with server list and command executor'
+            },
+            'api': {
+                'GET /api/servers': 'List all configured servers',
+                'GET /api/test/<server_name>': 'Test connection to a server',
+                'POST /api/execute': 'Execute a command on a remote server',
+                'GET /api/history': 'Get command execution history',
+                'GET /api/history/<exec_id>': 'Get details of a specific execution'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information',
+                '/robots.txt': 'Robots.txt file'
+            }
+        },
+        'ssh': {
+            'default_user': config.ssh_default_user,
+            'connect_timeout': f'{config.ssh_connect_timeout}s',
+            'command_timeout': f'{config.ssh_command_timeout}s',
+            'configured_servers': len(config.servers)
         }
     })
 

@@ -22,6 +22,7 @@ class Config:
         self.name = data.get("name", "fred")
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
+        self.emoji = data.get("emoji", "👤")
 
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
