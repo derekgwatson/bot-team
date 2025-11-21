@@ -60,13 +60,40 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
-        'sally_url': config.sally_url,
-        'sally_status': sally_status,
+        'emoji': '🚀',
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health',
-            'sally_health': '/api/sally/health'
+            'web': {
+                '/': 'Home page with deployment UI'
+            },
+            'api': {
+                'GET /api/dependencies': 'Get bot dependencies',
+                'GET /api/dev-config': 'Get development configuration',
+                'POST /api/dev-config': 'Update development configuration',
+                'GET /api/sally/health': 'Check Sally SSH service health',
+                'GET /api/chester/health': 'Check Chester service health',
+                'GET /api/bots': 'List all deployable bots',
+                'POST /api/verify/<bot_name>': 'Verify bot deployment prerequisites',
+                'POST /api/plan/<bot_name>': 'Plan bot deployment',
+                'POST /api/deploy/<bot_name>': 'Deploy bot to server',
+                'GET /api/deployments': 'List deployment history',
+                'GET /api/deployments/<deployment_id>': 'Get deployment details',
+                'GET /api/verifications/<verification_id>': 'Get verification results',
+                'POST /api/health-check/<bot_name>': 'Check deployed bot health',
+                'POST /api/start-service/<bot_name>': 'Start bot service',
+                'POST /api/add-bot': 'Add new bot to deployment system',
+                'POST /api/restart-dorothy': 'Restart Dorothy service',
+                'POST /api/update/<bot_name>': 'Update deployed bot',
+                'POST /api/teardown/<bot_name>': 'Remove bot deployment',
+                'POST /api/setup-ssl/<bot_name>': 'Setup SSL for bot'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        },
+        'dependencies': {
+            'sally_url': config.sally_url,
+            'sally_status': sally_status
         }
     })
 

@@ -100,6 +100,44 @@ def after_request(response):
     return response
 
 
+@app.route('/info')
+def info():
+    """Bot information endpoint."""
+    config = app.config['MABEL_CONFIG']
+    return jsonify({
+        'name': config.name,
+        'description': config.description,
+        'version': config.version,
+        'emoji': config.emoji,
+        'endpoints': {
+            'api': {
+                'POST /api/send-email': 'Send a single email',
+                'POST /api/send-batch': 'Send multiple emails in batch'
+            },
+            'system': {
+                '/health': 'Basic health check',
+                '/health/deep': 'Deep health check with SMTP connection test',
+                '/info': 'Bot information'
+            }
+        },
+        'email_config': {
+            'default_from': config.default_from,
+            'default_sender_name': config.default_sender_name,
+            'smtp_host': config.smtp_host,
+            'smtp_port': config.smtp_port,
+            'smtp_use_tls': config.smtp_use_tls
+        }
+    })
+
+
+@app.route('/robots.txt')
+def robots():
+    """Robots.txt to prevent search engine indexing."""
+    return '''User-agent: *
+Disallow: /
+''', 200, {'Content-Type': 'text/plain'}
+
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""

@@ -50,10 +50,38 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Staff directory home page',
+                '/search': 'Search for staff members',
+                '/add': 'Add new staff member',
+                '/edit/<id>': 'Edit staff member details',
+                '/sections': 'Manage sections/departments'
+            },
+            'api': {
+                'GET /api/intro': 'Bot introduction and capabilities',
+                'GET /api/contacts': 'Get phone list contacts (legacy)',
+                'GET /api/contacts/search': 'Search contacts (legacy)',
+                'POST /api/contacts': 'Add new contact (legacy)',
+                'PUT /api/contacts/<id>': 'Update contact (legacy)',
+                'DELETE /api/contacts/<id>': 'Delete contact (legacy)',
+                'GET /api/staff': 'Get all staff members',
+                'POST /api/staff': 'Create new staff member',
+                'GET /api/staff/<id>': 'Get specific staff member',
+                'PATCH /api/staff/<id>': 'Update staff member',
+                'GET /api/staff/allstaff-members': 'Get all-staff group emails',
+                'POST /api/access-requests': 'Submit access request',
+                'GET /api/access-requests': 'Get access requests',
+                'GET /api/access-requests/<id>': 'Get specific access request',
+                'POST /api/access-requests/<id>/approve': 'Approve access request',
+                'POST /api/access-requests/<id>/deny': 'Deny access request',
+                'GET /api/is-approved': 'Check if email is approved'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
         }
     })
 

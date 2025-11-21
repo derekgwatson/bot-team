@@ -50,11 +50,25 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': '🤝',
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
-        }
+            'web': {
+                '/': 'Phone directory display with contacts grouped by section',
+                '/search': 'Search contacts by name, position, or extension'
+            },
+            'api': {
+                'GET /api/intro': 'Bot introduction and capabilities',
+                'GET /api/dependencies': 'Get bot dependencies',
+                'GET /api/dev-config': 'Get dev bot configuration',
+                'POST /api/dev-config': 'Update dev bot configuration'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        },
+        'dependencies': ['peter'],
+        'data_source': 'Peter (HR Database)'
     })
 
 if __name__ == '__main__':

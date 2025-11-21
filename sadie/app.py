@@ -50,10 +50,32 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Ticket dashboard with filtering',
+                '/ticket/<id>': 'View specific ticket details',
+                '/user/<id>/tickets': 'View all tickets for a user',
+                '/organization/<id>/tickets': 'View all tickets for an organization'
+            },
+            'api': {
+                'GET /api/tickets': 'List tickets with optional filters (status, priority, group)',
+                'POST /api/tickets': 'Create a new Zendesk ticket',
+                'GET /api/tickets/<id>': 'Get specific ticket details',
+                'GET /api/tickets/<id>/comments': 'Get all comments for a ticket',
+                'GET /api/tickets/search': 'Search tickets by subject or content',
+                'GET /api/users/<id>/tickets': 'Get all tickets for a user',
+                'GET /api/organizations/<id>/tickets': 'Get all tickets for an organization',
+                'GET /api/groups': 'Get all Zendesk groups for filtering'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        },
+        'zendesk': {
+            'subdomain': config.zendesk_subdomain or 'Not configured',
+            'authentication': 'Required for all web and API endpoints'
         }
     })
 

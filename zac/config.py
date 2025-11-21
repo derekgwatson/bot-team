@@ -16,6 +16,7 @@ class Config:
         self.name = data['name']
         self.description = data['description']
         self.version = data['version']
+        self.emoji = data.get('emoji', '👤')
 
         # Server config
         self.server_host = data['server']['host']

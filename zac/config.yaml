@@ -3,6 +3,7 @@
 name: zac
 description: "Zendesk user management bot"
 version: "0.1.0"
+emoji: 📧
 
 # Server configuration
 server:

@@ -64,13 +64,28 @@ def info():
         'description': config.description,
         'version': config.version,
         'personality': config.personality,
+        'emoji': '🎭',
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health',
-            'info': '/info',
-            'quotes': '/api/quotes',
-            'sessions': '/api/sessions'
+            'web': {
+                '/': 'Home page with session management UI'
+            },
+            'api': {
+                'POST /api/sessions/start': 'Start a new browser session',
+                'DELETE /api/sessions/<session_id>': 'Close a browser session',
+                'GET /api/sessions/<session_id>': 'Get session status',
+                'POST /api/sessions/<session_id>/navigate/quote': 'Navigate to quote via Quick Lookup',
+                'GET /api/sessions/<session_id>/quote/total': 'Extract quote total price',
+                'POST /api/sessions/<session_id>/bulk-edit/open': 'Open bulk edit for quote',
+                'POST /api/sessions/<session_id>/bulk-edit/save': 'Save bulk edit (triggers price recalc)',
+                'GET /api/sessions/active': 'List all active sessions',
+                'GET /api/sessions/health': 'Session endpoint health check',
+                'POST /api/quotes/refresh-pricing': 'Refresh pricing for quote (legacy endpoint)',
+                'GET /api/quotes/health': 'Quotes endpoint health check'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
         },
         'capabilities': [
             'Session-based browser automation',
@@ -81,8 +96,11 @@ def info():
             'Multi-organization support',
             'Screenshot capture on failures'
         ],
-        'active_sessions': active_sessions,
-        'session_timeout_minutes': session_manager.session_timeout_minutes
+        'session_info': {
+            'active_sessions': active_sessions,
+            'timeout_minutes': session_manager.session_timeout_minutes,
+            'browser_mode': 'headless' if config.browser_headless else 'headed'
+        }
     })
 
 
