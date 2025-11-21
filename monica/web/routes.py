@@ -617,6 +617,9 @@ def dashboard():
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
 
+        // Track if a code was generated (to refresh immediately on modal close)
+        let codeWasGenerated = false;
+
         // Show toast notification
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -693,6 +696,7 @@ def dashboard():
         function showGenerateCodeModal() {
             // Pause auto-refresh while modal is open
             clearTimeout(autoRefreshTimer);
+            codeWasGenerated = false; // Reset flag
             document.getElementById('generate-modal').classList.add('active');
             document.getElementById('modal-form').style.display = 'block';
             document.getElementById('modal-result').style.display = 'none';
@@ -703,10 +707,16 @@ def dashboard():
             document.getElementById('generate-modal').classList.remove('active');
             document.getElementById('store-code-input').value = '';
             document.getElementById('device-label-input').value = '';
-            // Resume auto-refresh
-            autoRefreshTimer = setTimeout(function() {
-                location.reload();
-            }, {{ config.auto_refresh * 1000 }});
+
+            // If a code was generated, refresh immediately to see new devices register
+            // Otherwise resume normal auto-refresh schedule
+            if (codeWasGenerated) {
+                setTimeout(() => location.reload(), 500); // Brief delay for modal close animation
+            } else {
+                autoRefreshTimer = setTimeout(function() {
+                    location.reload();
+                }, {{ config.auto_refresh * 1000 }});
+            }
         }
 
         // Generate registration code
@@ -733,6 +743,7 @@ def dashboard():
 
                 if (data.success) {
                     // Show the generated code
+                    codeWasGenerated = true; // Mark that we generated a code
                     document.getElementById('modal-form').style.display = 'none';
                     document.getElementById('modal-result').style.display = 'block';
                     document.getElementById('generated-code').textContent = data.code;
