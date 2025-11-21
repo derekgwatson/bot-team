@@ -148,6 +148,10 @@ class Database:
                     conn.commit()
                     logger.info(f"Updated token for device {row['id']}")
 
+                    # Fetch updated device to get the new token
+                    cursor = conn.execute("SELECT * FROM devices WHERE id = ?", (row['id'],))
+                    return dict(cursor.fetchone())
+
                 return dict(row)
 
             # Create new device
