@@ -21,3 +21,6 @@ credentials.json
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Chrome extension build artifacts
+monica-monitor*.zip
