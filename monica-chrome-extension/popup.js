@@ -36,6 +36,18 @@ function setupEventListeners() {
   document.getElementById('save-config').addEventListener('click', saveConfiguration);
   document.getElementById('reconfigure').addEventListener('click', showConfiguration);
   document.getElementById('cancel-config').addEventListener('click', cancelConfiguration);
+
+  // Allow Enter key to submit configuration
+  document.getElementById('monica-url').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveConfiguration();
+    }
+  });
+  document.getElementById('registration-code').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveConfiguration();
+    }
+  });
 }
 
 // Update UI based on state
@@ -73,6 +85,11 @@ function updateUI() {
 
     // Note: We intentionally don't pre-fill fields during reconfiguration
     // to give users a fresh start. Fields are cleared in showConfiguration()
+
+    // Auto-focus the URL input field for better UX
+    setTimeout(() => {
+      document.getElementById('monica-url').focus();
+    }, 100);
   }
 }
 
@@ -240,6 +257,11 @@ function showConfiguration() {
     cancelButton.style.display = 'block';
     saveButton.textContent = 'Update Configuration';
   }
+
+  // Auto-focus the URL input field for better UX
+  setTimeout(() => {
+    document.getElementById('monica-url').focus();
+  }, 100);
 }
 
 // Cancel configuration and go back to status
