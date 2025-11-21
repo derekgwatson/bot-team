@@ -348,6 +348,141 @@ class Database:
         finally:
             conn.close()
 
+    # Registration code operations
+
+    def create_registration_code(
+        self,
+        store_code: str,
+        device_label: str,
+        code: Optional[str] = None,
+        expires_hours: int = 24
+    ) -> Dict[str, Any]:
+        """
+        Create a one-time registration code
+
+        Args:
+            store_code: Store code for this device
+            device_label: Device label for this device
+            code: Optional custom code (auto-generated if None)
+            expires_hours: Hours until expiration (default 24)
+
+        Returns:
+            Registration code dictionary
+        """
+        import secrets
+
+        if code is None:
+            # Generate 8-character alphanumeric code
+            code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
+
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                """INSERT INTO registration_codes
+                   (code, store_code, device_label, expires_at)
+                   VALUES (?, ?, ?, datetime('now', '+' || ? || ' hours'))""",
+                (code, store_code, device_label, expires_hours)
+            )
+            conn.commit()
+
+            # Fetch the created code
+            cursor = conn.execute(
+                "SELECT * FROM registration_codes WHERE id = ?",
+                (cursor.lastrowid,)
+            )
+            result = dict(cursor.fetchone())
+            logger.info(f"Created registration code {code} for {store_code}/{device_label}")
+            return result
+        finally:
+            conn.close()
+
+    def get_registration_code(self, code: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a registration code if it's valid and unused
+
+        Args:
+            code: Registration code
+
+        Returns:
+            Registration code dictionary or None if invalid/used/expired
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT * FROM registration_codes
+                   WHERE code = ?
+                   AND used_at IS NULL
+                   AND (expires_at IS NULL OR expires_at > datetime('now'))""",
+                (code,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def mark_code_as_used(self, code: str, device_id: int):
+        """
+        Mark a registration code as used
+
+        Args:
+            code: Registration code
+            device_id: Device ID that used this code
+        """
+        conn = self.get_connection()
+        try:
+            conn.execute(
+                """UPDATE registration_codes
+                   SET used_at = CURRENT_TIMESTAMP,
+                       used_by_device_id = ?
+                   WHERE code = ?""",
+                (device_id, code)
+            )
+            conn.commit()
+            logger.info(f"Marked code {code} as used by device {device_id}")
+        finally:
+            conn.close()
+
+    def get_all_registration_codes(self) -> List[Dict[str, Any]]:
+        """
+        Get all registration codes (for admin view)
+
+        Returns:
+            List of registration code dictionaries
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT * FROM registration_codes
+                   ORDER BY created_at DESC"""
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def delete_registration_code(self, code_id: int) -> bool:
+        """
+        Delete a registration code
+
+        Args:
+            code_id: Registration code ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                "DELETE FROM registration_codes WHERE id = ?",
+                (code_id,)
+            )
+            conn.commit()
+            deleted = cursor.rowcount > 0
+            if deleted:
+                logger.info(f"Deleted registration code {code_id}")
+            return deleted
+        finally:
+            conn.close()
+
 
 # Global database instance
 db = Database()

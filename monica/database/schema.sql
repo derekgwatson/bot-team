@@ -36,12 +36,27 @@ CREATE TABLE IF NOT EXISTS heartbeats (
     FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
 );
 
+-- Registration codes table: one-time codes for secure device registration
+CREATE TABLE IF NOT EXISTS registration_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    store_code TEXT NOT NULL,
+    device_label TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    used_at DATETIME,
+    used_by_device_id INTEGER,
+    expires_at DATETIME,
+    FOREIGN KEY (used_by_device_id) REFERENCES devices(id) ON DELETE SET NULL
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_devices_store_id ON devices(store_id);
 CREATE INDEX IF NOT EXISTS idx_devices_agent_token ON devices(agent_token);
 CREATE INDEX IF NOT EXISTS idx_heartbeats_device_id ON heartbeats(device_id);
 CREATE INDEX IF NOT EXISTS idx_heartbeats_timestamp ON heartbeats(timestamp);
 CREATE INDEX IF NOT EXISTS idx_heartbeats_device_timestamp ON heartbeats(device_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_registration_codes_code ON registration_codes(code);
+CREATE INDEX IF NOT EXISTS idx_registration_codes_used_at ON registration_codes(used_at);
 
 -- Trigger to update device updated_at timestamp
 CREATE TRIGGER IF NOT EXISTS update_device_timestamp

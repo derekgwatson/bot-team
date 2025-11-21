@@ -105,6 +105,7 @@ function updateStatusDisplay() {
 // Save configuration
 async function saveConfiguration() {
   const monicaUrl = document.getElementById('monica-url').value.trim();
+  const registrationCode = document.getElementById('registration-code').value.trim().toUpperCase();
   const storeCode = document.getElementById('store-code').value.trim();
   const deviceLabel = document.getElementById('device-label').value.trim();
 
@@ -112,7 +113,7 @@ async function saveConfiguration() {
   errorDiv.innerHTML = '';
 
   // Validation
-  if (!monicaUrl || !storeCode || !deviceLabel) {
+  if (!monicaUrl || !registrationCode || !storeCode || !deviceLabel) {
     errorDiv.innerHTML = '<div class="error-message">All fields are required</div>';
     return;
   }
@@ -164,6 +165,7 @@ async function saveConfiguration() {
     chrome.runtime.sendMessage({
       action: 'configure',
       monicaUrl: monicaUrl,
+      registrationCode: registrationCode,
       storeCode: storeCode,
       deviceLabel: deviceLabel
     }, (response) => {

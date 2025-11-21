@@ -9,6 +9,7 @@ let state = {
   configured: false,
   registered: false,
   monicaUrl: null,
+  registrationCode: null, // One-time code, not persisted
   storeCode: null,
   deviceLabel: null,
   agentToken: null,
@@ -186,6 +187,7 @@ async function register() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        registration_code: state.registrationCode,
         store_code: state.storeCode,
         device_label: state.deviceLabel
       })
@@ -322,6 +324,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'configure') {
     // Update configuration
     state.monicaUrl = message.monicaUrl.replace(/\/$/, ''); // Remove trailing slash
+    state.registrationCode = message.registrationCode; // One-time code for registration
     state.storeCode = message.storeCode;
     state.deviceLabel = message.deviceLabel;
     state.configured = true;
@@ -332,6 +335,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     saveState().then(() => {
       initialize().then(() => {
+        // Clear registration code after use (not persisted)
+        state.registrationCode = null;
         sendResponse({ success: true, state: state });
       });
     });
