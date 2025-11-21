@@ -67,14 +67,24 @@ class Config:
 
         # Load Buz organizations (multi-tenant support)
         # Each org has its own credentials and base URL
-        self.buz_orgs = self._load_buz_organizations()
+        self.buz_orgs, self.buz_orgs_missing_auth = self._load_buz_organizations()
 
         # Validate at least one org is configured
-        if not self.buz_orgs:
+        if not self.buz_orgs and not self.buz_orgs_missing_auth:
             raise ValueError(
                 "No Buz organizations configured. Set BUZ_ORGS environment variable "
                 "with comma-separated org names, then configure credentials for each org."
             )
+
+        # Warn about missing auth but don't crash
+        if self.buz_orgs_missing_auth:
+            print("\n⚠️  Setup Required: Some organizations are missing authentication")
+            for org_name, expected_path in self.buz_orgs_missing_auth.items():
+                print(f"  • {org_name}: {expected_path}")
+            print("\n💡 Run this to set up authentication:")
+            for org_name in self.buz_orgs_missing_auth.keys():
+                print(f"    python tools/buz_auth_bootstrap.py {org_name}")
+            print()
 
     def _validate_environment(self):
         """
@@ -122,19 +132,16 @@ class Config:
             .secrets/buz_storage_state_tweed.json
 
         Returns:
-            dict: {
-                'designer_drapes': {
-                    'name': 'designer_drapes',
-                    'storage_state_path': '/path/to/.secrets/buz_storage_state_designer_drapes.json'
-                },
-                ...
-            }
+            tuple: (configured_orgs, missing_auth_orgs)
+                configured_orgs: dict with orgs that have auth files
+                missing_auth_orgs: dict with orgs missing auth files
         """
         orgs_env = os.environ.get("BUZ_ORGS", "").strip()
         if not orgs_env:
-            return {}
+            return {}, {}
 
         orgs = {}
+        missing_auth = {}
         org_names = [name.strip() for name in orgs_env.split(",") if name.strip()]
 
         # Storage state files are in banji/.secrets/
@@ -145,21 +152,18 @@ class Config:
             # Find storage state file for this org
             storage_state_file = secrets_dir / f"buz_storage_state_{org_name}.json"
 
-            # Validate storage state file exists
+            # Check if storage state file exists
             if not storage_state_file.exists():
-                raise ValueError(
-                    f"Storage state file not found for organization '{org_name}'. "
-                    f"Expected: {storage_state_file}\n"
-                    f"Run: python tools/buz_auth_bootstrap.py {org_name}"
-                )
+                # Track missing but don't crash
+                missing_auth[org_name] = str(storage_state_file.resolve())
+            else:
+                # Store org config
+                orgs[org_name] = {
+                    'name': org_name,
+                    'storage_state_path': str(storage_state_file.resolve())
+                }
 
-            # Store org config
-            orgs[org_name] = {
-                'name': org_name,
-                'storage_state_path': str(storage_state_file.resolve())
-            }
-
-        return orgs
+        return orgs, missing_auth
 
     def get_org_config(self, org_name):
         """
@@ -181,6 +185,26 @@ class Config:
                 f"Available organizations: {available}"
             )
         return self.buz_orgs[org_name]
+
+    @property
+    def is_fully_configured(self):
+        """Check if all organizations have authentication configured."""
+        return len(self.buz_orgs_missing_auth) == 0
+
+    @property
+    def setup_instructions(self):
+        """Get setup instructions for missing auth."""
+        if self.is_fully_configured:
+            return None
+
+        instructions = []
+        for org_name, expected_path in self.buz_orgs_missing_auth.items():
+            instructions.append({
+                'org_name': org_name,
+                'expected_path': expected_path,
+                'command': f"python tools/buz_auth_bootstrap.py {org_name}"
+            })
+        return instructions
 
 
 # Global config instance

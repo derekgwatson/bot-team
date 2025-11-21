@@ -15,5 +15,7 @@ def index():
         personality=config.personality,
         browser_mode='headless' if config.browser_headless else 'headed',
         buz_url='https://go.buzmanager.com',
-        active_orgs=', '.join(config.buz_orgs.keys())
+        active_orgs=', '.join(config.buz_orgs.keys()) if config.buz_orgs else 'None configured',
+        is_fully_configured=config.is_fully_configured,
+        setup_instructions=config.setup_instructions
     )
