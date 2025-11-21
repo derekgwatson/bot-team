@@ -30,3 +30,8 @@ database:
 # Dashboard
 dashboard:
   auto_refresh: 30  # Auto-refresh dashboard every 30 seconds
+
+# Logging
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  log_heartbeats: false  # Log each heartbeat request in production (can be noisy)

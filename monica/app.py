@@ -20,12 +20,18 @@ from monica.api.routes import api_bp
 from monica.web.routes import web_bp
 from monica.database.db import db
 
-# Configure logging
+# Configure logging based on config
+log_level_name = config.log_level.upper()
+log_level = getattr(logging, log_level_name, logging.INFO)
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Log the current log level on startup
+logger.info(f"Logging configured at {log_level_name} level")
 
 # Initialize Flask app
 app = Flask(__name__)
