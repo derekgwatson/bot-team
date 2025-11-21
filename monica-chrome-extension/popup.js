@@ -1,6 +1,7 @@
 // Monica Store Monitor - Popup UI Logic
 
 let currentState = null;
+let isReconfiguring = false; // Flag to prevent auto-refresh from overriding user action
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
@@ -27,6 +28,11 @@ function updateUI() {
   const configSection = document.getElementById('config-section');
   const statusSection = document.getElementById('status-section');
 
+  // Don't auto-switch views if user is actively reconfiguring
+  if (isReconfiguring) {
+    return;
+  }
+
   if (currentState.configured && currentState.registered) {
     // Show status
     configSection.style.display = 'none';
@@ -37,15 +43,9 @@ function updateUI() {
     configSection.style.display = 'block';
     statusSection.style.display = 'none';
 
-    // Pre-fill if partially configured
+    // Pre-fill Monica URL if partially configured
     if (currentState.monicaUrl) {
       document.getElementById('monica-url').value = currentState.monicaUrl;
-    }
-    if (currentState.storeCode) {
-      document.getElementById('store-code').value = currentState.storeCode;
-    }
-    if (currentState.deviceLabel) {
-      document.getElementById('device-label').value = currentState.deviceLabel;
     }
   }
 }
@@ -105,14 +105,13 @@ function updateStatusDisplay() {
 // Save configuration
 async function saveConfiguration() {
   const monicaUrl = document.getElementById('monica-url').value.trim();
-  const storeCode = document.getElementById('store-code').value.trim();
-  const deviceLabel = document.getElementById('device-label').value.trim();
+  const registrationCode = document.getElementById('registration-code').value.trim().toUpperCase();
 
   const errorDiv = document.getElementById('config-error');
   errorDiv.innerHTML = '';
 
   // Validation
-  if (!monicaUrl || !storeCode || !deviceLabel) {
+  if (!monicaUrl || !registrationCode) {
     errorDiv.innerHTML = '<div class="error-message">All fields are required</div>';
     return;
   }
@@ -164,14 +163,16 @@ async function saveConfiguration() {
     chrome.runtime.sendMessage({
       action: 'configure',
       monicaUrl: monicaUrl,
-      storeCode: storeCode,
-      deviceLabel: deviceLabel
+      registrationCode: registrationCode
     }, (response) => {
       if (response.success) {
+        isReconfiguring = false; // Reset flag so UI can update
         currentState = response.state;
         updateUI();
       } else {
-        errorDiv.innerHTML = '<div class="error-message">Configuration failed</div>';
+        // Show the specific error message from registration
+        const errorMessage = response.error || 'Configuration failed';
+        errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
         saveButton.disabled = false;
         saveButton.textContent = 'Save & Start Monitoring';
       }
@@ -182,6 +183,7 @@ async function saveConfiguration() {
 
 // Show configuration screen
 function showConfiguration() {
+  isReconfiguring = true; // Prevent auto-refresh from switching back
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
 }

@@ -9,6 +9,7 @@ let state = {
   configured: false,
   registered: false,
   monicaUrl: null,
+  registrationCode: null, // One-time code, not persisted
   storeCode: null,
   deviceLabel: null,
   agentToken: null,
@@ -65,7 +66,7 @@ async function loadState() {
     'heartbeatCount'
   ]);
 
-  if (stored.monicaUrl && stored.storeCode && stored.deviceLabel) {
+  if (stored.monicaUrl) {
     //Check if we still have permission for the stored URL
     try {
       const urlObj = new URL(stored.monicaUrl);
@@ -79,8 +80,8 @@ async function loadState() {
         // Keep config but clear registration to trigger reconfiguration
         state.configured = true;
         state.monicaUrl = stored.monicaUrl;
-        state.storeCode = stored.storeCode;
-        state.deviceLabel = stored.deviceLabel;
+        state.storeCode = stored.storeCode || null;
+        state.deviceLabel = stored.deviceLabel || null;
         state.registered = false;
         state.agentToken = null;
         state.deviceId = null;
@@ -92,8 +93,8 @@ async function loadState() {
 
     state.configured = true;
     state.monicaUrl = stored.monicaUrl;
-    state.storeCode = stored.storeCode;
-    state.deviceLabel = stored.deviceLabel;
+    state.storeCode = stored.storeCode || null;
+    state.deviceLabel = stored.deviceLabel || null;
     state.agentToken = stored.agentToken || null;
     state.deviceId = stored.deviceId || null;
     state.heartbeatCount = stored.heartbeatCount || 0;
@@ -103,6 +104,8 @@ async function loadState() {
       configured: state.configured,
       registered: state.registered,
       deviceId: state.deviceId,
+      storeCode: state.storeCode,
+      deviceLabel: state.deviceLabel,
       hasPermission: true
     });
   } else {
@@ -124,13 +127,15 @@ async function saveState() {
 
 // Setup periodic alarms
 function setupAlarms() {
-  // Heartbeat alarm
+  // Heartbeat alarm - fire first alarm in 10 seconds, then every 60 seconds
   chrome.alarms.create('heartbeat', {
+    when: Date.now() + 10000, // First fire in 10 seconds
     periodInMinutes: HEARTBEAT_INTERVAL / 60
   });
 
-  // Network test alarm
+  // Network test alarm - fire first alarm in 30 seconds, then every 5 minutes
   chrome.alarms.create('networkTest', {
+    when: Date.now() + 30000, // First fire in 30 seconds
     periodInMinutes: NETWORK_TEST_INTERVAL / 60
   });
 
@@ -157,12 +162,15 @@ async function initialize() {
 
   if (!state.configured) {
     console.log('[Monica] Cannot initialize - not configured');
-    return;
+    return { success: false, error: 'Not configured' };
   }
 
   // Register if needed
   if (!state.registered) {
-    await register();
+    const registered = await register();
+    if (!registered) {
+      return { success: false, error: state.lastError || 'Registration failed' };
+    }
   }
 
   // Send immediate heartbeat and network test
@@ -170,6 +178,8 @@ async function initialize() {
     await runNetworkTest();
     await sendHeartbeat();
   }
+
+  return { success: true };
 }
 
 // Register with Monica
@@ -182,12 +192,16 @@ async function register() {
   console.log('[Monica] Registering...');
 
   try {
+    // Get extension version from manifest
+    const manifest = chrome.runtime.getManifest();
+    const version = manifest.version;
+
     const response = await fetch(`${state.monicaUrl}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        store_code: state.storeCode,
-        device_label: state.deviceLabel
+        registration_code: state.registrationCode,
+        extension_version: version
       })
     });
 
@@ -196,6 +210,8 @@ async function register() {
     if (data.success) {
       state.agentToken = data.agent_token;
       state.deviceId = data.device_id;
+      state.storeCode = data.store_code; // Get from server response
+      state.deviceLabel = data.device_label; // Get from server response
       state.registered = true;
       state.lastError = null;
 
@@ -322,17 +338,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'configure') {
     // Update configuration
     state.monicaUrl = message.monicaUrl.replace(/\/$/, ''); // Remove trailing slash
-    state.storeCode = message.storeCode;
-    state.deviceLabel = message.deviceLabel;
+    state.registrationCode = message.registrationCode; // One-time code for registration (includes store/device info)
     state.configured = true;
     state.registered = false;
     state.agentToken = null;
     state.deviceId = null;
+    state.storeCode = null; // Will be populated from registration response
+    state.deviceLabel = null; // Will be populated from registration response
     state.heartbeatCount = 0;
 
     saveState().then(() => {
-      initialize().then(() => {
-        sendResponse({ success: true, state: state });
+      initialize().then((result) => {
+        // Clear registration code after use (not persisted)
+        state.registrationCode = null;
+        if (result.success) {
+          sendResponse({ success: true, state: state });
+        } else {
+          sendResponse({ success: false, error: result.error, state: state });
+        }
       });
     });
 

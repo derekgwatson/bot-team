@@ -27,12 +27,12 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/register', methods=['POST'])
 def register():
     """
-    Register a new device or retrieve existing device credentials
+    Register a new device using a one-time registration code
 
     Request JSON:
         {
-            "store_code": "FYSHWICK",
-            "device_label": "Front Counter"
+            "registration_code": "ABC12345",   // required, contains store and device info
+            "extension_version": "1.1.1"       // optional, for logging
         }
 
     Response JSON:
@@ -40,6 +40,8 @@ def register():
             "success": true,
             "device_id": 123,
             "agent_token": "abc123...",
+            "store_code": "FYSHWICK",          // extracted from registration code
+            "device_label": "Front Counter",   // extracted from registration code
             "message": "Device registered successfully"
         }
     """
@@ -52,20 +54,27 @@ def register():
                 'error': 'No JSON data provided'
             }), 400
 
-        store_code = data.get('store_code', '').strip()
-        device_label = data.get('device_label', '').strip()
+        registration_code = data.get('registration_code', '').strip()
+        extension_version = data.get('extension_version', '').strip()
 
-        if not store_code:
+        # Registration code is required - it contains store and device info
+        if not registration_code:
             return jsonify({
                 'success': False,
-                'error': 'store_code is required'
+                'error': 'registration_code is required'
             }), 400
 
-        if not device_label:
+        # Validate registration code and get store/device info from it
+        code_data = db.get_registration_code(registration_code)
+        if not code_data:
             return jsonify({
                 'success': False,
-                'error': 'device_label is required'
-            }), 400
+                'error': 'Invalid, expired, or already used registration code'
+            }), 403
+
+        # Extract store and device from the registration code
+        store_code = code_data['store_code']
+        device_label = code_data['device_label']
 
         # Get or create store
         store_id = db.get_or_create_store(store_code)
@@ -76,15 +85,20 @@ def register():
         # Get or create device
         device = db.get_or_create_device(store_id, device_label, agent_token)
 
+        # Delete code after successful registration (one-time use)
+        db.delete_registration_code_by_code(registration_code)
+
         logger.info(
-            f"Device registered: {store_code}/{device_label} "
-            f"(device_id={device['id']})"
+            f"Device registered with code {registration_code}: {store_code}/{device_label} "
+            f"(device_id={device['id']}, extension_version={extension_version or 'unknown'})"
         )
 
         return jsonify({
             'success': True,
             'device_id': device['id'],
             'agent_token': device['agent_token'],
+            'store_code': store_code,  # Send back to extension for display
+            'device_label': device_label,  # Send back to extension for display
             'message': 'Device registered successfully'
         }), 200
 
@@ -315,6 +329,139 @@ def delete_device(device_id: int):
 
     except Exception as e:
         logger.error(f"Delete device error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
+# Registration code management endpoints
+
+@api_bp.route('/registration-codes', methods=['POST'])
+def create_registration_code():
+    """
+    Create a new one-time registration code
+
+    Request JSON:
+        {
+            "store_code": "FYSHWICK",
+            "device_label": "Front Counter",
+            "expires_hours": 24  // optional, default 24
+        }
+
+    Response JSON:
+        {
+            "success": true,
+            "code": "ABC12345",
+            "store_code": "FYSHWICK",
+            "device_label": "Front Counter",
+            "expires_at": "2025-11-21T12:00:00"
+        }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+
+        store_code = data.get('store_code', '').strip()
+        device_label = data.get('device_label', '').strip()
+        expires_hours = data.get('expires_hours', 24)
+
+        if not store_code:
+            return jsonify({
+                'success': False,
+                'error': 'store_code is required'
+            }), 400
+
+        if not device_label:
+            return jsonify({
+                'success': False,
+                'error': 'device_label is required'
+            }), 400
+
+        # Create registration code
+        code_data = db.create_registration_code(
+            store_code=store_code,
+            device_label=device_label,
+            expires_hours=expires_hours
+        )
+
+        logger.info(f"Created registration code {code_data['code']} for {store_code}/{device_label}")
+
+        return jsonify({
+            'success': True,
+            'code': code_data['code'],
+            'store_code': code_data['store_code'],
+            'device_label': code_data['device_label'],
+            'expires_at': code_data['expires_at']
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Create registration code error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
+@api_bp.route('/registration-codes', methods=['GET'])
+def get_registration_codes():
+    """
+    Get all registration codes (for admin view)
+
+    Response JSON:
+        {
+            "success": true,
+            "codes": [...]
+        }
+    """
+    try:
+        codes = db.get_all_registration_codes()
+
+        return jsonify({
+            'success': True,
+            'codes': codes
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get registration codes error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
+@api_bp.route('/registration-codes/<int:code_id>', methods=['DELETE'])
+def delete_registration_code(code_id: int):
+    """
+    Delete a registration code
+
+    Response JSON:
+        {
+            "success": true,
+            "message": "Registration code deleted successfully"
+        }
+    """
+    try:
+        deleted = db.delete_registration_code(code_id)
+
+        if deleted:
+            return jsonify({
+                'success': True,
+                'message': 'Registration code deleted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Registration code not found'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Delete registration code error: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': 'Internal server error'

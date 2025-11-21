@@ -31,10 +31,10 @@ def index():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ config.emoji }} {{ config.name }} - ChromeOS Monitoring</title>
+    <title>📡 {{ config.name }} - ChromeOS Monitoring</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -154,7 +154,7 @@ def index():
 </head>
 <body>
     <div class="container">
-        <h1>{{ config.emoji }} {{ config.name }}</h1>
+        <h1>📡 {{ config.name }}</h1>
         <p class="subtitle">{{ config.description }}</p>
 
         <div class="section admin">
@@ -165,28 +165,30 @@ def index():
 
         <div class="section device">
             <h2>📡 For Staff Devices: Install Monitoring Agent</h2>
-            <p>Monitor your stores using the Monica Chrome extension. Runs in the background - no need to keep tabs open!</p>
+            <p>Monitor your stores using the Monica Chrome extension. Secure registration with one-time codes.</p>
 
             <div class="instructions">
-                <h3>🌟 Recommended: Chrome Extension</h3>
-                <p><strong>1.</strong> Install Monica Store Monitor from Chrome Web Store</p>
-                <p><strong>2.</strong> Click the extension icon in your browser toolbar</p>
-                <p><strong>3.</strong> Enter your configuration:</p>
-                <p>&nbsp;&nbsp;&nbsp;• Monica URL: <code>{{ request.url_root }}</code></p>
-                <p>&nbsp;&nbsp;&nbsp;• Store Code: <code>YOUR_STORE</code> (e.g., FYSHWICK)</p>
-                <p>&nbsp;&nbsp;&nbsp;• Device Name: <code>YOUR_DEVICE</code> (e.g., Front Counter)</p>
-                <p><strong>4.</strong> Click "Save & Start Monitoring"</p>
-                <p><strong>5.</strong> Grant permission when prompted - that's it!</p>
-                <p style="margin-top: 12px; color: #059669;"><strong>✓ Works even when browser tabs are closed</strong></p>
-                <p style="color: #059669;"><strong>✓ Automatic heartbeats every 60 seconds</strong></p>
+                <h3>Step 1: Generate Registration Code</h3>
+                <p><strong>1.</strong> Go to the <a href="/dashboard" style="color: #667eea; text-decoration: underline;">Dashboard</a></p>
+                <p><strong>2.</strong> Click "Generate Registration Code" button</p>
+                <p><strong>3.</strong> Enter store code and device name</p>
+                <p><strong>4.</strong> Copy the generated code (valid for 24 hours)</p>
             </div>
 
-            <div class="instructions" style="margin-top: 16px; background: #e0f2fe; border-left-color: #0284c7;">
-                <h3 style="color: #075985;">Alternative: Browser Tab Agent</h3>
-                <p style="color: #0c4a6e;"><strong>1.</strong> Navigate to: <code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
-                <p style="color: #0c4a6e;"><strong>2.</strong> Example: <code>/agent?store=FYSHWICK&device=Front%20Counter</code></p>
-                <p style="color: #0c4a6e;"><strong>3.</strong> Pin the tab and keep browser logged in</p>
-                <p style="color: #0c4a6e; margin-top: 8px;"><em>Note: Requires pinned tab to stay open 24/7</em></p>
+            <div class="instructions" style="margin-top: 16px;">
+                <h3>Step 2: Install Chrome Extension</h3>
+                <p><strong>1.</strong> Install Monica Store Monitor from Chrome Web Store</p>
+                <p><strong>2.</strong> Click the extension icon in your browser toolbar</p>
+                <p><strong>3.</strong> Enter the configuration:</p>
+                <p>&nbsp;&nbsp;&nbsp;• Monica URL: <code>{{ request.url_root }}</code></p>
+                <p>&nbsp;&nbsp;&nbsp;• Registration Code: <code>(from Step 1)</code></p>
+                <p>&nbsp;&nbsp;&nbsp;• Store Code: <code>FYSHWICK</code></p>
+                <p>&nbsp;&nbsp;&nbsp;• Device Name: <code>Front Counter</code></p>
+                <p><strong>4.</strong> Click "Save & Start Monitoring"</p>
+                <p><strong>5.</strong> Grant permission when prompted</p>
+                <p style="margin-top: 12px; color: #059669;"><strong>✓ Runs in background even when tabs are closed</strong></p>
+                <p style="color: #059669;"><strong>✓ Secure one-time codes prevent unauthorized access</strong></p>
+                <p style="color: #059669;"><strong>✓ Automatic heartbeats every 60 seconds</strong></p>
             </div>
         </div>
 
@@ -398,6 +400,216 @@ def dashboard():
             font-size: 0.9em;
             color: #6b7280;
         }
+        .btn-generate {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-generate:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .modal-header {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f2937;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .toast {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+        }
+        .toast-icon {
+            font-size: 1.5em;
+        }
+        .toast-message {
+            flex: 1;
+            font-size: 0.95em;
+            color: #1f2937;
+        }
+        /* Confirmation modal styles */
+        .confirm-modal .modal-content {
+            max-width: 450px;
+        }
+        .confirm-message {
+            color: #374151;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .confirm-device-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+        }
+        .btn-primary {
+            flex: 1;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        .btn-secondary {
+            flex: 1;
+            background: #e5e7eb;
+            color: #1f2937;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        .code-display {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .code-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+        .code-info {
+            margin-top: 12px;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        .copy-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
     </style>
     <script>
         // Auto-refresh every {{ config.auto_refresh }} seconds
@@ -405,30 +617,156 @@ def dashboard():
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
 
+        // Track if a code was generated (to refresh immediately on modal close)
+        let codeWasGenerated = false;
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-message">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Show confirmation modal
+        function showConfirmModal(message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-message').innerHTML = message;
+            modal.classList.add('active');
+
+            // Set up confirm button
+            const confirmBtn = document.getElementById('confirm-btn');
+            confirmBtn.onclick = () => {
+                modal.classList.remove('active');
+                onConfirm();
+            };
+        }
+
+        // Hide confirmation modal
+        function hideConfirmModal() {
+            document.getElementById('confirm-modal').classList.remove('active');
+        }
+
         // Delete device
-        async function deleteDevice(deviceId, deviceName) {
-            if (!confirm(`Are you sure you want to delete "${deviceName}"?\n\nThis will remove the device and all its heartbeat history.`)) {
+        function deleteDevice(deviceId, deviceName) {
+            showConfirmModal(
+                `Are you sure you want to delete <span class="confirm-device-name">"${deviceName}"</span>?<br><br>This will remove the device and all its heartbeat history.`,
+                async () => {
+                    try {
+                        const response = await fetch(`/api/devices/${deviceId}`, {
+                            method: 'DELETE'
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showToast(`Device "${deviceName}" deleted successfully`, 'success');
+                            // Clear auto-refresh timer and reload after a brief delay
+                            clearTimeout(autoRefreshTimer);
+                            setTimeout(() => location.reload(), 800);
+                        } else {
+                            showToast(`Failed to delete device: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        showToast(`Error deleting device: ${error.message}`, 'error');
+                    }
+                }
+            );
+        }
+
+        // Show generate code modal
+        function showGenerateCodeModal() {
+            // Pause auto-refresh while modal is open
+            clearTimeout(autoRefreshTimer);
+            codeWasGenerated = false; // Reset flag
+            document.getElementById('generate-modal').classList.add('active');
+            document.getElementById('modal-form').style.display = 'block';
+            document.getElementById('modal-result').style.display = 'none';
+        }
+
+        // Hide modal
+        function hideModal() {
+            document.getElementById('generate-modal').classList.remove('active');
+            document.getElementById('store-code-input').value = '';
+            document.getElementById('device-label-input').value = '';
+
+            // If a code was generated, refresh immediately to see new devices register
+            // Otherwise resume normal auto-refresh schedule
+            if (codeWasGenerated) {
+                setTimeout(() => location.reload(), 500); // Brief delay for modal close animation
+            } else {
+                autoRefreshTimer = setTimeout(function() {
+                    location.reload();
+                }, {{ config.auto_refresh * 1000 }});
+            }
+        }
+
+        // Generate registration code
+        async function generateCode() {
+            const storeCode = document.getElementById('store-code-input').value.trim().toUpperCase();
+            const deviceLabel = document.getElementById('device-label-input').value.trim();
+
+            if (!storeCode || !deviceLabel) {
+                showToast('Please enter both store code and device name', 'error');
                 return;
             }
 
             try {
-                const response = await fetch(`/api/devices/${deviceId}`, {
-                    method: 'DELETE'
+                const response = await fetch('/api/registration-codes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_code: storeCode,
+                        device_label: deviceLabel
+                    })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(`Device "${deviceName}" deleted successfully`);
-                    // Clear auto-refresh timer and reload immediately
-                    clearTimeout(autoRefreshTimer);
-                    location.reload();
+                    // Show the generated code
+                    codeWasGenerated = true; // Mark that we generated a code
+                    document.getElementById('modal-form').style.display = 'none';
+                    document.getElementById('modal-result').style.display = 'block';
+                    document.getElementById('generated-code').textContent = data.code;
+                    document.getElementById('code-store').textContent = data.store_code;
+                    document.getElementById('code-device').textContent = data.device_label;
                 } else {
-                    alert(`Failed to delete device: ${data.error}`);
+                    showToast(`Failed to generate code: ${data.error}`, 'error');
                 }
             } catch (error) {
-                alert(`Error deleting device: ${error.message}`);
+                showToast(`Error generating code: ${error.message}`, 'error');
             }
+        }
+
+        // Copy code to clipboard
+        function copyCode(btn) {
+            const code = document.getElementById('generated-code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
         }
     </script>
 </head>
@@ -438,8 +776,9 @@ def dashboard():
             <h1>📊 Device Dashboard</h1>
             <a href="/" class="back-link">← Back to Home</a>
         </div>
-        <div class="refresh-info">
-            Auto-refreshes every {{ config.auto_refresh }}s
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <button onclick="showGenerateCodeModal()" class="btn-generate">🔑 Generate Registration Code</button>
+            <div class="refresh-info">Auto-refreshes every {{ config.auto_refresh }}s</div>
         </div>
     </div>
 
@@ -501,6 +840,62 @@ def dashboard():
             </div>
         </div>
     {% endif %}
+
+    <!-- Generate Registration Code Modal -->
+    <div id="generate-modal" class="modal">
+        <div class="modal-content">
+            <!-- Form to input store and device -->
+            <div id="modal-form">
+                <div class="modal-header">🔑 Generate Registration Code</div>
+                <div class="form-group">
+                    <label for="store-code-input">Store Code</label>
+                    <input type="text" id="store-code-input" placeholder="FYSHWICK" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label for="device-label-input">Device Name</label>
+                    <input type="text" id="device-label-input" placeholder="Front Counter">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+                    <button class="btn-primary" onclick="generateCode()">Generate Code</button>
+                </div>
+            </div>
+
+            <!-- Result display after generation -->
+            <div id="modal-result" style="display: none;">
+                <div class="modal-header">✓ Registration Code Generated</div>
+                <div class="code-display">
+                    <div class="code-value" id="generated-code">ABC12345</div>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy Code</button>
+                    <div class="code-info">
+                        For: <strong><span id="code-store"></span> / <span id="code-device"></span></strong><br>
+                        Expires in 24 hours
+                    </div>
+                </div>
+                <p style="color: #6b7280; margin-bottom: 16px;">
+                    This code can only be used once. Give it to the staff member who will configure the extension.
+                </p>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="hideModal()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal confirm-modal">
+        <div class="modal-content">
+            <div class="modal-header">⚠️ Confirm Delete</div>
+            <div id="confirm-message" class="confirm-message"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="hideConfirmModal()">Cancel</button>
+                <button id="confirm-btn" class="btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>
     """
