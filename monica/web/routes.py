@@ -624,10 +624,9 @@ def dashboard():
         }
 
         // Copy code to clipboard
-        function copyCode() {
+        function copyCode(btn) {
             const code = document.getElementById('generated-code').textContent;
             navigator.clipboard.writeText(code).then(() => {
-                const btn = event.target;
                 const originalText = btn.textContent;
                 btn.textContent = '✓ Copied!';
                 setTimeout(() => {
@@ -733,7 +732,7 @@ def dashboard():
                 <div class="modal-header">✓ Registration Code Generated</div>
                 <div class="code-display">
                     <div class="code-value" id="generated-code">ABC12345</div>
-                    <button class="copy-btn" onclick="copyCode()">📋 Copy Code</button>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy Code</button>
                     <div class="code-info">
                         For: <strong><span id="code-store"></span> / <span id="code-device"></span></strong><br>
                         Expires in 24 hours
