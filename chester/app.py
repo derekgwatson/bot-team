@@ -48,11 +48,40 @@ def info():
         'description': config.description,
         'version': config.version,
         'personality': config.personality,
+        'emoji': '🎩',
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health',
-            'info': '/info'
+            'web': {
+                '/': 'Home page (redirects to dashboard)',
+                '/dashboard': 'Bot dashboard with status overview',
+                '/public': 'Public bot directory (no auth required)',
+                '/bot/<bot_name>': 'Individual bot details page',
+                '/search': 'Search bots by name or capability',
+                '/new-bot-guide': 'Guide for creating new bots',
+                '/manage': 'Bot management interface (admin)',
+                '/manage/bot/<bot_name>': 'Edit bot configuration',
+                '/manage/add-bot': 'Add new bot to system'
+            },
+            'api': {
+                'GET /api/bots': 'List all bots',
+                'GET /api/bots/<bot_name>': 'Get bot details',
+                'GET /api/health/all': 'Health check all bots',
+                'GET /api/health/<bot_name>': 'Health check specific bot',
+                'GET /api/health/public/all': 'Public health status (no auth)',
+                'GET /api/capabilities/<bot_name>': 'Get bot capabilities',
+                'GET /api/search': 'Search bots by query',
+                'GET /api/summary': 'Bot team summary statistics',
+                'GET /api/deployment/bots': 'List deployment configurations',
+                'GET /api/deployment/bots/<bot_name>': 'Get bot deployment config',
+                'POST /api/deployment/bots': 'Create deployment configuration',
+                'PUT /api/deployment/bots/<bot_name>': 'Update deployment config',
+                'DELETE /api/deployment/bots/<bot_name>': 'Delete deployment config',
+                'GET /api/deployment/defaults': 'Get default deployment settings',
+                'PUT /api/deployment/defaults': 'Update default deployment settings'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
         }
     })
 

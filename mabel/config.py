@@ -94,6 +94,11 @@ class Config:
         """Bot description."""
         return self._config.get('description', '')
 
+    @property
+    def emoji(self) -> str:
+        """Bot emoji."""
+        return self._config.get('emoji', '📧')
+
     # Server configuration
     @property
     def server_host(self) -> str:

@@ -6,7 +6,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from flask import Flask
+from flask import Flask, jsonify
 from config import config
 from services.auth import init_auth
 from web.routes import web_bp
@@ -39,7 +39,41 @@ Disallow: /
 @app.route('/health')
 def health():
     """Health check endpoint"""
-    return {'status': 'ok', 'service': 'rita'}, 200
+    return jsonify({
+        'status': 'healthy',
+        'bot': config.name,
+        'version': config.version
+    })
+
+
+@app.route('/info')
+def info():
+    """Bot information endpoint"""
+    return jsonify({
+        'name': config.name,
+        'description': config.description,
+        'version': config.version,
+        'emoji': config.emoji,
+        'endpoints': {
+            'web': {
+                '/': 'Home page with access request dashboard',
+                '/my-access': 'View my access requests',
+                '/no-work-google': 'Request non-work Google account (GET/POST)'
+            },
+            'api': {
+                'GET /api/access-requests': 'Get all access requests'
+            },
+            'auth': {
+                '/login': 'Google OAuth login',
+                '/auth/callback': 'OAuth callback from Google',
+                '/logout': 'Log out the current user'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        }
+    })
 
 
 if __name__ == '__main__':

@@ -50,11 +50,34 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': '🏢',
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
-        }
+            'web': {
+                '/': 'Dashboard with onboarding form and requests',
+                '/onboard/new': 'New onboarding form',
+                '/onboard/<id>': 'View onboarding request details',
+                '/tasks': 'View pending manual tasks',
+                '/requests': 'View all onboarding requests'
+            },
+            'api': {
+                'GET /api/intro': 'Bot introduction and capabilities',
+                'POST /api/onboard': 'Submit a new onboarding request',
+                'GET /api/onboard': 'List all onboarding requests',
+                'GET /api/onboard/<id>': 'Get onboarding request details',
+                'POST /api/onboard/<id>/start': 'Start onboarding workflow',
+                'GET /api/tasks': 'Get pending manual tasks',
+                'POST /api/tasks/<id>/complete': 'Mark manual task as complete',
+                'GET /api/stats': 'Get onboarding statistics',
+                'GET /api/dependencies': 'Get bot dependencies',
+                'GET /api/dev-config': 'Get dev bot configuration',
+                'POST /api/dev-config': 'Update dev bot configuration'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information'
+            }
+        },
+        'dependencies': ['fred', 'zac', 'peter', 'sadie']
     })
 
 if __name__ == '__main__':

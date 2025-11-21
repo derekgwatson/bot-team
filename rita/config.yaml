@@ -1,7 +1,8 @@
-# Peter's Configuration
+# Rita's Configuration
 name: rita
 description: "User access manager"
 version: "0.1.0"
+emoji: "🧾"
 
 # Server configuration
 server:

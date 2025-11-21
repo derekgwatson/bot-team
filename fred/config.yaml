@@ -2,6 +2,7 @@
 name: fred
 description: "Google Workspace user management bot"
 version: "0.1.0"
+emoji: 👤
 
 # Server configuration
 server:

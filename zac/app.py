@@ -50,10 +50,45 @@ def info():
         'name': config.name,
         'description': config.description,
         'version': config.version,
+        'emoji': config.emoji,
         'endpoints': {
-            'web': '/',
-            'api': '/api',
-            'health': '/health'
+            'web': {
+                '/': 'Main dashboard - list all Zendesk users',
+                '/user/<int:user_id>': 'View detailed information about a specific user',
+                '/user/create': 'Create a new Zendesk user (GET/POST)',
+                '/user/<int:user_id>/edit': 'Edit an existing user (GET/POST)',
+                '/user/<int:user_id>/suspend': 'Suspend a user (POST)',
+                '/user/<int:user_id>/unsuspend': 'Unsuspend a user (POST)',
+                '/user/<int:user_id>/delete': 'Delete a user (POST)'
+            },
+            'api': {
+                'GET /api/users': 'List all Zendesk users with optional filtering (role, page, per_page)',
+                'GET /api/users/<int:user_id>': 'Get a specific user by ID',
+                'GET /api/users/search': 'Search for users by name or email',
+                'POST /api/users': 'Create a new Zendesk user',
+                'PUT/PATCH /api/users/<int:user_id>': 'Update a user\'s properties',
+                'POST /api/users/<int:user_id>/suspend': 'Suspend a user',
+                'POST /api/users/<int:user_id>/unsuspend': 'Unsuspend a user',
+                'DELETE /api/users/<int:user_id>': 'Delete a user'
+            },
+            'auth': {
+                '/login': 'Google OAuth login',
+                '/auth/callback': 'OAuth callback from Google',
+                '/logout': 'Log out the current user'
+            },
+            'system': {
+                '/health': 'Health check',
+                '/info': 'Bot information',
+                '/robots.txt': 'Robots.txt file'
+            }
+        },
+        'authentication': {
+            'provider': 'Google OAuth',
+            'required': 'All web routes require authentication',
+            'admin_emails': len(config.admin_emails) if hasattr(config, 'admin_emails') else 0
+        },
+        'zendesk': {
+            'subdomain': config.zendesk_subdomain if config.zendesk_subdomain else 'Not configured'
         }
     })
 
