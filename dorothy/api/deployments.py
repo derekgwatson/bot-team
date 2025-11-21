@@ -380,10 +380,11 @@ def add_bot():
         # Append to existing bots section
         new_config = current_config + f"{bot_yaml}\n"
 
-    # Write updated config as www-data user (escape single quotes for shell)
+    # Write updated config (escape single quotes for shell)
     escaped_config = new_config.replace("'", "'\\''")
     if deployment_orchestrator.use_sudo:
-        write_cmd = f"sudo su -s /bin/bash -c \"echo '{escaped_config}' > {config_path}\" www-data"
+        # Use tee to write file as root, then chown to www-data
+        write_cmd = f"echo '{escaped_config}' | sudo tee {config_path} > /dev/null && sudo chown www-data:www-data {config_path}"
     else:
         write_cmd = f"echo '{escaped_config}' > {config_path}"
 

@@ -695,7 +695,7 @@ class DeploymentOrchestrator:
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
             if self.use_sudo:
-                result = self._call_sally(server, f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data")
+                result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data git pull")
             else:
                 result = self._call_sally(server, f"cd {repo_path} && git pull")
         else:
@@ -759,7 +759,7 @@ class DeploymentOrchestrator:
 
         # Check and setup .env file
         if self.use_sudo:
-            env_cmd = f"[ -f {path}/.env ] && echo 'exists' || ([ -f {path}/.env.example ] && sudo su -s /bin/bash -c 'cp {path}/.env.example {path}/.env' www-data && echo 'created' || echo 'no_example')"
+            env_cmd = f"[ -f {path}/.env ] && echo 'exists' || ([ -f {path}/.env.example ] && sudo -u www-data cp {path}/.env.example {path}/.env && echo 'created' || echo 'no_example')"
         else:
             env_cmd = f"[ -f {path}/.env ] && echo 'exists' || ([ -f {path}/.env.example ] && cp {path}/.env.example {path}/.env && echo 'created' || echo 'no_example')"
 
@@ -767,7 +767,7 @@ class DeploymentOrchestrator:
 
         # Check and setup config.local.yaml file
         if self.use_sudo:
-            config_cmd = f"[ -f {path}/config.local.yaml ] && echo 'exists' || ([ -f {path}/config.local.yaml.example ] && sudo su -s /bin/bash -c 'cp {path}/config.local.yaml.example {path}/config.local.yaml' www-data && echo 'created' || echo 'no_example')"
+            config_cmd = f"[ -f {path}/config.local.yaml ] && echo 'exists' || ([ -f {path}/config.local.yaml.example ] && sudo -u www-data cp {path}/config.local.yaml.example {path}/config.local.yaml && echo 'created' || echo 'no_example')"
         else:
             config_cmd = f"[ -f {path}/config.local.yaml ] && echo 'exists' || ([ -f {path}/config.local.yaml.example ] && cp {path}/config.local.yaml.example {path}/config.local.yaml && echo 'created' || echo 'no_example')"
 
@@ -1145,7 +1145,7 @@ class DeploymentOrchestrator:
         # Step 1: Git pull
         update_result['steps'].append({'name': 'Pull latest code', 'status': 'in_progress'})
         if self.use_sudo:
-            pull_cmd = f"sudo su -s /bin/bash -c 'cd {path} && git pull' www-data"
+            pull_cmd = f"cd {path} && sudo -u www-data git pull"
         else:
             pull_cmd = f"cd {path} && git pull"
 
