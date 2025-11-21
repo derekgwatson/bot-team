@@ -1,6 +1,7 @@
 // Monica Store Monitor - Popup UI Logic
 
 let currentState = null;
+let isReconfiguring = false; // Flag to prevent auto-refresh from overriding user action
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +27,11 @@ function setupEventListeners() {
 function updateUI() {
   const configSection = document.getElementById('config-section');
   const statusSection = document.getElementById('status-section');
+
+  // Don't auto-switch views if user is actively reconfiguring
+  if (isReconfiguring) {
+    return;
+  }
 
   if (currentState.configured && currentState.registered) {
     // Show status
@@ -160,6 +166,7 @@ async function saveConfiguration() {
       registrationCode: registrationCode
     }, (response) => {
       if (response.success) {
+        isReconfiguring = false; // Reset flag so UI can update
         currentState = response.state;
         updateUI();
       } else {
@@ -174,6 +181,7 @@ async function saveConfiguration() {
 
 // Show configuration screen
 function showConfiguration() {
+  isReconfiguring = true; // Prevent auto-refresh from switching back
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
 }
