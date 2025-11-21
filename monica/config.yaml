@@ -30,3 +30,7 @@ database:
 # Dashboard
 dashboard:
   auto_refresh: 30  # Auto-refresh dashboard every 30 seconds
+
+# Security
+security:
+  require_registration_codes: false  # Set to true to enforce registration codes (backward compatible)

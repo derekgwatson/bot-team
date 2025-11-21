@@ -18,6 +18,7 @@ import logging
 
 from monica.database.db import db
 from monica.services.status_service import status_service
+from monica.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,11 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/register', methods=['POST'])
 def register():
     """
-    Register a new device using a one-time registration code
+    Register a new device (with optional registration code for backward compatibility)
 
     Request JSON:
         {
-            "registration_code": "ABC12345",
+            "registration_code": "ABC12345",  // optional if require_registration_codes is false
             "store_code": "FYSHWICK",
             "device_label": "Front Counter"
         }
@@ -57,12 +58,6 @@ def register():
         store_code = data.get('store_code', '').strip()
         device_label = data.get('device_label', '').strip()
 
-        if not registration_code:
-            return jsonify({
-                'success': False,
-                'error': 'registration_code is required'
-            }), 400
-
         if not store_code:
             return jsonify({
                 'success': False,
@@ -75,20 +70,31 @@ def register():
                 'error': 'device_label is required'
             }), 400
 
-        # Validate registration code
-        code_data = db.get_registration_code(registration_code)
-        if not code_data:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid, expired, or already used registration code'
-            }), 403
+        # Check if registration codes are required (from config)
+        require_codes = config.require_registration_codes
 
-        # Verify code matches the store and device
-        if code_data['store_code'] != store_code or code_data['device_label'] != device_label:
-            return jsonify({
-                'success': False,
-                'error': f"Registration code is for {code_data['store_code']}/{code_data['device_label']}"
-            }), 403
+        if require_codes:
+            # Secure mode - registration code required
+            if not registration_code:
+                return jsonify({
+                    'success': False,
+                    'error': 'registration_code is required'
+                }), 400
+
+            # Validate registration code
+            code_data = db.get_registration_code(registration_code)
+            if not code_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid, expired, or already used registration code'
+                }), 403
+
+            # Verify code matches the store and device
+            if code_data['store_code'] != store_code or code_data['device_label'] != device_label:
+                return jsonify({
+                    'success': False,
+                    'error': f"Registration code is for {code_data['store_code']}/{code_data['device_label']}"
+                }), 403
 
         # Get or create store
         store_id = db.get_or_create_store(store_code)
@@ -99,13 +105,18 @@ def register():
         # Get or create device
         device = db.get_or_create_device(store_id, device_label, agent_token)
 
-        # Mark code as used
-        db.mark_code_as_used(registration_code, device['id'])
-
-        logger.info(
-            f"Device registered with code {registration_code}: {store_code}/{device_label} "
-            f"(device_id={device['id']})"
-        )
+        # Mark code as used if provided and required
+        if require_codes and registration_code:
+            db.mark_code_as_used(registration_code, device['id'])
+            logger.info(
+                f"Device registered with code {registration_code}: {store_code}/{device_label} "
+                f"(device_id={device['id']})"
+            )
+        else:
+            logger.info(
+                f"Device registered (backward compatible mode): {store_code}/{device_label} "
+                f"(device_id={device['id']})"
+            )
 
         return jsonify({
             'success': True,
