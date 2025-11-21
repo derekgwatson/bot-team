@@ -11,8 +11,10 @@ def login():
         return redirect(url_for('web.index'))
 
     # Get the OAuth redirect URI
+    # Use prompt='select_account' to force account selection even if already logged into Google
+    # This makes logout feel "real" - user must explicitly choose account on next login
     redirect_uri = url_for('auth.callback', _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    return oauth.google.authorize_redirect(redirect_uri, prompt='select_account')
 
 @auth_bp.route('/auth/callback')
 def callback():
