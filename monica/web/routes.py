@@ -472,6 +472,83 @@ def dashboard():
             gap: 12px;
             margin-top: 24px;
         }
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .toast {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+        }
+        .toast-icon {
+            font-size: 1.5em;
+        }
+        .toast-message {
+            flex: 1;
+            font-size: 0.95em;
+            color: #1f2937;
+        }
+        /* Confirmation modal styles */
+        .confirm-modal .modal-content {
+            max-width: 450px;
+        }
+        .confirm-message {
+            color: #374151;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .confirm-device-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+        }
         .btn-primary {
             flex: 1;
             background: #667eea;
@@ -540,30 +617,76 @@ def dashboard():
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
 
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-message">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Show confirmation modal
+        function showConfirmModal(message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-message').innerHTML = message;
+            modal.classList.add('active');
+
+            // Set up confirm button
+            const confirmBtn = document.getElementById('confirm-btn');
+            confirmBtn.onclick = () => {
+                modal.classList.remove('active');
+                onConfirm();
+            };
+        }
+
+        // Hide confirmation modal
+        function hideConfirmModal() {
+            document.getElementById('confirm-modal').classList.remove('active');
+        }
+
         // Delete device
-        async function deleteDevice(deviceId, deviceName) {
-            if (!confirm(`Are you sure you want to delete "${deviceName}"?\n\nThis will remove the device and all its heartbeat history.`)) {
-                return;
-            }
+        function deleteDevice(deviceId, deviceName) {
+            showConfirmModal(
+                `Are you sure you want to delete <span class="confirm-device-name">"${deviceName}"</span>?<br><br>This will remove the device and all its heartbeat history.`,
+                async () => {
+                    try {
+                        const response = await fetch(`/api/devices/${deviceId}`, {
+                            method: 'DELETE'
+                        });
 
-            try {
-                const response = await fetch(`/api/devices/${deviceId}`, {
-                    method: 'DELETE'
-                });
+                        const data = await response.json();
 
-                const data = await response.json();
-
-                if (data.success) {
-                    alert(`Device "${deviceName}" deleted successfully`);
-                    // Clear auto-refresh timer and reload immediately
-                    clearTimeout(autoRefreshTimer);
-                    location.reload();
-                } else {
-                    alert(`Failed to delete device: ${data.error}`);
+                        if (data.success) {
+                            showToast(`Device "${deviceName}" deleted successfully`, 'success');
+                            // Clear auto-refresh timer and reload after a brief delay
+                            clearTimeout(autoRefreshTimer);
+                            setTimeout(() => location.reload(), 800);
+                        } else {
+                            showToast(`Failed to delete device: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        showToast(`Error deleting device: ${error.message}`, 'error');
+                    }
                 }
-            } catch (error) {
-                alert(`Error deleting device: ${error.message}`);
-            }
+            );
         }
 
         // Show generate code modal
@@ -592,7 +715,7 @@ def dashboard():
             const deviceLabel = document.getElementById('device-label-input').value.trim();
 
             if (!storeCode || !deviceLabel) {
-                alert('Please enter both store code and device name');
+                showToast('Please enter both store code and device name', 'error');
                 return;
             }
 
@@ -616,10 +739,10 @@ def dashboard():
                     document.getElementById('code-store').textContent = data.store_code;
                     document.getElementById('code-device').textContent = data.device_label;
                 } else {
-                    alert(`Failed to generate code: ${data.error}`);
+                    showToast(`Failed to generate code: ${data.error}`, 'error');
                 }
             } catch (error) {
-                alert(`Error generating code: ${error.message}`);
+                showToast(`Error generating code: ${error.message}`, 'error');
             }
         }
 
@@ -747,6 +870,21 @@ def dashboard():
             </div>
         </div>
     </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal confirm-modal">
+        <div class="modal-content">
+            <div class="modal-header">⚠️ Confirm Delete</div>
+            <div id="confirm-message" class="confirm-message"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="hideConfirmModal()">Cancel</button>
+                <button id="confirm-btn" class="btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>
     """
