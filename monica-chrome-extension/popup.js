@@ -35,6 +35,7 @@ async function loadState() {
 function setupEventListeners() {
   document.getElementById('save-config').addEventListener('click', saveConfiguration);
   document.getElementById('reconfigure').addEventListener('click', showConfiguration);
+  document.getElementById('cancel-config').addEventListener('click', cancelConfiguration);
 }
 
 // Update UI based on state
@@ -47,6 +48,8 @@ function updateUI() {
     return;
   }
 
+  const cancelButton = document.getElementById('cancel-config');
+
   if (currentState.configured && currentState.registered) {
     // Show status
     configSection.style.display = 'none';
@@ -56,6 +59,14 @@ function updateUI() {
     // Show configuration
     configSection.style.display = 'block';
     statusSection.style.display = 'none';
+
+    // Show cancel button only if there's a valid existing config to go back to
+    // (i.e., user clicked "Reconfigure" vs first-time setup)
+    if (currentState.monicaUrl && currentState.deviceId) {
+      cancelButton.style.display = 'block';
+    } else {
+      cancelButton.style.display = 'none';
+    }
 
     // Pre-fill Monica URL if partially configured
     if (currentState.monicaUrl) {
@@ -207,6 +218,18 @@ function showConfiguration() {
   isReconfiguring = true; // Prevent auto-refresh from switching back
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
+
+  // Show cancel button if there's an existing config
+  const cancelButton = document.getElementById('cancel-config');
+  if (currentState.monicaUrl && currentState.deviceId) {
+    cancelButton.style.display = 'block';
+  }
+}
+
+// Cancel configuration and go back to status
+function cancelConfiguration() {
+  isReconfiguring = false; // Allow normal UI updates
+  updateUI(); // This will switch back to status view
 }
 
 // Auto-refresh status every 5 seconds
