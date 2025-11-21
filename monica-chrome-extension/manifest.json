@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Monica Store Monitor",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Monitors store network connectivity and sends heartbeats to Monica monitoring service",
   "permissions": [
     "storage",

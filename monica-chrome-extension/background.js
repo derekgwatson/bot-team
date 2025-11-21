@@ -295,12 +295,20 @@ async function runNetworkTest() {
     const end = performance.now();
 
     if (response.ok) {
-      state.lastLatency = Math.round(end - start);
+      const newLatency = Math.round(end - start);
+      state.lastLatency = newLatency;
       console.log('[Monica] Latency:', state.lastLatency, 'ms');
+
+      // Save state to persist latency across service worker restarts
+      await saveState();
+    } else {
+      console.warn(`[Monica] Latency test returned ${response.status}: keeping last known value`);
+      // Don't reset to null - keep last known good value
     }
   } catch (error) {
-    console.error('[Monica] Latency test failed:', error);
-    state.lastLatency = null;
+    console.error('[Monica] Latency test failed:', error.message || error);
+    // Don't reset to null - keep last known good value
+    // This prevents latency from disappearing due to transient network issues
   }
 
   // Speed test - simplified for extension
@@ -322,12 +330,16 @@ async function runNetworkTest() {
 
     const durationSeconds = (end - start) / 1000;
     const sizeMb = (testSize * 10) / (1024 * 1024);
-    state.lastSpeed = parseFloat((sizeMb / durationSeconds).toFixed(2));
+    const newSpeed = parseFloat((sizeMb / durationSeconds).toFixed(2));
+    state.lastSpeed = newSpeed;
 
     console.log('[Monica] Download speed:', state.lastSpeed, 'Mbps');
+
+    // Save state to persist speed across service worker restarts
+    await saveState();
   } catch (error) {
-    console.error('[Monica] Speed test failed:', error);
-    state.lastSpeed = null;
+    console.error('[Monica] Speed test failed:', error.message || error);
+    // Don't reset to null - keep last known good value
   }
 }
 

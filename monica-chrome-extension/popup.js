@@ -117,6 +117,9 @@ function updateStatusDisplay() {
 
   if (currentState.lastLatency !== null) {
     document.getElementById('latency-value').textContent = `${currentState.lastLatency} ms`;
+  } else if (currentState.configured && currentState.registered) {
+    // Registered but no latency yet - first test pending
+    document.getElementById('latency-value').textContent = 'Testing...';
   } else {
     document.getElementById('latency-value').textContent = '-';
   }
