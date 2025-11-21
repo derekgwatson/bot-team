@@ -695,7 +695,7 @@ class DeploymentOrchestrator:
         if 'exists' in repo_check.get('stdout', ''):
             # Pull latest
             if self.use_sudo:
-                result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data git pull")
+                result = self._call_sally(server, f"cd {repo_path} && sudo -u www-data /usr/bin/git pull")
             else:
                 result = self._call_sally(server, f"cd {repo_path} && git pull")
         else:
@@ -705,7 +705,7 @@ class DeploymentOrchestrator:
             if self.use_sudo:
                 result = self._call_sally(
                     server,
-                    f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo git clone {repo} {repo_name} && sudo chown -R www-data:www-data {repo_path}"
+                    f"sudo mkdir -p {parent_path} && cd {parent_path} && sudo /usr/bin/git clone {repo} {repo_name} && sudo chown -R www-data:www-data {repo_path}"
                 )
             else:
                 result = self._call_sally(
@@ -1145,7 +1145,7 @@ class DeploymentOrchestrator:
         # Step 1: Git pull
         update_result['steps'].append({'name': 'Pull latest code', 'status': 'in_progress'})
         if self.use_sudo:
-            pull_cmd = f"cd {path} && sudo -u www-data git pull"
+            pull_cmd = f"cd {path} && sudo -u www-data /usr/bin/git pull"
         else:
             pull_cmd = f"cd {path} && git pull"
 
