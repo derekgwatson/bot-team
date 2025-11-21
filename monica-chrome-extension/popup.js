@@ -9,6 +9,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
 });
 
+// Show loading overlay
+function showLoadingOverlay(message) {
+  const overlay = document.getElementById('loading-overlay');
+  const messageEl = document.getElementById('loading-message');
+  messageEl.textContent = message;
+  overlay.classList.add('active');
+}
+
+// Hide loading overlay
+function hideLoadingOverlay() {
+  const overlay = document.getElementById('loading-overlay');
+  overlay.classList.remove('active');
+}
+
 // Load current state from background worker
 async function loadState() {
   chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
@@ -126,10 +140,11 @@ async function saveConfiguration() {
     return;
   }
 
-  // Disable button during save
+  // Disable button and show loading overlay
   const saveButton = document.getElementById('save-config');
   saveButton.disabled = true;
   saveButton.textContent = 'Requesting permission...';
+  showLoadingOverlay('Requesting permission...');
 
   // Request permission for the specific origin
   const origin = `${urlObj.protocol}//${urlObj.host}/*`;
@@ -138,6 +153,7 @@ async function saveConfiguration() {
     origins: [origin]
   }, (granted) => {
     if (!granted) {
+      hideLoadingOverlay();
       errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
       saveButton.disabled = false;
       saveButton.textContent = 'Save & Start Monitoring';
@@ -146,12 +162,14 @@ async function saveConfiguration() {
 
     // Permission granted, now test connection
     saveButton.textContent = 'Testing connection...';
+    showLoadingOverlay('Testing connection...');
 
     chrome.runtime.sendMessage({
       action: 'testConnection',
       monicaUrl: monicaUrl
     }, (response) => {
     if (!response.success) {
+      hideLoadingOverlay();
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
       saveButton.disabled = false;
       saveButton.textContent = 'Save & Start Monitoring';
@@ -159,13 +177,15 @@ async function saveConfiguration() {
     }
 
     // Connection successful, save configuration
-    saveButton.textContent = 'Configuring...';
+    saveButton.textContent = 'Registering...';
+    showLoadingOverlay('Registering device...');
 
     chrome.runtime.sendMessage({
       action: 'configure',
       monicaUrl: monicaUrl,
       registrationCode: registrationCode
     }, (response) => {
+      hideLoadingOverlay();
       if (response.success) {
         isReconfiguring = false; // Reset flag so UI can update
         currentState = response.state;
