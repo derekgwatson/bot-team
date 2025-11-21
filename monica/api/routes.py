@@ -16,6 +16,7 @@ from datetime import datetime
 import secrets
 import logging
 
+from monica.config import config
 from monica.database.db import db
 from monica.services.status_service import status_service
 
@@ -215,10 +216,31 @@ def heartbeat():
             public_ip=public_ip
         )
 
-        logger.debug(
-            f"Heartbeat recorded for device {device['id']} "
-            f"(heartbeat_id={heartbeat_id})"
-        )
+        # Conditional heartbeat logging based on config
+        if config.log_heartbeats or logger.isEnabledFor(logging.DEBUG):
+            # Device dict already includes store_code and device_label from get_device_by_token
+            log_msg = (
+                f"Heartbeat recorded: {device['store_code']}/{device['device_label']} "
+                f"(device_id={device['id']}, heartbeat_id={heartbeat_id}, "
+                f"ip={public_ip}, status={status}"
+            )
+
+            # Add optional metrics if present
+            if latency_ms is not None:
+                log_msg += f", latency={latency_ms:.1f}ms"
+            if download_mbps is not None:
+                log_msg += f", download={download_mbps:.1f}Mbps"
+
+            # Add timestamp info to help debug timestamp mismatches
+            now_server = datetime.now()
+            if timestamp:
+                time_diff = (now_server - timestamp.replace(tzinfo=None)).total_seconds()
+                log_msg += f", client_ts={timestamp.isoformat()}, server_ts={now_server.isoformat()}, diff={time_diff:.1f}s"
+            else:
+                log_msg += f", server_ts={now_server.isoformat()}"
+
+            log_msg += ")"
+            logger.info(log_msg)
 
         return jsonify({
             'success': True,

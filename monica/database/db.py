@@ -171,20 +171,25 @@ class Database:
 
     def get_device_by_token(self, agent_token: str) -> Optional[Dict[str, Any]]:
         """
-        Get device by agent token
+        Get device by agent token with store information
 
         Args:
             agent_token: Agent token
 
         Returns:
-            Device dictionary or None if not found
+            Device dictionary with store info or None if not found
         """
         conn = self.get_connection()
         try:
-            cursor = conn.execute(
-                "SELECT * FROM devices WHERE agent_token = ?",
-                (agent_token,)
-            )
+            cursor = conn.execute("""
+                SELECT
+                    d.*,
+                    s.store_code,
+                    s.display_name as store_display_name
+                FROM devices d
+                JOIN stores s ON d.store_id = s.id
+                WHERE d.agent_token = ?
+            """, (agent_token,))
             row = cursor.fetchone()
             return dict(row) if row else None
         finally:

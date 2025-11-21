@@ -63,6 +63,11 @@ class Config:
         dashboard = data.get("dashboard", {}) or {}
         self.auto_refresh = dashboard.get("auto_refresh", 30)
 
+        # ── Logging settings ──────────────────────────────────
+        logging = data.get("logging", {}) or {}
+        self.log_level = logging.get("level", "INFO")
+        self.log_heartbeats = logging.get("log_heartbeats", False)
+
         # ── Secrets / env-specific settings ────────────────────
 
         # Flask secret key

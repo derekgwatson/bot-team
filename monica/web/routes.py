@@ -620,6 +620,28 @@ def dashboard():
         // Track if a code was generated (to refresh immediately on modal close)
         let codeWasGenerated = false;
 
+        // Track when tab becomes hidden to detect stale data
+        let tabBecameHiddenAt = null;
+
+        // Page Visibility API - refresh when tab becomes visible again if data might be stale
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Tab is now hidden - record the time
+                tabBecameHiddenAt = Date.now();
+            } else {
+                // Tab is now visible again
+                if (tabBecameHiddenAt) {
+                    const hiddenDuration = (Date.now() - tabBecameHiddenAt) / 1000;
+                    // If tab was hidden for more than the auto-refresh interval, refresh immediately
+                    if (hiddenDuration > {{ config.auto_refresh }}) {
+                        console.log(`Tab was hidden for ${hiddenDuration.toFixed(0)}s, refreshing...`);
+                        location.reload();
+                    }
+                }
+                tabBecameHiddenAt = null;
+            }
+        });
+
         // Show toast notification
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');

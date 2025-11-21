@@ -5,7 +5,7 @@ Business logic for determining device status from heartbeat data
 
 from datetime import datetime, timedelta
 from typing import Dict, Any, Literal
-from config import config
+from monica.config import config
 
 StatusType = Literal['online', 'degraded', 'offline']
 
