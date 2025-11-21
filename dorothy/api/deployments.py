@@ -55,6 +55,15 @@ def sally_health():
     return jsonify(health), status_code
 
 
+@api_bp.route('/chester/health', methods=['GET'])
+@login_required
+def chester_health():
+    """Check if Chester is healthy and responding"""
+    health = deployment_orchestrator.check_chester_health()
+    status_code = 200 if health.get('healthy') else 503
+    return jsonify(health), status_code
+
+
 @api_bp.route('/bots', methods=['GET'])
 @api_key_required
 def list_bots():

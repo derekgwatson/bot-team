@@ -93,6 +93,51 @@ class DeploymentOrchestrator:
                 'error': f'Failed to check Sally health: {str(e)}'
             }
 
+    def check_chester_health(self) -> Dict:
+        """
+        Check if Chester is healthy and responding
+
+        Returns:
+            Dict with Chester's health status
+        """
+        chester_url = self._get_bot_url('chester')
+        client = BotHttpClient(chester_url)
+
+        try:
+            response = client.get("health", timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            return {
+                'success': True,
+                'healthy': data.get('status') == 'healthy',
+                'url': chester_url,
+                'version': data.get('version'),
+                'response_time_ms': int(response.elapsed.total_seconds() * 1000)
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': chester_url,
+                'error': 'Connection refused - Chester is not running or not accessible',
+                'hint': f'Make sure Chester is running on {chester_url}'
+            }
+        except requests.exceptions.Timeout:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': chester_url,
+                'error': 'Connection timeout - Chester is not responding',
+                'hint': 'Chester may be running but overloaded or unresponsive'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'healthy': False,
+                'url': chester_url,
+                'error': f'Failed to check Chester health: {str(e)}'
+            }
+
     def _call_sally(self, server: str, command: str, timeout: Optional[int] = None) -> Dict:
         """
         Call Sally's API to execute a command
