@@ -18,7 +18,9 @@ from flask import Flask, jsonify
 from monica.config import config
 from monica.api.routes import api_bp
 from monica.web.routes import web_bp
+from monica.web.auth_routes import auth_bp
 from monica.database.db import db
+from monica.services.auth import init_auth
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -37,7 +39,11 @@ logger.info(f"Logging configured at {log_level_name} level")
 app = Flask(__name__)
 app.secret_key = config.secret_key
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 

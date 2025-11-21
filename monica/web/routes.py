@@ -18,6 +18,7 @@ import logging
 from monica.database.db import db
 from monica.services.status_service import status_service
 from monica.config import config
+from monica.services.auth import login_required
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,17 @@ web_bp = Blueprint('web', __name__)
 
 
 @web_bp.route('/')
+@login_required
 def index():
-    """Home page with links to dashboard and agent"""
+    """Home page - redirects to dashboard"""
+    from flask import redirect, url_for
+    return redirect(url_for('web.dashboard'))
+
+
+@web_bp.route('/help')
+@login_required
+def help_page():
+    """Help page with setup instructions"""
     template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -34,7 +44,7 @@ def index():
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>📡 {{ config.name }} - ChromeOS Monitoring</title>
+    <title>Help - {{ config.name }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -86,9 +96,6 @@ def index():
             line-height: 1.6;
             margin-bottom: 16px;
         }
-        .section.admin {
-            border-left-color: #667eea;
-        }
         .section.device {
             border-left-color: #10b981;
         }
@@ -107,13 +114,6 @@ def index():
             background: #5a67d8;
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-        .btn.secondary {
-            background: #10b981;
-        }
-        .btn.secondary:hover {
-            background: #059669;
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
         }
         .instructions {
             background: #fef3c7;
@@ -140,28 +140,23 @@ def index():
             font-family: monospace;
             color: #92400e;
         }
-        .info {
-            margin-top: 32px;
-            padding: 16px;
-            background: #f3f4f6;
-            border-radius: 8px;
-            font-size: 0.9em;
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 24px;
         }
-        .info strong {
-            color: #1f2937;
+        .back-link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📡 {{ config.name }}</h1>
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <h1>📡 {{ config.name }} Help</h1>
         <p class="subtitle">{{ config.description }}</p>
-
-        <div class="section admin">
-            <h2>📊 For Managers: View Dashboard</h2>
-            <p>Monitor all registered ChromeOS devices across your retail stores. See real-time status with traffic-light indicators (green/amber/red) showing device health.</p>
-            <a href="/dashboard" class="btn">Open Dashboard</a>
-        </div>
 
         <div class="section device">
             <h2>📡 For Staff Devices: Install Monitoring Agent</h2>
@@ -169,7 +164,7 @@ def index():
 
             <div class="instructions">
                 <h3>Step 1: Generate Registration Code</h3>
-                <p><strong>1.</strong> Go to the <a href="/dashboard" style="color: #667eea; text-decoration: underline;">Dashboard</a></p>
+                <p><strong>1.</strong> Go to the <a href="/" style="color: #667eea; text-decoration: underline;">Dashboard</a></p>
                 <p><strong>2.</strong> Click "Generate Registration Code" button</p>
                 <p><strong>3.</strong> Enter store code and device name</p>
                 <p><strong>4.</strong> Copy the generated code (valid for 24 hours)</p>
@@ -191,16 +186,6 @@ def index():
                 <p style="color: #059669;"><strong>✓ Automatic heartbeats every 60 seconds</strong></p>
             </div>
         </div>
-
-        <div class="info">
-            <strong>API Endpoints:</strong><br>
-            POST /api/register - Register a new device<br>
-            POST /api/heartbeat - Record heartbeat<br>
-            GET /api/devices - List all devices<br>
-            DELETE /api/devices/&lt;id&gt; - Delete a device<br>
-            <br>
-            <strong>Version:</strong> {{ config.version }}
-        </div>
     </div>
 </body>
 </html>
@@ -209,6 +194,7 @@ def index():
 
 
 @web_bp.route('/dashboard')
+@login_required
 def dashboard():
     """Dashboard showing all devices with traffic-light status"""
     # Get all devices with store info
@@ -388,17 +374,36 @@ def dashboard():
             text-decoration: underline;
         }
         .legend {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 16px 0;
+            max-width: fit-content;
+        }
+        .legend-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+        .legend-items {
             display: flex;
-            gap: 24px;
-            margin-top: 16px;
+            gap: 20px;
             flex-wrap: wrap;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
+            gap: 6px;
+            font-size: 0.85em;
             color: #6b7280;
+        }
+        .legend-item span {
+            font-size: 0.9em;
+            opacity: 0.8;
         }
         .btn-generate {
             background: #667eea;
@@ -796,7 +801,10 @@ def dashboard():
     <div class="header">
         <div>
             <h1>📊 Device Dashboard</h1>
-            <a href="/" class="back-link">← Back to Home</a>
+            <div style="display: flex; gap: 16px; margin-top: 8px;">
+                <a href="/help" class="back-link">❓ Help</a>
+                <a href="/logout" class="back-link">👋 Logout</a>
+            </div>
         </div>
         <div style="display: flex; gap: 16px; align-items: center;">
             <button onclick="showGenerateCodeModal()" class="btn-generate">🔑 Generate Registration Code</button>
@@ -804,15 +812,18 @@ def dashboard():
         </div>
     </div>
 
-    <div class="header legend">
-        <div class="legend-item">
-            <span>🟢</span> <strong>Online:</strong> Last seen ≤ {{ config.online_threshold }} min
-        </div>
-        <div class="legend-item">
-            <span>🟡</span> <strong>Degraded:</strong> Last seen {{ config.online_threshold }}-{{ config.degraded_threshold }} min
-        </div>
-        <div class="legend-item">
-            <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
+    <div class="legend">
+        <div class="legend-label">Status Guide (for reference)</div>
+        <div class="legend-items">
+            <div class="legend-item">
+                <span>🟢</span> <strong>Online:</strong> Last seen ≤ {{ config.online_threshold }} min
+            </div>
+            <div class="legend-item">
+                <span>🟡</span> <strong>Degraded:</strong> Last seen {{ config.online_threshold }}-{{ config.degraded_threshold }} min
+            </div>
+            <div class="legend-item">
+                <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
+            </div>
         </div>
     </div>
 
@@ -856,9 +867,8 @@ def dashboard():
             <div class="empty-state">
                 <div class="empty-state-icon">📡</div>
                 <h2>No devices registered yet</h2>
-                <p>To register a device, open this URL on the ChromeOS device:</p>
-                <p><code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
-                <a href="/" class="back-link">← Back to Home for Instructions</a>
+                <p>To register a device, click "Generate Registration Code" above, then install the Chrome extension.</p>
+                <a href="/help" class="back-link">❓ View Setup Instructions</a>
             </div>
         </div>
     {% endif %}
