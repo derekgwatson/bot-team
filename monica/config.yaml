@@ -13,7 +13,7 @@ server:
 
 # Heartbeat thresholds (in minutes)
 heartbeat:
-  online_threshold: 2      # Green if last seen within 2 minutes
+  online_threshold: 3      # Green if last seen within 3 minutes (allows missing 2 heartbeats)
   degraded_threshold: 10   # Amber if last seen within 10 minutes
   # Red if last seen > 10 minutes ago
 
