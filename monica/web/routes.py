@@ -31,10 +31,10 @@ def index():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ config.emoji }} {{ config.name }} - ChromeOS Monitoring</title>
+    <title>📡 {{ config.name }} - ChromeOS Monitoring</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -154,7 +154,7 @@ def index():
 </head>
 <body>
     <div class="container">
-        <h1>{{ config.emoji }} {{ config.name }}</h1>
+        <h1>📡 {{ config.name }}</h1>
         <p class="subtitle">{{ config.description }}</p>
 
         <div class="section admin">
@@ -400,6 +400,139 @@ def dashboard():
             font-size: 0.9em;
             color: #6b7280;
         }
+        .btn-generate {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-generate:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .modal-header {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f2937;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .btn-primary {
+            flex: 1;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        .btn-secondary {
+            flex: 1;
+            background: #e5e7eb;
+            color: #1f2937;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        .code-display {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .code-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+        .code-info {
+            margin-top: 12px;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        .copy-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
     </style>
     <script>
         // Auto-refresh every {{ config.auto_refresh }} seconds
@@ -432,6 +565,70 @@ def dashboard():
                 alert(`Error deleting device: ${error.message}`);
             }
         }
+
+        // Show generate code modal
+        function showGenerateCodeModal() {
+            document.getElementById('generate-modal').classList.add('active');
+            document.getElementById('modal-form').style.display = 'block';
+            document.getElementById('modal-result').style.display = 'none';
+        }
+
+        // Hide modal
+        function hideModal() {
+            document.getElementById('generate-modal').classList.remove('active');
+            document.getElementById('store-code-input').value = '';
+            document.getElementById('device-label-input').value = '';
+        }
+
+        // Generate registration code
+        async function generateCode() {
+            const storeCode = document.getElementById('store-code-input').value.trim().toUpperCase();
+            const deviceLabel = document.getElementById('device-label-input').value.trim();
+
+            if (!storeCode || !deviceLabel) {
+                alert('Please enter both store code and device name');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/registration-codes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_code: storeCode,
+                        device_label: deviceLabel
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show the generated code
+                    document.getElementById('modal-form').style.display = 'none';
+                    document.getElementById('modal-result').style.display = 'block';
+                    document.getElementById('generated-code').textContent = data.code;
+                    document.getElementById('code-store').textContent = data.store_code;
+                    document.getElementById('code-device').textContent = data.device_label;
+                } else {
+                    alert(`Failed to generate code: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error generating code: ${error.message}`);
+            }
+        }
+
+        // Copy code to clipboard
+        function copyCode() {
+            const code = document.getElementById('generated-code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
     </script>
 </head>
 <body>
@@ -440,8 +637,9 @@ def dashboard():
             <h1>📊 Device Dashboard</h1>
             <a href="/" class="back-link">← Back to Home</a>
         </div>
-        <div class="refresh-info">
-            Auto-refreshes every {{ config.auto_refresh }}s
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <button onclick="showGenerateCodeModal()" class="btn-generate">🔑 Generate Registration Code</button>
+            <div class="refresh-info">Auto-refreshes every {{ config.auto_refresh }}s</div>
         </div>
     </div>
 
@@ -503,6 +701,47 @@ def dashboard():
             </div>
         </div>
     {% endif %}
+
+    <!-- Generate Registration Code Modal -->
+    <div id="generate-modal" class="modal">
+        <div class="modal-content">
+            <!-- Form to input store and device -->
+            <div id="modal-form">
+                <div class="modal-header">🔑 Generate Registration Code</div>
+                <div class="form-group">
+                    <label for="store-code-input">Store Code</label>
+                    <input type="text" id="store-code-input" placeholder="FYSHWICK" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label for="device-label-input">Device Name</label>
+                    <input type="text" id="device-label-input" placeholder="Front Counter">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="hideModal()">Cancel</button>
+                    <button class="btn-primary" onclick="generateCode()">Generate Code</button>
+                </div>
+            </div>
+
+            <!-- Result display after generation -->
+            <div id="modal-result" style="display: none;">
+                <div class="modal-header">✓ Registration Code Generated</div>
+                <div class="code-display">
+                    <div class="code-value" id="generated-code">ABC12345</div>
+                    <button class="copy-btn" onclick="copyCode()">📋 Copy Code</button>
+                    <div class="code-info">
+                        For: <strong><span id="code-store"></span> / <span id="code-device"></span></strong><br>
+                        Expires in 24 hours
+                    </div>
+                </div>
+                <p style="color: #6b7280; margin-bottom: 16px;">
+                    This code can only be used once. Give it to the staff member who will configure the extension.
+                </p>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="hideModal()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
     """
