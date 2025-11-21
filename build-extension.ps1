@@ -5,7 +5,8 @@ $ErrorActionPreference = "Stop"
 
 $EXTENSION_DIR = "monica-chrome-extension"
 
-Write-Host "`n🚀 Building Monica Store Monitor" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🚀 Building Monica Store Monitor" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # Check we're in the right directory
@@ -38,7 +39,8 @@ try {
 # Create ZIP package
 $ZIP_NAME = "monica-monitor-v$VERSION.zip"
 
-Write-Host "`n📦 Creating package: $ZIP_NAME" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "📦 Creating package: $ZIP_NAME" -ForegroundColor Cyan
 
 # Remove old ZIP if it exists
 if (Test-Path $ZIP_NAME) {
@@ -88,10 +90,12 @@ Remove-Item $tempDir -Recurse -Force
 Write-Host "✅ Package created: $ZIP_NAME" -ForegroundColor Green
 
 # Show next steps
-Write-Host "`nNext steps:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Go to https://chrome.google.com/webstore/devconsole"
 Write-Host "2. Click on Monica Store Monitor"
 Write-Host "3. Upload $ZIP_NAME"
 Write-Host "4. Submit for review"
-Write-Host "`nCurrent version: $VERSION" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Current version: $VERSION" -ForegroundColor Cyan
 Write-Host ""
