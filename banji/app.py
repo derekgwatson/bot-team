@@ -14,6 +14,8 @@ from config import config
 from api.quote_endpoints import quotes_bp
 from api.session_endpoints import sessions_bp
 from web.routes import web_bp
+from web.auth_routes import auth_bp
+from services.auth import init_auth
 from services.session_manager import init_session_manager, get_session_manager
 
 # Create Flask app with template folder
@@ -24,6 +26,9 @@ app = Flask(
     static_folder=str(banji_dir / 'web' / 'static')
 )
 app.secret_key = config.secret_key
+
+# Initialize authentication
+init_auth(app)
 
 # Initialize session manager
 session_manager = init_session_manager(config, session_timeout_minutes=30)
@@ -38,6 +43,7 @@ def cleanup():
         pass
 
 # Register blueprints
+app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(quotes_bp, url_prefix='/api/quotes')
 app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
 app.register_blueprint(web_bp)
