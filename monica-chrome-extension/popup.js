@@ -49,6 +49,7 @@ function updateUI() {
   }
 
   const cancelButton = document.getElementById('cancel-config');
+  const saveButton = document.getElementById('save-config');
 
   if (currentState.configured && currentState.registered) {
     // Show status
@@ -60,12 +61,14 @@ function updateUI() {
     configSection.style.display = 'block';
     statusSection.style.display = 'none';
 
-    // Show cancel button only if there's a valid existing config to go back to
+    // Show cancel button and update button text if there's a valid existing config
     // (i.e., user clicked "Reconfigure" vs first-time setup)
     if (currentState.monicaUrl && currentState.deviceId) {
       cancelButton.style.display = 'block';
+      saveButton.textContent = 'Update Configuration';
     } else {
       cancelButton.style.display = 'none';
+      saveButton.textContent = 'Save & Start Monitoring';
     }
 
     // Pre-fill Monica URL if partially configured
@@ -153,6 +156,9 @@ async function saveConfiguration() {
 
   // Disable button and show loading overlay
   const saveButton = document.getElementById('save-config');
+  const hasExistingConfig = currentState.monicaUrl && currentState.deviceId;
+  const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
+
   saveButton.disabled = true;
   saveButton.textContent = 'Requesting permission...';
   showLoadingOverlay('Requesting permission...');
@@ -167,7 +173,7 @@ async function saveConfiguration() {
       hideLoadingOverlay();
       errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
       saveButton.disabled = false;
-      saveButton.textContent = 'Save & Start Monitoring';
+      saveButton.textContent = defaultButtonText;
       return;
     }
 
@@ -183,13 +189,13 @@ async function saveConfiguration() {
       hideLoadingOverlay();
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
       saveButton.disabled = false;
-      saveButton.textContent = 'Save & Start Monitoring';
+      saveButton.textContent = defaultButtonText;
       return;
     }
 
     // Connection successful, save configuration
-    saveButton.textContent = 'Registering...';
-    showLoadingOverlay('Registering device...');
+    saveButton.textContent = hasExistingConfig ? 'Updating...' : 'Registering...';
+    showLoadingOverlay(hasExistingConfig ? 'Updating configuration...' : 'Registering device...');
 
     chrome.runtime.sendMessage({
       action: 'configure',
@@ -206,7 +212,7 @@ async function saveConfiguration() {
         const errorMessage = response.error || 'Configuration failed';
         errorDiv.innerHTML = `<div class="error-message">${errorMessage}</div>`;
         saveButton.disabled = false;
-        saveButton.textContent = 'Save & Start Monitoring';
+        saveButton.textContent = defaultButtonText;
       }
     });
     });
@@ -219,10 +225,12 @@ function showConfiguration() {
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
 
-  // Show cancel button if there's an existing config
+  // Show cancel button and update button text if there's an existing config
   const cancelButton = document.getElementById('cancel-config');
+  const saveButton = document.getElementById('save-config');
   if (currentState.monicaUrl && currentState.deviceId) {
     cancelButton.style.display = 'block';
+    saveButton.textContent = 'Update Configuration';
   }
 }
 
