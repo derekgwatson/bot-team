@@ -272,10 +272,12 @@ function showConfiguration() {
   document.getElementById('config-section').style.display = 'block';
   document.getElementById('status-section').style.display = 'none';
 
-  // Clear the form for a fresh start
+  // Clear the form fields only (but don't clear temp storage yet - user might have been filling it out)
   document.getElementById('monica-url').value = '';
   document.getElementById('registration-code').value = '';
-  clearTemporaryFormValues(); // Clear any stored temporary values for fresh start
+
+  // Restore any saved values from temp storage
+  restoreTemporaryFormValues();
 
   // Clear any previous errors
   document.getElementById('config-error').innerHTML = '';
