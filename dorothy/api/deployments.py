@@ -239,7 +239,7 @@ def health_check_bot(bot_name):
             service_name = bot_config.get('service', f"gunicorn-{bot_name}")
             result = deployment_orchestrator._call_sally(
                 server,
-                f"sudo systemctl is-active {service_name}"
+                deployment_orchestrator._sudo(f"systemctl is-active {service_name}")
             )
             is_active = 'active' in result.get('stdout', '')
 
@@ -294,7 +294,7 @@ def start_service(bot_name):
 
     result = deployment_orchestrator._call_sally(
         server,
-        f"sudo systemctl start {service_name}"
+        deployment_orchestrator._sudo(f"systemctl start {service_name}")
     )
 
     return jsonify({
@@ -382,10 +382,12 @@ def add_bot():
 
     # Write updated config as www-data user (escape single quotes for shell)
     escaped_config = new_config.replace("'", "'\\''")
-    write_result = deployment_orchestrator._call_sally(
-        server,
-        f"sudo su -s /bin/bash -c \"echo '{escaped_config}' > {config_path}\" www-data"
-    )
+    if deployment_orchestrator.use_sudo:
+        write_cmd = f"sudo su -s /bin/bash -c \"echo '{escaped_config}' > {config_path}\" www-data"
+    else:
+        write_cmd = f"echo '{escaped_config}' > {config_path}"
+
+    write_result = deployment_orchestrator._call_sally(server, write_cmd)
 
     if not write_result.get('success'):
         return jsonify({
@@ -400,7 +402,7 @@ def add_bot():
 
     restart_result = deployment_orchestrator._call_sally(
         server,
-        f"sudo systemctl restart {service_name}"
+        deployment_orchestrator._sudo(f"systemctl restart {service_name}")
     )
 
     return jsonify({
