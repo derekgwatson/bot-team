@@ -94,20 +94,20 @@ Disallow: /
 ''', 200, {'Content-Type': 'text/plain'}
 
 
+# Sync bots from config.yaml to database on startup
+# This runs regardless of whether Chester is started with python or gunicorn
+from services.database import db
+result = db.sync_bots_from_config(verbose=False)
+if result['added']:
+    print(f"🔄 Chester: Auto-registered {len(result['added'])} bot(s) from config.yaml: {', '.join(result['added'])}")
+
+
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("🎩 Hi! I'm Chester")
     print("   Bot Team Concierge")
     print(f"   Running on http://localhost:{config.server_port}")
     print("="*50 + "\n")
-
-    # Sync bots from config.yaml to database on startup
-    from services.database import db
-    print("🔄 Syncing bots from config.yaml to database...")
-    result = db.sync_bots_from_config(verbose=True)
-    if result['added']:
-        print(f"   Added: {', '.join(result['added'])}")
-    print()
 
     app.run(
         host=config.server_host,
