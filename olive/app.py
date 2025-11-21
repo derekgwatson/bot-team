@@ -55,7 +55,7 @@ def info():
             'web': {
                 '/': 'Dashboard with offboarding form and requests',
                 '/offboard/new': 'New offboarding form',
-                '/offboard/<id>': 'View offboarding request details',
+                '/offboard/{id}': 'View offboarding request details',
                 '/tasks': 'View pending manual tasks',
                 '/requests': 'View all offboarding requests'
             },
@@ -63,10 +63,10 @@ def info():
                 'GET /api/intro': 'Bot introduction and capabilities',
                 'POST /api/offboard': 'Submit a new offboarding request',
                 'GET /api/offboard': 'List all offboarding requests',
-                'GET /api/offboard/<id>': 'Get offboarding request details',
-                'POST /api/offboard/<id>/start': 'Start offboarding workflow',
+                'GET /api/offboard/{id}': 'Get offboarding request details',
+                'POST /api/offboard/{id}/start': 'Start offboarding workflow',
                 'GET /api/tasks': 'Get pending manual tasks',
-                'POST /api/tasks/<id>/complete': 'Mark manual task as complete',
+                'POST /api/tasks/{id}/complete': 'Mark manual task as complete',
                 'GET /api/stats': 'Get offboarding statistics',
                 'GET /api/dependencies': 'Get bot dependencies',
                 'GET /api/dev-config': 'Get dev bot configuration',

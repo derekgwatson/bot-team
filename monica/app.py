@@ -80,7 +80,7 @@ def info():
                 'POST /api/register': 'Register a new device',
                 'POST /api/heartbeat': 'Record device heartbeat',
                 'GET /api/devices': 'List all devices',
-                'GET /api/devices/<id>/heartbeats': 'Get device heartbeat history'
+                'GET /api/devices/{id}/heartbeats': 'Get device heartbeat history'
             },
             'system': {
                 '/health': 'Health check',

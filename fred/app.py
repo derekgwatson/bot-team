@@ -55,16 +55,16 @@ def info():
             'web': {
                 '/': 'Home page - Active users list',
                 '/archived': 'Archived users list',
-                '/users/<email>': 'User detail page',
+                '/users/{email}': 'User detail page',
                 '/users/new': 'Create new user form'
             },
             'api': {
                 'GET /api/intro': 'Bot introduction and capabilities',
                 'GET /api/users': 'List all users (params: archived, max_results)',
-                'GET /api/users/<email>': 'Get specific user details',
+                'GET /api/users/{email}': 'Get specific user details',
                 'POST /api/users': 'Create new user',
-                'POST /api/users/<email>/archive': 'Archive user (suspend and mark as archived)',
-                'DELETE /api/users/<email>': 'Permanently delete user'
+                'POST /api/users/{email}/archive': 'Archive user (suspend and mark as archived)',
+                'DELETE /api/users/{email}': 'Permanently delete user'
             },
             'auth': {
                 '/login': 'Google OAuth login',
