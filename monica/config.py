@@ -63,10 +63,6 @@ class Config:
         dashboard = data.get("dashboard", {}) or {}
         self.auto_refresh = dashboard.get("auto_refresh", 30)
 
-        # ── Security settings ─────────────────────────────────
-        security = data.get("security", {}) or {}
-        self.require_registration_codes = security.get("require_registration_codes", False)
-
         # ── Secrets / env-specific settings ────────────────────
 
         # Flask secret key

@@ -18,7 +18,6 @@ import logging
 
 from monica.database.db import db
 from monica.services.status_service import status_service
-from monica.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,12 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/register', methods=['POST'])
 def register():
     """
-    Register a new device (with optional registration code for backward compatibility)
+    Register a new device (with version-based registration code requirement)
 
     Request JSON:
         {
-            "registration_code": "ABC12345",  // optional if require_registration_codes is false
+            "extension_version": "1.1.0",      // optional, used to determine requirements
+            "registration_code": "ABC12345",   // required for v1.1.0+, optional for v1.0.x
             "store_code": "FYSHWICK",
             "device_label": "Front Counter"
         }
@@ -57,6 +57,7 @@ def register():
         registration_code = data.get('registration_code', '').strip()
         store_code = data.get('store_code', '').strip()
         device_label = data.get('device_label', '').strip()
+        extension_version = data.get('extension_version', '').strip()
 
         if not store_code:
             return jsonify({
@@ -70,10 +71,15 @@ def register():
                 'error': 'device_label is required'
             }), 400
 
-        # Check if registration codes are required (from config)
-        require_codes = config.require_registration_codes
+        # Determine if registration code is required based on extension version
+        # v1.0.x: registration code optional (backward compatibility)
+        # v1.1.0+: registration code required
+        require_code = True
+        if extension_version.startswith('1.0.'):
+            require_code = False
+            logger.info(f"Legacy extension version {extension_version} detected - allowing registration without code")
 
-        if require_codes:
+        if require_code:
             # Secure mode - registration code required
             if not registration_code:
                 return jsonify({
@@ -106,16 +112,16 @@ def register():
         device = db.get_or_create_device(store_id, device_label, agent_token)
 
         # Mark code as used if provided and required
-        if require_codes and registration_code:
+        if require_code and registration_code:
             db.mark_code_as_used(registration_code, device['id'])
             logger.info(
                 f"Device registered with code {registration_code}: {store_code}/{device_label} "
-                f"(device_id={device['id']})"
+                f"(device_id={device['id']}, extension_version={extension_version})"
             )
         else:
             logger.info(
-                f"Device registered (backward compatible mode): {store_code}/{device_label} "
-                f"(device_id={device['id']})"
+                f"Device registered (legacy mode): {store_code}/{device_label} "
+                f"(device_id={device['id']}, extension_version={extension_version or 'unknown'})"
             )
 
         return jsonify({

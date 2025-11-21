@@ -183,13 +183,18 @@ async function register() {
   console.log('[Monica] Registering...');
 
   try {
+    // Get extension version from manifest
+    const manifest = chrome.runtime.getManifest();
+    const version = manifest.version;
+
     const response = await fetch(`${state.monicaUrl}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         registration_code: state.registrationCode,
         store_code: state.storeCode,
-        device_label: state.deviceLabel
+        device_label: state.deviceLabel,
+        extension_version: version
       })
     });
 
