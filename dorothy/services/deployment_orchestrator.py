@@ -359,11 +359,11 @@ class DeploymentOrchestrator:
         branch = None
         status = None
         if exists:
-            branch_result = self._call_sally(server, f"cd {repo_path} && git branch --show-current")
+            branch_result = self._call_sally(server, f"cd {repo_path} && /usr/bin/git branch --show-current")
             if branch_result.get('success'):
                 branch = branch_result.get('stdout', '').strip()
 
-            status_result = self._call_sally(server, f"cd {repo_path} && git status --short")
+            status_result = self._call_sally(server, f"cd {repo_path} && /usr/bin/git status --short")
             if status_result.get('success'):
                 status = status_result.get('stdout', '').strip()
 
@@ -581,13 +581,20 @@ class DeploymentOrchestrator:
         }
 
         # Step 1: Check and clone/update repository
+        if self.use_sudo:
+            git_pull_cmd = f"cd {repo_path} && sudo -u www-data /usr/bin/git pull"
+            git_clone_cmd = f"sudo mkdir -p {Path(repo_path).parent} && cd {Path(repo_path).parent} && sudo /usr/bin/git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
+        else:
+            git_pull_cmd = f"cd {repo_path} && /usr/bin/git pull"
+            git_clone_cmd = f"mkdir -p {Path(repo_path).parent} && cd {Path(repo_path).parent} && /usr/bin/git clone {repo} {Path(repo_path).name}"
+
         plan['steps'].append({
             'name': 'Repository setup',
             'description': 'Clone or update the git repository',
             'check_command': f"test -d {repo_path}/.git && echo 'exists' || echo 'missing'",
             'commands': {
-                'if_exists': f"sudo su -s /bin/bash -c 'cd {repo_path} && git pull' www-data",
-                'if_missing': f"sudo mkdir -p {repo_path} && cd {str(Path(repo_path).parent)} && sudo git clone {repo} {Path(repo_path).name} && sudo chown -R www-data:www-data {repo_path}"
+                'if_exists': git_pull_cmd,
+                'if_missing': git_clone_cmd
             }
         })
 
