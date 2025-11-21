@@ -186,6 +186,52 @@
             background: #d1ecf1;
             color: #0c5460;
         }
+
+        .setup-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .setup-warning h3 {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .setup-warning p {
+            color: #856404;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .setup-steps {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .setup-steps ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .setup-steps li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .setup-steps code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #d63384;
+        }
     </style>
 </head>
 <body>
@@ -195,6 +241,28 @@
             <h1>{{ bot_name }}</h1>
             <div class="subtitle">{{ description }}</div>
         </div>
+
+        {% if not is_fully_configured %}
+        <div class="setup-warning">
+            <h3>⚠️ Setup Required</h3>
+            <p>{{ bot_name }} needs authentication to be configured for the following organizations:</p>
+            <div class="setup-steps">
+                <ol>
+                    {% for instruction in setup_instructions %}
+                    <li>
+                        <strong>{{ instruction.org_name }}</strong><br>
+                        Run: <code>{{ instruction.command }}</code><br>
+                        <small style="color: #666;">This will open a browser where you can log in and save the session.</small>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            <p style="margin-top: 15px; margin-bottom: 0;">
+                <strong>Note:</strong> On a headless server, you can run these commands on your local machine
+                and copy the generated <code>.secrets/buz_storage_state_*.json</code> files to the server.
+            </p>
+        </div>
+        {% endif %}
 
         <div class="personality">
             {{ personality }}
