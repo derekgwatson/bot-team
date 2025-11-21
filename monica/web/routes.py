@@ -164,17 +164,29 @@ def index():
         </div>
 
         <div class="section device">
-            <h2>📡 For ChromeOS Devices: Register New Device</h2>
-            <p>Each ChromeOS device needs to run the monitoring agent in a pinned browser tab. The agent automatically sends heartbeats and network metrics to the server.</p>
+            <h2>📡 For Staff Devices: Install Monitoring Agent</h2>
+            <p>Monitor your stores using the Monica Chrome extension. Runs in the background - no need to keep tabs open!</p>
 
             <div class="instructions">
-                <h3>How to Add a New Device:</h3>
-                <p><strong>1.</strong> On the ChromeOS device, open a new browser tab</p>
-                <p><strong>2.</strong> Navigate to this URL format:</p>
-                <p><code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
-                <p><strong>3.</strong> Example: <code>/agent?store=FYSHWICK&device=Front%20Counter</code></p>
-                <p><strong>4.</strong> Pin the tab so it stays open</p>
-                <p><strong>5.</strong> The device will auto-register and start sending heartbeats</p>
+                <h3>🌟 Recommended: Chrome Extension</h3>
+                <p><strong>1.</strong> Install Monica Store Monitor from Chrome Web Store</p>
+                <p><strong>2.</strong> Click the extension icon in your browser toolbar</p>
+                <p><strong>3.</strong> Enter your configuration:</p>
+                <p>&nbsp;&nbsp;&nbsp;• Monica URL: <code>{{ request.url_root }}</code></p>
+                <p>&nbsp;&nbsp;&nbsp;• Store Code: <code>YOUR_STORE</code> (e.g., FYSHWICK)</p>
+                <p>&nbsp;&nbsp;&nbsp;• Device Name: <code>YOUR_DEVICE</code> (e.g., Front Counter)</p>
+                <p><strong>4.</strong> Click "Save & Start Monitoring"</p>
+                <p><strong>5.</strong> Grant permission when prompted - that's it!</p>
+                <p style="margin-top: 12px; color: #059669;"><strong>✓ Works even when browser tabs are closed</strong></p>
+                <p style="color: #059669;"><strong>✓ Automatic heartbeats every 60 seconds</strong></p>
+            </div>
+
+            <div class="instructions" style="margin-top: 16px; background: #e0f2fe; border-left-color: #0284c7;">
+                <h3 style="color: #075985;">Alternative: Browser Tab Agent</h3>
+                <p style="color: #0c4a6e;"><strong>1.</strong> Navigate to: <code>/agent?store=YOUR_STORE&device=YOUR_DEVICE</code></p>
+                <p style="color: #0c4a6e;"><strong>2.</strong> Example: <code>/agent?store=FYSHWICK&device=Front%20Counter</code></p>
+                <p style="color: #0c4a6e;"><strong>3.</strong> Pin the tab and keep browser logged in</p>
+                <p style="color: #0c4a6e; margin-top: 8px;"><em>Note: Requires pinned tab to stay open 24/7</em></p>
             </div>
         </div>
 
