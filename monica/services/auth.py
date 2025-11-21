@@ -43,6 +43,15 @@ def init_auth(app):
             "in your .env file"
         )
 
+    # Validate ADMIN_EMAILS is configured
+    admin_emails = os.getenv('ADMIN_EMAILS', '')
+    if not admin_emails:
+        raise ValueError(
+            "Missing ADMIN_EMAILS environment variable.\n"
+            "Please set ADMIN_EMAILS with a comma-separated list of authorized email addresses.\n"
+            "Example: ADMIN_EMAILS=user1@example.com,user2@example.com"
+        )
+
     # Configure OAuth
     oauth.init_app(app)
     oauth.register(
