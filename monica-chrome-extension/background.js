@@ -334,10 +334,37 @@ async function runNetworkTest() {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getState') {
-    sendResponse(state);
+    // Always verify state is in sync with storage before sending
+    chrome.storage.local.get(['monicaUrl']).then((stored) => {
+      if (stored.monicaUrl && stored.monicaUrl !== state.monicaUrl) {
+        console.log('[Monica] State out of sync! Reloading from storage...');
+        loadState().then(() => sendResponse(state));
+      } else {
+        sendResponse(state);
+      }
+    });
+    return true; // Keep channel open for async response
   } else if (message.action === 'configure') {
+    // Handle reconfiguration: revoke old permissions if URL is changing
+    const oldUrl = state.monicaUrl;
+    const newUrl = message.monicaUrl.replace(/\/$/, ''); // Remove trailing slash
+
+    // If URL is changing, revoke old permissions
+    if (oldUrl && oldUrl !== newUrl) {
+      try {
+        const oldUrlObj = new URL(oldUrl);
+        const oldOrigin = `${oldUrlObj.protocol}//${oldUrlObj.host}/*`;
+        chrome.permissions.remove({
+          origins: [oldOrigin]
+        });
+        console.log('[Monica] Revoked permissions for old URL:', oldOrigin);
+      } catch (e) {
+        console.log('[Monica] Error revoking old permissions:', e);
+      }
+    }
+
     // Update configuration
-    state.monicaUrl = message.monicaUrl.replace(/\/$/, ''); // Remove trailing slash
+    state.monicaUrl = newUrl;
     state.registrationCode = message.registrationCode; // One-time code for registration (includes store/device info)
     state.configured = true;
     state.registered = false;
@@ -346,8 +373,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     state.storeCode = null; // Will be populated from registration response
     state.deviceLabel = null; // Will be populated from registration response
     state.heartbeatCount = 0;
+    state.lastError = null;
 
-    saveState().then(() => {
+    // Save state and wait for completion before proceeding
+    saveState().then(async () => {
+      // Verify the save by reading back
+      const verification = await chrome.storage.local.get(['monicaUrl']);
+      console.log('[Monica] Configuration saved. Verified monicaUrl:', verification.monicaUrl);
+
       initialize().then((result) => {
         // Clear registration code after use (not persisted)
         state.registrationCode = null;
