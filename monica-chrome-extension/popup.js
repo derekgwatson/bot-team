@@ -37,15 +37,9 @@ function updateUI() {
     configSection.style.display = 'block';
     statusSection.style.display = 'none';
 
-    // Pre-fill if partially configured
+    // Pre-fill Monica URL if partially configured
     if (currentState.monicaUrl) {
       document.getElementById('monica-url').value = currentState.monicaUrl;
-    }
-    if (currentState.storeCode) {
-      document.getElementById('store-code').value = currentState.storeCode;
-    }
-    if (currentState.deviceLabel) {
-      document.getElementById('device-label').value = currentState.deviceLabel;
     }
   }
 }
@@ -106,14 +100,12 @@ function updateStatusDisplay() {
 async function saveConfiguration() {
   const monicaUrl = document.getElementById('monica-url').value.trim();
   const registrationCode = document.getElementById('registration-code').value.trim().toUpperCase();
-  const storeCode = document.getElementById('store-code').value.trim();
-  const deviceLabel = document.getElementById('device-label').value.trim();
 
   const errorDiv = document.getElementById('config-error');
   errorDiv.innerHTML = '';
 
   // Validation
-  if (!monicaUrl || !registrationCode || !storeCode || !deviceLabel) {
+  if (!monicaUrl || !registrationCode) {
     errorDiv.innerHTML = '<div class="error-message">All fields are required</div>';
     return;
   }
@@ -165,9 +157,7 @@ async function saveConfiguration() {
     chrome.runtime.sendMessage({
       action: 'configure',
       monicaUrl: monicaUrl,
-      registrationCode: registrationCode,
-      storeCode: storeCode,
-      deviceLabel: deviceLabel
+      registrationCode: registrationCode
     }, (response) => {
       if (response.success) {
         currentState = response.state;

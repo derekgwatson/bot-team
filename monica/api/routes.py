@@ -27,14 +27,12 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/register', methods=['POST'])
 def register():
     """
-    Register a new device (with version-based registration code requirement)
+    Register a new device using a one-time registration code
 
     Request JSON:
         {
-            "extension_version": "1.1.0",      // optional, used to determine requirements
-            "registration_code": "ABC12345",   // required for v1.1.0+, optional for v1.0.x
-            "store_code": "FYSHWICK",
-            "device_label": "Front Counter"
+            "registration_code": "ABC12345",   // required, contains store and device info
+            "extension_version": "1.1.1"       // optional, for logging
         }
 
     Response JSON:
@@ -42,6 +40,8 @@ def register():
             "success": true,
             "device_id": 123,
             "agent_token": "abc123...",
+            "store_code": "FYSHWICK",          // extracted from registration code
+            "device_label": "Front Counter",   // extracted from registration code
             "message": "Device registered successfully"
         }
     """
@@ -55,52 +55,26 @@ def register():
             }), 400
 
         registration_code = data.get('registration_code', '').strip()
-        store_code = data.get('store_code', '').strip()
-        device_label = data.get('device_label', '').strip()
         extension_version = data.get('extension_version', '').strip()
 
-        if not store_code:
+        # Registration code is required - it contains store and device info
+        if not registration_code:
             return jsonify({
                 'success': False,
-                'error': 'store_code is required'
+                'error': 'registration_code is required'
             }), 400
 
-        if not device_label:
+        # Validate registration code and get store/device info from it
+        code_data = db.get_registration_code(registration_code)
+        if not code_data:
             return jsonify({
                 'success': False,
-                'error': 'device_label is required'
-            }), 400
+                'error': 'Invalid, expired, or already used registration code'
+            }), 403
 
-        # Determine if registration code is required based on extension version
-        # v1.0.x: registration code optional (backward compatibility)
-        # v1.1.0+: registration code required
-        require_code = True
-        if extension_version.startswith('1.0.'):
-            require_code = False
-            logger.info(f"Legacy extension version {extension_version} detected - allowing registration without code")
-
-        if require_code:
-            # Secure mode - registration code required
-            if not registration_code:
-                return jsonify({
-                    'success': False,
-                    'error': 'registration_code is required'
-                }), 400
-
-            # Validate registration code
-            code_data = db.get_registration_code(registration_code)
-            if not code_data:
-                return jsonify({
-                    'success': False,
-                    'error': 'Invalid, expired, or already used registration code'
-                }), 403
-
-            # Verify code matches the store and device
-            if code_data['store_code'] != store_code or code_data['device_label'] != device_label:
-                return jsonify({
-                    'success': False,
-                    'error': f"Registration code is for {code_data['store_code']}/{code_data['device_label']}"
-                }), 403
+        # Extract store and device from the registration code
+        store_code = code_data['store_code']
+        device_label = code_data['device_label']
 
         # Get or create store
         store_id = db.get_or_create_store(store_code)
@@ -111,23 +85,20 @@ def register():
         # Get or create device
         device = db.get_or_create_device(store_id, device_label, agent_token)
 
-        # Mark code as used if provided and required
-        if require_code and registration_code:
-            db.mark_code_as_used(registration_code, device['id'])
-            logger.info(
-                f"Device registered with code {registration_code}: {store_code}/{device_label} "
-                f"(device_id={device['id']}, extension_version={extension_version})"
-            )
-        else:
-            logger.info(
-                f"Device registered (legacy mode): {store_code}/{device_label} "
-                f"(device_id={device['id']}, extension_version={extension_version or 'unknown'})"
-            )
+        # Mark code as used
+        db.mark_code_as_used(registration_code, device['id'])
+
+        logger.info(
+            f"Device registered with code {registration_code}: {store_code}/{device_label} "
+            f"(device_id={device['id']}, extension_version={extension_version or 'unknown'})"
+        )
 
         return jsonify({
             'success': True,
             'device_id': device['id'],
             'agent_token': device['agent_token'],
+            'store_code': store_code,  # Send back to extension for display
+            'device_label': device_label,  # Send back to extension for display
             'message': 'Device registered successfully'
         }), 200
 

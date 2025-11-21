@@ -568,6 +568,8 @@ def dashboard():
 
         // Show generate code modal
         function showGenerateCodeModal() {
+            // Pause auto-refresh while modal is open
+            clearTimeout(autoRefreshTimer);
             document.getElementById('generate-modal').classList.add('active');
             document.getElementById('modal-form').style.display = 'block';
             document.getElementById('modal-result').style.display = 'none';
@@ -578,6 +580,10 @@ def dashboard():
             document.getElementById('generate-modal').classList.remove('active');
             document.getElementById('store-code-input').value = '';
             document.getElementById('device-label-input').value = '';
+            // Resume auto-refresh
+            autoRefreshTimer = setTimeout(function() {
+                location.reload();
+            }, {{ config.auto_refresh * 1000 }});
         }
 
         // Generate registration code

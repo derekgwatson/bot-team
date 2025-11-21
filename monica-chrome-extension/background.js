@@ -192,8 +192,6 @@ async function register() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         registration_code: state.registrationCode,
-        store_code: state.storeCode,
-        device_label: state.deviceLabel,
         extension_version: version
       })
     });
@@ -203,6 +201,8 @@ async function register() {
     if (data.success) {
       state.agentToken = data.agent_token;
       state.deviceId = data.device_id;
+      state.storeCode = data.store_code; // Get from server response
+      state.deviceLabel = data.device_label; // Get from server response
       state.registered = true;
       state.lastError = null;
 
@@ -329,13 +329,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'configure') {
     // Update configuration
     state.monicaUrl = message.monicaUrl.replace(/\/$/, ''); // Remove trailing slash
-    state.registrationCode = message.registrationCode; // One-time code for registration
-    state.storeCode = message.storeCode;
-    state.deviceLabel = message.deviceLabel;
+    state.registrationCode = message.registrationCode; // One-time code for registration (includes store/device info)
     state.configured = true;
     state.registered = false;
     state.agentToken = null;
     state.deviceId = null;
+    state.storeCode = null; // Will be populated from registration response
+    state.deviceLabel = null; // Will be populated from registration response
     state.heartbeatCount = 0;
 
     saveState().then(() => {
