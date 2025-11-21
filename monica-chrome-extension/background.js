@@ -127,13 +127,15 @@ async function saveState() {
 
 // Setup periodic alarms
 function setupAlarms() {
-  // Heartbeat alarm
+  // Heartbeat alarm - fire first alarm in 10 seconds, then every 60 seconds
   chrome.alarms.create('heartbeat', {
+    when: Date.now() + 10000, // First fire in 10 seconds
     periodInMinutes: HEARTBEAT_INTERVAL / 60
   });
 
-  // Network test alarm
+  // Network test alarm - fire first alarm in 30 seconds, then every 5 minutes
   chrome.alarms.create('networkTest', {
+    when: Date.now() + 30000, // First fire in 30 seconds
     periodInMinutes: NETWORK_TEST_INTERVAL / 60
   });
 
