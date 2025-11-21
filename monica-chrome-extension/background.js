@@ -66,6 +66,30 @@ async function loadState() {
   ]);
 
   if (stored.monicaUrl && stored.storeCode && stored.deviceLabel) {
+    //Check if we still have permission for the stored URL
+    try {
+      const urlObj = new URL(stored.monicaUrl);
+      const origin = `${urlObj.protocol}//${urlObj.host}/*`;
+      const hasPermission = await chrome.permissions.contains({
+        origins: [origin]
+      });
+
+      if (!hasPermission) {
+        console.log('[Monica] Permission missing for', origin, '- user needs to reconfigure');
+        // Keep config but clear registration to trigger reconfiguration
+        state.configured = true;
+        state.monicaUrl = stored.monicaUrl;
+        state.storeCode = stored.storeCode;
+        state.deviceLabel = stored.deviceLabel;
+        state.registered = false;
+        state.agentToken = null;
+        state.deviceId = null;
+        return;
+      }
+    } catch (e) {
+      console.log('[Monica] Error checking permissions:', e);
+    }
+
     state.configured = true;
     state.monicaUrl = stored.monicaUrl;
     state.storeCode = stored.storeCode;
@@ -78,7 +102,8 @@ async function loadState() {
     console.log('[Monica] State loaded:', {
       configured: state.configured,
       registered: state.registered,
-      deviceId: state.deviceId
+      deviceId: state.deviceId,
+      hasPermission: true
     });
   } else {
     console.log('[Monica] Not yet configured');
