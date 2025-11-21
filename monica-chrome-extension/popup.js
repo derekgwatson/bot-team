@@ -86,6 +86,7 @@ function updateStatusDisplay() {
   document.getElementById('store-value').textContent = currentState.storeCode || '-';
   document.getElementById('device-value').textContent = currentState.deviceLabel || '-';
   document.getElementById('device-id-value').textContent = currentState.deviceId || '-';
+  document.getElementById('server-url-value').textContent = currentState.monicaUrl || '-';
   document.getElementById('heartbeat-value').textContent = currentState.heartbeatCount || 0;
 
   if (currentState.lastLatency !== null) {
