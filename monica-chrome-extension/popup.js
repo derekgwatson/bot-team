@@ -118,8 +118,9 @@ async function saveConfiguration() {
   }
 
   // Validate URL format
+  let urlObj;
   try {
-    new URL(monicaUrl);
+    urlObj = new URL(monicaUrl);
   } catch (e) {
     errorDiv.innerHTML = '<div class="error-message">Invalid URL format</div>';
     return;
@@ -128,13 +129,28 @@ async function saveConfiguration() {
   // Disable button during save
   const saveButton = document.getElementById('save-config');
   saveButton.disabled = true;
-  saveButton.textContent = 'Testing connection...';
+  saveButton.textContent = 'Requesting permission...';
 
-  // Test connection first
-  chrome.runtime.sendMessage({
-    action: 'testConnection',
-    monicaUrl: monicaUrl
-  }, (response) => {
+  // Request permission for the specific origin
+  const origin = `${urlObj.protocol}//${urlObj.host}/*`;
+
+  chrome.permissions.request({
+    origins: [origin]
+  }, (granted) => {
+    if (!granted) {
+      errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save & Start Monitoring';
+      return;
+    }
+
+    // Permission granted, now test connection
+    saveButton.textContent = 'Testing connection...';
+
+    chrome.runtime.sendMessage({
+      action: 'testConnection',
+      monicaUrl: monicaUrl
+    }, (response) => {
     if (!response.success) {
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
       saveButton.disabled = false;
@@ -159,6 +175,7 @@ async function saveConfiguration() {
         saveButton.disabled = false;
         saveButton.textContent = 'Save & Start Monitoring';
       }
+    });
     });
   });
 }
