@@ -59,12 +59,32 @@ class SSHExecutor:
         try:
             start_time = time.time()
 
+            # Prepare environment with enhanced PATH
+            # Include common binary locations to ensure tools like git are available
+            import os
+            env = os.environ.copy()
+            current_path = env.get('PATH', '')
+            additional_paths = [
+                '/usr/local/bin',
+                '/usr/bin',
+                '/bin',
+                '/usr/local/sbin',
+                '/usr/sbin',
+                '/sbin'
+            ]
+            # Add additional paths if they're not already in PATH
+            for path in additional_paths:
+                if path not in current_path:
+                    current_path = f"{path}:{current_path}" if current_path else path
+            env['PATH'] = current_path
+
             result = subprocess.run(
                 command,
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env
             )
 
             execution_time = time.time() - start_time
