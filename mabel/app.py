@@ -1,5 +1,12 @@
 """Main Flask application for Mabel email bot."""
 
+# Ensure project root (bot-team/) is on sys.path so `shared` imports work
+from pathlib import Path
+import sys
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import logging
 import time
 from functools import wraps
@@ -50,9 +57,11 @@ def init_app() -> Flask:
     # Register blueprints
     from api.health import health_bp
     from api.email import email_bp
+    from web.routes import web_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
+    app.register_blueprint(web_bp)
 
     return app
 

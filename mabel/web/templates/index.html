@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="intro-box">
+    <p><strong>Hi! I'm Mabel.</strong> I handle all the emails for the bot team. Need to send a notification, welcome message, or alert? Just call my API and I'll deliver it with care. I support templates, batch sending, and keep track of everything I send.</p>
+</div>
+
+<div class="card">
+    <h2>Status</h2>
+    <p>Version: {{ config.version }} <span class="status-badge">Running</span></p>
+</div>
+
+<div class="card">
+    <h2>API Endpoints</h2>
+    <ul class="endpoint-list">
+        <li>
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/health</span>
+            <div class="endpoint-desc">Basic health check</div>
+        </li>
+        <li>
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/health/deep</span>
+            <div class="endpoint-desc">Deep health check with SMTP connection test</div>
+        </li>
+        <li>
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/info</span>
+            <div class="endpoint-desc">Bot information and configuration</div>
+        </li>
+        <li>
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/api/send-email</span>
+            <div class="endpoint-desc">Send a single email</div>
+        </li>
+        <li>
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/api/send-batch</span>
+            <div class="endpoint-desc">Send multiple emails in batch</div>
+        </li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Email Configuration</h2>
+    <p><strong>Default From:</strong> {{ config.default_from }}</p>
+    <p><strong>Default Sender Name:</strong> {{ config.default_sender_name }}</p>
+    <p><strong>SMTP Host:</strong> {{ config.smtp_host }}:{{ config.smtp_port }}</p>
+    <p><strong>TLS:</strong> {{ 'Enabled' if config.smtp_use_tls else 'Disabled' }}</p>
+</div>
+{% endblock %}

@@ -628,13 +628,20 @@ class DeploymentOrchestrator:
 
         # Step 3: Systemd service
         try:
+            port = get_port(bot_name)
+            if not port:
+                raise ValueError(f"No port configured for {bot_name} in shared/config/ports.yaml")
+            bind_config = f"0.0.0.0:{port}"
+
             service_config = self._load_template(
                 'gunicorn.service.template',
                 bot_name=bot_name,
                 bot_name_title=bot_name.title(),
                 description=description,
                 bot_path=path,
-                workers=workers
+                repo_path=repo_path,
+                workers=workers,
+                bind_config=bind_config
             )
 
             plan['steps'].append({
@@ -961,6 +968,7 @@ class DeploymentOrchestrator:
                 bot_name_title=bot_name.title(),
                 description=description,
                 bot_path=path,
+                repo_path=repo_path,
                 workers=workers,
                 bind_config=bind_config
             )

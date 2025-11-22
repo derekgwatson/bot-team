@@ -7,6 +7,7 @@ from typing import Optional
 import yaml
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 
 
 class ConfigError(Exception):
@@ -107,8 +108,8 @@ class Config:
 
     @property
     def server_port(self) -> int:
-        """Server port to bind to."""
-        return int(self._config['server'].get('port', 8010))
+        """Server port from shared config (chester/config.yaml)."""
+        return get_port("mabel", 8016)
 
     @property
     def log_level(self) -> str:
