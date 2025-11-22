@@ -48,30 +48,18 @@ except Exception as e:
     return $result -split "`n" | Where-Object { $_ -ne '' }
 }
 
-# --- Get port from a bot's config.yaml ---
+# --- Get port from chester's config.yaml (single source of truth) ---
 function Get-BotPort {
-    param([string]$BotDir)
-
-    $configPath = Join-Path $BotDir 'config.yaml'
-    if (-not (Test-Path $configPath)) {
-        return $null
-    }
+    param([string]$BotName)
 
     $pythonScript = @"
-import yaml
 import sys
-
-try:
-    with open(r'$configPath', encoding='utf-8') as f:
-        data = yaml.safe_load(f)
-    port = data.get('server', {}).get('port')
-    if port:
-        print(port)
-    else:
-        print('NO_PORT', file=sys.stderr)
-        sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}', file=sys.stderr)
+sys.path.insert(0, r'$baseDir')
+from shared.config.ports import get_port
+port = get_port('$BotName')
+if port:
+    print(port)
+else:
     sys.exit(1)
 "@
 
@@ -166,7 +154,7 @@ foreach ($folder in $botFolders) {
     $displayName = $folder.Substring(0,1).ToUpper() + $folder.Substring(1)
 
     # Get port and check if it's already in use (orphaned process)
-    $port = Get-BotPort -BotDir $workingDir
+    $port = Get-BotPort -BotName $folder
     if ($port) {
         $portInfo = Get-PortProcess -Port $port
         if ($portInfo.InUse) {
@@ -209,7 +197,7 @@ if ($startedBots.Count -gt 0) {
 
     foreach ($bot in $startedBots) {
         $botDir = Join-Path $baseDir $bot
-        $port = Get-BotPort -BotDir $botDir
+        $port = Get-BotPort -BotName $bot
         $displayName = $bot.Substring(0,1).ToUpper() + $bot.Substring(1)
 
         if (-not $port) {
