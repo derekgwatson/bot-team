@@ -18,6 +18,7 @@ os.environ['TESTING'] = '1'
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key-for-testing-only'
 os.environ['GOOGLE_OAUTH_CLIENT_ID'] = 'test-client-id'
 os.environ['GOOGLE_OAUTH_CLIENT_SECRET'] = 'test-client-secret'
+os.environ['CHESTER_API_URL'] = 'http://localhost:8008'  # For service registry tests
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent

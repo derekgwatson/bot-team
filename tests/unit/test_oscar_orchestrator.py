@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 import responses
 import tempfile
+import importlib.util
 
 # Add Oscar to path
 project_root = Path(__file__).parent.parent.parent
@@ -19,6 +20,31 @@ if str(oscar_path) not in sys.path:
     sys.path.insert(0, str(oscar_path))
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+# Import orchestrator module using importlib for proper isolation
+# This avoids conflicts with other bots' services modules
+def _load_orchestrator_module():
+    """Load the orchestrator module using importlib to avoid module conflicts."""
+    spec = importlib.util.spec_from_file_location(
+        "oscar_orchestrator",
+        oscar_path / "services" / "orchestrator.py"
+    )
+    if spec and spec.loader:
+        module = importlib.util.module_from_spec(spec)
+        sys.modules['oscar_orchestrator'] = module
+        spec.loader.exec_module(module)
+        return module
+    raise ImportError("Could not load Oscar orchestrator module")
+
+# Try to load the orchestrator module
+try:
+    orchestrator_module = _load_orchestrator_module()
+    OnboardingOrchestrator = orchestrator_module.OnboardingOrchestrator
+except Exception as e:
+    # Fallback - set to None and skip tests that need it
+    orchestrator_module = None
+    OnboardingOrchestrator = None
+    print(f"Warning: Could not load Oscar orchestrator: {e}")
 
 
 # ==============================================================================
@@ -107,7 +133,7 @@ def mock_config():
 @pytest.mark.oscar
 def test_create_workflow_steps_all_access(sample_onboarding_request):
     """Test workflow step creation when all access types are requested."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     orchestrator = OnboardingOrchestrator()
     steps = orchestrator._create_workflow_steps(sample_onboarding_request)
@@ -131,7 +157,7 @@ def test_create_workflow_steps_all_access(sample_onboarding_request):
 @pytest.mark.oscar
 def test_create_workflow_steps_google_only():
     """Test workflow step creation when only Google access is requested."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     request = {
         'full_name': 'Test User',
@@ -158,7 +184,7 @@ def test_create_workflow_steps_google_only():
 @pytest.mark.oscar
 def test_create_workflow_steps_minimal():
     """Test workflow step creation with no optional access."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     request = {
         'full_name': 'Test User',
@@ -182,7 +208,7 @@ def test_create_workflow_steps_minimal():
 @pytest.mark.oscar
 def test_voip_step_has_manual_action_flag():
     """Test that VOIP step is marked as requiring manual action."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     request = {
         'full_name': 'Test User',
@@ -221,8 +247,8 @@ def test_create_google_user_success(mock_responses, mock_config, sample_onboardi
         status=201
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_google_user(sample_onboarding_request)
@@ -244,8 +270,8 @@ def test_create_google_user_fred_unavailable(mock_responses, mock_config, sample
         body=requests.exceptions.ConnectionError('Connection refused')
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_google_user(sample_onboarding_request)
@@ -272,8 +298,8 @@ def test_create_zendesk_user_success(mock_responses, mock_config, sample_onboard
         status=201
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_zendesk_user(sample_onboarding_request)
@@ -294,8 +320,8 @@ def test_create_zendesk_user_zac_error(mock_responses, mock_config, sample_onboa
         status=400
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_zendesk_user(sample_onboarding_request)
@@ -321,8 +347,8 @@ def test_register_peter_success(mock_responses, mock_config, sample_onboarding_r
         status=201
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._register_peter(sample_onboarding_request)
@@ -348,8 +374,8 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
         status=201
     )
 
-    with patch('services.orchestrator.config', mock_config):
-        from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        # OnboardingOrchestrator already loaded at module level
 
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_voip_ticket(sample_onboarding_request)
@@ -369,9 +395,9 @@ def test_notify_ian_success(mock_config, sample_onboarding_request):
     mock_email_service = Mock()
     mock_email_service.send_email.return_value = True
 
-    with patch('services.orchestrator.config', mock_config):
-        with patch('services.orchestrator.EmailService', return_value=mock_email_service):
-            from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        with patch('oscar_orchestrator.EmailService', return_value=mock_email_service):
+            # OnboardingOrchestrator already loaded at module level
 
             orchestrator = OnboardingOrchestrator()
             result = orchestrator._notify_ian(sample_onboarding_request)
@@ -392,9 +418,9 @@ def test_notify_ian_email_failure(mock_config, sample_onboarding_request):
     mock_email_service = Mock()
     mock_email_service.send_email.return_value = False
 
-    with patch('services.orchestrator.config', mock_config):
-        with patch('services.orchestrator.EmailService', return_value=mock_email_service):
-            from services.orchestrator import OnboardingOrchestrator
+    with patch('oscar_orchestrator.config', mock_config):
+        with patch('oscar_orchestrator.EmailService', return_value=mock_email_service):
+            # OnboardingOrchestrator already loaded at module level
 
             orchestrator = OnboardingOrchestrator()
             result = orchestrator._notify_ian(sample_onboarding_request)
@@ -411,7 +437,7 @@ def test_notify_ian_email_failure(mock_config, sample_onboarding_request):
 @pytest.mark.oscar
 def test_zendesk_step_is_non_critical():
     """Test that Zendesk step failure doesn't block workflow."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     request = {
         'full_name': 'Test User',
@@ -431,7 +457,7 @@ def test_zendesk_step_is_non_critical():
 @pytest.mark.oscar
 def test_google_step_is_critical():
     """Test that Google step is marked as critical."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     request = {
         'full_name': 'Test User',
@@ -455,7 +481,7 @@ def test_google_step_is_critical():
 @pytest.mark.oscar
 def test_email_generation_single_name():
     """Test email generation for single-name person."""
-    from services.orchestrator import OnboardingOrchestrator
+    # OnboardingOrchestrator already loaded at module level
 
     orchestrator = OnboardingOrchestrator()
 

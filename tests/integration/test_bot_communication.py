@@ -71,19 +71,15 @@ def test_pam_calls_peter_search(mock_responses):
         status=200
     )
 
-    # Mock config
-    class MockConfig:
-        peter_api_url = 'http://localhost:8003'
-        peter_contacts_endpoint = '/api/contacts'
-        peter_search_endpoint = '/api/contacts/search'
-
+    # Pre-populate Chester's cache to avoid calling Chester API
     import config as pam_config
-    with patch.object(pam_config, 'config', MockConfig()):
-        client = PeterClient()
-        results = client.search_contacts('John')
+    pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
 
-        assert len(results) == 1
-        assert results[0]['name'] == 'John Doe'
+    client = PeterClient()
+    results = client.search_contacts('John')
+
+    assert len(results) == 1
+    assert results[0]['name'] == 'John Doe'
 
 
 @pytest.mark.integration
@@ -99,18 +95,15 @@ def test_pam_handles_peter_unavailable(mock_responses):
         body=requests.exceptions.ConnectionError('Connection refused')
     )
 
-    class MockConfig:
-        peter_api_url = 'http://localhost:8003'
-        peter_contacts_endpoint = '/api/contacts'
-        peter_search_endpoint = '/api/contacts/search'
-
+    # Pre-populate Chester's cache to avoid calling Chester API
     import config as pam_config
-    with patch.object(pam_config, 'config', MockConfig()):
-        client = PeterClient()
-        # Should handle error gracefully and return error dict
-        result = client.search_contacts('test')
-        assert 'error' in result
-        assert 'Could not connect to Peter' in result['error']
+    pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
+
+    client = PeterClient()
+    # Should handle error gracefully and return error dict
+    result = client.search_contacts('test')
+    assert 'error' in result
+    assert 'Could not connect to Peter' in result['error']
 
 
 # ==============================================================================
@@ -128,6 +121,7 @@ def test_oauth_checks_quinn_for_external_approval(mock_responses, test_env):
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'test-secret'
+    app.secret_key = 'test-secret'
 
     @app.route('/access_denied')
     def access_denied():
@@ -165,6 +159,7 @@ def test_oauth_handles_quinn_unavailable(mock_responses, test_env):
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'test-secret'
+    app.secret_key = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'
@@ -197,6 +192,7 @@ def test_oauth_combines_domain_and_quinn_checks(mock_responses, test_env):
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'test-secret'
+    app.secret_key = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'allowed_domains', 'admin_emails', 'quinn_api_url'])
     mock_config.oauth_client_id = 'test-client-id'
@@ -263,6 +259,7 @@ def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, 
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'test-secret'
+    app.secret_key = 'test-secret'
 
     mock_config = Mock(spec=['oauth_client_id', 'oauth_client_secret', 'quinn_api_url', 'allowed_domains', 'admin_emails'])
     mock_config.oauth_client_id = 'test-client-id'

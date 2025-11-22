@@ -9,6 +9,7 @@ import sys
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+import importlib.util
 
 # Add Zac to path
 project_root = Path(__file__).parent.parent.parent
@@ -17,6 +18,23 @@ if str(zac_path) not in sys.path:
     sys.path.insert(0, str(zac_path))
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+# Import zendesk module using importlib for proper isolation
+# This avoids conflicts with other bots' services modules
+def _load_zendesk_module():
+    """Load the zendesk module using importlib to avoid module conflicts."""
+    spec = importlib.util.spec_from_file_location(
+        "zac_zendesk",
+        zac_path / "services" / "zendesk.py"
+    )
+    if spec and spec.loader:
+        module = importlib.util.module_from_spec(spec)
+        sys.modules['zac_zendesk'] = module
+        spec.loader.exec_module(module)
+        return module
+    raise ImportError("Could not load Zac zendesk module")
+
+# The module will be loaded within test functions after patching
 
 
 # ==============================================================================
@@ -72,9 +90,10 @@ def test_create_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk_us
     # Setup mock
     mock_zenpy_client.users.create.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.create_user(
@@ -96,9 +115,10 @@ def test_create_user_with_additional_properties(mock_zenpy_client, mock_zac_conf
     """Test user creation with additional properties."""
     mock_zenpy_client.users.create.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.create_user(
@@ -119,9 +139,10 @@ def test_create_user_api_error(mock_zenpy_client, mock_zac_config):
     """Test handling of API errors during user creation."""
     mock_zenpy_client.users.create.side_effect = Exception('API Error: Email already exists')
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
 
@@ -145,9 +166,10 @@ def test_get_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk_user)
     """Test successful user retrieval."""
     mock_zenpy_client.users.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.get_user(12345)
@@ -163,9 +185,10 @@ def test_get_user_not_found(mock_zenpy_client, mock_zac_config):
     """Test handling of user not found."""
     mock_zenpy_client.users.side_effect = Exception('User not found')
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.get_user(99999)
@@ -210,9 +233,10 @@ def test_list_users_success(mock_zenpy_client, mock_zac_config):
 
     mock_zenpy_client.users.return_value = iter([mock_user1, mock_user2])
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.list_users()
@@ -241,9 +265,10 @@ def test_list_users_with_role_filter(mock_zenpy_client, mock_zac_config):
 
     mock_zenpy_client.search.return_value = iter([mock_agent])
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.list_users(role='agent')
@@ -272,9 +297,10 @@ def test_search_users_success(mock_zenpy_client, mock_zac_config):
 
     mock_zenpy_client.search.return_value = iter([mock_user])
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             results = service.search_users('John')
@@ -289,9 +315,10 @@ def test_search_users_no_results(mock_zenpy_client, mock_zac_config):
     """Test user search with no results."""
     mock_zenpy_client.search.return_value = iter([])
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             results = service.search_users('NonexistentUser')
@@ -310,9 +337,10 @@ def test_update_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk_us
     mock_zenpy_client.users.return_value = mock_zendesk_user
     mock_zenpy_client.users.update.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.update_user(12345, name='Updated Name')
@@ -333,9 +361,10 @@ def test_suspend_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk_u
     mock_zendesk_user.suspended = True
     mock_zenpy_client.users.update.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.suspend_user(12345)
@@ -351,9 +380,10 @@ def test_unsuspend_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk
     mock_zendesk_user.suspended = False
     mock_zenpy_client.users.update.return_value = mock_zendesk_user
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.unsuspend_user(12345)
@@ -371,9 +401,10 @@ def test_delete_user_success(mock_zenpy_client, mock_zac_config):
     """Test successful user deletion."""
     mock_zenpy_client.users.delete.return_value = None
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
             result = service.delete_user(12345)
@@ -388,9 +419,10 @@ def test_delete_user_error(mock_zenpy_client, mock_zac_config):
     """Test handling of delete error."""
     mock_zenpy_client.users.delete.side_effect = Exception('Cannot delete user')
 
-    with patch('services.zendesk.config', mock_zac_config):
-        with patch('services.zendesk.Zenpy', return_value=mock_zenpy_client):
-            from services.zendesk import ZendeskService
+    with patch('zac_zendesk.config', mock_zac_config):
+        with patch('zac_zendesk.Zenpy', return_value=mock_zenpy_client):
+            zendesk_module = _load_zendesk_module()
+            ZendeskService = zendesk_module.ZendeskService
 
             service = ZendeskService()
 
@@ -413,9 +445,10 @@ def test_missing_credentials_raises_error():
     mock_config.zendesk_email = None
     mock_config.zendesk_api_token = None
 
-    with patch('services.zendesk.config', mock_config):
+    with patch('zac_zendesk.config', mock_config):
         # Need to reload the module to trigger the error
-        from services.zendesk import ZendeskService
+        zendesk_module = _load_zendesk_module()
+        ZendeskService = zendesk_module.ZendeskService
 
         with pytest.raises(ValueError) as exc_info:
             ZendeskService()
