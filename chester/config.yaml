@@ -12,6 +12,21 @@ server:
 # Health check URLs are built dynamically from database (domain field).
 # Deployment configurations (ports, domains, paths, etc.) are stored in the database.
 bot_team:
+  chester:
+    name: Chester
+    description: Bot Team Concierge
+    capabilities:
+      - Guide users to the right bot for their needs
+      - Provide bot team directory and status
+      - Health monitoring for all bots
+      - Bot discovery and documentation
+    api_endpoints:
+      info: /info
+      health: /health
+      bots: /api/bots
+      status: /api/status
+    personality: Helpful, knowledgeable, and welcoming - like a classic concierge
+
   fred:
     name: Fred
     description: Google Workspace User Management
