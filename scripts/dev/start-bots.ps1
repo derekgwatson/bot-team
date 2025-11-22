@@ -213,10 +213,7 @@ if ($startedBots.Count -gt 0) {
         $displayName = $bot.Substring(0,1).ToUpper() + $bot.Substring(1)
 
         if (-not $port) {
-            # Try to get more info about why port detection failed
-            $botConfigPath = Join-Path $botDir 'config.yaml'
-            $debugResult = & $venvPython -c "import yaml; print(yaml.safe_load(open(r'$botConfigPath', encoding='utf-8')).get('server', {}))" 2>&1
-            Write-Host "  [WARN] $displayName - no port in config (debug: $debugResult)" -ForegroundColor Yellow
+            Write-Host "  [WARN] $displayName - no port in config" -ForegroundColor Yellow
             $unhealthy += $bot
             continue
         }
