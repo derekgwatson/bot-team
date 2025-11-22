@@ -12,6 +12,14 @@ param(
 # Base directory for all bots
 $baseDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $chesterConfig = Join-Path $baseDir 'chester\config.yaml'
+$venvPython = Join-Path $baseDir '.venv\Scripts\python.exe'
+
+# Check shared venv exists
+if (-not (Test-Path $venvPython)) {
+    Write-Host "Shared venv not found at: $venvPython" -ForegroundColor Red
+    Write-Host "Run 'python -m venv .venv' in $baseDir first." -ForegroundColor Yellow
+    exit 1
+}
 
 # --- Load bot list dynamically from Chester's config.yaml ---
 function Get-BotListFromYaml {
@@ -77,13 +85,6 @@ foreach ($folder in $botFolders) {
 
     # Capitalise the bot name for display
     $displayName = $folder.Substring(0,1).ToUpper() + $folder.Substring(1)
-    $venvPython = Join-Path $workingDir '.venv\Scripts\python.exe'
-
-    # Check if venv exists
-    if (-not (Test-Path $venvPython)) {
-        Write-Host "  [SKIP] $folder - no .venv found" -ForegroundColor Yellow
-        continue
-    }
 
     Write-Host "  [START] $displayName ..." -ForegroundColor Green
 
