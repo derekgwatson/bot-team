@@ -1,5 +1,12 @@
 """Main Flask application for Mabel email bot."""
 
+# Ensure project root (bot-team/) is on sys.path so `shared` imports work
+from pathlib import Path
+import sys
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import logging
 import time
 from functools import wraps
