@@ -85,7 +85,8 @@ function Get-PortProcess {
     param([int]$Port)
 
     try {
-        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+        # Only look for LISTEN state - ignore TIME_WAIT, CLOSE_WAIT etc from dead processes
+        $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($connection) {
             $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
             return @{
