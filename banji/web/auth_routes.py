@@ -1,9 +1,8 @@
-from flask import Blueprint, redirect, url_for, session, render_template_string
+from flask import Blueprint, redirect, url_for, session, render_template_string, make_response, current_app
 from flask_login import login_user, logout_user, current_user
 from services.auth import oauth, User, is_email_allowed
 
 auth_bp = Blueprint('auth', __name__)
-
 
 @auth_bp.route('/login')
 def login():
@@ -13,9 +12,9 @@ def login():
 
     # Get the OAuth redirect URI
     # Use prompt='select_account' to force account selection even if already logged into Google
+    # This makes logout feel "real" - user must explicitly choose account on next login
     redirect_uri = url_for('auth.callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri, prompt='select_account')
-
 
 @auth_bp.route('/auth/callback')
 def callback():
@@ -32,7 +31,7 @@ def callback():
                 <html>
                 <head><title>Login Failed</title></head>
                 <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                    <h1>Login Failed</h1>
+                    <h1>❌ Login Failed</h1>
                     <p>Could not retrieve user information from Google.</p>
                     <p><a href="{{ url_for('auth.login') }}">Try Again</a></p>
                 </body>
@@ -48,8 +47,8 @@ def callback():
                 <html>
                 <head><title>Access Denied</title></head>
                 <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                    <h1>Access Denied</h1>
-                    <p>Your email address ({{ email }}) is not authorized to access Chester.</p>
+                    <h1>🚫 Access Denied</h1>
+                    <p>Your email address ({{ email }}) is not authorized to access Banji.</p>
                     <p>Contact the administrator to request access.</p>
                 </body>
                 </html>
@@ -74,7 +73,7 @@ def callback():
             <html>
             <head><title>Login Error</title></head>
             <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                <h1>Login Error</h1>
+                <h1>❌ Login Error</h1>
                 <p>An error occurred during login: {{ error }}</p>
                 <p><a href="{{ url_for('auth.login') }}">Try Again</a></p>
             </body>
@@ -84,19 +83,29 @@ def callback():
 @auth_bp.route('/logout')
 def logout():
     """Log out the current user"""
+    # Clear Flask-Login's current user
     logout_user()
+
+    # Clear all session data - this removes the 'user' key that load_user checks
     session.clear()
 
-    return render_template_string('''
+    # Create the response
+    response = make_response(render_template_string('''
         <html>
         <head>
             <title>Logged Out</title>
-            <meta http-equiv="refresh" content="2;url={{ url_for('auth.login') }}">
         </head>
         <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-            <h1>Logged Out</h1>
+            <h1>👋 Logged Out</h1>
             <p>You have been successfully logged out.</p>
-            <p>Redirecting to login page...</p>
+            <p><a href="{{ url_for('auth.login') }}" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #2a5298; color: white; text-decoration: none; border-radius: 5px;">Log In Again</a></p>
         </body>
         </html>
-    ''')
+    '''))
+
+    # Explicitly delete the session cookie to ensure logout
+    # Use the app's configured session cookie name (defaults to 'session')
+    session_cookie_name = current_app.config.get('SESSION_COOKIE_NAME', 'session')
+    response.delete_cookie(session_cookie_name)
+
+    return response
