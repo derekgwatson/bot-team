@@ -13,34 +13,27 @@ param(
 $baseDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $venvPython = Join-Path $baseDir '.venv\Scripts\python.exe'
 
-# --- Get port from a bot's config.yaml ---
+# --- Get port from chester's config.yaml (single source of truth) ---
 function Get-BotPort {
-    param([string]$BotDir)
-
-    $configPath = Join-Path $BotDir 'config.yaml'
-    if (-not (Test-Path $configPath)) {
-        return $null
-    }
+    param([string]$BotName)
 
     $pythonScript = @"
-import yaml
 import sys
-
-try:
-    with open(r'$configPath', encoding='utf-8') as f:
-        data = yaml.safe_load(f)
-    port = data.get('server', {}).get('port')
-    if port:
-        print(port)
-    else:
-        sys.exit(1)
-except Exception as e:
+sys.path.insert(0, r'$baseDir')
+from shared.config.ports import get_port
+port = get_port('$BotName')
+if port:
+    print(port)
+else:
     sys.exit(1)
 "@
 
     $result = & $venvPython -c $pythonScript 2>&1
     if ($LASTEXITCODE -eq 0) {
-        return [int]$result
+        $portLine = $result | Where-Object { $_ -match '^\d+$' } | Select-Object -First 1
+        if ($portLine) {
+            return [int]$portLine
+        }
     }
     return $null
 }
@@ -76,8 +69,7 @@ if ($BotNames -and $BotNames.Count -gt 0) {
     Write-Host ""
 
     foreach ($botName in $BotNames) {
-        $botDir = Join-Path $baseDir $botName
-        $port = Get-BotPort -BotDir $botDir
+        $port = Get-BotPort -BotName $botName
         if ($port) {
             Stop-ProcessOnPort -Port $port -BotName $botName | Out-Null
         } else {
