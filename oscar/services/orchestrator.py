@@ -15,9 +15,119 @@ logger = logging.getLogger(__name__)
 class OnboardingOrchestrator:
     """Orchestrates the onboarding workflow across multiple bots"""
 
-    def __init__(self):
-        # Bot URLs will be determined dynamically based on dev config
-        pass
+    def __init__(self, dry_run: bool = False):
+        """
+        Initialize the orchestrator.
+
+        Args:
+            dry_run: If True, log what would happen without making actual API calls.
+                    Useful for testing workflows before executing them for real.
+        """
+        self.dry_run = dry_run
+        if dry_run:
+            logger.info("DRY RUN MODE ENABLED - No actual changes will be made")
+
+    def preview_onboarding(self, request_data: Dict) -> Dict[str, Any]:
+        """
+        Preview what an onboarding workflow would do without executing it.
+        Useful for validation before running the actual workflow.
+
+        Args:
+            request_data: The onboarding request data
+
+        Returns:
+            Dict with preview of all steps that would be executed
+        """
+        steps = self._create_workflow_steps(request_data)
+
+        # Generate email that would be created
+        first_name = request_data['full_name'].split()[0].lower()
+        last_name = request_data['full_name'].split()[-1].lower() if len(
+            request_data['full_name'].split()) > 1 else ''
+        generated_email = f"{first_name}.{last_name}@watsonblinds.com.au" if last_name else f"{first_name}@watsonblinds.com.au"
+
+        preview = {
+            'dry_run': True,
+            'request_data': request_data,
+            'generated_email': generated_email if request_data.get('google_access') else None,
+            'workflow_steps': [],
+            'bot_calls': []
+        }
+
+        for step in steps:
+            step_preview = {
+                'name': step['name'],
+                'order': step['order'],
+                'description': step.get('description', ''),
+                'critical': step.get('critical', True),
+                'requires_manual_action': step.get('requires_manual_action', False)
+            }
+
+            # Add details about what each step would do
+            if step['name'] == 'notify_ian':
+                step_preview['would_do'] = f"Send email to {config.notification_email}"
+                preview['bot_calls'].append({
+                    'bot': 'Mabel (email)',
+                    'action': 'Send notification email',
+                    'recipient': config.notification_email
+                })
+
+            elif step['name'] == 'create_google_user':
+                step_preview['would_do'] = f"Create Google user: {generated_email}"
+                preview['bot_calls'].append({
+                    'bot': 'Fred',
+                    'url': self._get_bot_url('fred'),
+                    'action': 'POST /api/users',
+                    'payload': {
+                        'email': generated_email,
+                        'first_name': first_name.capitalize(),
+                        'last_name': last_name.capitalize(),
+                        'recovery_email': request_data['personal_email']
+                    }
+                })
+
+            elif step['name'] == 'create_zendesk_user':
+                zd_email = generated_email if request_data.get('google_access') else request_data['personal_email']
+                step_preview['would_do'] = f"Create Zendesk agent: {request_data['full_name']} ({zd_email})"
+                preview['bot_calls'].append({
+                    'bot': 'Zac',
+                    'url': self._get_bot_url('zac'),
+                    'action': 'POST /api/users',
+                    'payload': {
+                        'name': request_data['full_name'],
+                        'email': zd_email,
+                        'role': 'agent'
+                    }
+                })
+
+            elif step['name'] == 'register_peter':
+                step_preview['would_do'] = f"Register in HR database: {request_data['full_name']}"
+                preview['bot_calls'].append({
+                    'bot': 'Peter',
+                    'url': self._get_bot_url('peter'),
+                    'action': 'POST /api/staff',
+                    'payload': {
+                        'name': request_data['full_name'],
+                        'position': request_data['position'],
+                        'section': request_data['section']
+                    }
+                })
+
+            elif step['name'] == 'voip_ticket':
+                step_preview['would_do'] = f"Create VOIP setup ticket for: {request_data['full_name']}"
+                preview['bot_calls'].append({
+                    'bot': 'Sadie',
+                    'url': self._get_bot_url('sadie'),
+                    'action': 'POST /api/tickets',
+                    'payload': {
+                        'subject': f"VOIP Setup Required: {request_data['full_name']}",
+                        'type': 'task'
+                    }
+                })
+
+            preview['workflow_steps'].append(step_preview)
+
+        return preview
 
     def _get_bot_url(self, bot_name: str) -> str:
         """
@@ -424,5 +534,20 @@ Automated request from Oscar (Staff Onboarding Bot)
             return {'success': False, 'error': f'Failed to call Sadie: {str(e)}'}
 
 
-# Global orchestrator instance
-orchestrator = OnboardingOrchestrator()
+# Global orchestrator instance (normal mode)
+orchestrator = OnboardingOrchestrator(dry_run=False)
+
+# Factory function for creating orchestrators with specific modes
+def get_orchestrator(dry_run: bool = False) -> OnboardingOrchestrator:
+    """
+    Get an orchestrator instance.
+
+    Args:
+        dry_run: If True, returns an orchestrator that won't make real API calls
+
+    Returns:
+        OnboardingOrchestrator instance
+    """
+    if dry_run:
+        return OnboardingOrchestrator(dry_run=True)
+    return orchestrator
