@@ -8,12 +8,14 @@ server:
   port: 8008
 
 # Registry of all bot team members
-# NOTE: This is used for bot metadata (capabilities, personality, etc.)
+# This is the single source of truth for bot metadata AND port assignments.
 # Health check URLs are built dynamically from database (domain field).
-# Deployment configurations (ports, domains, paths, etc.) are stored in the database.
+# Deployment configurations (domains, paths, etc.) are stored in the database.
+# Port Range: 8001-8020 (reserved for bot-team)
 bot_team:
   chester:
     name: Chester
+    port: 8008
     description: Bot Team Concierge
     capabilities:
       - Guide users to the right bot for their needs
@@ -29,6 +31,7 @@ bot_team:
 
   fred:
     name: Fred
+    port: 8001
     description: Google Workspace User Management
     capabilities:
       - Create, archive, and delete Google Workspace users
@@ -42,6 +45,7 @@ bot_team:
 
   iris:
     name: Iris
+    port: 8002
     description: Google Workspace Reporting & Analytics
     capabilities:
       - Track storage usage (Gmail, Drive, total)
@@ -55,6 +59,7 @@ bot_team:
 
   peter:
     name: Peter
+    port: 8003
     description: Staff Directory (Central HR Database)
     capabilities:
       - Manage all staff contact information
@@ -72,6 +77,7 @@ bot_team:
 
   sally:
     name: Sally
+    port: 8004
     description: SSH Command Executor
     capabilities:
       - Execute SSH commands on remote servers
@@ -85,6 +91,7 @@ bot_team:
 
   dorothy:
     name: Dorothy
+    port: 8005
     description: Deployment Orchestrator
     capabilities:
       - Orchestrate bot deployments
@@ -99,6 +106,7 @@ bot_team:
 
   quinn:
     name: Quinn
+    port: 8006
     description: External Staff Access Manager
     capabilities:
       - Maintain registry of external staff
@@ -112,6 +120,7 @@ bot_team:
 
   zac:
     name: Zac
+    port: 8007
     description: Zendesk User Management
     capabilities:
       - Manage Zendesk users (end-users, agents, admins)
@@ -125,6 +134,7 @@ bot_team:
 
   sadie:
     name: Sadie
+    port: 8010
     description: Zendesk Ticket Manager
     capabilities:
       - Create new Zendesk tickets
@@ -140,6 +150,7 @@ bot_team:
 
   pam:
     name: Pam
+    port: 8009
     description: Phone Directory Presenter (Public Interface)
     capabilities:
       - Public-facing phone directory interface
@@ -153,6 +164,7 @@ bot_team:
 
   oscar:
     name: Oscar
+    port: 8011
     description: Staff Onboarding Orchestrator
     capabilities:
       - Coordinate staff onboarding workflow
@@ -171,6 +183,7 @@ bot_team:
 
   olive:
     name: Olive
+    port: 8012
     description: Staff Offboarding Orchestrator
     capabilities:
       - Coordinate staff offboarding workflow
@@ -191,6 +204,7 @@ bot_team:
 
   rita:
     name: Rita
+    port: 8013
     description: Staff Access Request Manager
     capabilities:
       - View your current system access
@@ -204,6 +218,7 @@ bot_team:
 
   banji:
     name: Banji
+    port: 8014
     description: Playwright Browser Automation for Buz
     capabilities:
       - Automate Buz UI interactions via Playwright
@@ -219,6 +234,7 @@ bot_team:
 
   monica:
     name: Monica
+    port: 8015
     description: ChromeOS Monitoring Agent
     capabilities:
       - Monitor ChromeOS device heartbeats in retail stores
@@ -237,6 +253,7 @@ bot_team:
 
   mabel:
     name: Mabel
+    port: 8016
     description: Email Service Bot
     capabilities:
       - Send emails on behalf of other bots
