@@ -146,7 +146,8 @@ foreach ($folder in $botFolders) {
         $env:PYTHONIOENCODING = 'utf-8'
 
         Set-Location $workingDir
-        & $venvPython .\app.py
+        # Redirect stderr to stdout so we capture error messages
+        & $venvPython .\app.py 2>&1
     } -ArgumentList $workingDir, $venvPython
 
     $global:BotJobs[$folder] = $job
@@ -197,6 +198,14 @@ if ($startedBots.Count -gt 0) {
             $healthy += $bot
         } else {
             Write-Host "  [FAIL] $displayName (port $port) - $($healthResult.Error)" -ForegroundColor Red
+            # Show job output to help diagnose why it failed
+            $output = Receive-Job $job -Keep -ErrorAction SilentlyContinue 2>&1
+            if ($output) {
+                Write-Host "         Recent output:" -ForegroundColor Gray
+                $output | Select-Object -Last 5 | ForEach-Object {
+                    Write-Host "           $_" -ForegroundColor Gray
+                }
+            }
             $unhealthy += $bot
         }
     }
