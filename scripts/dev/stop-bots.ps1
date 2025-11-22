@@ -31,7 +31,7 @@ function Stop-Bots {
 
                 if ($job.State -eq 'Running') {
                     Write-Host "  [STOP] $displayName" -ForegroundColor Red
-                    Stop-Job $job -Force
+                    Stop-Job $job
                 } else {
                     Write-Host "  [SKIP] $displayName - not running (state: $($job.State))" -ForegroundColor Yellow
                 }
@@ -52,7 +52,7 @@ function Stop-Bots {
 
             if ($job.State -eq 'Running') {
                 Write-Host "  [STOP] $displayName" -ForegroundColor Red
-                Stop-Job $job -Force
+                Stop-Job $job
             } else {
                 Write-Host "  [CLEAN] $displayName (was $($job.State))" -ForegroundColor Gray
             }
