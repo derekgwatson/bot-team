@@ -57,9 +57,11 @@ def init_app() -> Flask:
     # Register blueprints
     from api.health import health_bp
     from api.email import email_bp
+    from web.routes import web_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
+    app.register_blueprint(web_bp)
 
     return app
 
