@@ -119,8 +119,19 @@ function Stop-SingleBot {
         if ($port) {
             $portInfo = Get-PortProcess -Port $port
             if ($portInfo.InUse) {
-                Write-Host "  [KILL] $displayName - killing $($portInfo.ProcessName) on port $port (PID: $($portInfo.ProcessId))" -ForegroundColor Red
-                Stop-Process -Id $portInfo.ProcessId -Force -ErrorAction SilentlyContinue
+                $procName = if ($portInfo.ProcessName) { $portInfo.ProcessName } else { "process" }
+                Write-Host "  [KILL] $displayName - killing $procName on port $port (PID: $($portInfo.ProcessId))" -ForegroundColor Red
+                try {
+                    Stop-Process -Id $portInfo.ProcessId -Force -ErrorAction Stop
+                    # Verify it's actually dead
+                    Start-Sleep -Milliseconds 500
+                    $stillRunning = Get-PortProcess -Port $port
+                    if ($stillRunning.InUse) {
+                        Write-Host "         Failed to kill - may need admin privileges" -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "         Failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
                 $stopped = $true
             }
         }
