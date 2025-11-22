@@ -30,31 +30,65 @@ def create_zendesk_service(mock_config, mock_zenpy_client):
     Load ZendeskService with mocked config and Zenpy.
     Must be called within the test to ensure fresh module loading.
     """
-    # Clear any cached versions of the zendesk module
-    modules_to_remove = [k for k in sys.modules.keys()
-                         if 'zendesk' in k.lower() and 'services' in k.lower()]
-    for mod in modules_to_remove:
-        del sys.modules[mod]
+    import types
 
     # Patch config before importing
     import config as zac_config
     original_config = zac_config.config
 
+    # Save original zenpy module if it exists
+    original_zenpy = sys.modules.get('zenpy')
+    original_zenpy_lib = sys.modules.get('zenpy.lib')
+    original_zenpy_lib_api = sys.modules.get('zenpy.lib.api_objects')
+
     try:
         # Replace the config
         zac_config.config = mock_config
 
-        # Patch Zenpy
-        with patch('zenpy.Zenpy', return_value=mock_zenpy_client):
-            # Force reimport of the zendesk module
-            if 'services.zendesk' in sys.modules:
-                del sys.modules['services.zendesk']
+        # Create mock zenpy package and inject into sys.modules
+        mock_zenpy = types.ModuleType('zenpy')
+        mock_zenpy.Zenpy = Mock(return_value=mock_zenpy_client)
+        sys.modules['zenpy'] = mock_zenpy
 
-            from services.zendesk import ZendeskService
-            return ZendeskService()
+        # Create mock zenpy.lib package
+        mock_zenpy_lib = types.ModuleType('zenpy.lib')
+        sys.modules['zenpy.lib'] = mock_zenpy_lib
+
+        # Create mock zenpy.lib.api_objects module with User class
+        mock_zenpy_api = types.ModuleType('zenpy.lib.api_objects')
+        mock_zenpy_api.User = Mock()
+        sys.modules['zenpy.lib.api_objects'] = mock_zenpy_api
+
+        # Load zendesk module using importlib to avoid 'services' package conflicts
+        spec = importlib.util.spec_from_file_location(
+            "zac_zendesk_service",
+            zac_path / "services" / "zendesk.py"
+        )
+        if spec and spec.loader:
+            zendesk_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(zendesk_module)
+            return zendesk_module.ZendeskService()
+
+        raise ImportError("Could not load zendesk module")
     finally:
         # Restore original config
         zac_config.config = original_config
+
+        # Restore original zenpy modules
+        if original_zenpy is not None:
+            sys.modules['zenpy'] = original_zenpy
+        else:
+            sys.modules.pop('zenpy', None)
+
+        if original_zenpy_lib is not None:
+            sys.modules['zenpy.lib'] = original_zenpy_lib
+        else:
+            sys.modules.pop('zenpy.lib', None)
+
+        if original_zenpy_lib_api is not None:
+            sys.modules['zenpy.lib.api_objects'] = original_zenpy_lib_api
+        else:
+            sys.modules.pop('zenpy.lib.api_objects', None)
 
 
 # ==============================================================================

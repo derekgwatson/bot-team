@@ -47,6 +47,30 @@ except Exception as e:
     print(f"Warning: Could not load Oscar orchestrator: {e}")
 
 
+def setup_mock_email_service(mock_email_obj):
+    """
+    Set up mock services.email_service module to avoid import conflicts.
+    Returns a mock EmailService class that returns mock_email_obj when instantiated.
+    """
+    import types
+
+    mock_email_class = Mock(return_value=mock_email_obj)
+
+    # Create mock module
+    mock_module = types.ModuleType('services.email_service')
+    mock_module.EmailService = mock_email_class
+
+    # Ensure services package exists in sys.modules
+    if 'services' not in sys.modules:
+        services_pkg = types.ModuleType('services')
+        services_pkg.__path__ = [str(oscar_path / 'services')]
+        sys.modules['services'] = services_pkg
+
+    sys.modules['services.email_service'] = mock_module
+
+    return mock_email_class
+
+
 # ==============================================================================
 # Fixtures
 # ==============================================================================
@@ -392,21 +416,21 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
 @pytest.mark.oscar
 def test_notify_ian_success(mock_config, sample_onboarding_request):
     """Test successful email notification to HR."""
-    mock_email_service = Mock()
-    mock_email_service.send_email.return_value = True
+    mock_email_instance = Mock()
+    mock_email_instance.send_email.return_value = True
+
+    # Set up mock email service module to avoid import conflicts
+    setup_mock_email_service(mock_email_instance)
 
     with patch('oscar_orchestrator.config', mock_config):
-        with patch('services.email_service.EmailService', return_value=mock_email_service):
-            # OnboardingOrchestrator already loaded at module level
-
-            orchestrator = OnboardingOrchestrator()
-            result = orchestrator._notify_ian(sample_onboarding_request)
+        orchestrator = OnboardingOrchestrator()
+        result = orchestrator._notify_ian(sample_onboarding_request)
 
     assert result['success'] is True
-    mock_email_service.send_email.assert_called_once()
+    mock_email_instance.send_email.assert_called_once()
 
     # Verify email content includes staff name
-    call_args = mock_email_service.send_email.call_args
+    call_args = mock_email_instance.send_email.call_args
     assert 'John Smith' in call_args.kwargs['subject']
     assert 'John Smith' in call_args.kwargs['body']
 
@@ -415,15 +439,15 @@ def test_notify_ian_success(mock_config, sample_onboarding_request):
 @pytest.mark.oscar
 def test_notify_ian_email_failure(mock_config, sample_onboarding_request):
     """Test handling email send failure."""
-    mock_email_service = Mock()
-    mock_email_service.send_email.return_value = False
+    mock_email_instance = Mock()
+    mock_email_instance.send_email.return_value = False
+
+    # Set up mock email service module to avoid import conflicts
+    setup_mock_email_service(mock_email_instance)
 
     with patch('oscar_orchestrator.config', mock_config):
-        with patch('services.email_service.EmailService', return_value=mock_email_service):
-            # OnboardingOrchestrator already loaded at module level
-
-            orchestrator = OnboardingOrchestrator()
-            result = orchestrator._notify_ian(sample_onboarding_request)
+        orchestrator = OnboardingOrchestrator()
+        result = orchestrator._notify_ian(sample_onboarding_request)
 
     assert result['success'] is False
     assert 'Failed to send email' in result['error']
