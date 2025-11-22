@@ -30,7 +30,7 @@ import yaml
 import sys
 
 try:
-    with open(r'$ConfigPath') as f:
+    with open(r'$ConfigPath', encoding='utf-8') as f:
         data = yaml.safe_load(f)
     bot_team = data.get('bot_team', {})
     for bot in bot_team.keys():
@@ -62,7 +62,7 @@ import yaml
 import sys
 
 try:
-    with open(r'$configPath') as f:
+    with open(r'$configPath', encoding='utf-8') as f:
         data = yaml.safe_load(f)
     port = data.get('server', {}).get('port')
     if port:
