@@ -51,7 +51,7 @@ EOF
 # --- Get bot socket path ---
 get_bot_socket() {
     local bot=$1
-    echo "$SOCKET_DIR/gunicorn-bot-team-$bot.sock"
+    echo "$SOCKET_DIR/gunicorn-bot-team-$bot/gunicorn.sock"
 }
 
 # --- Check bot health endpoint via Unix socket ---
