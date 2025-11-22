@@ -48,6 +48,54 @@ except Exception as e:
     return $result -split "`n" | Where-Object { $_ -ne '' }
 }
 
+# --- Get port from a bot's config.yaml ---
+function Get-BotPort {
+    param([string]$BotDir)
+
+    $configPath = Join-Path $BotDir 'config.yaml'
+    if (-not (Test-Path $configPath)) {
+        return $null
+    }
+
+    $pythonScript = @"
+import yaml
+import sys
+
+try:
+    with open(r'$configPath') as f:
+        data = yaml.safe_load(f)
+    port = data.get('server', {}).get('port')
+    if port:
+        print(port)
+    else:
+        sys.exit(1)
+except Exception as e:
+    sys.exit(1)
+"@
+
+    $result = & $venvPython -c $pythonScript 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        return [int]$result
+    }
+    return $null
+}
+
+# --- Check bot health endpoint ---
+function Test-BotHealth {
+    param(
+        [string]$BotName,
+        [int]$Port,
+        [int]$TimeoutSeconds = 2
+    )
+
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$Port/health" -TimeoutSec $TimeoutSeconds -UseBasicParsing -ErrorAction Stop
+        return $response.StatusCode -eq 200
+    } catch {
+        return $false
+    }
+}
+
 # Determine which bots to start
 if ($BotNames -and $BotNames.Count -gt 0) {
     $botFolders = $BotNames
@@ -68,6 +116,8 @@ if (-not $global:BotJobs) {
 }
 
 Write-Host ""
+
+$startedBots = @()
 
 foreach ($folder in $botFolders) {
     # Skip if bot directory doesn't exist
@@ -100,10 +150,67 @@ foreach ($folder in $botFolders) {
     } -ArgumentList $workingDir, $venvPython
 
     $global:BotJobs[$folder] = $job
+    $startedBots += $folder
+}
+
+# --- Health check after startup ---
+if ($startedBots.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Waiting 3 seconds for bots to initialize..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 3
+
+    Write-Host ""
+    Write-Host "Checking health endpoints..." -ForegroundColor Cyan
+    Write-Host ""
+
+    $healthy = @()
+    $unhealthy = @()
+
+    foreach ($bot in $startedBots) {
+        $botDir = Join-Path $baseDir $bot
+        $port = Get-BotPort -BotDir $botDir
+        $displayName = $bot.Substring(0,1).ToUpper() + $bot.Substring(1)
+
+        if (-not $port) {
+            Write-Host "  [WARN] $displayName - no port in config" -ForegroundColor Yellow
+            $unhealthy += $bot
+            continue
+        }
+
+        # Check if job is still running
+        $job = $global:BotJobs[$bot]
+        if ($job.State -ne 'Running') {
+            Write-Host "  [FAIL] $displayName - job not running (state: $($job.State))" -ForegroundColor Red
+            # Show error output if available
+            $output = Receive-Job $job -ErrorAction SilentlyContinue
+            if ($output) {
+                Write-Host "         Output: $($output | Select-Object -Last 3)" -ForegroundColor Gray
+            }
+            $unhealthy += $bot
+            continue
+        }
+
+        # Check health endpoint
+        if (Test-BotHealth -BotName $bot -Port $port) {
+            Write-Host "  [OK]   $displayName (port $port)" -ForegroundColor Green
+            $healthy += $bot
+        } else {
+            Write-Host "  [FAIL] $displayName (port $port) - health check failed" -ForegroundColor Red
+            $unhealthy += $bot
+        }
+    }
+
+    Write-Host ""
+    if ($unhealthy.Count -gt 0) {
+        Write-Host "WARNING: $($unhealthy.Count) bot(s) failed to start: $($unhealthy -join ', ')" -ForegroundColor Red
+        Write-Host "Use 'Receive-Job -Name BotName' to see error output" -ForegroundColor Yellow
+    } else {
+        Write-Host "All $($healthy.Count) bot(s) started successfully!" -ForegroundColor Green
+    }
 }
 
 Write-Host ""
-Write-Host "Bots started. Commands:" -ForegroundColor Cyan
+Write-Host "Commands:" -ForegroundColor Cyan
 Write-Host "  Get-Job                    # See status of all jobs"
 Write-Host "  Receive-Job -Name Oscar    # View output from Oscar"
 Write-Host "  .\stop-bots.ps1            # Stop all bots"
