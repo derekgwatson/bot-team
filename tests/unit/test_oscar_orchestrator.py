@@ -396,7 +396,7 @@ def test_notify_ian_success(mock_config, sample_onboarding_request):
     mock_email_service.send_email.return_value = True
 
     with patch('oscar_orchestrator.config', mock_config):
-        with patch('oscar_orchestrator.EmailService', return_value=mock_email_service):
+        with patch('services.email_service.EmailService', return_value=mock_email_service):
             # OnboardingOrchestrator already loaded at module level
 
             orchestrator = OnboardingOrchestrator()
@@ -419,7 +419,7 @@ def test_notify_ian_email_failure(mock_config, sample_onboarding_request):
     mock_email_service.send_email.return_value = False
 
     with patch('oscar_orchestrator.config', mock_config):
-        with patch('oscar_orchestrator.EmailService', return_value=mock_email_service):
+        with patch('services.email_service.EmailService', return_value=mock_email_service):
             # OnboardingOrchestrator already loaded at module level
 
             orchestrator = OnboardingOrchestrator()
