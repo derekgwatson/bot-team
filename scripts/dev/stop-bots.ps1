@@ -80,12 +80,16 @@ function Get-PortProcess {
         # Only look for LISTEN state - ignore TIME_WAIT, CLOSE_WAIT etc from dead processes
         $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($connection) {
+            # Verify the process actually exists (Windows can have stale TCP entries)
             $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
-            return @{
-                InUse = $true
-                ProcessId = $connection.OwningProcess
-                ProcessName = $process.ProcessName
+            if ($process) {
+                return @{
+                    InUse = $true
+                    ProcessId = $connection.OwningProcess
+                    ProcessName = $process.ProcessName
+                }
             }
+            # Process doesn't exist - stale TCP entry, ignore it
         }
     } catch {}
     return @{ InUse = $false }
