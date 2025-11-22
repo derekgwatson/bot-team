@@ -220,6 +220,22 @@ bot_team:
       devices: /api/devices
     personality: Vigilant and reliable, keeps watch over all retail store devices
 
+  mabel:
+    name: Mabel
+    description: Email Service Bot
+    capabilities:
+      - Send emails on behalf of other bots
+      - Centralized outbound email for the bot team
+      - Support for templated emails with Jinja2
+      - Batch email sending
+      - SMTP connection health monitoring
+    api_endpoints:
+      info: /info
+      health: /health
+      send_email: /api/send-email
+      send_batch: /api/send-batch
+    personality: Reliable and communicative, delivers messages with care
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.
