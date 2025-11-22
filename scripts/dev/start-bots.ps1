@@ -85,14 +85,14 @@ function Test-BotHealth {
     param(
         [string]$BotName,
         [int]$Port,
-        [int]$TimeoutSeconds = 2
+        [int]$TimeoutSeconds = 5
     )
 
     try {
         $response = Invoke-WebRequest -Uri "http://localhost:$Port/health" -TimeoutSec $TimeoutSeconds -UseBasicParsing -ErrorAction Stop
-        return $response.StatusCode -eq 200
+        return @{ Success = $true; StatusCode = $response.StatusCode }
     } catch {
-        return $false
+        return @{ Success = $false; Error = $_.Exception.Message }
     }
 }
 
@@ -156,8 +156,8 @@ foreach ($folder in $botFolders) {
 # --- Health check after startup ---
 if ($startedBots.Count -gt 0) {
     Write-Host ""
-    Write-Host "Waiting 3 seconds for bots to initialize..." -ForegroundColor Cyan
-    Start-Sleep -Seconds 3
+    Write-Host "Waiting 5 seconds for bots to initialize..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 5
 
     Write-Host ""
     Write-Host "Checking health endpoints..." -ForegroundColor Cyan
@@ -191,11 +191,12 @@ if ($startedBots.Count -gt 0) {
         }
 
         # Check health endpoint
-        if (Test-BotHealth -BotName $bot -Port $port) {
+        $healthResult = Test-BotHealth -BotName $bot -Port $port
+        if ($healthResult.Success) {
             Write-Host "  [OK]   $displayName (port $port)" -ForegroundColor Green
             $healthy += $bot
         } else {
-            Write-Host "  [FAIL] $displayName (port $port) - health check failed" -ForegroundColor Red
+            Write-Host "  [FAIL] $displayName (port $port) - $($healthResult.Error)" -ForegroundColor Red
             $unhealthy += $bot
         }
     }
