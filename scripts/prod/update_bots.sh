@@ -8,6 +8,7 @@ REPO_PATH="/var/www/bot-team"
 CHESTER_CONFIG="$REPO_PATH/chester/config.yaml"
 SHARED_REQUIREMENTS="$REPO_PATH/requirements.txt"
 HEALTH_CHECK_TIMEOUT=5  # seconds to wait for health check
+SOCKET_DIR="/run"       # Directory where gunicorn sockets live
 
 # ==== Colours ====
 RED='\033[0;31m'
@@ -47,44 +48,25 @@ except Exception as e:
 EOF
 }
 
-# --- Get bot port from its config.yaml ---
-get_bot_port() {
+# --- Get bot socket path ---
+get_bot_socket() {
     local bot=$1
-    local bot_config="$REPO_PATH/$bot/config.yaml"
-
-    if [ ! -f "$bot_config" ]; then
-        echo ""
-        return
-    fi
-
-    python3 - <<EOF
-import yaml
-import sys
-
-try:
-    with open("$bot_config") as f:
-        data = yaml.safe_load(f)
-    port = data.get("server", {}).get("port", "")
-    print(port)
-except Exception:
-    print("")
-EOF
+    echo "$SOCKET_DIR/gunicorn-bot-team-$bot.sock"
 }
 
-# --- Check bot health endpoint ---
+# --- Check bot health endpoint via Unix socket ---
 check_bot_health() {
     local bot=$1
-    local port=$2
+    local socket_path
+    socket_path=$(get_bot_socket "$bot")
 
-    if [ -z "$port" ]; then
-        warning "No port found for $bot, skipping health check"
+    if [ ! -S "$socket_path" ]; then
+        # Socket doesn't exist, can't health check
         return 1
     fi
 
-    local health_url="http://localhost:$port/health"
-
-    # Try health check with timeout
-    if curl -sf --max-time "$HEALTH_CHECK_TIMEOUT" "$health_url" > /dev/null 2>&1; then
+    # Use curl with --unix-socket to check health endpoint
+    if curl -sf --max-time "$HEALTH_CHECK_TIMEOUT" --unix-socket "$socket_path" http://localhost/health > /dev/null 2>&1; then
         return 0
     else
         return 1
@@ -163,14 +145,14 @@ sleep 3
 
 header "Health Check Summary"
 
-echo "Checking bot health endpoints..."
+echo "Checking bot health endpoints via Unix sockets..."
 echo "----------------------------------------"
 failed_bots=()
 healthy_bots=()
 
 for bot in "${BOTS[@]}"; do
-    port=$(get_bot_port "$bot")
     service_name="gunicorn-bot-team-$bot"
+    socket_path=$(get_bot_socket "$bot")
 
     # First check if service is running
     if ! systemctl is-active --quiet "$service_name" 2>/dev/null; then
@@ -179,17 +161,18 @@ for bot in "${BOTS[@]}"; do
         continue
     fi
 
-    # Then check health endpoint
-    if [ -n "$port" ]; then
-        if check_bot_health "$bot" "$port"; then
-            success "$bot: healthy (port $port)"
+    # Then check health endpoint via socket
+    if [ -S "$socket_path" ]; then
+        if check_bot_health "$bot"; then
+            success "$bot: healthy (via socket)"
             healthy_bots+=("$bot")
         else
-            error "$bot: health check failed (port $port)"
+            error "$bot: health check failed (socket exists but /health failed)"
             failed_bots+=("$bot")
         fi
     else
-        warning "$bot: service running but no port configured (skipped health check)"
+        warning "$bot: service running but socket not found at $socket_path"
+        # Service is running, so count as "healthy" but note the socket issue
         healthy_bots+=("$bot")
     fi
 done
@@ -207,7 +190,7 @@ if [ ${#failed_bots[@]} -gt 0 ]; then
 
     for bot in "${failed_bots[@]}"; do
         service_name="gunicorn-bot-team-$bot"
-        port=$(get_bot_port "$bot")
+        socket_path=$(get_bot_socket "$bot")
 
         echo "--- $bot ---"
         echo "  Check service status:"
@@ -216,11 +199,9 @@ if [ ${#failed_bots[@]} -gt 0 ]; then
         echo "  View recent logs:"
         echo "    sudo journalctl -u $service_name -n 50"
         echo ""
-        if [ -n "$port" ]; then
-            echo "  Test health endpoint manually:"
-            echo "    curl -v http://localhost:$port/health"
-            echo ""
-        fi
+        echo "  Test health endpoint via socket:"
+        echo "    curl -v --unix-socket $socket_path http://localhost/health"
+        echo ""
         echo "  Follow logs (live tail):"
         echo "    sudo journalctl -u $service_name -f"
         echo ""

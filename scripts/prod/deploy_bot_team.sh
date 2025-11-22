@@ -6,6 +6,18 @@
 
 set -e  # Exit on error
 
+# ==== Self-update detection ====
+# If this script was updated by the git merge, we need to re-exec the new version.
+# We use an environment variable to prevent infinite loops.
+SCRIPT_PATH="$(realpath "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+if [ -z "${DEPLOY_REEXEC:-}" ]; then
+    # First run - record script hashes before merge
+    export DEPLOY_SCRIPT_HASH_BEFORE
+    DEPLOY_SCRIPT_HASH_BEFORE=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/update_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
+fi
+
 BOT="${1:-}"
 
 # ==== Colours ====
@@ -35,6 +47,22 @@ header "Step 1: Merging latest matching git branch into main"
 info "Running merge_latest_git_branch.sh as www-data..."
 sudo -u www-data "$PROD_SCRIPTS_DIR/merge_latest_git_branch.sh"
 success "Merge step complete"
+
+# ==== Check if scripts were updated ====
+if [ -z "${DEPLOY_REEXEC:-}" ] && [ -n "${DEPLOY_SCRIPT_HASH_BEFORE:-}" ]; then
+    SCRIPT_HASH_AFTER=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/update_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
+
+    if [ "$DEPLOY_SCRIPT_HASH_BEFORE" != "$SCRIPT_HASH_AFTER" ]; then
+        header "Deploy Scripts Updated!"
+        warning "The deploy scripts were updated by the merge."
+        info "Re-executing with the new version..."
+        echo ""
+
+        # Set flag to prevent infinite loop, then re-exec
+        export DEPLOY_REEXEC=1
+        exec "$SCRIPT_PATH" "$@"
+    fi
+fi
 
 # Step 2: Update bot(s) - pip install + restart services
 echo ""
