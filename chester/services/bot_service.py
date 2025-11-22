@@ -1,8 +1,14 @@
 """Bot team service - handles health checks and bot information."""
+import os
 import requests
 from typing import Dict, List, Optional
 from config import config
 from services.database import Database
+
+
+def is_dev_mode() -> bool:
+    """Check if running in development mode."""
+    return os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
 
 class BotService:
@@ -24,9 +30,10 @@ class BotService:
         """
         Get the API base URL for a bot from database configuration.
 
-        For bots with skip_nginx=True (Sally): http://localhost:{port}
-        For all other bots in production: https://{domain}
-        For bots in development: http://localhost:{port}
+        In development mode (FLASK_DEBUG=true): http://localhost:{port}
+        In production mode:
+          - For bots with skip_nginx=True (Sally): http://localhost:{port}
+          - For all other bots: https://{domain}
 
         Returns:
             Bot API base URL, or None if bot not found in database
@@ -35,9 +42,15 @@ class BotService:
         if not bot_config:
             return None
 
+        port = bot_config.get('port')
+
+        # In dev mode, always use localhost
+        if is_dev_mode():
+            return f"http://localhost:{port}"
+
+        # In production
         if bot_config.get('skip_nginx'):
-            # Sally uses localhost
-            port = bot_config.get('port', 8004)
+            # Sally uses localhost even in prod
             return f"http://localhost:{port}"
         else:
             # Production bots use their domain
@@ -48,8 +61,9 @@ class BotService:
         """
         Build health check URL for a bot from database configuration.
 
-        For bots with skip_nginx=True (Sally): http://localhost:{port}/health
-        For all other bots: https://{domain}/health
+        Uses get_bot_url() which respects dev/prod mode:
+        - Dev mode: http://localhost:{port}/health
+        - Prod mode: https://{domain}/health (or localhost for skip_nginx bots)
 
         Returns:
             Health check URL, or None if bot not found in database

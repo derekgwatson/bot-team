@@ -45,7 +45,7 @@ class Config:
             raise ConfigError(f"Config file not found: {config_path}")
 
         # Load YAML config
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             self._config = yaml.safe_load(f)
 
         # Validate and load required values

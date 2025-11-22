@@ -5,7 +5,7 @@ REST API for onboarding workflows
 
 from flask import Blueprint, jsonify, request
 from database.db import db
-from services.orchestrator import orchestrator
+from services.orchestrator import orchestrator, get_orchestrator
 import logging
 from shared.auth.bot_api import api_key_required
 
@@ -33,6 +33,7 @@ def intro():
         ],
         'endpoints': {
             'POST /api/onboard': 'Submit a new onboarding request',
+            'POST /api/onboard/preview': 'Preview onboarding workflow (DRY RUN - no changes made)',
             'GET /api/onboard/<id>': 'Get onboarding request details',
             'GET /api/onboard': 'List all onboarding requests',
             'POST /api/onboard/<id>/start': 'Start onboarding workflow',
@@ -78,6 +79,41 @@ def create_onboarding():
 
     except Exception as e:
         logger.exception("Error creating onboarding request")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/onboard/preview', methods=['POST'])
+@api_key_required
+def preview_onboarding():
+    """
+    Preview what an onboarding workflow would do (DRY RUN).
+
+    This endpoint shows exactly what would happen if you submitted an onboarding
+    request, including which bots would be called and what data would be sent.
+    No actual changes are made.
+
+    Useful for:
+    - Validating data before submission
+    - Testing workflow configuration
+    - Understanding what Oscar will do
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['full_name', 'position', 'section', 'start_date', 'personal_email']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Get a dry-run orchestrator and preview
+        dry_run_orchestrator = get_orchestrator(dry_run=True)
+        preview = dry_run_orchestrator.preview_onboarding(data)
+
+        return jsonify(preview)
+
+    except Exception as e:
+        logger.exception("Error generating preview")
         return jsonify({'error': str(e)}), 500
 
 
