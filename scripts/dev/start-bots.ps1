@@ -80,6 +80,24 @@ except Exception as e:
     return $null
 }
 
+# --- Check if a port is in use and get the process ---
+function Get-PortProcess {
+    param([int]$Port)
+
+    try {
+        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($connection) {
+            $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+            return @{
+                InUse = $true
+                ProcessId = $connection.OwningProcess
+                ProcessName = $process.ProcessName
+            }
+        }
+    } catch {}
+    return @{ InUse = $false }
+}
+
 # --- Check bot health endpoint ---
 function Test-BotHealth {
     param(
@@ -127,7 +145,7 @@ foreach ($folder in $botFolders) {
         continue
     }
 
-    # Check if already running
+    # Check if already running (known job)
     if ($global:BotJobs.ContainsKey($folder) -and $global:BotJobs[$folder].State -eq 'Running') {
         Write-Host "  [SKIP] $folder - already running" -ForegroundColor Yellow
         continue
@@ -135,6 +153,17 @@ foreach ($folder in $botFolders) {
 
     # Capitalise the bot name for display
     $displayName = $folder.Substring(0,1).ToUpper() + $folder.Substring(1)
+
+    # Get port and check if it's already in use (orphaned process)
+    $port = Get-BotPort -BotDir $workingDir
+    if ($port) {
+        $portInfo = Get-PortProcess -Port $port
+        if ($portInfo.InUse) {
+            Write-Host "  [SKIP] $displayName - port $port already in use by $($portInfo.ProcessName) (PID: $($portInfo.ProcessId))" -ForegroundColor Yellow
+            Write-Host "         Run: Stop-Process -Id $($portInfo.ProcessId) -Force" -ForegroundColor Gray
+            continue
+        }
+    }
 
     Write-Host "  [START] $displayName ..." -ForegroundColor Green
 
