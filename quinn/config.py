@@ -9,7 +9,7 @@ load_dotenv()
 class Config:
     def __init__(self):
         config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
         # Bot info
@@ -34,7 +34,7 @@ class Config:
 
         # Load shared organization config
         shared_config_path = os.path.join(os.path.dirname(__file__), data['shared_config'])
-        with open(shared_config_path, 'r') as f:
+        with open(shared_config_path, 'r', encoding='utf-8') as f:
             shared_data = yaml.safe_load(f)
 
         # Organization config

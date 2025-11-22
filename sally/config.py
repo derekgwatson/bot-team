@@ -27,13 +27,13 @@ class Config:
         (local overrides, gitignored) if it exists.
         """
         # Load base config
-        with open(self.config_file, 'r') as f:
+        with open(self.config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f) or {}
 
         # Load local config if it exists
         local_config_file = self.base_dir / 'config.local.yaml'
         if local_config_file.exists():
-            with open(local_config_file, 'r') as f:
+            with open(local_config_file, 'r', encoding='utf-8') as f:
                 local_config = yaml.safe_load(f) or {}
                 # Deep merge: local config overrides base config
                 config = self._deep_merge(config, local_config)

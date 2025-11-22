@@ -17,12 +17,12 @@ class Config:
 
         # Load shared organization config
         shared_config_path = self.base_dir / self._config['shared_config']
-        with open(shared_config_path, 'r') as f:
+        with open(shared_config_path, 'r', encoding='utf-8') as f:
             self._shared_config = yaml.safe_load(f)
 
     def _load_config(self):
         """Load configuration from YAML file"""
-        with open(self.config_file, 'r') as f:
+        with open(self.config_file, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
 
     @property
