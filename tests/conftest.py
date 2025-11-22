@@ -15,9 +15,12 @@ from pathlib import Path
 # Set TESTING environment variable FIRST, before any bot modules are imported
 # This prevents module-level database instantiation in quinn/database/db.py
 os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'  # Skip environment variable validation in tests
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key-for-testing-only'
 os.environ['GOOGLE_OAUTH_CLIENT_ID'] = 'test-client-id'
 os.environ['GOOGLE_OAUTH_CLIENT_SECRET'] = 'test-client-secret'
+os.environ['CHESTER_API_URL'] = 'http://localhost:8008'  # For service registry tests
+os.environ['ADMIN_EMAILS'] = 'test@example.com'  # Required by Oscar config
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent

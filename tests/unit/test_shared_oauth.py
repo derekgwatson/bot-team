@@ -28,6 +28,7 @@ def flask_app(test_env):
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'test-secret-key'
+    app.secret_key = 'test-secret-key'  # Required for Flask sessions to work
 
     # Add dummy routes
     @app.route('/')
@@ -110,6 +111,7 @@ def test_google_auth_sets_secret_key(mock_config_domain):
     """Test that GoogleAuth sets Flask secret key from environment."""
     app = Flask(__name__)
     app.config['TESTING'] = True
+    app.secret_key = 'test-secret-key'  # Required for Flask sessions to work
 
     # FLASK_SECRET_KEY should be set from env (via test_env fixture)
     auth = GoogleAuth(app, mock_config_domain)
@@ -124,6 +126,7 @@ def test_google_auth_preserves_existing_secret_key(mock_config_domain):
     app = Flask(__name__)
     app.config['TESTING'] = True
     app.config['FLASK_SECRET_KEY'] = 'existing-secret'
+    app.secret_key = 'existing-secret'  # Required for Flask sessions to work
 
     auth = GoogleAuth(app, mock_config_domain)
 

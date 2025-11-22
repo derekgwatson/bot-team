@@ -45,16 +45,16 @@ except ImportError as e:
 @pytest.fixture
 def mock_config(monkeypatch):
     """Mock Pam's config."""
-    class MockConfig:
-        peter_api_url = 'http://localhost:8003'
-        # For PeterClient.__init__
-        peter_contacts_endpoint = '/api/contacts'
-        peter_search_endpoint = '/api/contacts/search'
-
     import config as pam_config
-    monkeypatch.setattr(pam_config, 'config', MockConfig())
 
-    return MockConfig()
+    # Pre-populate Chester's bot URL cache to avoid hitting Chester API
+    pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
+
+    # Patch the endpoints
+    monkeypatch.setattr(pam_config.config, 'peter_contacts_endpoint', '/api/contacts')
+    monkeypatch.setattr(pam_config.config, 'peter_search_endpoint', '/api/contacts/search')
+
+    return pam_config.config
 
 
 @pytest.fixture
