@@ -1,0 +1,33 @@
+name: Mavis
+description: Unleashed data integration bot - syncs and serves Unleashed product data for other bots
+version: 1.0.0
+personality: Efficient, no-nonsense, data-focused. Keeps product data in sync and serves it reliably.
+
+server:
+  host: 0.0.0.0
+  port: 8017
+
+# Shared organization config
+shared_config: "../shared/config/organization.yaml"
+
+# Database configuration
+database:
+  path: "database/mavis.db"
+
+# Unleashed API configuration (credentials come from environment)
+unleashed:
+  base_url: "https://api.unleashedsoftware.com"
+  page_size: 200
+  timeout: 30
+
+# Sync configuration
+sync:
+  # Fields to extract from Unleashed product response
+  product_fields:
+    - ProductCode
+    - ProductDescription
+    - ProductGroup
+    - DefaultSellPrice
+    - SellPriceTier9
+    - UnitOfMeasure
+    - Width
