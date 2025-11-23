@@ -268,6 +268,25 @@ bot_team:
       send_batch: /api/send-batch
     personality: Reliable and communicative, delivers messages with care
 
+  mavis:
+    name: Mavis
+    port: 8017
+    description: Unleashed Data Integration Bot
+    capabilities:
+      - Sync product data from Unleashed API
+      - Serve normalized product data to other bots
+      - Product lookup by code (single and bulk)
+      - Track products changed since timestamp
+      - Sync status monitoring and history
+    api_endpoints:
+      info: /info
+      health: /health
+      sync_run: /api/sync/run
+      sync_status: /api/sync/status
+      products: /api/products
+      products_bulk: /api/products/bulk
+    personality: Efficient and data-focused, keeps Unleashed data in sync
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.
