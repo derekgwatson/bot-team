@@ -1,8 +1,8 @@
 #!/bin/bash
 # Deploy latest changes from Claude's feature branch
 # Usage:
-#   /var/www/bot-team/scripts/prod/deploy_bot_team.sh        # Update all bots
-#   /var/www/bot-team/scripts/prod/deploy_bot_team.sh iris   # Update only iris
+#   /var/www/bot-team/scripts/prod/deploy.sh        # Deploy and restart all bots
+#   /var/www/bot-team/scripts/prod/deploy.sh iris   # Deploy and restart only iris
 
 set -e  # Exit on error
 
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 if [ -z "${DEPLOY_REEXEC:-}" ]; then
     # First run - record script hashes before merge
     export DEPLOY_SCRIPT_HASH_BEFORE
-    DEPLOY_SCRIPT_HASH_BEFORE=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/update_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
+    DEPLOY_SCRIPT_HASH_BEFORE=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/restart_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
 fi
 
 BOT="${1:-}"
@@ -50,7 +50,7 @@ success "Merge step complete"
 
 # ==== Check if scripts were updated ====
 if [ -z "${DEPLOY_REEXEC:-}" ] && [ -n "${DEPLOY_SCRIPT_HASH_BEFORE:-}" ]; then
-    SCRIPT_HASH_AFTER=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/update_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
+    SCRIPT_HASH_AFTER=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/restart_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
 
     if [ "$DEPLOY_SCRIPT_HASH_BEFORE" != "$SCRIPT_HASH_AFTER" ]; then
         header "Deploy Scripts Updated!"
@@ -68,12 +68,12 @@ fi
 echo ""
 if [ -n "$BOT" ]; then
     header "Step 2: Updating bot '$BOT'"
-    info "Running update_bots.sh for $BOT as www-data..."
-    sudo -u www-data "$PROD_SCRIPTS_DIR/update_bots.sh" "$BOT"
+    info "Running restart_bots.sh for $BOT as www-data..."
+    sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh" "$BOT"
 else
     header "Step 2: Updating ALL bots"
-    info "Running update_bots.sh for all bots as www-data..."
-    sudo -u www-data "$PROD_SCRIPTS_DIR/update_bots.sh"
+    info "Running restart_bots.sh for all bots as www-data..."
+    sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh"
 fi
 
 echo ""
