@@ -6,7 +6,6 @@ set -e
 
 REPO_PATH="/var/www/bot-team"
 CHESTER_CONFIG="$REPO_PATH/chester/config.yaml"
-PORTS_CONFIG="$REPO_PATH/shared/config/ports.yaml"
 SHARED_REQUIREMENTS="$REPO_PATH/requirements.txt"
 HEALTH_CHECK_TIMEOUT=5  # seconds to wait for health check
 
@@ -48,20 +47,21 @@ except Exception as e:
 EOF
 }
 
-# --- Get bot port from ports.yaml ---
+# --- Get bot port from chester/config.yaml ---
 get_bot_port() {
     local bot=$1
     python3 - <<EOF
 import yaml
 import sys
 
-path = "$PORTS_CONFIG"
+path = "$CHESTER_CONFIG"
 bot_name = "$bot"
 try:
     with open(path) as f:
         data = yaml.safe_load(f)
-    ports = data.get("ports", {})
-    port = ports.get(bot_name)
+    bot_team = data.get("bot_team", {})
+    bot_info = bot_team.get(bot_name, {})
+    port = bot_info.get("port")
     if port:
         print(port)
     else:
@@ -181,7 +181,7 @@ for bot in "${BOTS[@]}"; do
 
     # Check if we have a port configured
     if [ -z "$port" ]; then
-        warning "$bot: no port configured in ports.yaml"
+        warning "$bot: no port configured in chester/config.yaml"
         failed_bots+=("$bot")
         continue
     fi
