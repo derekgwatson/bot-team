@@ -1,6 +1,6 @@
 #!/bin/bash
-# Update bots after git pull
-# This script should be run as www-data user after running merge_latest_claude.sh
+# Restart bots after git pull
+# This script should be run as www-data user after running merge_latest_git_branch.sh
 
 set -e
 
