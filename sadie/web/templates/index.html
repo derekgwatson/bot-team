@@ -31,7 +31,7 @@
 
     <!-- Search Bar -->
     <form method="GET" action="{{ url_for('web.index') }}" class="search-bar">
-        <input type="text" name="q" placeholder="Search tickets by subject or content..." value="{{ search_query or '' }}">
+        <input type="search" name="q" placeholder="Search tickets by subject or content..." value="{{ search_query or '' }}" data-lpignore="true" data-form-type="other">
         <button type="submit" class="btn">Search</button>
         {% if search_query %}
         <a href="{{ url_for('web.index') }}" class="btn">Clear</a>

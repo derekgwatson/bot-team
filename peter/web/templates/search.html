@@ -5,7 +5,7 @@
     <h2>Search Staff</h2>
 
     <form method="GET" action="/search" class="search-bar">
-        <input type="text" name="q" placeholder="Search by name, extension, phone, or email..." value="{{ query }}" autofocus>
+        <input type="search" name="q" placeholder="Search by name, extension, phone, or email..." value="{{ query }}" autofocus data-lpignore="true" data-form-type="other">
     </form>
 
     {% if error %}
