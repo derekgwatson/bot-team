@@ -170,7 +170,14 @@ class SyncService:
 
             products = client.fetch_all_products(progress_callback=on_fetch_progress)
 
-            logger.info(f"Fetched {len(products)} products from Unleashed, starting sync")
+            # Debug: Check for duplicates in fetched data
+            unique_codes = set(p.get('ProductCode') for p in products)
+            logger.info(f"Fetched {len(products)} products from Unleashed ({len(unique_codes)} unique codes)")
+
+            if len(unique_codes) != len(products):
+                logger.warning(f"DUPLICATE DETECTION: {len(products) - len(unique_codes)} duplicate product codes in API response!")
+
+            logger.info(f"Starting sync of {len(products)} products")
 
             # Process each product (update progress every 100 records)
             progress_interval = 100
