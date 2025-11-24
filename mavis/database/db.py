@@ -179,6 +179,35 @@ class Database:
 
         return dict(row) if row else None
 
+    def search_products(self, query: str, limit: int = 50) -> List[Dict]:
+        """
+        Search products by code or description.
+        Returns products matching the query with a flag for valid fabric status.
+        """
+        if not query or len(query) < 2:
+            return []
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        search_term = f"%{query.upper()}%"
+        cursor.execute("""
+            SELECT *,
+                CASE
+                    WHEN LOWER(product_group) LIKE 'fabric%'
+                        AND is_obsolete = 0
+                        AND is_sellable = 1
+                    THEN 1 ELSE 0
+                END as is_valid_fabric
+            FROM unleashed_products
+            WHERE product_code LIKE ? OR product_description LIKE ?
+            ORDER BY product_code
+            LIMIT ?
+        """, (search_term, search_term, limit))
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
     def get_products_by_codes(self, codes: List[str]) -> List[Dict]:
         """Get multiple products by their codes"""
         if not codes:
