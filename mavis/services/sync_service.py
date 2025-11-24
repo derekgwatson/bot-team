@@ -111,17 +111,26 @@ class SyncService:
                     sell_price_tier_9 = tier.get('Value')
                     break
 
-        # Extract product group/subgroup
-        product_group = unleashed_product.get('ProductGroup', {})
+        # Extract product group
+        product_group = unleashed_product.get('ProductGroup')
         group_name = product_group.get('GroupName', '') if product_group else ''
+
+        # ProductSubGroup is a separate field in Unleashed, not nested in ProductGroup
+        product_sub_group = unleashed_product.get('ProductSubGroup')
+        sub_group_name = product_sub_group.get('GroupName', '') if product_sub_group else ''
+
+        # Extract unit of measure
+        unit_of_measure = unleashed_product.get('UnitOfMeasure')
+        uom_name = unit_of_measure.get('Name', '') if unit_of_measure else ''
 
         return {
             'product_code': unleashed_product.get('ProductCode', ''),
             'product_description': unleashed_product.get('ProductDescription', ''),
             'product_group': group_name,
+            'product_sub_group': sub_group_name,
             'default_sell_price': unleashed_product.get('DefaultSellPrice'),
             'sell_price_tier_9': sell_price_tier_9,
-            'unit_of_measure': unleashed_product.get('UnitOfMeasure', {}).get('Name', ''),
+            'unit_of_measure': uom_name,
             'width': unleashed_product.get('Width'),
             'is_sellable': unleashed_product.get('IsSellable', True),
             'is_obsolete': unleashed_product.get('IsObsolete', False),
@@ -156,13 +165,30 @@ class SyncService:
         records_updated = 0
 
         try:
-            # Create client and fetch products
+            # Create client and fetch products with progress updates
             client = self._create_unleashed_client()
-            products = client.fetch_all_products()
 
-            logger.info(f"Fetched {len(products)} products from Unleashed, starting sync")
+            # Progress callback to update UI during fetch phase
+            def on_fetch_progress(fetched_count):
+                db.update_sync_progress(
+                    sync_id,
+                    records_processed=fetched_count,
+                    records_created=0,
+                    records_updated=0
+                )
 
-            # Process each product (update progress every 100 records)
+            products = client.fetch_all_products(progress_callback=on_fetch_progress)
+
+            # Debug: Check for duplicates in fetched data
+            unique_codes = set(p.get('ProductCode') for p in products)
+            logger.info(f"Fetched {len(products)} products from Unleashed ({len(unique_codes)} unique codes)")
+
+            if len(unique_codes) != len(products):
+                logger.warning(f"DUPLICATE DETECTION: {len(products) - len(unique_codes)} duplicate product codes in API response!")
+
+            logger.info(f"Starting sync of {len(products)} products")
+
+            # Process each product
             progress_interval = 100
             for product in products:
                 try:
@@ -175,8 +201,9 @@ class SyncService:
                     else:
                         records_updated += 1
 
-                    # Update progress periodically so UI can show live updates
+                    # Update progress periodically
                     if records_processed % progress_interval == 0:
+                        logger.info(f"Sync progress: {records_processed} processed, {records_created} created, {records_updated} updated")
                         db.update_sync_progress(
                             sync_id,
                             records_processed=records_processed,
@@ -188,7 +215,6 @@ class SyncService:
                     logger.error(
                         f"Error processing product {product.get('ProductCode', 'unknown')}: {e}"
                     )
-                    # Continue processing other products
 
             # Mark sync as successful
             finished_at = utc_now_iso()

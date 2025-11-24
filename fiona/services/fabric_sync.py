@@ -90,6 +90,45 @@ class FabricSyncService:
 
         return incomplete
 
+    def get_rebadged_fabrics(self) -> List[Dict]:
+        """
+        Get fabrics that have Watson names different from supplier names.
+
+        A fabric is "rebadged" if watson_material or watson_colour is set
+        and differs from the corresponding supplier field.
+
+        Returns list of fabric records with rebadged names.
+        """
+        all_fabrics = db.get_all_fabrics(limit=10000)
+
+        rebadged = []
+        for fabric in all_fabrics:
+            changes = []
+
+            watson_material = (fabric.get('watson_material') or '').strip()
+            supplier_material = (fabric.get('supplier_material') or '').strip()
+            if watson_material and watson_material.lower() != supplier_material.lower():
+                changes.append({
+                    'field': 'material',
+                    'supplier': supplier_material,
+                    'watson': watson_material
+                })
+
+            watson_colour = (fabric.get('watson_colour') or '').strip()
+            supplier_colour = (fabric.get('supplier_colour') or '').strip()
+            if watson_colour and watson_colour.lower() != supplier_colour.lower():
+                changes.append({
+                    'field': 'colour',
+                    'supplier': supplier_colour,
+                    'watson': watson_colour
+                })
+
+            if changes:
+                fabric['rebadged_changes'] = changes
+                rebadged.append(fabric)
+
+        return rebadged
+
     def add_missing_fabrics(self, updated_by: str = None) -> Dict:
         """
         Add placeholder entries for fabrics that exist in Mavis but not in Fiona.

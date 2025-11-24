@@ -52,9 +52,27 @@ def callback():
         staff_check = is_staff_member(email)
 
         if not staff_check.get('approved'):
-            error_msg = "Your email address is not in the staff directory."
+            # Check if this is a connection error (Peter not running)
             if staff_check.get('error'):
-                error_msg = f"Could not verify staff status: {staff_check['error']}"
+                error = staff_check['error']
+                if 'Connection' in error or 'refused' in error or 'Max retries' in error:
+                    return render_template_string('''
+                        <html>
+                        <head><title>Service Unavailable</title></head>
+                        <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
+                            <h1 style="color: #e67e22;">Service Temporarily Unavailable</h1>
+                            <p>Fiona can't verify your staff status right now because the authentication service (Peter) isn't responding.</p>
+                            <p style="margin-top: 20px; color: #666;">Please try again in a few minutes, or contact your administrator if the problem persists.</p>
+                            <p style="margin-top: 30px;">
+                                <a href="{{ url_for('auth.login') }}" style="color: #16a085; padding: 10px 20px; background: #f0f0f0; border-radius: 5px; text-decoration: none;">Try Again</a>
+                            </p>
+                        </body>
+                        </html>
+                    ''')
+                else:
+                    error_msg = f"Could not verify staff status: {error}"
+            else:
+                error_msg = "Your email address is not in the staff directory."
 
             return render_template_string('''
                 <html>

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS unleashed_products (
     -- Product details
     product_description TEXT,
     product_group TEXT,
+    product_sub_group TEXT,
 
     -- Pricing
     default_sell_price REAL,

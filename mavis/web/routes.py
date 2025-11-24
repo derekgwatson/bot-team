@@ -64,3 +64,45 @@ def trigger_sync():
     thread.start()
 
     return redirect(url_for('web.index', sync_triggered='1'))
+
+
+@web_bp.route('/products')
+@login_required
+def products():
+    """Product search page"""
+    query = request.args.get('q', '').strip()
+    code = request.args.get('code', '').strip()
+
+    product = None
+    results = []
+
+    # If exact code requested, look it up
+    if code:
+        product = db.get_product_by_code(code)
+        # Add valid fabric flag
+        if product:
+            sub_group = (product.get('product_sub_group') or '').lower()
+            is_valid = (
+                product.get('product_group', '').lower().startswith('fabric')
+                and not product.get('is_obsolete')
+                and product.get('is_sellable')
+                and sub_group != 'ignore'
+            )
+            product['is_valid_fabric'] = is_valid
+    # Otherwise search
+    elif query:
+        results = db.search_products(query)
+
+    # Get fabric stats
+    fabric_count = len(db.get_valid_fabric_codes())
+
+    return render_template(
+        'products.html',
+        config=config,
+        query=query,
+        code=code,
+        product=product,
+        results=results,
+        fabric_count=fabric_count,
+        current_user=current_user
+    )

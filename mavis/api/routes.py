@@ -267,6 +267,7 @@ def get_valid_fabrics():
     - product_group starts with 'Fabric' (case-insensitive)
     - is_obsolete = false
     - is_sellable = true
+    - product_sub_group != 'ignore' (case-insensitive)
 
     Query parameters:
         codes_only (optional): If 'true', return just product codes

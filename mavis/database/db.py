@@ -28,6 +28,10 @@ class Database:
             schema = f.read()
 
         conn = sqlite3.connect(self.db_path)
+
+        # Enable WAL mode for better concurrent access
+        conn.execute("PRAGMA journal_mode=WAL")
+
         conn.executescript(schema)
         conn.commit()
 
@@ -55,6 +59,13 @@ class Database:
             cursor.execute("""
                 ALTER TABLE unleashed_products
                 ADD COLUMN is_obsolete INTEGER DEFAULT 0
+            """)
+            conn.commit()
+
+        if 'product_sub_group' not in columns:
+            cursor.execute("""
+                ALTER TABLE unleashed_products
+                ADD COLUMN product_sub_group TEXT
             """)
             conn.commit()
 
@@ -114,6 +125,7 @@ class Database:
                     UPDATE unleashed_products SET
                         product_description = ?,
                         product_group = ?,
+                        product_sub_group = ?,
                         default_sell_price = ?,
                         sell_price_tier_9 = ?,
                         unit_of_measure = ?,
@@ -126,6 +138,7 @@ class Database:
                 """, (
                     product_data.get('product_description'),
                     product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
                     product_data.get('default_sell_price'),
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
@@ -141,15 +154,16 @@ class Database:
                 # Insert new product
                 cursor.execute("""
                     INSERT INTO unleashed_products (
-                        product_code, product_description, product_group,
+                        product_code, product_description, product_group, product_sub_group,
                         default_sell_price, sell_price_tier_9,
                         unit_of_measure, width, is_sellable, is_obsolete,
                         raw_payload, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     code,
                     product_data.get('product_description'),
                     product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
                     product_data.get('default_sell_price'),
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
@@ -161,6 +175,87 @@ class Database:
                     now
                 ))
                 return (cursor.lastrowid, True)
+
+    def batch_upsert_products(self, products: List[Dict[str, Any]], progress_callback=None) -> Dict[str, int]:
+        """
+        Batch insert/update products with commits every 500 records.
+        Commits frequently to avoid database locking issues.
+
+        Args:
+            products: List of product data dicts
+            progress_callback: Optional callback(processed, created, updated) for progress updates
+
+        Returns:
+            Dict with 'created' and 'updated' counts
+        """
+        if not products:
+            return {'created': 0, 'updated': 0}
+
+        now = utc_now_iso()
+
+        # Get existing product codes first (separate transaction)
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT product_code FROM unleashed_products")
+        existing_codes = set(row[0] for row in cursor.fetchall())
+        conn.close()
+
+        created = 0
+        updated = 0
+
+        # Process in batches of 500, committing each batch
+        batch_size = 500
+        for i in range(0, len(products), batch_size):
+            batch = products[i:i + batch_size]
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            for product_data in batch:
+                code = self.normalize_product_code(product_data.get('product_code', ''))
+                if not code:
+                    continue
+
+                is_new = code not in existing_codes
+
+                cursor.execute("""
+                    INSERT OR REPLACE INTO unleashed_products (
+                        product_code, product_description, product_group, product_sub_group,
+                        default_sell_price, sell_price_tier_9,
+                        unit_of_measure, width, is_sellable, is_obsolete,
+                        raw_payload, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    code,
+                    product_data.get('product_description'),
+                    product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
+                    product_data.get('default_sell_price'),
+                    product_data.get('sell_price_tier_9'),
+                    product_data.get('unit_of_measure'),
+                    product_data.get('width'),
+                    1 if product_data.get('is_sellable', True) else 0,
+                    1 if product_data.get('is_obsolete', False) else 0,
+                    product_data.get('raw_payload'),
+                    now,
+                    now
+                ))
+
+                if is_new:
+                    created += 1
+                    existing_codes.add(code)
+                else:
+                    updated += 1
+
+            # Commit this batch and close connection
+            conn.commit()
+            conn.close()
+
+            # Call progress callback after each batch (outside transaction)
+            if progress_callback:
+                progress_callback(created + updated, created, updated)
+
+        return {'created': created, 'updated': updated}
 
     def get_product_by_code(self, code: str) -> Optional[Dict]:
         """Get a product by its code"""
@@ -178,6 +273,36 @@ class Database:
         conn.close()
 
         return dict(row) if row else None
+
+    def search_products(self, query: str, limit: int = 50) -> List[Dict]:
+        """
+        Search products by code or description.
+        Returns products matching the query with a flag for valid fabric status.
+        """
+        if not query or len(query) < 2:
+            return []
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        search_term = f"%{query.upper()}%"
+        cursor.execute("""
+            SELECT *,
+                CASE
+                    WHEN LOWER(product_group) LIKE 'fabric%'
+                        AND is_obsolete = 0
+                        AND is_sellable = 1
+                        AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
+                    THEN 1 ELSE 0
+                END as is_valid_fabric
+            FROM unleashed_products
+            WHERE product_code LIKE ? OR product_description LIKE ?
+            ORDER BY product_code
+            LIMIT ?
+        """, (search_term, search_term, limit))
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
 
     def get_products_by_codes(self, codes: List[str]) -> List[Dict]:
         """Get multiple products by their codes"""
@@ -241,6 +366,7 @@ class Database:
         - product_group starts with 'Fabric' (case-insensitive)
         - is_obsolete = 0 (not obsolete)
         - is_sellable = 1 (sellable)
+        - product_sub_group is not 'ignore' (case-insensitive)
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -249,6 +375,7 @@ class Database:
             WHERE LOWER(product_group) LIKE 'fabric%'
               AND is_obsolete = 0
               AND is_sellable = 1
+              AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
             ORDER BY product_code
         """)
         rows = cursor.fetchall()
@@ -265,6 +392,7 @@ class Database:
             WHERE LOWER(product_group) LIKE 'fabric%'
               AND is_obsolete = 0
               AND is_sellable = 1
+              AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
             ORDER BY product_code
         """)
         rows = cursor.fetchall()
