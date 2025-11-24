@@ -13,6 +13,7 @@ EnvironmentFile=-{repo_path}/.env
 EnvironmentFile=-{bot_path}/.env
 ExecStart={repo_path}/.venv/bin/gunicorn \
   --workers {workers} \
+  --timeout {timeout} \
   --worker-tmp-dir /dev/shm \
   --bind {bind_config} \
   --log-level debug \
