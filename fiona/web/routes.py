@@ -1,37 +1,37 @@
 """
 Web Routes for Fiona
-Provides UI for viewing and editing fabric descriptions
+
+Public routes (all staff):
+- / - Read-only fabric directory with instant search
+
+Admin routes (admins only):
+- /admin - Admin dashboard with editing capabilities
+- /admin/fabric/<code> - Edit fabric description
+- /admin/import - Import from Google Sheets
 """
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for
 from flask_login import current_user
 from database.db import db
 from services.mavis_service import mavis_service
-from services.auth import login_required
+from services.sheets_import import sheets_import_service
+from services.auth import login_required, admin_required
 from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Public Routes (All Staff)
+# ─────────────────────────────────────────────────────────────────────────────
+
 @web_bp.route('/')
 @login_required
 def index():
-    """Display Fiona main page - fabric description list"""
-    # Get query parameters
-    search_query = request.args.get('q', '')
-    page = request.args.get('page', 1, type=int)
-    per_page = 50
-
-    # Get fabrics
-    if search_query:
-        fabrics = db.search_fabrics(query=search_query, limit=per_page * page)
-        # Simple pagination for search results
-        fabrics = fabrics[(page - 1) * per_page:page * per_page]
-    else:
-        fabrics = db.get_all_fabrics(limit=per_page, offset=(page - 1) * per_page)
-
+    """Display read-only fabric directory with instant search (all staff)"""
+    # Get all fabrics for instant search
+    fabrics = db.get_all_fabrics(limit=5000)  # Load all for client-side search
     total = db.get_fabric_count()
-    total_pages = (total + per_page - 1) // per_page
 
     # Check Mavis connection
     mavis_status = mavis_service.check_connection()
@@ -41,26 +41,62 @@ def index():
         config=config,
         fabrics=fabrics,
         total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages,
-        search_query=search_query,
         mavis_status=mavis_status,
         current_user=current_user
     )
 
 
-@web_bp.route('/fabric/<code>')
-@login_required
-def view_fabric(code):
-    """View/edit a single fabric description"""
-    fabric = db.get_fabric_by_code(code)
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin Routes (Admins Only)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    # Get product data from Mavis
+@web_bp.route('/admin')
+@admin_required
+def admin_index():
+    """Admin dashboard with editing capabilities"""
+    # Get query parameters for pagination
+    search_query = request.args.get('q', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+
+    # Get fabrics with pagination
+    if search_query:
+        fabrics = db.search_fabrics(query=search_query, limit=per_page * page)
+        fabrics = fabrics[(page - 1) * per_page:page * per_page]
+    else:
+        fabrics = db.get_all_fabrics(limit=per_page, offset=(page - 1) * per_page)
+
+    total = db.get_fabric_count()
+    total_pages = (total + per_page - 1) // per_page
+
+    # Check services status
+    mavis_status = mavis_service.check_connection()
+    sheets_status = sheets_import_service.is_available()
+
+    return render_template(
+        'admin/index.html',
+        config=config,
+        fabrics=fabrics,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        search_query=search_query,
+        mavis_status=mavis_status,
+        sheets_status=sheets_status,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/fabric/<code>')
+@admin_required
+def edit_fabric(code):
+    """Edit a fabric description (admin only)"""
+    fabric = db.get_fabric_by_code(code)
     mavis_product = mavis_service.get_product(code)
 
     return render_template(
-        'fabric.html',
+        'admin/fabric.html',
         config=config,
         fabric=fabric,
         product_code=code.upper(),
@@ -69,10 +105,10 @@ def view_fabric(code):
     )
 
 
-@web_bp.route('/fabric/<code>/save', methods=['POST'])
-@login_required
+@web_bp.route('/admin/fabric/<code>/save', methods=['POST'])
+@admin_required
 def save_fabric(code):
-    """Save fabric description from form"""
+    """Save fabric description (admin only)"""
     try:
         fabric_data = {
             'product_code': code,
@@ -85,12 +121,11 @@ def save_fabric(code):
 
         db.upsert_fabric(fabric_data, updated_by=current_user.email)
 
-        # Redirect back to fabric page with success message
-        return redirect(url_for('web.view_fabric', code=code, saved=1))
+        return redirect(url_for('web.edit_fabric', code=code, saved=1))
 
     except Exception as e:
         return render_template(
-            'fabric.html',
+            'admin/fabric.html',
             config=config,
             fabric=db.get_fabric_by_code(code),
             product_code=code.upper(),
@@ -100,29 +135,29 @@ def save_fabric(code):
         )
 
 
-@web_bp.route('/fabric/<code>/delete', methods=['POST'])
-@login_required
+@web_bp.route('/admin/fabric/<code>/delete', methods=['POST'])
+@admin_required
 def delete_fabric(code):
-    """Delete a fabric description"""
+    """Delete a fabric description (admin only)"""
     db.delete_fabric(code)
-    return redirect(url_for('web.index', deleted=code))
+    return redirect(url_for('web.admin_index', deleted=code))
 
 
-@web_bp.route('/new')
-@login_required
+@web_bp.route('/admin/new')
+@admin_required
 def new_fabric():
-    """Create a new fabric description - lookup product in Mavis first"""
+    """Create a new fabric description (admin only)"""
     return render_template(
-        'new_fabric.html',
+        'admin/new_fabric.html',
         config=config,
         current_user=current_user
     )
 
 
-@web_bp.route('/lookup', methods=['POST'])
-@login_required
+@web_bp.route('/admin/lookup', methods=['POST'])
+@admin_required
 def lookup_product():
-    """Lookup a product code in Mavis"""
+    """Lookup a product code in Mavis (admin only)"""
     code = request.form.get('product_code', '').strip().upper()
 
     if not code:
@@ -131,15 +166,69 @@ def lookup_product():
     # Check if we already have this fabric
     existing = db.get_fabric_by_code(code)
     if existing:
-        return redirect(url_for('web.view_fabric', code=code))
+        return redirect(url_for('web.edit_fabric', code=code))
 
     # Check Mavis for the product
     mavis_product = mavis_service.get_product(code)
 
     return render_template(
-        'new_fabric.html',
+        'admin/new_fabric.html',
         config=config,
         current_user=current_user,
         product_code=code,
         mavis_product=mavis_product
+    )
+
+
+@web_bp.route('/admin/import')
+@admin_required
+def import_page():
+    """Google Sheets import page (admin only)"""
+    sheets_status = sheets_import_service.is_available()
+
+    return render_template(
+        'admin/import.html',
+        config=config,
+        sheets_status=sheets_status,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/import/preview', methods=['POST'])
+@admin_required
+def import_preview():
+    """Preview import from Google Sheets (admin only)"""
+    result = sheets_import_service.run_import(
+        updated_by=current_user.email,
+        dry_run=True
+    )
+
+    sheets_status = sheets_import_service.is_available()
+
+    return render_template(
+        'admin/import.html',
+        config=config,
+        sheets_status=sheets_status,
+        preview_result=result,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/import/run', methods=['POST'])
+@admin_required
+def import_run():
+    """Run import from Google Sheets (admin only)"""
+    result = sheets_import_service.run_import(
+        updated_by=current_user.email,
+        dry_run=False
+    )
+
+    sheets_status = sheets_import_service.is_available()
+
+    return render_template(
+        'admin/import.html',
+        config=config,
+        sheets_status=sheets_status,
+        import_result=result,
+        current_user=current_user
     )

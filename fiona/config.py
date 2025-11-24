@@ -38,6 +38,27 @@ class Config:
         self.mavis_dev_url = mavis_config.get("dev_url", "http://localhost:8017")
         self.mavis_prod_url = mavis_config.get("prod_url", "https://mavis.watsonblinds.com.au")
 
+        # ── Google Sheets import config ──────────────────────
+        sheets_config = data.get("google_sheets", {}) or {}
+        self.spreadsheet_id = os.environ.get(
+            "FIONA_SPREADSHEET_ID",
+            sheets_config.get("spreadsheet_id", "")
+        )
+        self.sheet_name = sheets_config.get("sheet_name", "Friendly_Descriptions")
+        self.google_credentials_file = os.environ.get(
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            str(self.base_dir / "credentials.json")
+        )
+
+        # ── Admin access config ──────────────────────────────
+        # Admin emails can be set in YAML or as comma-separated env var
+        admin_config = data.get("admin", {}) or {}
+        admin_emails_env = os.environ.get("FIONA_ADMIN_EMAILS", "")
+        if admin_emails_env:
+            self.admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
+        else:
+            self.admin_emails = admin_config.get("emails", [])
+
         # ── Secrets / env-specific settings ────────────────────
 
         # Flask secret key

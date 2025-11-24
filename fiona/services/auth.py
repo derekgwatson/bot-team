@@ -1,12 +1,13 @@
 """
 Authentication service for Fiona
 Uses Google OAuth and verifies staff membership via Peter
+Supports admin-only access for editing features
 """
 
 import os
 import requests
 from functools import wraps
-from flask import session, redirect, url_for, request
+from flask import session, redirect, url_for, request, render_template_string
 from flask_login import LoginManager, UserMixin, current_user
 from authlib.integrations.flask_client import OAuth
 from config import config
@@ -17,10 +18,11 @@ logger = logging.getLogger(__name__)
 
 # User model for Flask-Login
 class User(UserMixin):
-    def __init__(self, email, name):
+    def __init__(self, email, name, is_admin=False):
         self.id = email
         self.email = email
         self.name = name
+        self.is_admin = is_admin
 
 
 # Initialize OAuth
@@ -64,6 +66,12 @@ def is_staff_member(email):
         return {'approved': False, 'email': email, 'error': str(e)}
 
 
+def is_admin(email: str) -> bool:
+    """Check if email is in the admin list"""
+    admin_emails = config.admin_emails or []
+    return email.lower() in [e.lower() for e in admin_emails]
+
+
 def init_auth(app):
     """Initialize authentication for the Flask app"""
 
@@ -77,7 +85,8 @@ def init_auth(app):
         # Load user from session
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            user_is_admin = is_admin(user_data['email'])
+            return User(user_data['email'], user_data['name'], user_is_admin)
         return None
 
     # Get OAuth credentials
@@ -112,5 +121,28 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    """Decorator to require admin access for a route"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login', next=request.url))
+        if not current_user.is_admin:
+            return render_template_string('''
+                <html>
+                <head><title>Access Denied</title></head>
+                <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
+                    <h1 style="color: #e74c3c;">Access Denied</h1>
+                    <p>This feature is only available to administrators.</p>
+                    <p style="margin-top: 30px;">
+                        <a href="{{ url_for('web.index') }}" style="color: #16a085;">Return to Fabric Directory</a>
+                    </p>
+                </body>
+                </html>
+            ''')
         return f(*args, **kwargs)
     return decorated_function

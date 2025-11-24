@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiona Admin - Fabric Descriptions</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header h1 span { font-weight: 300; opacity: 0.9; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-info span { opacity: 0.9; }
+        .user-info a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; }
+        .user-info a:hover { background: rgba(255,255,255,0.1); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 15px; }
+        .status-item { display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .status-dot.green { background: #27ae60; }
+        .status-dot.red { background: #e74c3c; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-bar input { flex: 1; min-width: 200px; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+        .search-bar input:focus { outline: none; border-color: #9b59b6; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #9b59b6; color: white; }
+        .btn-primary:hover { background: #8e44ad; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219a52; }
+        .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: #f8f9fa; }
+        .product-code { font-family: monospace; font-weight: 600; }
+        .product-code a { color: #9b59b6; text-decoration: none; }
+        .product-code a:hover { text-decoration: underline; }
+        .watson-badge { display: inline-block; padding: 2px 8px; background: #fef3e2; color: #f39c12; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .empty-cell { color: #bdc3c7; font-style: italic; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; padding: 20px; }
+        .pagination a, .pagination span { padding: 8px 14px; border-radius: 4px; text-decoration: none; color: #666; background: white; border: 1px solid #ddd; }
+        .pagination a:hover { background: #f8f9fa; border-color: #9b59b6; color: #9b59b6; }
+        .pagination .current { background: #9b59b6; color: white; border-color: #9b59b6; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Fiona Admin <span>- Fabric Descriptions</span></h1>
+        <div class="user-info">
+            <span>{{ current_user.name }}</span>
+            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot {{ 'green' if mavis_status.connected else 'red' }}"></span>
+                <span>Mavis: {{ 'Connected' if mavis_status.connected else 'Disconnected' }}</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot {{ 'green' if sheets_status.available else 'red' }}"></span>
+                <span>Google Sheets: {{ 'Available' if sheets_status.available else 'Not configured' }}</span>
+            </div>
+            <div>{{ total }} fabric descriptions</div>
+        </div>
+
+        {% if request.args.get('deleted') %}
+        <div class="alert alert-success">Fabric description for {{ request.args.get('deleted') }} has been deleted.</div>
+        {% endif %}
+
+        <div class="search-bar">
+            <form method="get" style="display: flex; gap: 10px; flex: 1;">
+                <input type="text" name="q" placeholder="Search fabrics..." value="{{ search_query }}">
+                <button type="submit" class="btn btn-primary">Search</button>
+                {% if search_query %}<a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Clear</a>{% endif %}
+            </form>
+            <a href="{{ url_for('web.new_fabric') }}" class="btn btn-primary">+ New Fabric</a>
+            <a href="{{ url_for('web.import_page') }}" class="btn btn-success">Import from Sheets</a>
+        </div>
+
+        <div class="table-container">
+            {% if fabrics %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Supplier Material</th>
+                        <th>Material Type</th>
+                        <th>Supplier Colour</th>
+                        <th>Watson Material</th>
+                        <th>Watson Colour</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fabric in fabrics %}
+                    <tr>
+                        <td class="product-code"><a href="{{ url_for('web.edit_fabric', code=fabric.product_code) }}">{{ fabric.product_code }}</a></td>
+                        <td>{{ fabric.supplier_material or '' }}</td>
+                        <td>{{ fabric.supplier_material_type or '' }}</td>
+                        <td>{{ fabric.supplier_colour or '' }}</td>
+                        <td>{% if fabric.watson_material %}<span class="watson-badge">{{ fabric.watson_material }}</span>{% else %}<span class="empty-cell">-</span>{% endif %}</td>
+                        <td>{% if fabric.watson_colour %}<span class="watson-badge">{{ fabric.watson_colour }}</span>{% else %}<span class="empty-cell">-</span>{% endif %}</td>
+                        <td style="font-size: 12px; color: #666;">{{ fabric.updated_at[:10] if fabric.updated_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}<a href="?page={{ page - 1 }}{% if search_query %}&q={{ search_query }}{% endif %}">Prev</a>{% endif %}
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}<span class="current">{{ p }}</span>
+                    {% elif p <= 3 or p > total_pages - 2 or (p >= page - 1 and p <= page + 1) %}<a href="?page={{ p }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ p }}</a>
+                    {% elif p == 4 or p == total_pages - 2 %}<span>...</span>{% endif %}
+                {% endfor %}
+                {% if page < total_pages %}<a href="?page={{ page + 1 }}{% if search_query %}&q={{ search_query }}{% endif %}">Next</a>{% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-state">
+                <h3>{% if search_query %}No fabrics found{% else %}No fabric descriptions yet{% endif %}</h3>
+                <p>{% if search_query %}No fabrics match "{{ search_query }}"{% else %}Import from Google Sheets or add your first fabric.{% endif %}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

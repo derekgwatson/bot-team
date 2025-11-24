@@ -16,3 +16,18 @@ mavis:
   # Override with MAVIS_URL environment variable if needed.
   dev_url: "http://localhost:8017"
   prod_url: "https://mavis.watsonblinds.com.au"
+
+# Google Sheets import configuration
+# Used to import existing fabric descriptions from the master spreadsheet
+google_sheets:
+  # Spreadsheet ID from the URL (can be overridden with FIONA_SPREADSHEET_ID env var)
+  spreadsheet_id: "1OE7CnACQjFFGgIm_yFjN8Qhf0l5xEQkJqXwFV4plNlI"
+  # Sheet tab name
+  sheet_name: "Friendly_Descriptions"
+
+# Admin access configuration
+# Only admins can edit fabric descriptions and run imports
+admin:
+  emails:
+    # Add admin email addresses here, or set FIONA_ADMIN_EMAILS env var
+    # - admin@watsonblinds.com.au
