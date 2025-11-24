@@ -380,39 +380,72 @@ function showBotInfo(node, edges, allNodes, dependents) {
     });
     document.getElementById('bot-dependents').textContent = nodeDependents.length > 0 ? nodeDependents.join(', ') : 'None';
 
-    // Display additional config info
+    // Display additional config info in user-friendly format
     const additionalInfo = document.getElementById('bot-additional-info');
     additionalInfo.innerHTML = '';
 
     if (node.full_config) {
         const config = node.full_config;
+        const features = [];
 
-        // Skip fields we already display
-        const skipFields = ['name', 'description', 'version', 'emoji', 'personality', 'dependencies', 'server'];
+        // Extract integrations
+        const integrations = [];
+        if (config.google_workspace || config.google_groups || config.google_sheets) integrations.push('Google Workspace');
+        if (config.zendesk) integrations.push('Zendesk');
+        if (config.unleashed) integrations.push('Unleashed');
+        if (config.mavis) integrations.push('Mavis');
+        if (config.database) integrations.push('Database');
+        if (config.ssh || config.deployment) integrations.push('SSH/Deployment');
+        if (config.scheduler) integrations.push('Task Scheduler');
 
-        // Display other interesting fields
-        for (const [key, value] of Object.entries(config)) {
-            if (skipFields.includes(key) || !value) continue;
+        if (integrations.length > 0) {
+            features.push({ label: 'Integrations', value: integrations.join(', ') });
+        }
 
+        // Extract deployment info
+        if (config.deployment) {
+            const dep = config.deployment;
+            if (dep.default_server) {
+                features.push({ label: 'Default Server', value: dep.default_server });
+            }
+        }
+
+        // Database info
+        if (config.database && config.database.path) {
+            features.push({ label: 'Database', value: config.database.path.split('/').pop() });
+        }
+
+        // Sync/scheduling info
+        if (config.sync && config.sync.interval_seconds) {
+            const minutes = Math.floor(config.sync.interval_seconds / 60);
+            features.push({ label: 'Sync Interval', value: `${minutes} minutes` });
+        }
+
+        if (config.scheduler && config.scheduler.timezone) {
+            features.push({ label: 'Timezone', value: config.scheduler.timezone });
+        }
+
+        // Health check info
+        if (config.health_check) {
+            const hc = config.health_check;
+            if (hc.enabled !== undefined) {
+                features.push({ label: 'Health Checks', value: hc.enabled ? 'Enabled' : 'Disabled' });
+            }
+        }
+
+        // Display features
+        if (features.length > 0) {
             const section = document.createElement('div');
             section.style.marginTop = '15px';
             section.style.paddingTop = '15px';
             section.style.borderTop = '1px solid #e9ecef';
 
-            const title = document.createElement('strong');
-            title.textContent = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') + ':';
-            section.appendChild(title);
-
-            const content = document.createElement('pre');
-            content.style.marginTop = '5px';
-            content.style.padding = '10px';
-            content.style.background = '#f8f9fa';
-            content.style.borderRadius = '4px';
-            content.style.fontSize = '0.85em';
-            content.style.overflow = 'auto';
-            content.style.maxHeight = '200px';
-            content.textContent = typeof value === 'object' ? JSON.stringify(value, null, 2) : value;
-            section.appendChild(content);
+            features.forEach(feature => {
+                const line = document.createElement('p');
+                line.innerHTML = `<strong>${feature.label}:</strong> ${feature.value}`;
+                line.style.margin = '5px 0';
+                section.appendChild(line);
+            });
 
             additionalInfo.appendChild(section);
         }
