@@ -24,6 +24,12 @@ bots:
   sadie:
     dev_url: "http://localhost:8010"
     prod_url: "https://sadie.watsonblinds.com.au"
+  peter:
+    dev_url: "http://localhost:8002"
+    prod_url: "https://peter.watsonblinds.com.au"
+  fred:
+    dev_url: "http://localhost:8012"
+    prod_url: "https://fred.watsonblinds.com.au"
 
 # Check configuration
 checks:
@@ -52,3 +58,9 @@ checks:
     ticket_type: incident
     # Alert if last successful sync is older than this many hours
     stale_threshold_hours: 24
+
+  # User sync mismatches between Peter and Fred/Google Workspace
+  user_sync:
+    enabled: true
+    priority: normal
+    ticket_type: task

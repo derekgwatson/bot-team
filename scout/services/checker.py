@@ -10,7 +10,7 @@ from typing import Optional
 
 from config import config
 from database.db import db
-from services.bot_clients import mavis_client, fiona_client, sadie_client
+from services.bot_clients import mavis_client, fiona_client, sadie_client, peter_client, fred_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ class CheckerService:
     ISSUE_INCOMPLETE_DESCRIPTION = 'incomplete_description'
     ISSUE_SYNC_STALE = 'sync_stale'
     ISSUE_SYNC_FAILED = 'sync_failed'
+    ISSUE_USER_SYNC_MISMATCH = 'user_sync_mismatch'
 
     def run_all_checks(self) -> dict:
         """
@@ -86,6 +87,17 @@ class CheckerService:
                 except Exception as e:
                     logger.exception("Error in incomplete descriptions check")
                     results['errors'].append(f"incomplete_descriptions: {str(e)}")
+
+            # Check for user sync mismatches (Peter vs Fred/Google)
+            if config.check_user_sync.get('enabled', True):
+                try:
+                    user_sync_result = self._check_user_sync()
+                    results['checks']['user_sync'] = user_sync_result
+                    results['issues_found'] += user_sync_result.get('issues_found', 0)
+                    results['tickets_created'] += user_sync_result.get('tickets_created', 0)
+                except Exception as e:
+                    logger.exception("Error in user sync check")
+                    results['errors'].append(f"user_sync: {str(e)}")
 
             # Complete check run
             error_msg = '; '.join(results['errors']) if results['errors'] else None
@@ -484,12 +496,167 @@ class CheckerService:
             )
             return None
 
+    def _check_user_sync(self) -> dict:
+        """Check for mismatches between Peter (staff directory) and Fred (Google Workspace)"""
+        logger.info("Running user sync check")
+        result = {
+            'issues_found': 0,
+            'tickets_created': 0,
+            'details': {
+                'peter_count': 0,
+                'fred_count': 0,
+                'in_fred_not_peter': [],
+                'in_peter_not_fred': [],
+                'in_peter_inactive_in_fred': []
+            }
+        }
+
+        try:
+            # Get active staff with Google access from Peter
+            peter_data = peter_client.get_all_staff(status='active')
+            peter_staff = [s for s in peter_data.get('staff', []) if s.get('google_access')]
+            result['details']['peter_count'] = len(peter_staff)
+
+            # Build set of emails Peter knows about (prefer google_primary_email, fall back to work_email)
+            peter_emails = set()
+            peter_by_email = {}
+            for staff in peter_staff:
+                email = staff.get('google_primary_email') or staff.get('work_email')
+                if email:
+                    peter_emails.add(email.lower())
+                    peter_by_email[email.lower()] = staff
+
+            # Get active users from Fred (Google Workspace)
+            fred_users = fred_client.list_users(archived=False)
+            result['details']['fred_count'] = len(fred_users)
+
+            # Build set of emails Fred knows about
+            fred_emails = set()
+            fred_by_email = {}
+            for user in fred_users:
+                email = user.get('email')
+                if email:
+                    fred_emails.add(email.lower())
+                    fred_by_email[email.lower()] = user
+
+            # Find users in Fred but not in Peter
+            in_fred_not_peter = fred_emails - peter_emails
+            result['details']['in_fred_not_peter'] = list(in_fred_not_peter)
+
+            # Find users in Peter but not in Fred (or suspended/archived in Fred)
+            in_peter_not_fred = []
+            in_peter_inactive = []
+            for email in peter_emails:
+                if email not in fred_emails:
+                    in_peter_not_fred.append(email)
+
+            result['details']['in_peter_not_fred'] = in_peter_not_fred
+
+            # Check archived users in Fred that are still marked as having Google access in Peter
+            archived_fred_users = fred_client.list_users(archived=True)
+            for user in archived_fred_users:
+                email = user.get('email', '').lower()
+                if email in peter_emails:
+                    in_peter_inactive.append({
+                        'email': email,
+                        'name': peter_by_email[email].get('name'),
+                        'status_in_fred': 'archived' if user.get('archived') else 'suspended'
+                    })
+
+            result['details']['in_peter_inactive_in_fred'] = in_peter_inactive
+
+            # Create tickets for issues found
+            all_issues = []
+
+            if in_fred_not_peter:
+                all_issues.extend([{'type': 'in_fred_not_peter', 'email': e, 'user': fred_by_email[e]} for e in in_fred_not_peter])
+
+            if in_peter_not_fred:
+                all_issues.extend([{'type': 'in_peter_not_fred', 'email': e, 'user': peter_by_email[e]} for e in in_peter_not_fred])
+
+            if in_peter_inactive:
+                all_issues.extend([{'type': 'in_peter_inactive', **u} for u in in_peter_inactive])
+
+            if all_issues:
+                issue_key = 'batch'
+                existing = db.get_issue(self.ISSUE_USER_SYNC_MISMATCH, issue_key)
+
+                if not existing or existing['status'] != 'open':
+                    result['issues_found'] = len(all_issues)
+
+                    # Format the ticket description
+                    lines = []
+                    lines.append(f"Scout detected {len(all_issues)} user sync mismatch(es) between Peter (staff directory) and Fred (Google Workspace).\n")
+
+                    if in_fred_not_peter:
+                        lines.append(f"\n**Users in Google Workspace but not in Peter ({len(in_fred_not_peter)}):**")
+                        for email in list(in_fred_not_peter)[:10]:
+                            user = fred_by_email[email]
+                            lines.append(f"  - {email} ({user.get('full_name', 'Unknown')})")
+                        if len(in_fred_not_peter) > 10:
+                            lines.append(f"  ... and {len(in_fred_not_peter) - 10} more")
+
+                    if in_peter_not_fred:
+                        lines.append(f"\n**Users in Peter with Google access but not in Google Workspace ({len(in_peter_not_fred)}):**")
+                        for email in in_peter_not_fred[:10]:
+                            user = peter_by_email[email]
+                            lines.append(f"  - {email} ({user.get('name', 'Unknown')})")
+                        if len(in_peter_not_fred) > 10:
+                            lines.append(f"  ... and {len(in_peter_not_fred) - 10} more")
+
+                    if in_peter_inactive:
+                        lines.append(f"\n**Users in Peter with Google access but inactive in Google Workspace ({len(in_peter_inactive)}):**")
+                        for item in in_peter_inactive[:10]:
+                            lines.append(f"  - {item['email']} ({item['name']}) - {item['status_in_fred']}")
+                        if len(in_peter_inactive) > 10:
+                            lines.append(f"  ... and {len(in_peter_inactive) - 10} more")
+
+                    lines.append("\nPlease review these discrepancies and update Peter or Fred as needed.")
+
+                    ticket = self._create_ticket_for_issue(
+                        self.ISSUE_USER_SYNC_MISMATCH,
+                        issue_key,
+                        subject=f"[Scout] {len(all_issues)} User Sync Mismatches (Peter vs Google Workspace)",
+                        description='\n'.join(lines),
+                        priority=config.check_user_sync.get('priority', 'normal'),
+                        ticket_type=config.check_user_sync.get('ticket_type', 'task'),
+                        details={
+                            'in_fred_not_peter': list(in_fred_not_peter),
+                            'in_peter_not_fred': in_peter_not_fred,
+                            'in_peter_inactive_in_fred': in_peter_inactive
+                        }
+                    )
+                    if ticket:
+                        result['tickets_created'] += 1
+                else:
+                    # Update the issue with current mismatches
+                    db.record_issue(
+                        self.ISSUE_USER_SYNC_MISMATCH,
+                        issue_key,
+                        {
+                            'issues': all_issues,
+                            'count': len(all_issues)
+                        }
+                    )
+                    result['issues_found'] = len(all_issues)
+            else:
+                # Resolve if no mismatches
+                db.resolve_issue(self.ISSUE_USER_SYNC_MISMATCH, 'batch')
+
+        except Exception as e:
+            logger.error(f"Error checking user sync: {e}")
+            result['details']['error'] = str(e)
+
+        return result
+
     def get_bot_status(self) -> dict:
         """Get connection status for all dependent bots"""
         return {
             'mavis': mavis_client.check_connection(),
             'fiona': fiona_client.check_connection(),
-            'sadie': sadie_client.check_connection()
+            'sadie': sadie_client.check_connection(),
+            'peter': peter_client.check_connection(),
+            'fred': fred_client.check_connection()
         }
 
 

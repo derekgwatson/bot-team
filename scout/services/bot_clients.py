@@ -260,7 +260,124 @@ class SadieClient:
             }
 
 
+class PeterClient:
+    """Client for communicating with Peter (Staff Directory)"""
+
+    def __init__(self):
+        self._client = None
+
+    @property
+    def client(self) -> BotHttpClient:
+        if self._client is None:
+            self._client = BotHttpClient(config.get_peter_url(), timeout=30)
+        return self._client
+
+    def get_all_staff(self, status: str = 'active') -> dict:
+        """
+        Get all staff members from Peter.
+
+        Args:
+            status: Filter by status (active, inactive, all)
+
+        Returns:
+            dict with 'staff' list and 'count'
+        """
+        try:
+            response = self.client.get(f"/api/staff?status={status}")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting staff from Peter: {e}")
+            raise
+
+    def get_health(self) -> dict:
+        """Get Peter health status"""
+        try:
+            response = self.client.get("/health", timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting health from Peter: {e}")
+            raise
+
+    def check_connection(self) -> dict:
+        """Check if Peter is reachable"""
+        try:
+            health = self.get_health()
+            return {
+                'connected': True,
+                'status': health.get('status', 'ok'),
+                'url': config.get_peter_url()
+            }
+        except Exception as e:
+            return {
+                'connected': False,
+                'error': str(e),
+                'url': config.get_peter_url()
+            }
+
+
+class FredClient:
+    """Client for communicating with Fred (Google Workspace Manager)"""
+
+    def __init__(self):
+        self._client = None
+
+    @property
+    def client(self) -> BotHttpClient:
+        if self._client is None:
+            self._client = BotHttpClient(config.get_fred_url(), timeout=30)
+        return self._client
+
+    def list_users(self, archived: bool = False) -> list:
+        """
+        Get list of Google Workspace users from Fred.
+
+        Args:
+            archived: If True, only return archived users
+
+        Returns:
+            List of user dicts with email, name, etc.
+        """
+        try:
+            response = self.client.get(f"/api/users?archived={str(archived).lower()}")
+            response.raise_for_status()
+            data = response.json()
+            return data.get('users', [])
+        except Exception as e:
+            logger.error(f"Error getting users from Fred: {e}")
+            raise
+
+    def get_health(self) -> dict:
+        """Get Fred health status"""
+        try:
+            response = self.client.get("/health", timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting health from Fred: {e}")
+            raise
+
+    def check_connection(self) -> dict:
+        """Check if Fred is reachable"""
+        try:
+            health = self.get_health()
+            return {
+                'connected': True,
+                'status': health.get('status', 'ok'),
+                'url': config.get_fred_url()
+            }
+        except Exception as e:
+            return {
+                'connected': False,
+                'error': str(e),
+                'url': config.get_fred_url()
+            }
+
+
 # Singleton instances
 mavis_client = MavisClient()
 fiona_client = FionaClient()
 sadie_client = SadieClient()
+peter_client = PeterClient()
+fred_client = FredClient()

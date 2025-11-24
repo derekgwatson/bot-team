@@ -51,6 +51,16 @@ class Config:
         self.sadie_dev_url = sadie_config.get("dev_url", "http://localhost:8010")
         self.sadie_prod_url = sadie_config.get("prod_url", "https://sadie.watsonblinds.com.au")
 
+        # Peter
+        peter_config = bots_config.get("peter", {}) or {}
+        self.peter_dev_url = peter_config.get("dev_url", "http://localhost:8002")
+        self.peter_prod_url = peter_config.get("prod_url", "https://peter.watsonblinds.com.au")
+
+        # Fred
+        fred_config = bots_config.get("fred", {}) or {}
+        self.fred_dev_url = fred_config.get("dev_url", "http://localhost:8012")
+        self.fred_prod_url = fred_config.get("prod_url", "https://fred.watsonblinds.com.au")
+
         # ── Check configuration ─────────────────────────────────
         checks_config = data.get("checks", {}) or {}
 
@@ -58,6 +68,7 @@ class Config:
         self.check_obsolete_fabrics = checks_config.get("obsolete_fabrics", {})
         self.check_incomplete_descriptions = checks_config.get("incomplete_descriptions", {})
         self.check_sync_health = checks_config.get("sync_health", {})
+        self.check_user_sync = checks_config.get("user_sync", {})
 
         # ── Secrets / env-specific settings ────────────────────
 
@@ -93,6 +104,22 @@ class Config:
         if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
             return self.sadie_dev_url
         return self.sadie_prod_url
+
+    def get_peter_url(self) -> str:
+        """Get Peter URL based on environment"""
+        if os.environ.get("PETER_URL"):
+            return os.environ.get("PETER_URL")
+        if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+            return self.peter_dev_url
+        return self.peter_prod_url
+
+    def get_fred_url(self) -> str:
+        """Get Fred URL based on environment"""
+        if os.environ.get("FRED_URL"):
+            return os.environ.get("FRED_URL")
+        if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+            return self.fred_dev_url
+        return self.fred_prod_url
 
 
 config = Config()
