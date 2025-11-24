@@ -172,6 +172,81 @@ class Database:
                 ))
                 return (cursor.lastrowid, True)
 
+    def batch_upsert_products(self, products: List[Dict[str, Any]], progress_callback=None) -> Dict[str, int]:
+        """
+        Batch insert/update products in a single transaction.
+        Much faster than individual upserts for large datasets.
+
+        Args:
+            products: List of product data dicts
+            progress_callback: Optional callback(processed, created, updated) for progress updates
+
+        Returns:
+            Dict with 'created' and 'updated' counts
+        """
+        if not products:
+            return {'created': 0, 'updated': 0}
+
+        now = utc_now_iso()
+
+        with self.connection() as conn:
+            cursor = conn.cursor()
+
+            # Get existing product codes in one query
+            cursor.execute("SELECT product_code FROM unleashed_products")
+            existing_codes = set(row[0] for row in cursor.fetchall())
+
+            created = 0
+            updated = 0
+
+            # Process in batches of 500 for memory efficiency
+            batch_size = 500
+            for i in range(0, len(products), batch_size):
+                batch = products[i:i + batch_size]
+
+                for product_data in batch:
+                    code = self.normalize_product_code(product_data.get('product_code', ''))
+                    if not code:
+                        continue
+
+                    is_new = code not in existing_codes
+
+                    # Use INSERT OR REPLACE for efficiency
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO unleashed_products (
+                            product_code, product_description, product_group, product_sub_group,
+                            default_sell_price, sell_price_tier_9,
+                            unit_of_measure, width, is_sellable, is_obsolete,
+                            raw_payload, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        code,
+                        product_data.get('product_description'),
+                        product_data.get('product_group'),
+                        product_data.get('product_sub_group'),
+                        product_data.get('default_sell_price'),
+                        product_data.get('sell_price_tier_9'),
+                        product_data.get('unit_of_measure'),
+                        product_data.get('width'),
+                        1 if product_data.get('is_sellable', True) else 0,
+                        1 if product_data.get('is_obsolete', False) else 0,
+                        product_data.get('raw_payload'),
+                        now if is_new else now,  # created_at (will be replaced if exists)
+                        now
+                    ))
+
+                    if is_new:
+                        created += 1
+                        existing_codes.add(code)  # Track so duplicates in same batch are counted as updates
+                    else:
+                        updated += 1
+
+                # Call progress callback after each batch
+                if progress_callback:
+                    progress_callback(created + updated, created, updated)
+
+            return {'created': created, 'updated': updated}
+
     def get_product_by_code(self, code: str) -> Optional[Dict]:
         """Get a product by its code"""
         code = self.normalize_product_code(code)
