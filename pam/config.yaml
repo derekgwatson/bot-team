@@ -2,6 +2,11 @@
 name: pam
 description: "Phone directory presenter - Beautiful public-facing directory"
 version: "0.1.0"
+personality: Friendly and presentable, the welcoming face of the team
+
+# Dependencies: Other bots that Pam requires to function
+dependencies:
+  - peter   # Staff directory (source of contact data)
 
 # Server configuration
 server:

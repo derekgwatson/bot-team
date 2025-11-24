@@ -2,6 +2,7 @@ name: sally
 description: SSH Command Executor - Your go-to girl for server operations
 version: 0.1.0
 emoji: 🔐
+personality: Technical and capable, gets things done on the server
 
 servers:
   prod:

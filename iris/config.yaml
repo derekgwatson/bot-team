@@ -3,6 +3,7 @@ name: iris
 description: "Google Workspace reporting and analytics bot"
 version: "0.1.0"
 emoji: 👥
+personality: Analytical and insightful, turns data into actionable insights
 
 # Server configuration
 server:

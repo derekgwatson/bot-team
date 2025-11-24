@@ -1,6 +1,7 @@
 name: dorothy
 description: Deployment Orchestrator - Knows how to deploy and manage bots
 version: 0.1.0
+personality: Reliable and gets things done, makes deployments happen smoothly
 
 server:
   host: 0.0.0.0

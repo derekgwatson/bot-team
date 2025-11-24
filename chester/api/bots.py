@@ -3,6 +3,8 @@ from flask import Blueprint, jsonify, request
 from services.bot_service import bot_service
 from services.database import db
 from shared.auth.bot_api import api_key_required
+import os
+import yaml
 
 bots_bp = Blueprint('bots', __name__)
 
@@ -145,4 +147,69 @@ def get_team_summary():
     return jsonify({
         'success': True,
         'summary': summary
+    })
+
+
+@bots_bp.route('/network', methods=['GET'])
+@api_key_required
+def get_network_data():
+    """Get bot network data for visualization (nodes and edges)."""
+    # Get the bot-team directory (parent of chester)
+    chester_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bot_team_dir = os.path.dirname(chester_dir)
+
+    nodes = []
+    edges = []
+
+    # Scan all bot directories
+    for bot_name in os.listdir(bot_team_dir):
+        bot_path = os.path.join(bot_team_dir, bot_name)
+        config_path = os.path.join(bot_path, 'config.yaml')
+
+        # Skip if not a directory or no config.yaml
+        if not os.path.isdir(bot_path) or not os.path.exists(config_path):
+            continue
+
+        # Skip special directories
+        if bot_name in ['shared', 'scripts', 'tests', 'monica-chrome-extension', '.git']:
+            continue
+
+        try:
+            # Read the config file
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+
+            if not config:
+                continue
+
+            # Extract bot info
+            node = {
+                'id': bot_name,
+                'label': config.get('name', bot_name),
+                'description': config.get('description', ''),
+                'version': config.get('version', ''),
+                'emoji': config.get('emoji', '🤖'),
+                'personality': config.get('personality', '')
+            }
+            nodes.append(node)
+
+            # Extract dependencies and create edges
+            dependencies = config.get('dependencies', [])
+            for dep in dependencies:
+                # Dependencies can be "bot_name # comment" format
+                dep_name = dep.split('#')[0].strip() if isinstance(dep, str) else dep
+                edges.append({
+                    'from': bot_name,
+                    'to': dep_name
+                })
+
+        except Exception as e:
+            # Skip bots with invalid configs
+            print(f"Error reading config for {bot_name}: {e}")
+            continue
+
+    return jsonify({
+        'success': True,
+        'nodes': nodes,
+        'edges': edges
     })

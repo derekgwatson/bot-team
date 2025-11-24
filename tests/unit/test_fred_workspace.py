@@ -516,3 +516,39 @@ def test_format_user_suspended(workspace_service_with_mock):
 
     assert formatted['suspended'] is True
     assert formatted['archived'] is True
+
+
+@pytest.mark.unit
+@pytest.mark.fred
+def test_format_user_with_aliases(workspace_service_with_mock):
+    """Test formatting user with email aliases."""
+    raw_user = {
+        'primaryEmail': 'user@example.com',
+        'aliases': ['user.alias@example.com', 'useralias@example.com'],
+        'name': {'fullName': 'User With Aliases'},
+        'suspended': False,
+        'archived': False
+    }
+
+    formatted = workspace_service_with_mock._format_user(raw_user)
+
+    assert formatted['email'] == 'user@example.com'
+    assert formatted['aliases'] == ['user.alias@example.com', 'useralias@example.com']
+    assert len(formatted['aliases']) == 2
+
+
+@pytest.mark.unit
+@pytest.mark.fred
+def test_format_user_without_aliases(workspace_service_with_mock):
+    """Test formatting user without email aliases returns empty list."""
+    raw_user = {
+        'primaryEmail': 'noaliases@example.com',
+        'name': {'fullName': 'User Without Aliases'},
+        'suspended': False,
+        'archived': False
+    }
+
+    formatted = workspace_service_with_mock._format_user(raw_user)
+
+    assert formatted['email'] == 'noaliases@example.com'
+    assert formatted['aliases'] == []

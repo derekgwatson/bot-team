@@ -5,6 +5,7 @@ name: monica
 description: ChromeOS device monitoring agent with heartbeat tracking
 version: 1.0.0
 emoji: 📡
+personality: Watchful and vigilant, alerts when devices need attention
 
 # Server configuration
 server:

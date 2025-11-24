@@ -197,6 +197,7 @@ class GoogleWorkspaceService:
         """Format user data for API responses"""
         return {
             'email': user.get('primaryEmail'),
+            'aliases': user.get('aliases', []),  # Email aliases for this account
             'first_name': user.get('name', {}).get('givenName', ''),
             'last_name': user.get('name', {}).get('familyName', ''),
             'full_name': user.get('name', {}).get('fullName', ''),
