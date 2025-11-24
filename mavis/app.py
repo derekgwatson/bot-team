@@ -9,7 +9,10 @@ if str(ROOT_DIR) not in sys.path:
 from flask import Flask, jsonify
 from config import config
 from api.routes import api_bp
+from web.routes import web_bp
+from web.auth_routes import auth_bp
 from services.sync_service import sync_service
+from services.auth import init_auth
 from database.db import db
 import os
 import logging
@@ -26,7 +29,12 @@ app = Flask(__name__)
 # Configure Flask
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
+app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 
 
