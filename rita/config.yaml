@@ -4,6 +4,10 @@ description: "User access manager"
 version: "0.1.0"
 emoji: "🧾"
 
+# Dependencies: Other bots that Rita requires to function
+dependencies:
+  - peter   # Staff directory (lookup staff and their current access)
+
 # Server configuration
 server:
   host: "0.0.0.0"

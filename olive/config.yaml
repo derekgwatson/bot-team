@@ -3,6 +3,14 @@ name: olive
 description: "Staff Offboarding Orchestrator"
 version: "1.0.0"
 
+# Dependencies: Other bots that Olive requires to function
+dependencies:
+  - peter   # Staff directory (central HR database)
+  - fred    # Google Workspace user management
+  - zac     # Zendesk user management
+  - sadie   # Zendesk ticket creation
+  - mabel   # Email notifications
+
 # Server configuration
 server:
   host: "0.0.0.0"
@@ -10,28 +18,6 @@ server:
 
 # Shared organization config
 shared_config: "../shared/config/organization.yaml"
-
-# Bot endpoints for orchestration
-bots:
-  peter:
-    url: "http://localhost:8003"
-    description: "Staff Directory (Central HR Database)"
-  zac:
-    url: "http://localhost:8007"
-    description: "Zendesk User Management"
-  ian:
-    url: "http://localhost:8002"
-    description: "Email Notification Service"
-  fred:
-    url: "http://localhost:8001"
-    description: "Google Workspace User Management"
-  sadie:
-    url: "http://localhost:8010"
-    description: "Zendesk Ticket Information"
-  # Buz will be stubbed for now - we'll add URLs when Buz bot is ready
-  # buz_crm:
-  #   url: "http://localhost:8XXX"
-  #   description: "Buz Instance Management"
 
 # Email configuration
 email:

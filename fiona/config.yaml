@@ -3,6 +3,10 @@ description: Fabric description manager - maintains friendly names for Unleashed
 version: 1.0.0
 personality: Organized and detail-oriented, keeps fabric naming consistent and clear
 
+# Dependencies: Other bots that Fiona requires to function
+dependencies:
+  - mavis   # Unleashed data integration (product validation)
+
 server:
   host: 0.0.0.0
   # port is read from chester/config.yaml via shared/config/ports.py

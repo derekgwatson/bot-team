@@ -3,6 +3,14 @@ name: oscar
 description: "Staff Onboarding Orchestrator"
 version: "1.0.0"
 
+# Dependencies: Other bots that Oscar requires to function
+dependencies:
+  - fred    # Google Workspace user management
+  - zac     # Zendesk user management
+  - peter   # Staff directory (central HR database)
+  - sadie   # Zendesk ticket creation
+  - mabel   # Email notifications
+
 # Server configuration
 server:
   host: "0.0.0.0"
@@ -10,21 +18,6 @@ server:
 
 # Shared organization config
 shared_config: "../shared/config/organization.yaml"
-
-# Bot endpoints for orchestration
-bots:
-  fred:
-    url: "http://localhost:8001"
-    description: "Google Workspace User Management"
-  zac:
-    url: "http://localhost:8007"
-    description: "Zendesk User Management"
-  peter:
-    url: "http://localhost:8003"
-    description: "Staff Directory (Central HR Database)"
-  sadie:
-    url: "http://localhost:8010"
-    description: "Zendesk Ticket Information"
 
 # Email configuration
 email:

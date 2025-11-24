@@ -3,6 +3,14 @@ description: System monitoring bot - watches for discrepancies and raises ticket
 version: 1.0.0
 personality: Vigilant and proactive, keeps watch for issues across systems and ensures nothing falls through the cracks
 
+# Dependencies: Other bots that Scout requires to function
+dependencies:
+  - mavis   # Unleashed data integration
+  - fiona   # Fabric description manager
+  - peter   # Staff directory
+  - fred    # Google Workspace manager
+  - sadie   # Zendesk ticket creation
+
 server:
   host: 0.0.0.0
   port: 8019
@@ -12,24 +20,6 @@ database:
 
 # NOTE: Scheduling is managed by Skye (the scheduling bot).
 # Skye calls POST /api/checks/run periodically to trigger checks.
-
-# Bot dependencies for monitoring
-bots:
-  mavis:
-    dev_url: "http://localhost:8017"
-    prod_url: "https://mavis.watsonblinds.com.au"
-  fiona:
-    dev_url: "http://localhost:8018"
-    prod_url: "https://fiona.watsonblinds.com.au"
-  sadie:
-    dev_url: "http://localhost:8010"
-    prod_url: "https://sadie.watsonblinds.com.au"
-  peter:
-    dev_url: "http://localhost:8002"
-    prod_url: "https://peter.watsonblinds.com.au"
-  fred:
-    dev_url: "http://localhost:8012"
-    prod_url: "https://fred.watsonblinds.com.au"
 
 # Check configuration
 checks:

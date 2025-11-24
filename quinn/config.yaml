@@ -4,6 +4,10 @@ description: "All-staff group manager"
 version: "0.2.0"
 emoji: "👥"
 
+# Dependencies: Other bots that Quinn requires to function
+dependencies:
+  - peter   # Staff directory (source of allstaff group members)
+
 # Server configuration
 server:
   host: "0.0.0.0"
