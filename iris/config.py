@@ -37,10 +37,8 @@ class Config:
         server = data.get("server", {}) or {}
         # Host still comes from Iris's own config
         self.server_host = server.get("host", "0.0.0.0")
-        # Port from shared ports.yaml, with local default fallback
-        self.server_port = get_port("iris", default=None)
-        if self.server_port is None:
-            raise RuntimeError("Iris has no port assigned in ports.yaml")
+        # Port from shared ports.yaml
+        self.server_port = get_port("iris")
 
         # ── Google Workspace config ───────────────────────────
         gw = data.get("google_workspace", {}) or {}
