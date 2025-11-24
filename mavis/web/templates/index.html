@@ -217,6 +217,45 @@
             margin-left: 10px;
         }
 
+        .btn-sync {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-sync:hover {
+            background: #8e44ad;
+        }
+
+        .btn-sync:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
         @media (max-width: 600px) {
             .sync-info {
                 grid-template-columns: 1fr;
@@ -245,8 +284,32 @@
             Need product info? I've got you covered with a stable, normalized API.</p>
         </div>
 
+        {% if sync_triggered %}
+        <div class="alert alert-success">
+            <strong>Sync started!</strong> The page will auto-refresh to show progress.
+        </div>
+        <script>setTimeout(function() { window.location.href = window.location.pathname; }, 3000);</script>
+        {% endif %}
+
+        {% if sync_error %}
+        <div class="alert alert-error">
+            <strong>Error:</strong> {{ sync_error }}
+        </div>
+        {% endif %}
+
         <div class="card">
-            <h2>Sync Status</h2>
+            <h2 style="display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0; margin-bottom: 10px;">
+                <span>Sync Status</span>
+                <form method="post" action="{{ url_for('web.trigger_sync') }}" style="margin: 0;">
+                    <button type="submit" class="btn-sync" {% if sync_status.status == 'running' %}disabled{% endif %}>
+                        {% if sync_status.status == 'running' %}
+                            Syncing...
+                        {% else %}
+                            Run Sync Now
+                        {% endif %}
+                    </button>
+                </form>
+            </h2>
             <div style="display: flex; align-items: center; gap: 15px;">
                 <span class="status-badge status-{{ sync_status.status }}">
                     {{ sync_status.status | upper }}
@@ -402,6 +465,11 @@
                 el.title = new Date(timestamp).toLocaleString();
             }
         });
+
+        // Auto-refresh when sync is running
+        {% if sync_status.status == 'running' %}
+        setTimeout(function() { window.location.reload(); }, 5000);
+        {% endif %}
     </script>
 </body>
 </html>
