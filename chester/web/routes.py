@@ -219,14 +219,15 @@ def network_data():
             if not bot_config:
                 continue
 
-            # Extract bot info
+            # Extract bot info (include all config data for detailed view)
             node = {
                 'id': bot_name,
                 'label': bot_config.get('name', bot_name),
                 'description': bot_config.get('description', ''),
                 'version': bot_config.get('version', ''),
                 'emoji': bot_config.get('emoji', '🤖'),
-                'personality': bot_config.get('personality', '')
+                'personality': bot_config.get('personality', ''),
+                'full_config': bot_config  # Include full config for details panel
             }
             nodes.append(node)
 
