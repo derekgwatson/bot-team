@@ -65,9 +65,8 @@ class SyncService:
             return self._status.copy()
 
     def is_running(self) -> bool:
-        """Check if a sync is currently running"""
-        with self._lock:
-            return self._status['status'] == 'running'
+        """Check if a sync is currently running (database-based for multi-worker)"""
+        return db.is_sync_running('products')
 
     def _extract_product_data(self, unleashed_product: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -105,24 +104,21 @@ class SyncService:
 
         Returns dict with sync results.
         """
-        # Check if already running
-        with self._lock:
-            if self._status['status'] == 'running':
-                return {
-                    'success': False,
-                    'error': 'Sync already in progress',
-                    'status': self._status.copy()
-                }
+        # Check if already running (database-based lock for multi-worker support)
+        if db.is_sync_running('products'):
+            return {
+                'success': False,
+                'error': 'Sync already in progress',
+                'status': self.get_status()
+            }
 
-            # Mark as running
-            self._status['status'] = 'running'
-            self._status['last_run_started_at'] = utc_now_iso()
-            self._status['last_error'] = None
-
-        # Create sync record in database
+        # Create sync record in database (this is our lock)
         sync_id = db.create_sync_record('products')
 
         with self._lock:
+            self._status['status'] = 'running'
+            self._status['last_run_started_at'] = utc_now_iso()
+            self._status['last_error'] = None
             self._status['current_sync_id'] = sync_id
 
         records_processed = 0
