@@ -78,7 +78,8 @@ class SyncService:
 
         # Get current members from Google Group
         current_members = groups_service.get_all_members()
-        current_emails = {m['email'].lower() for m in current_members}
+        # Filter out members with None email (can happen with nested groups or special types)
+        current_emails = {m['email'].lower() for m in current_members if m.get('email')}
         print(f"Google Group currently has {len(current_emails)} members")
 
         # Convert desired to lowercase for comparison
