@@ -7,7 +7,7 @@ emoji: "👥"
 # Server configuration
 server:
   host: "0.0.0.0"
-  port: 8006
+  # port is read from chester/config.yaml via shared/config/ports.py
 
 # Peter API configuration (Quinn's source of truth for staff info)
 # URL is now determined by environment:

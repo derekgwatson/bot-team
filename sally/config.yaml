@@ -11,7 +11,7 @@ servers:
 
 server:
   host: 0.0.0.0
-  port: 8004
+  # port is read from chester/config.yaml via shared/config/ports.py
 
 ssh:
   # SSH configuration - actual credentials loaded from .env

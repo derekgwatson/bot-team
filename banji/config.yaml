@@ -5,7 +5,7 @@ personality: Precise and reliable, navigates Buz with expertise. Handles browser
 
 server:
   host: 0.0.0.0
-  port: 8014
+  # port is read from chester/config.yaml via shared/config/ports.py
 
 # Browser configuration
 browser:

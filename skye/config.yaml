@@ -5,7 +5,7 @@ personality: Punctual and reliable, ensures everything happens at the right time
 
 server:
   host: 0.0.0.0
-  port: 8020
+  # port is read from chester/config.yaml via shared/config/ports.py
 
 database:
   path: "database/skye.db"

@@ -7,7 +7,7 @@ emoji: "🧾"
 # Server configuration
 server:
   host: "0.0.0.0"
-  port: 8013
+  # port is read from chester/config.yaml via shared/config/ports.py
 
 # Shared organization config
 # See ../shared/config/organization.yaml for domain definitions
