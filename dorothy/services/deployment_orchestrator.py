@@ -2,8 +2,6 @@ import requests
 import time
 import uuid
 import threading
-import json
-import fcntl
 from typing import Dict,  Optional
 from pathlib import Path
 from dorothy.config import config
@@ -15,90 +13,15 @@ class DeploymentOrchestrator:
     """Orchestrates bot deployments by calling Sally to execute commands"""
 
     def __init__(self):
+        self.deployments = {}
+        self.verifications = {}
         self.templates_dir = Path(__file__).parent.parent / 'templates'
-        # Store deployments in a JSON file so all gunicorn workers can access them
-        self._deployments_file = Path(__file__).parent.parent / 'data' / 'deployments.json'
-        self._deployments_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Check if sudo is available/required (default: True for backward compatibility)
         # Set USE_SUDO=false in environment if sudo is not available
         import os
         use_sudo_env = os.getenv('USE_SUDO', 'true').lower()
         self.use_sudo = use_sudo_env in ('true', '1', 'yes')
-
-    @property
-    def deployments(self) -> Dict:
-        """Load deployments from JSON file (shared across workers)"""
-        if not self._deployments_file.exists():
-            return {}
-        try:
-            with open(self._deployments_file, 'r') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                data = json.load(f)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                return data.get('deployments', {})
-        except (json.JSONDecodeError, IOError):
-            return {}
-
-    @deployments.setter
-    def deployments(self, value: Dict):
-        """Save deployments to JSON file"""
-        self._save_deployments(value)
-
-    def _save_deployments(self, deployments: Dict):
-        """Save deployments dict to file with locking"""
-        try:
-            with open(self._deployments_file, 'w') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                json.dump({'deployments': deployments, 'verifications': self._load_verifications()}, f, indent=2)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-        except IOError as e:
-            print(f"Warning: Could not save deployments: {e}")
-
-    def _load_verifications(self) -> Dict:
-        """Load verifications from JSON file"""
-        if not self._deployments_file.exists():
-            return {}
-        try:
-            with open(self._deployments_file, 'r') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                data = json.load(f)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                return data.get('verifications', {})
-        except (json.JSONDecodeError, IOError):
-            return {}
-
-    @property
-    def verifications(self) -> Dict:
-        """Load verifications from JSON file"""
-        return self._load_verifications()
-
-    @verifications.setter
-    def verifications(self, value: Dict):
-        """Save verifications to JSON file"""
-        self._save_verifications(value)
-
-    def _save_verifications(self, verifications: Dict):
-        """Save verifications dict to file with locking"""
-        try:
-            with open(self._deployments_file, 'w') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                json.dump({'deployments': self.deployments, 'verifications': verifications}, f, indent=2)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-        except IOError as e:
-            print(f"Warning: Could not save verifications: {e}")
-
-    def _update_deployment(self, deployment_id: str, deployment: Dict):
-        """Update a single deployment in the shared file"""
-        deployments = self.deployments
-        deployments[deployment_id] = deployment
-        self._save_deployments(deployments)
-
-    def _update_verification(self, verification_id: str, verification: Dict):
-        """Update a single verification in the shared file"""
-        verifications = self.verifications
-        verifications[verification_id] = verification
-        self._save_verifications(verifications)
 
     def _sudo(self, command: str) -> str:
         """
@@ -570,9 +493,6 @@ class DeploymentOrchestrator:
         verification['status'] = 'completed'
         verification['end_time'] = time.time()
 
-        # Save final state
-        self._update_verification(verification_id, verification)
-
     def verify_deployment(self, server: str, bot_name: str) -> Dict:
         """
         Start verification checks for a bot deployment (non-blocking)
@@ -596,7 +516,7 @@ class DeploymentOrchestrator:
             'start_time': time.time()
         }
 
-        self._update_verification(verification_id, verification)
+        self.verifications[verification_id] = verification
 
         # Run checks in background thread
         thread = threading.Thread(
@@ -840,7 +760,6 @@ class DeploymentOrchestrator:
             error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
             deployment['error'] = f"Repository setup failed: {error_details}"
             deployment['end_time'] = time.time()
-            self._update_deployment(deployment_id, deployment)
             return deployment
 
         # Check if bot directory exists in the repository
@@ -857,7 +776,6 @@ class DeploymentOrchestrator:
             deployment['status'] = 'failed'
             deployment['error'] = f"Bot directory '{bot_name}' not found in repository"
             deployment['end_time'] = time.time()
-            self._update_deployment(deployment_id, deployment)
             return deployment
 
         # Step 2: Create config files from examples if they don't exist
@@ -952,7 +870,6 @@ class DeploymentOrchestrator:
                     error_parts.append(f"DNS lookup error: {dns_result['stderr']}")
                 deployment['error'] = '\n'.join(error_parts)
                 deployment['end_time'] = time.time()
-                self._update_deployment(deployment_id, deployment)
                 return deployment
 
             # Verify domain resolves to this server's IP
@@ -970,7 +887,6 @@ class DeploymentOrchestrator:
                     error_parts.append("Please update your DNS A record to point to the correct server IP.")
                     deployment['error'] = '\n'.join(error_parts)
                     deployment['end_time'] = time.time()
-                    self._update_deployment(deployment_id, deployment)
                     return deployment
             else:
                 # Couldn't get server IP - log warning but continue
@@ -1030,7 +946,6 @@ class DeploymentOrchestrator:
                     error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
                     deployment['error'] = f"Nginx configuration failed: {error_details}"
                     deployment['end_time'] = time.time()
-                    self._update_deployment(deployment_id, deployment)
                     return deployment
 
             except Exception as e:
@@ -1043,7 +958,6 @@ class DeploymentOrchestrator:
                 deployment['status'] = 'failed'
                 deployment['error'] = f'Nginx configuration failed: {str(e)}'
                 deployment['end_time'] = time.time()
-                self._update_deployment(deployment_id, deployment)
                 return deployment
 
         # Step 6: Create systemd service
@@ -1103,7 +1017,6 @@ class DeploymentOrchestrator:
                 error_details = ' | '.join(error_parts) if error_parts else 'No error details available'
                 deployment['error'] = f"Systemd service creation failed: {error_details}"
                 deployment['end_time'] = time.time()
-                self._update_deployment(deployment_id, deployment)
                 return deployment
 
         except Exception as e:
@@ -1116,7 +1029,6 @@ class DeploymentOrchestrator:
             deployment['status'] = 'failed'
             deployment['error'] = f'Systemd service creation failed: {str(e)}'
             deployment['end_time'] = time.time()
-            self._update_deployment(deployment_id, deployment)
             return deployment
 
         # Step 7: SSL certificate (if configured and not skipping nginx)
@@ -1170,9 +1082,6 @@ class DeploymentOrchestrator:
         deployment['end_time'] = time.time()
         deployment['duration'] = deployment['end_time'] - deployment['start_time']
 
-        # Save final state
-        self._update_deployment(deployment_id, deployment)
-
     def deploy_bot(self, server: str, bot_name: str) -> Dict:
         """
         Deploy a bot to a server (non-blocking)
@@ -1213,7 +1122,7 @@ class DeploymentOrchestrator:
             'start_time': time.time()
         }
 
-        self._update_deployment(deployment_id, deployment)
+        self.deployments[deployment_id] = deployment
 
         # Run deployment in background thread
         thread = threading.Thread(

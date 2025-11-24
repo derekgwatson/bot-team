@@ -23,4 +23,4 @@ htmlcov/
 .pytest_cache/
 
 # Chrome extension build artifacts
-monica-monitor*.zipdorothy/data/
+monica-monitor*.zip
