@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Scheduler Dashboard</h2>
+
+<!-- Stats Overview -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_jobs }}</div>
+        <div class="stat-label">Total Jobs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.enabled_jobs }}</div>
+        <div class="stat-label">Enabled</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.executions_24h }}</div>
+        <div class="stat-label">Runs (24h)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {% if stats.failures_24h > 0 %}text-danger{% else %}text-success{% endif %}">
+            {{ stats.failures_24h }}
+        </div>
+        <div class="stat-label">Failures (24h)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.success_rate_24h }}%</div>
+        <div class="stat-label">Success Rate</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">
+            {% if stats.scheduler_running %}
+                <span class="badge badge-running">Running</span>
+            {% else %}
+                <span class="badge badge-disabled">Stopped</span>
+            {% endif %}
+        </div>
+        <div class="stat-label">Scheduler</div>
+    </div>
+</div>
+
+<!-- Active Jobs -->
+<div class="card">
+    <h3>Scheduled Jobs</h3>
+    {% if jobs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Target Bot</th>
+                <th>Schedule</th>
+                <th>Next Run</th>
+                <th>Last Run</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('web.job_detail', job_id=job.job_id) }}">
+                        <strong>{{ job.name }}</strong>
+                    </a>
+                    {% if job.description %}
+                    <br><small class="text-muted">{{ job.description[:50] }}{% if job.description|length > 50 %}...{% endif %}</small>
+                    {% endif %}
+                </td>
+                <td>{{ job.target_bot }}</td>
+                <td><code>{{ job.schedule_type }}: {{ job.schedule_config }}</code></td>
+                <td>
+                    {% if job.next_run_time %}
+                        {{ job.next_run_time[:19] }}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if job.last_run %}
+                        {{ job.last_run[:19] }}
+                    {% else %}
+                        <span class="text-muted">Never</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if job.enabled %}
+                        <span class="badge badge-enabled">Enabled</span>
+                    {% else %}
+                        <span class="badge badge-disabled">Disabled</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    {% if current_user.is_admin %}
+                    <form action="{{ url_for('web.run_job', job_id=job.job_id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-primary btn-sm">Run Now</button>
+                    </form>
+                    <form action="{{ url_for('web.toggle_job', job_id=job.job_id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-secondary btn-sm">
+                            {% if job.enabled %}Disable{% else %}Enable{% endif %}
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No jobs configured yet. <a href="{{ url_for('web.new_job') }}">Create one</a>.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Failures -->
+{% if failed_executions %}
+<div class="card">
+    <h3>Recent Failures (24h)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Bot</th>
+                <th>Time</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exec in failed_executions[:5] %}
+            <tr>
+                <td>{{ exec.job_name }}</td>
+                <td>{{ exec.target_bot }}</td>
+                <td>{{ exec.executed_at[:19] }}</td>
+                <td>
+                    {% if exec.error_message %}
+                        {{ exec.error_message[:100] }}
+                    {% elif exec.response_code %}
+                        HTTP {{ exec.response_code }}
+                    {% else %}
+                        Unknown error
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if failed_executions|length > 5 %}
+    <p style="margin-top: 10px;"><a href="{{ url_for('web.failures') }}">View all failures</a></p>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Recent Executions -->
+<div class="card">
+    <h3>Recent Executions</h3>
+    {% if recent_executions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Bot</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exec in recent_executions[:10] %}
+            <tr>
+                <td>{{ exec.job_name }}</td>
+                <td>{{ exec.target_bot }}</td>
+                <td>{{ exec.executed_at[:19] }}</td>
+                <td>
+                    <span class="badge badge-{{ exec.status }}">{{ exec.status }}</span>
+                </td>
+                <td>
+                    {% if exec.duration_ms %}
+                        {{ exec.duration_ms }}ms
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 10px;"><a href="{{ url_for('web.execution_history') }}">View full history</a></p>
+    {% else %}
+    <p class="text-muted">No executions yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

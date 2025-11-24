@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}New Job - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Create New Scheduled Job</h2>
+
+<div class="card">
+    <form action="{{ url_for('web.create_job') }}" method="post">
+        <div class="form-group">
+            <label for="job_id">Job ID</label>
+            <input type="text" id="job_id" name="job_id" required placeholder="e.g., fiona_mavis_sync" pattern="[a-z0-9_]+" title="Lowercase letters, numbers, and underscores only">
+            <small class="text-muted">Unique identifier (lowercase, no spaces)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required placeholder="e.g., Fiona-Mavis Sync">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="2" placeholder="What does this job do?"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="target_bot">Target Bot</label>
+            <input type="text" id="target_bot" name="target_bot" required placeholder="e.g., fiona">
+            <small class="text-muted">The bot to call (from Chester's registry)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="endpoint">API Endpoint</label>
+            <input type="text" id="endpoint" name="endpoint" required placeholder="e.g., /api/sync/auto">
+        </div>
+
+        <div class="form-group">
+            <label for="method">HTTP Method</label>
+            <select id="method" name="method">
+                <option value="POST" selected>POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="schedule_type">Schedule Type</label>
+            <select id="schedule_type" name="schedule_type" onchange="toggleScheduleConfig()">
+                <option value="cron" selected>Cron (time-based)</option>
+                <option value="interval">Interval (periodic)</option>
+            </select>
+        </div>
+
+        <div id="cron_config">
+            <h4 style="margin: 20px 0 10px;">Cron Schedule</h4>
+            <div class="form-inline" style="flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <label>Hour</label>
+                    <input type="text" name="cron_hour" value="*" style="width: 80px;" placeholder="*">
+                    <small class="text-muted">0-23, */4, etc.</small>
+                </div>
+                <div>
+                    <label>Minute</label>
+                    <input type="text" name="cron_minute" value="0" style="width: 80px;" placeholder="0">
+                    <small class="text-muted">0-59</small>
+                </div>
+                <div>
+                    <label>Day of Week</label>
+                    <input type="text" name="cron_dow" style="width: 100px;" placeholder="mon-fri">
+                    <small class="text-muted">Optional</small>
+                </div>
+                <div>
+                    <label>Day of Month</label>
+                    <input type="text" name="cron_day" style="width: 80px;" placeholder="1-31">
+                    <small class="text-muted">Optional</small>
+                </div>
+            </div>
+            <p class="text-muted" style="margin-top: 10px;">
+                Examples: <code>hour=*/4, minute=0</code> (every 4 hours) | <code>hour=3, minute=0</code> (daily at 3am)
+            </p>
+        </div>
+
+        <div id="interval_config" style="display: none;">
+            <h4 style="margin: 20px 0 10px;">Interval Schedule</h4>
+            <div class="form-inline">
+                <div>
+                    <label>Hours</label>
+                    <input type="number" name="interval_hours" value="0" min="0" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Minutes</label>
+                    <input type="number" name="interval_minutes" value="30" min="0" style="width: 80px;">
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button type="submit" class="btn btn-success">Create Job</button>
+            <a href="{{ url_for('web.jobs_list') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% if templates %}
+<div class="card">
+    <h3>Job Templates</h3>
+    <p class="text-muted">Quick-start templates from config:</p>
+    <ul>
+        {% for key, template in templates.items() %}
+        <li>
+            <strong>{{ template.name }}</strong> - {{ template.description }}
+            <br><small class="text-muted">{{ template.target_bot }} {{ template.endpoint }}</small>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleScheduleConfig() {
+    var scheduleType = document.getElementById('schedule_type').value;
+    document.getElementById('cron_config').style.display = scheduleType === 'cron' ? 'block' : 'none';
+    document.getElementById('interval_config').style.display = scheduleType === 'interval' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

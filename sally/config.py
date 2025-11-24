@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 
 # Load environment variables from .env file
 load_dotenv()
@@ -72,7 +73,7 @@ class Config:
 
     @property
     def server_port(self):
-        return self._config.get('server', {}).get('port', 8004)
+        return get_port("sally")
 
     @property
     def ssh_default_user(self):

@@ -2,6 +2,7 @@ import yaml
 import os
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,7 +21,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = data['server']['port']
+        self.server_port = get_port("quinn")
 
         # Sync config
         sync_config = data.get('sync', {})

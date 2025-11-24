@@ -328,6 +328,26 @@ bot_team:
       bots_status: /api/bots/status
     personality: Vigilant and proactive, keeps watch for issues across systems
 
+  skye:
+    name: Skye
+    port: 8020
+    description: Scheduler Bot - Centralized Task Scheduling
+    capabilities:
+      - Centralized scheduling for all bot-team tasks
+      - Cron and interval-based job scheduling
+      - Execute jobs by calling other bots' APIs
+      - Track execution history and failures
+      - Web UI for managing schedules
+      - APScheduler-based reliable execution
+    api_endpoints:
+      info: /info
+      health: /health
+      jobs: /api/jobs
+      scheduler_status: /api/scheduler/status
+      stats: /api/stats
+    personality: Punctual and reliable, ensures everything happens at the right time
+
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

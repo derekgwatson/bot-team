@@ -1,0 +1,65 @@
+name: Skye
+description: Scheduler Bot - centralized task scheduling for the bot team
+version: 1.0.0
+personality: Punctual and reliable, ensures everything happens at the right time
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+database:
+  path: "database/skye.db"
+
+# Scheduler configuration
+scheduler:
+  # Timezone for scheduled jobs (Australia/Sydney for local business hours)
+  timezone: "Australia/Sydney"
+  # How often to check for missed jobs on startup (in minutes)
+  misfire_grace_time: 60
+  # Maximum concurrent jobs
+  max_instances: 3
+
+# Default job configurations
+# These can be referenced when creating new jobs
+job_templates:
+  fiona_mavis_sync:
+    name: "Fiona-Mavis Sync"
+    description: "Sync fabric descriptions between Fiona and Mavis"
+    target_bot: "fiona"
+    endpoint: "/api/sync/auto"
+    method: "POST"
+    # Default: every 4 hours
+    schedule:
+      type: "cron"
+      hour: "*/4"
+      minute: "0"
+
+  mavis_unleashed_sync:
+    name: "Mavis-Unleashed Sync"
+    description: "Sync product data from Unleashed API"
+    target_bot: "mavis"
+    endpoint: "/api/sync/run"
+    method: "POST"
+    # Default: every 4 hours
+    schedule:
+      type: "cron"
+      hour: "*/4"
+      minute: "30"
+
+  monica_cleanup:
+    name: "Monica Heartbeat Cleanup"
+    description: "Clean up old heartbeat records from Monica"
+    target_bot: "monica"
+    endpoint: "/api/cleanup"
+    method: "POST"
+    # Default: daily at 3am
+    schedule:
+      type: "cron"
+      hour: "3"
+      minute: "0"
+
+# Admin access configuration
+admin:
+  emails:
+    # Add admin email addresses here, or set SKYE_ADMIN_EMAILS env var
+    # - admin@watsonblinds.com.au

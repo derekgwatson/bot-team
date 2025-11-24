@@ -12,6 +12,7 @@ import logging
 
 from database.db import db
 from services.mavis_service import mavis_service
+from services.fabric_sync import fabric_sync_service
 from shared.auth.bot_api import api_key_required
 
 logger = logging.getLogger(__name__)
@@ -382,3 +383,105 @@ def get_mavis_product():
     except Exception as e:
         logger.exception(f"Error getting Mavis product {request.args.get('code')}")
         return jsonify({'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sync Endpoints (for Skye scheduler)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@api_bp.route('/sync/auto', methods=['POST'])
+@api_key_required
+def auto_sync():
+    """
+    Automated sync endpoint for Skye scheduler.
+
+    This endpoint:
+    1. Compares Fiona's fabrics with Mavis's valid fabrics
+    2. Adds missing fabrics as placeholders
+    3. Reports any fabrics flagged for deletion (requires manual review)
+
+    Returns sync results including:
+    - fabrics added
+    - fabrics flagged for deletion (not automatically deleted)
+    - comparison statistics
+    """
+    try:
+        # Compare with Mavis
+        comparison = fabric_sync_service.compare_with_mavis()
+
+        if not comparison.get('success'):
+            return jsonify({
+                'success': False,
+                'error': comparison.get('error', 'Failed to compare with Mavis')
+            }), 500
+
+        # Add missing fabrics automatically
+        add_result = {'added': 0, 'codes': []}
+        if comparison.get('missing_count', 0) > 0:
+            add_result = fabric_sync_service.add_missing_fabrics(updated_by='skye-auto-sync')
+
+        return jsonify({
+            'success': True,
+            'sync_time': request.headers.get('X-Request-Time'),
+            'comparison': {
+                'fiona_count': comparison.get('fiona_count', 0),
+                'mavis_count': comparison.get('mavis_count', 0),
+                'missing_count': comparison.get('missing_count', 0),
+                'flagged_count': comparison.get('flagged_count', 0)
+            },
+            'added': {
+                'count': add_result.get('added', 0),
+                'codes': add_result.get('codes', [])[:20]  # Limit to first 20 for response size
+            },
+            'flagged_for_deletion': {
+                'count': comparison.get('flagged_count', 0),
+                'codes': comparison.get('flagged_for_deletion', [])[:20],
+                'note': 'These require manual review in Fiona admin UI'
+            }
+        })
+
+    except Exception as e:
+        logger.exception("Error in auto sync")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/sync/status', methods=['GET'])
+@api_key_required
+def sync_status():
+    """
+    Get current sync status between Fiona and Mavis.
+
+    Returns comparison without making any changes.
+    """
+    try:
+        comparison = fabric_sync_service.compare_with_mavis()
+
+        if not comparison.get('success'):
+            return jsonify({
+                'success': False,
+                'error': comparison.get('error', 'Failed to compare with Mavis')
+            }), 500
+
+        incomplete = fabric_sync_service.get_incomplete_fabrics()
+        rebadged = fabric_sync_service.get_rebadged_fabrics()
+
+        return jsonify({
+            'success': True,
+            'fiona_count': comparison.get('fiona_count', 0),
+            'mavis_count': comparison.get('mavis_count', 0),
+            'missing_count': comparison.get('missing_count', 0),
+            'flagged_count': comparison.get('flagged_count', 0),
+            'incomplete_count': len(incomplete),
+            'rebadged_count': len(rebadged),
+            'in_sync': comparison.get('missing_count', 0) == 0 and comparison.get('flagged_count', 0) == 0
+        })
+
+    except Exception as e:
+        logger.exception("Error getting sync status")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

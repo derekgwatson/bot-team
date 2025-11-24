@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Scheduled Jobs</h2>
+
+{% if current_user.is_admin %}
+<p style="margin-bottom: 20px;">
+    <a href="{{ url_for('web.new_job') }}" class="btn btn-success">+ Create New Job</a>
+</p>
+{% endif %}
+
+{% if jobs %}
+<table>
+    <thead>
+        <tr>
+            <th>Job ID</th>
+            <th>Name</th>
+            <th>Target Bot</th>
+            <th>Endpoint</th>
+            <th>Schedule</th>
+            <th>Next Run</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td><code>{{ job.job_id }}</code></td>
+            <td>
+                <a href="{{ url_for('web.job_detail', job_id=job.job_id) }}">
+                    <strong>{{ job.name }}</strong>
+                </a>
+            </td>
+            <td>{{ job.target_bot }}</td>
+            <td><code>{{ job.method }} {{ job.endpoint }}</code></td>
+            <td><code>{{ job.schedule_config }}</code></td>
+            <td>
+                {% if job.next_run_time %}
+                    {{ job.next_run_time[:19] }}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if job.enabled %}
+                    <span class="badge badge-enabled">Enabled</span>
+                {% else %}
+                    <span class="badge badge-disabled">Disabled</span>
+                {% endif %}
+            </td>
+            <td class="actions">
+                <a href="{{ url_for('web.job_detail', job_id=job.job_id) }}" class="btn btn-primary btn-sm">View</a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('web.edit_job', job_id=job.job_id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="card">
+    <p class="text-muted">No jobs configured yet.</p>
+    {% if current_user.is_admin %}
+    <p><a href="{{ url_for('web.new_job') }}">Create your first scheduled job</a></p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
