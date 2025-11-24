@@ -309,7 +309,7 @@ bot_team:
 
   skye:
     name: Skye
-    port: 8019
+    port: 8020
     description: Scheduler Bot - Centralized Task Scheduling
     capabilities:
       - Centralized scheduling for all bot-team tasks
