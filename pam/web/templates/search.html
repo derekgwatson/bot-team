@@ -3,7 +3,7 @@
 {% block content %}
 <div class="search-bar">
     <form action="/search" method="GET">
-        <input type="text" name="q" value="{{ query }}" placeholder="Search by name, position, or extension..." autocomplete="off" autofocus>
+        <input type="search" name="q" value="{{ query }}" placeholder="Search by name, position, or extension..." autocomplete="off" autofocus data-lpignore="true" data-form-type="other">
         <button type="submit">Search</button>
     </form>
 </div>

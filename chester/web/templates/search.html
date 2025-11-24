@@ -185,12 +185,14 @@
 
     <form method="GET" action="/search" class="search-form">
         <input
-            type="text"
+            type="search"
             name="q"
             class="search-box"
             placeholder="Search for capabilities (e.g., 'Google', 'SSH', 'deployment')..."
             value="{{ query }}"
             autofocus
+            data-lpignore="true"
+            data-form-type="other"
         >
         <button type="submit" class="search-btn">Search</button>
     </form>
