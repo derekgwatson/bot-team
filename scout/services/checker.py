@@ -462,6 +462,18 @@ class CheckerService:
         details: dict = None
     ) -> Optional[dict]:
         """Create a ticket via Sadie and record the issue"""
+
+        # Skip ticket creation if disabled (e.g., in dev mode)
+        if not config.create_tickets:
+            logger.info(f"Ticket creation disabled - skipping ticket for {issue_type}:{issue_key}")
+            # Still record the issue without a ticket
+            db.record_issue(
+                issue_type=issue_type,
+                issue_key=issue_key,
+                issue_details={**(details or {}), '_ticket_creation_disabled': True}
+            )
+            return None
+
         try:
             ticket = sadie_client.create_ticket(
                 subject=subject,

@@ -81,6 +81,14 @@ class Config:
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")
 
+        # Ticket creation - disable in dev to avoid creating real tickets
+        # Set SCOUT_CREATE_TICKETS=false in dev environment
+        self.create_tickets = os.getenv('SCOUT_CREATE_TICKETS', 'true').lower() == 'true'
+
+        # In dev mode (FLASK_DEBUG=true), default to NOT creating tickets unless explicitly enabled
+        if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+            self.create_tickets = os.getenv('SCOUT_CREATE_TICKETS', 'false').lower() == 'true'
+
     def get_mavis_url(self) -> str:
         """Get Mavis URL based on environment"""
         if os.environ.get("MAVIS_URL"):
