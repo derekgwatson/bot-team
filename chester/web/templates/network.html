@@ -195,11 +195,7 @@ let physicsEnabled = true;
 // Fetch network data from API
 async function loadNetworkData() {
     try {
-        const response = await fetch('/api/bots/network', {
-            headers: {
-                'X-API-Key': '{{ config.bot_api_key }}'
-            }
-        });
+        const response = await fetch('/network/data');
         const data = await response.json();
 
         if (data.success) {

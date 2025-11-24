@@ -177,3 +177,76 @@ def add_bot_form():
 def network():
     """Interactive network visualization of bot dependencies."""
     return render_template('network.html', config=config)
+
+
+@web_bp.route('/network/data')
+@login_required
+def network_data():
+    """Get bot network data for visualization (for logged-in web users)."""
+    import os
+    import yaml
+    from pathlib import Path
+    from flask import jsonify
+
+    # Get the bot-team directory (parent of chester)
+    chester_dir = Path(__file__).resolve().parents[1]
+    bot_team_dir = chester_dir.parent
+
+    nodes = []
+    edges = []
+
+    # Scan all bot directories
+    for bot_path in bot_team_dir.iterdir():
+        if not bot_path.is_dir():
+            continue
+
+        bot_name = bot_path.name
+        config_path = bot_path / 'config.yaml'
+
+        # Skip special directories
+        if bot_name in ['shared', 'scripts', 'tests', 'monica-chrome-extension', '.git']:
+            continue
+
+        # Skip if no config.yaml
+        if not config_path.exists():
+            continue
+
+        try:
+            # Read the config file
+            with open(config_path, 'r') as f:
+                bot_config = yaml.safe_load(f)
+
+            if not bot_config:
+                continue
+
+            # Extract bot info
+            node = {
+                'id': bot_name,
+                'label': bot_config.get('name', bot_name),
+                'description': bot_config.get('description', ''),
+                'version': bot_config.get('version', ''),
+                'emoji': bot_config.get('emoji', '🤖'),
+                'personality': bot_config.get('personality', '')
+            }
+            nodes.append(node)
+
+            # Extract dependencies and create edges
+            dependencies = bot_config.get('dependencies', [])
+            for dep in dependencies:
+                # Dependencies can be "bot_name # comment" format
+                dep_name = dep.split('#')[0].strip() if isinstance(dep, str) else dep
+                edges.append({
+                    'from': bot_name,
+                    'to': dep_name
+                })
+
+        except Exception as e:
+            # Skip bots with invalid configs
+            print(f"Error reading config for {bot_name}: {e}")
+            continue
+
+    return jsonify({
+        'success': True,
+        'nodes': nodes,
+        'edges': edges
+    })
