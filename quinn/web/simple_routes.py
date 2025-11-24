@@ -3,7 +3,7 @@ Simple web routes for Quinn - just a status page showing sync information
 """
 from flask import Blueprint, render_template_string
 from services.sync_service import sync_service
-from services.peter_client import peter_client
+from services import settings
 from config import config
 from datetime import datetime
 
@@ -33,6 +33,9 @@ def index():
             'removed_count': len(last_result.get('removed', [])),
             'elapsed': last_result.get('elapsed_seconds', 0)
         }
+
+    # Get managers list
+    managers = settings.get_managers()
 
     template = '''
     <!DOCTYPE html>
@@ -66,21 +69,6 @@ def index():
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin-bottom: 20px;
             }
-            .status-badge {
-                display: inline-block;
-                padding: 8px 16px;
-                border-radius: 20px;
-                font-weight: bold;
-                font-size: 0.9em;
-            }
-            .status-running {
-                background: #d4edda;
-                color: #155724;
-            }
-            .status-stopped {
-                background: #f8d7da;
-                color: #721c24;
-            }
             .stat {
                 display: flex;
                 justify-content: space-between;
@@ -103,41 +91,28 @@ def index():
             .link:hover {
                 text-decoration: underline;
             }
+            .manager-list {
+                list-style: none;
+                padding: 0;
+                margin: 15px 0 0 0;
+            }
+            .manager-list li {
+                padding: 8px 12px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                margin-bottom: 8px;
+                font-family: monospace;
+            }
+            .empty-state {
+                color: #999;
+                font-style: italic;
+            }
         </style>
     </head>
     <body>
         <div class="header">
             <h1>👥 Quinn</h1>
             <p>{{ config.description }}</p>
-        </div>
-
-        <div class="card">
-            <h2>Sync Service Status</h2>
-
-            {% if status.running %}
-                <span class="status-badge status-running">✓ Running</span>
-            {% else %}
-                <span class="status-badge status-stopped">✗ Stopped</span>
-            {% endif %}
-
-            <div style="margin-top: 20px;">
-                <div class="stat">
-                    <span class="stat-label">Sync Interval</span>
-                    <span class="stat-value">Every {{ status.interval_seconds }} seconds</span>
-                </div>
-
-                {% if last_sync_time %}
-                <div class="stat">
-                    <span class="stat-label">Last Sync</span>
-                    <span class="stat-value">{{ last_sync_time }}</span>
-                </div>
-                {% else %}
-                <div class="stat">
-                    <span class="stat-label">Last Sync</span>
-                    <span class="stat-value">Never</span>
-                </div>
-                {% endif %}
-            </div>
         </div>
 
         {% if sync_summary %}
@@ -147,6 +122,10 @@ def index():
             <div class="stat">
                 <span class="stat-label">Status</span>
                 <span class="stat-value">{% if sync_summary.success %}✅ Success{% else %}❌ Failed{% endif %}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">When</span>
+                <span class="stat-value">{{ last_sync_time }}</span>
             </div>
             <div class="stat">
                 <span class="stat-label">Members in Group</span>
@@ -169,45 +148,57 @@ def index():
                 <span class="stat-value">{{ "%.2f"|format(sync_summary.elapsed) }}s</span>
             </div>
         </div>
+        {% else %}
+        <div class="card">
+            <h2>Sync Status</h2>
+            <p class="empty-state">No sync has run yet since Quinn started.</p>
+        </div>
         {% endif %}
+
+        <div class="card">
+            <h2>Group Managers</h2>
+            <p style="color: #555; margin-bottom: 10px;">
+                These people can send emails to the all-staff group. They are protected from removal during sync.
+            </p>
+            {% if managers %}
+            <ul class="manager-list">
+                {% for email in managers %}
+                <li>{{ email }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No managers configured.</p>
+            {% endif %}
+        </div>
 
         <div class="card">
             <h2>How It Works</h2>
             <p style="line-height: 1.6; color: #555;">
-                Quinn automatically keeps the all-staff Google Group in sync with Peter's HR database.
-                Every {{ status.interval_seconds }} seconds, Quinn:
+                Quinn keeps the all-staff Google Group in sync with Peter's HR database.
+                <strong>Skye</strong> triggers a sync every 5 minutes, and Quinn:
             </p>
             <ol style="line-height: 1.8; color: #555;">
                 <li>Asks Peter who should be in the all-staff group</li>
                 <li>Checks the current Google Group membership</li>
                 <li>Adds anyone who should be there but isn't</li>
-                <li>Removes anyone who shouldn't be there</li>
+                <li>Removes anyone who shouldn't be there (except managers)</li>
             </ol>
             <p style="line-height: 1.6; color: #555; margin-top: 20px;">
-                <strong>Peter is the source of truth</strong> - manage staff there, and Quinn will sync them automatically.
+                <strong>Peter is the source of truth</strong> for staff membership.
+                Managers are maintained separately and never removed by sync.
             </p>
         </div>
 
         <div class="card">
             <h2>API Endpoints</h2>
             <ul style="line-height: 1.8;">
-                <li><a href="/api/sync/status" class="link">GET /api/sync/status</a> - Get sync service status</li>
-                <li><a href="#" class="link">POST /api/sync/now</a> - Trigger immediate sync</li>
-                <li><a href="/health" class="link">GET /health</a> - Health check</li>
-                <li><a href="/info" class="link">GET /info</a> - Bot information</li>
+                <li><a href="/api/sync/status" class="link">GET /api/sync/status</a> - Get sync status</li>
+                <li><a href="/api/sync/preview" class="link">GET /api/sync/preview</a> - Preview sync changes</li>
+                <li><code>POST /api/sync/now</code> - Trigger immediate sync</li>
+                <li><a href="/api/managers" class="link">GET /api/managers</a> - List managers</li>
+                <li><code>POST /api/managers</code> - Add a manager</li>
+                <li><code>DELETE /api/managers/&lt;email&gt;</code> - Remove a manager</li>
             </ul>
-        </div>
-
-        <div class="card">
-            <h2>Configuration</h2>
-            <div class="stat">
-                <span class="stat-label">Peter URL</span>
-                <span class="stat-value">{{ config.peter_url }}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Google Group</span>
-                <span class="stat-value">(configured via credentials.json)</span>
-            </div>
         </div>
     </body>
     </html>
@@ -218,5 +209,6 @@ def index():
         config=config,
         status=status,
         last_sync_time=last_sync_time,
-        sync_summary=sync_summary
+        sync_summary=sync_summary,
+        managers=managers
     )
