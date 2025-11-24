@@ -107,6 +107,32 @@ class StaffDatabase:
         conn.close()
         return emails
 
+    def get_allstaff_managers(self):
+        """
+        Get email addresses for all-staff group managers (internal staff)
+
+        Returns staff WITH Google accounts (google_access = 1) who are
+        marked as include_in_allstaff. These are the people who can send
+        emails to the all-staff group.
+
+        Returns:
+            List of work email addresses
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            '''SELECT work_email FROM staff
+               WHERE include_in_allstaff = 1
+               AND status = ?
+               AND google_access = 1
+               AND work_email IS NOT NULL
+               AND work_email != '' ''',
+            ('active',)
+        )
+
+        emails = [row['work_email'] for row in cursor.fetchall()]
+        conn.close()
+        return emails
+
     def search_staff(self, query):
         """
         Search for staff by name, extension, or phone

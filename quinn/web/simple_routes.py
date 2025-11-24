@@ -3,7 +3,7 @@ Simple web routes for Quinn - just a status page showing sync information
 """
 from flask import Blueprint, render_template_string
 from services.sync_service import sync_service
-from services import settings
+from services.peter_client import peter_client
 from config import config
 from datetime import datetime
 
@@ -34,8 +34,8 @@ def index():
             'elapsed': last_result.get('elapsed_seconds', 0)
         }
 
-    # Get managers list
-    managers = settings.get_managers()
+    # Get managers list from Peter (internal staff with Google accounts)
+    managers = peter_client.get_allstaff_managers()
 
     template = '''
     <!DOCTYPE html>
@@ -158,7 +158,8 @@ def index():
         <div class="card">
             <h2>Group Managers</h2>
             <p style="color: #555; margin-bottom: 10px;">
-                These people can send emails to the all-staff group. They are protected from removal during sync.
+                Internal staff (with Google accounts) who can send emails to the all-staff group.
+                Managed in Peter via <code>include_in_allstaff</code> + <code>google_access</code> flags.
             </p>
             {% if managers %}
             <ul class="manager-list">
@@ -178,14 +179,14 @@ def index():
                 <strong>Skye</strong> triggers a sync every 5 minutes, and Quinn:
             </p>
             <ol style="line-height: 1.8; color: #555;">
-                <li>Asks Peter who should be in the all-staff group</li>
-                <li>Checks the current Google Group membership</li>
-                <li>Adds anyone who should be there but isn't</li>
-                <li>Removes anyone who shouldn't be there (except managers)</li>
+                <li>Asks Peter for external staff (no Google account) → added as members</li>
+                <li>Asks Peter for internal staff (have Google account) → protected as managers</li>
+                <li>Compares with current Google Group membership</li>
+                <li>Adds/removes members to match, but never removes managers</li>
             </ol>
             <p style="line-height: 1.6; color: #555; margin-top: 20px;">
-                <strong>Peter is the source of truth</strong> for staff membership.
-                Managers are maintained separately and never removed by sync.
+                <strong>Peter is the source of truth</strong> for both members and managers.
+                Set <code>include_in_allstaff = 1</code> on any staff member in Peter.
             </p>
         </div>
 
@@ -195,10 +196,10 @@ def index():
                 <li><a href="/api/sync/status" class="link">GET /api/sync/status</a> - Get sync status</li>
                 <li><a href="/api/sync/preview" class="link">GET /api/sync/preview</a> - Preview sync changes</li>
                 <li><code>POST /api/sync/now</code> - Trigger immediate sync</li>
-                <li><a href="/api/managers" class="link">GET /api/managers</a> - List managers</li>
-                <li><code>POST /api/managers</code> - Add a manager</li>
-                <li><code>DELETE /api/managers/&lt;email&gt;</code> - Remove a manager</li>
             </ul>
+            <p style="color: #888; margin-top: 15px; font-size: 0.9em;">
+                Managers are managed in Peter, not Quinn.
+            </p>
         </div>
     </body>
     </html>

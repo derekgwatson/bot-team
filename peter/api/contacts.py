@@ -317,11 +317,31 @@ def get_allstaff_members():
     """
     GET /api/staff/allstaff-members
 
-    Returns email addresses for all-staff group
+    Returns email addresses for all-staff group members (external staff)
+    These are staff WITHOUT Google accounts who need to be explicitly added.
     (This is what Quinn will call to sync the Google Group)
     """
     try:
         emails = staff_db.get_allstaff_members()
+        return jsonify({
+            'emails': emails,
+            'count': len(emails)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/staff/allstaff-managers', methods=['GET'])
+def get_allstaff_managers():
+    """
+    GET /api/staff/allstaff-managers
+
+    Returns email addresses for all-staff group managers (internal staff)
+    These are staff WITH Google accounts who can send to the all-staff group.
+    Quinn uses this to know who should NOT be removed during sync.
+    """
+    try:
+        emails = staff_db.get_allstaff_managers()
         return jsonify({
             'emails': emails,
             'count': len(emails)
