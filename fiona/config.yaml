@@ -1,0 +1,18 @@
+name: Fiona
+description: Fabric description manager - maintains friendly names for Unleashed fabrics
+version: 1.0.0
+personality: Organized and detail-oriented, keeps fabric naming consistent and clear
+
+server:
+  host: 0.0.0.0
+  port: 8018
+
+database:
+  path: "database/fiona.db"
+
+# Mavis integration for Unleashed product data
+mavis:
+  # In dev, use localhost. In production, use the production URL.
+  # Override with MAVIS_URL environment variable if needed.
+  dev_url: "http://localhost:8017"
+  prod_url: "https://mavis.watsonblinds.com.au"

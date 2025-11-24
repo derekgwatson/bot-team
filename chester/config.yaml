@@ -287,6 +287,26 @@ bot_team:
       products_bulk: /api/products/bulk
     personality: Efficient and data-focused, keeps Unleashed data in sync
 
+  fiona:
+    name: Fiona
+    port: 8018
+    description: Fabric Description Manager
+    capabilities:
+      - Store friendly names for Unleashed fabric products
+      - Map supplier names to Watson re-badged names
+      - Lookup fabric descriptions by product code
+      - Bulk fabric description operations
+      - Search fabrics by material or colour
+      - Integration with Mavis for product validation
+    api_endpoints:
+      info: /info
+      health: /health
+      fabrics: /api/fabrics
+      fabrics_bulk: /api/fabrics/bulk
+      fabrics_search: /api/fabrics/search
+      mavis_status: /api/mavis/status
+    personality: Organized and detail-oriented, keeps fabric naming consistent and clear
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.
