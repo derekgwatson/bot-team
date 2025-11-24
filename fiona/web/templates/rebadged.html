@@ -52,13 +52,17 @@
     <header class="header">
         <h1><a href="{{ url_for('web.index') }}">Fiona</a> <span>- Rebadged Fabrics</span></h1>
         <div class="user-info">
-            <a href="{{ url_for('web.index') }}">Home</a>
+            <a href="{{ url_for('web.all_fabrics') }}">All Fabrics</a>
+            <a href="{{ url_for('web.choose_view') }}">Change View</a>
             <a href="{{ url_for('auth.logout') }}">Logout</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('web.admin_index') }}">Admin</a>
+            {% endif %}
         </div>
     </header>
 
     <div class="container">
-        <div class="breadcrumb"><a href="{{ url_for('web.index') }}">Home</a> / Rebadged Fabrics</div>
+        <div class="breadcrumb"><a href="{{ url_for('web.all_fabrics') }}">All Fabrics</a> / Rebadged</div>
 
         <div class="alert alert-info">
             <strong>Rebadged fabrics</strong> have a Watson name that differs from the supplier name.
@@ -141,7 +145,7 @@
         {% endif %}
 
         <div style="margin-top: 20px;">
-            <a href="{{ url_for('web.index') }}" class="btn btn-secondary">Back to Home</a>
+            <a href="{{ url_for('web.all_fabrics') }}" class="btn btn-secondary">All Fabrics</a>
         </div>
     </div>
 

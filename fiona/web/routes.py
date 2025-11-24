@@ -10,7 +10,7 @@ Admin routes (admins only):
 - /admin/import - Import from Google Sheets
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, make_response
 from flask_login import current_user
 from database.db import db
 from services.mavis_service import mavis_service
@@ -29,6 +29,63 @@ web_bp = Blueprint('web', __name__, template_folder='templates')
 @web_bp.route('/')
 @login_required
 def index():
+    """Route to user's preferred view based on saved preference"""
+    # Admins default to admin view
+    if current_user.is_admin:
+        preference = request.cookies.get('fiona_view', 'admin')
+    else:
+        preference = request.cookies.get('fiona_view', '')
+
+    # Redirect based on preference
+    if preference == 'admin' and current_user.is_admin:
+        return redirect(url_for('web.admin_index'))
+    elif preference == 'all':
+        return redirect(url_for('web.all_fabrics'))
+    elif preference == 'rebadged':
+        return redirect(url_for('web.rebadged_page'))
+    else:
+        # No preference set - show landing page
+        return redirect(url_for('web.choose_view'))
+
+
+@web_bp.route('/choose')
+@login_required
+def choose_view():
+    """Landing page to choose view preference"""
+    return render_template(
+        'choose.html',
+        config=config,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/set-view/<view>')
+@login_required
+def set_view(view):
+    """Set the user's view preference and redirect there"""
+    valid_views = ['all', 'rebadged']
+    if current_user.is_admin:
+        valid_views.append('admin')
+
+    if view not in valid_views:
+        view = 'all'
+
+    # Redirect to the chosen view
+    if view == 'admin':
+        response = make_response(redirect(url_for('web.admin_index')))
+    elif view == 'rebadged':
+        response = make_response(redirect(url_for('web.rebadged_page')))
+    else:
+        response = make_response(redirect(url_for('web.all_fabrics')))
+
+    # Save preference in cookie (expires in 1 year)
+    response.set_cookie('fiona_view', view, max_age=365*24*60*60, samesite='Lax')
+    return response
+
+
+@web_bp.route('/all')
+@login_required
+def all_fabrics():
     """Display read-only fabric directory with instant search (all staff)"""
     # Get all fabrics for instant search
     fabrics = db.get_all_fabrics(limit=5000)  # Load all for client-side search
