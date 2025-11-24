@@ -77,14 +77,21 @@ class StaffDatabase:
 
     def get_allstaff_members(self):
         """
-        Get email addresses for all-staff group
+        Get email addresses for all-staff group (external staff only)
+
+        Only returns staff WITHOUT Google accounts (google_access = 0).
+        Staff with Google accounts are automatically in the all-staff group
+        via Google Workspace, so they don't need to be explicitly added.
 
         Returns:
             List of email addresses (both work and personal)
         """
         conn = self.get_connection()
         cursor = conn.execute(
-            'SELECT work_email, personal_email FROM staff WHERE include_in_allstaff = 1 AND status = ?',
+            '''SELECT work_email, personal_email FROM staff
+               WHERE include_in_allstaff = 1
+               AND status = ?
+               AND (google_access = 0 OR google_access IS NULL)''',
             ('active',)
         )
 

@@ -2,8 +2,11 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from database.db import db
 from services.google_groups import groups_service
+from services.sync_service import sync_service
 from services.auth import login_required
+from services import settings
 from config import config
+from datetime import datetime
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
@@ -275,3 +278,26 @@ def bulk_import_from_group():
     # No need to add to Google Group - they're already in it!
 
     return redirect(url_for('web.admin_index'))
+
+
+@web_bp.route('/admin/sync')
+@login_required
+def admin_sync():
+    """Admin sync management page"""
+    sync_mode = settings.get_sync_mode()
+    managers = settings.get_managers()
+
+    # Get sync status
+    status = sync_service.get_status()
+    last_sync = status.get('last_sync_result')
+
+    # Format last sync time
+    last_sync_time = None
+    if status.get('last_sync'):
+        last_sync_time = datetime.fromtimestamp(status['last_sync']).strftime('%Y-%m-%d %H:%M:%S')
+
+    return render_template('admin/sync.html',
+                         sync_mode=sync_mode,
+                         managers=managers,
+                         last_sync=last_sync,
+                         last_sync_time=last_sync_time)

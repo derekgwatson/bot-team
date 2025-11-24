@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .mode-toggle {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .mode-btn {
+        padding: 12px 24px;
+        border: 2px solid #ddd;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .mode-btn:hover {
+        border-color: #9b59b6;
+    }
+    .mode-btn.active {
+        background: #9b59b6;
+        color: white;
+        border-color: #9b59b6;
+    }
+    .preview-result {
+        margin-top: 20px;
+    }
+    .email-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 13px;
+    }
+    .email-list div {
+        padding: 4px 0;
+    }
+    .add-email { color: #27ae60; }
+    .remove-email { color: #e74c3c; }
+    .protected-email { color: #f39c12; }
+    .manager-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .manager-item:last-child {
+        border-bottom: none;
+    }
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #e74c3c;
+        font-size: 16px;
+        padding: 4px 8px;
+    }
+    .btn-icon:hover {
+        background: #fee;
+        border-radius: 4px;
+    }
+    .add-manager-form {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .add-manager-form input {
+        flex: 1;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .stat-box .number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .stat-box .label {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+    }
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+</style>
+
+<!-- Sync Mode Card -->
+<div class="card">
+    <h2>Sync Mode</h2>
+    <p style="color: #666; margin-bottom: 15px;">
+        Control how Quinn syncs the all-staff Google Group with Peter's database.
+    </p>
+
+    <div class="mode-toggle">
+        <button class="mode-btn {% if sync_mode == 'manual' %}active{% endif %}"
+                onclick="setMode('manual')" id="btn-manual">
+            Manual
+        </button>
+        <button class="mode-btn {% if sync_mode == 'auto' %}active{% endif %}"
+                onclick="setMode('auto')" id="btn-auto">
+            Auto (every 5 min)
+        </button>
+    </div>
+
+    <div class="info-box">
+        <p>
+            <strong>Manual mode:</strong> Sync only runs when you click "Execute Sync". Use "Preview" first to see what changes will be made.<br>
+            <strong>Auto mode:</strong> Sync runs automatically every 5 minutes. Changes are applied immediately.
+        </p>
+    </div>
+</div>
+
+<!-- Sync Preview & Execute Card -->
+<div class="card">
+    <h2>Sync Control</h2>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="btn" onclick="loadPreview()" id="previewBtn">
+            Preview Changes
+        </button>
+        <button class="btn" onclick="executeSync()" id="syncBtn" style="background: #27ae60;">
+            Execute Sync
+        </button>
+    </div>
+
+    <div id="previewResult" class="preview-result" style="display: none;">
+        <h3 style="margin-bottom: 15px;">Preview Results</h3>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="number" id="stat-desired">-</div>
+                <div class="label">External Staff (Peter)</div>
+            </div>
+            <div class="stat-box">
+                <div class="number" id="stat-current">-</div>
+                <div class="label">In Google Group</div>
+            </div>
+            <div class="stat-box">
+                <div class="number add-email" id="stat-add">-</div>
+                <div class="label">To Add</div>
+            </div>
+            <div class="stat-box">
+                <div class="number remove-email" id="stat-remove">-</div>
+                <div class="label">To Remove</div>
+            </div>
+            <div class="stat-box">
+                <div class="number protected-email" id="stat-protected">-</div>
+                <div class="label">Protected (Managers)</div>
+            </div>
+        </div>
+
+        <div id="addList" style="display: none; margin-bottom: 15px;">
+            <h4 style="color: #27ae60;">Will be Added:</h4>
+            <div class="email-list" id="addEmails"></div>
+        </div>
+
+        <div id="removeList" style="display: none; margin-bottom: 15px;">
+            <h4 style="color: #e74c3c;">Will be Removed:</h4>
+            <div class="email-list" id="removeEmails"></div>
+        </div>
+
+        <div id="protectedList" style="display: none; margin-bottom: 15px;">
+            <h4 style="color: #f39c12;">Protected (won't be removed):</h4>
+            <div class="email-list" id="protectedEmails"></div>
+        </div>
+    </div>
+
+    <div id="syncResult" style="display: none; margin-top: 20px;">
+        <h3 style="margin-bottom: 15px;">Sync Result</h3>
+        <div id="syncResultContent"></div>
+    </div>
+</div>
+
+<!-- Managers Card -->
+<div class="card">
+    <h2>Group Managers</h2>
+    <p style="color: #666; margin-bottom: 15px;">
+        Managers are Watson email addresses that are allowed to send to the all-staff group.
+        These emails are protected from removal during sync.
+    </p>
+
+    <div id="managersList">
+        {% if managers %}
+            {% for email in managers %}
+            <div class="manager-item" data-email="{{ email }}">
+                <span>{{ email }}</span>
+                <button class="btn-icon" onclick="removeManager('{{ email }}')" title="Remove">
+                    &times;
+                </button>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: #999; text-align: center; padding: 20px;">No managers configured yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="add-manager-form">
+        <input type="email" id="newManagerEmail" placeholder="manager@watsonblinds.com.au">
+        <button class="btn" onclick="addManager()">Add Manager</button>
+    </div>
+</div>
+
+<!-- Last Sync Info -->
+{% if last_sync %}
+<div class="card">
+    <h2>Last Sync</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div>
+            <strong>Time:</strong> {{ last_sync_time }}
+        </div>
+        <div>
+            <strong>Duration:</strong> {{ "%.2f"|format(last_sync.elapsed_seconds) }}s
+        </div>
+        <div>
+            <strong>Added:</strong> {{ last_sync.added|length }}
+        </div>
+        <div>
+            <strong>Removed:</strong> {{ last_sync.removed|length }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+async function setMode(mode) {
+    const response = await fetch('/api/sync/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+    });
+
+    if (response.ok) {
+        document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+        document.getElementById('btn-auto').classList.toggle('active', mode === 'auto');
+    } else {
+        alert('Failed to set sync mode');
+    }
+}
+
+async function loadPreview() {
+    const btn = document.getElementById('previewBtn');
+    btn.textContent = 'Loading...';
+    btn.classList.add('loading');
+
+    try {
+        const response = await fetch('/api/sync/preview');
+        const data = await response.json();
+
+        if (!data.success) {
+            alert('Preview failed: ' + (data.error || 'Unknown error'));
+            return;
+        }
+
+        // Update stats
+        document.getElementById('stat-desired').textContent = data.desired_count;
+        document.getElementById('stat-current').textContent = data.current_count;
+        document.getElementById('stat-add').textContent = data.to_add.length;
+        document.getElementById('stat-remove').textContent = data.to_remove.length;
+        document.getElementById('stat-protected').textContent = data.protected.length;
+
+        // Update lists
+        const addList = document.getElementById('addList');
+        const removeList = document.getElementById('removeList');
+        const protectedList = document.getElementById('protectedList');
+
+        if (data.to_add.length > 0) {
+            document.getElementById('addEmails').innerHTML = data.to_add.map(e =>
+                `<div class="add-email">+ ${e}</div>`
+            ).join('');
+            addList.style.display = 'block';
+        } else {
+            addList.style.display = 'none';
+        }
+
+        if (data.to_remove.length > 0) {
+            document.getElementById('removeEmails').innerHTML = data.to_remove.map(e =>
+                `<div class="remove-email">- ${e}</div>`
+            ).join('');
+            removeList.style.display = 'block';
+        } else {
+            removeList.style.display = 'none';
+        }
+
+        if (data.protected.length > 0) {
+            document.getElementById('protectedEmails').innerHTML = data.protected.map(e =>
+                `<div class="protected-email">~ ${e} (manager)</div>`
+            ).join('');
+            protectedList.style.display = 'block';
+        } else {
+            protectedList.style.display = 'none';
+        }
+
+        document.getElementById('previewResult').style.display = 'block';
+        document.getElementById('syncResult').style.display = 'none';
+
+    } catch (err) {
+        alert('Preview failed: ' + err.message);
+    } finally {
+        btn.textContent = 'Preview Changes';
+        btn.classList.remove('loading');
+    }
+}
+
+async function executeSync() {
+    if (!confirm('Are you sure you want to execute the sync? This will modify the Google Group.')) {
+        return;
+    }
+
+    const btn = document.getElementById('syncBtn');
+    btn.textContent = 'Syncing...';
+    btn.classList.add('loading');
+
+    try {
+        const response = await fetch('/api/sync/now', { method: 'POST' });
+        const data = await response.json();
+
+        if (!data.success) {
+            alert('Sync failed: ' + (data.error || 'Unknown error'));
+            return;
+        }
+
+        // Show result
+        let html = `<div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <strong>Sync completed in ${data.elapsed_seconds}s</strong>
+        </div>`;
+
+        if (data.added.length > 0) {
+            html += `<h4 style="color: #27ae60;">Added (${data.added.length}):</h4>
+                <div class="email-list">${data.added.map(e => `<div class="add-email">+ ${e}</div>`).join('')}</div>`;
+        }
+
+        if (data.removed.length > 0) {
+            html += `<h4 style="color: #e74c3c; margin-top: 15px;">Removed (${data.removed.length}):</h4>
+                <div class="email-list">${data.removed.map(e => `<div class="remove-email">- ${e}</div>`).join('')}</div>`;
+        }
+
+        if (data.protected && data.protected.length > 0) {
+            html += `<h4 style="color: #f39c12; margin-top: 15px;">Protected (${data.protected.length}):</h4>
+                <div class="email-list">${data.protected.map(e => `<div class="protected-email">~ ${e}</div>`).join('')}</div>`;
+        }
+
+        if (data.added.length === 0 && data.removed.length === 0) {
+            html += '<p style="color: #666;">No changes were needed.</p>';
+        }
+
+        document.getElementById('syncResultContent').innerHTML = html;
+        document.getElementById('syncResult').style.display = 'block';
+        document.getElementById('previewResult').style.display = 'none';
+
+    } catch (err) {
+        alert('Sync failed: ' + err.message);
+    } finally {
+        btn.textContent = 'Execute Sync';
+        btn.classList.remove('loading');
+    }
+}
+
+async function addManager() {
+    const input = document.getElementById('newManagerEmail');
+    const email = input.value.trim();
+
+    if (!email) {
+        alert('Please enter an email address');
+        return;
+    }
+
+    const response = await fetch('/api/managers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+        // Add to list
+        const list = document.getElementById('managersList');
+        const emptyMsg = list.querySelector('p');
+        if (emptyMsg) emptyMsg.remove();
+
+        const item = document.createElement('div');
+        item.className = 'manager-item';
+        item.dataset.email = email;
+        item.innerHTML = `
+            <span>${email}</span>
+            <button class="btn-icon" onclick="removeManager('${email}')" title="Remove">
+                &times;
+            </button>
+        `;
+        list.appendChild(item);
+        input.value = '';
+    } else {
+        alert(data.message || 'Failed to add manager');
+    }
+}
+
+async function removeManager(email) {
+    if (!confirm(`Remove ${email} from managers list?`)) {
+        return;
+    }
+
+    const response = await fetch(`/api/managers/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+        const item = document.querySelector(`.manager-item[data-email="${email}"]`);
+        if (item) item.remove();
+
+        // Check if list is empty
+        const list = document.getElementById('managersList');
+        if (!list.querySelector('.manager-item')) {
+            list.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No managers configured yet.</p>';
+        }
+    } else {
+        alert(data.message || 'Failed to remove manager');
+    }
+}
+</script>
+{% endblock %}
