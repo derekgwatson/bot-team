@@ -327,8 +327,9 @@
             <h1>👥 Quinn</h1>
             <p>External Staff Access Manager</p>
             <nav>
-                <a href="/" class="active">Staff List</a>
-                <a href="/add">Add Staff</a>
+                <a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">Staff List</a>
+                <a href="/admin/add" class="{% if request.path == '/admin/add' %}active{% endif %}">Add Staff</a>
+                <a href="/admin/sync" class="{% if request.path == '/admin/sync' %}active{% endif %}">Sync</a>
             </nav>
         </div>
     </header>

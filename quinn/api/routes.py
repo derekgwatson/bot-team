@@ -3,6 +3,7 @@ from functools import wraps
 from services.peter_client import peter_client
 from services.sync_service import sync_service
 from services.google_groups import groups_service
+from services import settings
 import os
 
 api_bp = Blueprint('api', __name__)
@@ -145,3 +146,133 @@ def group_members():
         'members': members,
         'count': len(members)
     })
+
+
+@api_bp.route('/sync/preview', methods=['GET'])
+def sync_preview():
+    """
+    GET /api/sync/preview
+
+    Preview what changes would be made by a sync
+
+    Returns:
+        JSON with preview of additions and removals
+    """
+    result = sync_service.preview()
+    return jsonify(result)
+
+
+@api_bp.route('/sync/mode', methods=['GET'])
+def get_sync_mode():
+    """
+    GET /api/sync/mode
+
+    Get current sync mode
+
+    Returns:
+        JSON with current mode ('manual' or 'auto')
+    """
+    return jsonify({
+        'mode': settings.get_sync_mode()
+    })
+
+
+@api_bp.route('/sync/mode', methods=['POST'])
+def set_sync_mode():
+    """
+    POST /api/sync/mode
+
+    Set sync mode
+
+    Body:
+        mode: 'manual' or 'auto'
+
+    Returns:
+        JSON with success status
+    """
+    data = request.get_json()
+    if not data or 'mode' not in data:
+        return jsonify({'error': 'mode is required'}), 400
+
+    mode = data['mode']
+    if settings.set_sync_mode(mode):
+        return jsonify({
+            'success': True,
+            'mode': mode
+        })
+    else:
+        return jsonify({'error': 'Invalid mode. Must be "manual" or "auto"'}), 400
+
+
+# Managers endpoints
+
+@api_bp.route('/managers', methods=['GET'])
+def get_managers():
+    """
+    GET /api/managers
+
+    Get list of manager emails (protected from removal during sync)
+
+    Returns:
+        JSON with list of managers
+    """
+    managers = settings.get_managers()
+    return jsonify({
+        'managers': managers,
+        'count': len(managers)
+    })
+
+
+@api_bp.route('/managers', methods=['POST'])
+def add_manager():
+    """
+    POST /api/managers
+
+    Add a manager email
+
+    Body:
+        email: Email address to add
+
+    Returns:
+        JSON with success status
+    """
+    data = request.get_json()
+    if not data or 'email' not in data:
+        return jsonify({'error': 'email is required'}), 400
+
+    email = data['email'].strip()
+    if not email:
+        return jsonify({'error': 'email cannot be empty'}), 400
+
+    if settings.add_manager(email):
+        return jsonify({
+            'success': True,
+            'message': f'Added {email} to managers list'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': f'{email} is already in managers list'
+        })
+
+
+@api_bp.route('/managers/<email>', methods=['DELETE'])
+def remove_manager(email):
+    """
+    DELETE /api/managers/<email>
+
+    Remove a manager email
+
+    Returns:
+        JSON with success status
+    """
+    if settings.remove_manager(email):
+        return jsonify({
+            'success': True,
+            'message': f'Removed {email} from managers list'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': f'{email} was not in managers list'
+        })
