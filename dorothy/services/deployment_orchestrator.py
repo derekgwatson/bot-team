@@ -1032,11 +1032,13 @@ class DeploymentOrchestrator:
             return deployment
 
         # Step 7: SSL certificate (if configured and not skipping nginx)
+        # Uses 'install' first (reinstalls existing cert config), falls back to full certbot (gets new cert)
         if ssl_email and not skip_nginx:
             deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
 
             ssl_result = self._call_sally(
                 server,
+                f"{self._sudo(f'certbot install --nginx -d {domain} --non-interactive')} 2>/dev/null || "
                 f"{self._sudo(f'certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}')}",
                 timeout=300
             )
