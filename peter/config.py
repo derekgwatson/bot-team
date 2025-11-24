@@ -48,7 +48,7 @@ class Config:
 
     @property
     def server_port(self):
-        return get_port("peter", 8003)
+        return get_port("peter")
 
     @property
     def google_credentials_file(self):

@@ -73,7 +73,7 @@ class Config:
 
     @property
     def server_port(self):
-        return get_port("sally", 8004)
+        return get_port("sally")
 
     @property
     def ssh_default_user(self):

@@ -28,7 +28,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = get_port("mavis", 8017)
+        self.server_port = get_port("mavis")
 
         # ── Database config (from YAML) ──────────────────────
         db_config = data.get("database", {}) or {}

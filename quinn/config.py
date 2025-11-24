@@ -21,7 +21,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = get_port("quinn", 8006)
+        self.server_port = get_port("quinn")
 
         # Sync config
         sync_config = data.get('sync', {})

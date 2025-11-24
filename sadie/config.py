@@ -20,7 +20,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = get_port("sadie", 8010)
+        self.server_port = get_port("sadie")
 
         # Database config
         self.database_path = data['database']['path']

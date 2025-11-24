@@ -21,7 +21,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = get_port("zac", 8007)
+        self.server_port = get_port("zac")
 
         # Database config
         self.database_path = data['database']['path']

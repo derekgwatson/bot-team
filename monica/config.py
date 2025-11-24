@@ -43,7 +43,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = get_port("monica", 8015)
+        self.server_port = get_port("monica")
 
         # ── Heartbeat thresholds ──────────────────────────────
         heartbeat = data.get("heartbeat", {}) or {}

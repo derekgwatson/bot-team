@@ -28,7 +28,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = get_port("fred", 8001)
+        self.server_port = get_port("fred")
 
         # ── Google Workspace config ───────────────────────────
         gw = data.get("google_workspace", {}) or {}

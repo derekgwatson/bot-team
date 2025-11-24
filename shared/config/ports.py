@@ -32,14 +32,22 @@ def _load_ports() -> dict[str, int]:
 _PORTS = _load_ports()
 
 
-def get_port(bot_name: str, default: int | None = None) -> int | None:
+def get_port(bot_name: str) -> int:
     """
     Get the assigned port for a bot from chester/config.yaml.
 
+    Raises:
+        RuntimeError: If the bot is not configured in chester/config.yaml
+
     Example:
-        port = get_port("olive", 8012)
+        port = get_port("olive")
     """
-    return _PORTS.get(bot_name, default)
+    if bot_name not in _PORTS:
+        raise RuntimeError(
+            f"Port not configured for '{bot_name}'. "
+            f"Add it to chester/config.yaml under bot_team.{bot_name}.port"
+        )
+    return _PORTS[bot_name]
 
 
 def get_all_ports() -> dict[str, int]:

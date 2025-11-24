@@ -109,7 +109,7 @@ class Config:
     @property
     def server_port(self) -> int:
         """Server port from shared config (chester/config.yaml)."""
-        return get_port("mabel", 8016)
+        return get_port("mabel")
 
     @property
     def log_level(self) -> str:

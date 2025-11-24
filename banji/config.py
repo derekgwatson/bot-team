@@ -32,7 +32,7 @@ class Config:
         # Server config
         server_cfg = data.get("server", {}) or {}
         self.server_host = server_cfg.get("host", "0.0.0.0")
-        self.server_port = get_port("banji", 8014)
+        self.server_port = get_port("banji")
 
         # Browser config
         browser_cfg = data.get("browser", {}) or {}

@@ -28,7 +28,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = get_port("oscar", 8011)
+        self.server_port = get_port("oscar")
 
         # ── Shared organization config (from shared YAML) ─────
         # config.yaml has e.g.:

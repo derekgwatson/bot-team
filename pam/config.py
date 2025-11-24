@@ -24,7 +24,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = get_port("pam", 8009)
+        self.server_port = get_port("pam")
 
         # Load shared organization config
         shared_config_path = os.path.join(os.path.dirname(__file__), data['shared_config'])

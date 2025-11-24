@@ -29,7 +29,7 @@ class Config:
         # Server config
         server_cfg = data.get("server", {}) or {}
         self.server_host = server_cfg.get("host", "0.0.0.0")
-        self.server_port = get_port("skye", 8020)
+        self.server_port = get_port("skye")
 
         # Database config
         db_cfg = data.get("database", {}) or {}
