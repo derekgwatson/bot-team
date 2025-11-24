@@ -2,33 +2,15 @@
 # {domain}
 #
 # ============================================================================
-# IMPORTANT: This is an HTTP-only template for NEW bot deployments.
+# HTTP-only base template - SSL is added automatically by certbot
 # ============================================================================
 #
-# Dorothy will ONLY deploy this file if no nginx config exists for this bot.
-# This prevents overwriting SSL configurations added by certbot.
+# Dorothy deploys this template and then runs certbot to configure SSL.
+# The certbot step handles both new certs and reinstalling existing ones,
+# so it's safe to redeploy this template without losing SSL.
 #
-# After initial deployment, run certbot to add SSL:
+# Manual SSL setup (if needed):
 #   sudo certbot --nginx -d {domain}
-#
-# ----------------------------------------------------------------------------
-# TO UPDATE NGINX CONFIG FOR EXISTING BOTS:
-# ----------------------------------------------------------------------------
-# Option 1: Edit directly on server
-#   sudo nano /etc/nginx/sites-available/{bot_name}
-#   sudo nginx -t && sudo systemctl reload nginx
-#
-# Option 2: Bulk update all bots (preserves SSL)
-#   Use sed/awk to make targeted changes, e.g.:
-#   for f in /etc/nginx/sites-available/*; do
-#     sudo sed -i 's/old_setting/new_setting/' "$f"
-#   done
-#   sudo nginx -t && sudo systemctl reload nginx
-#
-# Option 3: Force redeploy (will need to re-run certbot after)
-#   1. Delete the existing config: sudo rm /etc/nginx/sites-available/{bot_name}
-#   2. Redeploy via Dorothy
-#   3. Re-run certbot: sudo certbot --nginx -d {domain}
 # ============================================================================
 
 server {{

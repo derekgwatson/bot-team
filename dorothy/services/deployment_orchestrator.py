@@ -599,7 +599,7 @@ class DeploymentOrchestrator:
         })
 
         # Step 2: Nginx config (skip for internal-only bots)
-        # NOTE: Only creates nginx config if it doesn't exist, to preserve SSL config added by certbot
+        # NOTE: Safe to overwrite - certbot step will re-add SSL config
         if not skip_nginx:
             try:
                 port = get_port(bot_name)
@@ -618,11 +618,10 @@ class DeploymentOrchestrator:
 
                 plan['steps'].append({
                     'name': 'Nginx configuration',
-                    'description': 'Create nginx site configuration (only if not exists - preserves SSL)',
+                    'description': 'Create/update nginx site configuration (SSL will be re-added by certbot)',
                     'config_content': nginx_config,
-                    'skip_if_exists': f"/etc/nginx/sites-available/{nginx_config_name}",
                     'commands': [
-                        f"# Write config to /etc/nginx/sites-available/{nginx_config_name} (only if missing)",
+                        f"# Write config to /etc/nginx/sites-available/{nginx_config_name}",
                         f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name}",
                         f"sudo nginx -t"
                     ]
@@ -668,11 +667,15 @@ class DeploymentOrchestrator:
             })
 
         # Step 4: SSL certificate (if configured and not skipping nginx)
+        # Uses 'install' first (reinstalls existing cert config), falls back to full certbot (gets new cert)
         if ssl_email and not skip_nginx:
             plan['steps'].append({
                 'name': 'SSL certificate',
-                'description': f'Set up SSL certificate with certbot for {domain}',
-                'command': f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}"
+                'description': f'Configure SSL for {domain} (reinstall existing or get new cert)',
+                'command': (
+                    f"sudo certbot install --nginx -d {domain} --non-interactive 2>/dev/null || "
+                    f"sudo certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}"
+                )
             })
 
         # Step 5: Reload nginx (skip for internal-only bots)
