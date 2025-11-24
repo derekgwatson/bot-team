@@ -134,7 +134,8 @@ class SyncService:
 
             logger.info(f"Fetched {len(products)} products from Unleashed, starting sync")
 
-            # Process each product
+            # Process each product (update progress every 100 records)
+            progress_interval = 100
             for product in products:
                 try:
                     product_data = self._extract_product_data(product)
@@ -145,6 +146,15 @@ class SyncService:
                         records_created += 1
                     else:
                         records_updated += 1
+
+                    # Update progress periodically so UI can show live updates
+                    if records_processed % progress_interval == 0:
+                        db.update_sync_progress(
+                            sync_id,
+                            records_processed=records_processed,
+                            records_created=records_created,
+                            records_updated=records_updated
+                        )
 
                 except Exception as e:
                     logger.error(
