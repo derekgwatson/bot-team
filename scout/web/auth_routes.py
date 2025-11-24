@@ -79,5 +79,7 @@ def logout():
     if current_user.is_authenticated:
         logger.info(f"User logged out: {current_user.email}")
     logout_user()
+    # Clear user data from session
+    session.pop('user', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
