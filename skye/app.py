@@ -25,7 +25,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-product
 init_auth(app)
 
 # Register blueprints
-app.register_blueprint(auth_bp)
+app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
 
