@@ -123,8 +123,7 @@
     const sectionHeaders = document.querySelectorAll('.section-header');
     const tables = document.querySelectorAll('table[data-section]');
 
-    searchInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
+    function doFilter(query) {
         let visibleCount = 0;
 
         if (query === '') {
@@ -168,7 +167,21 @@
 
         // Show/hide no results message
         noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+
+    // Save search term to localStorage on input
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        localStorage.setItem('peterSearchTerm', this.value);
+        doFilter(query);
     });
+
+    // Restore search term from localStorage on page load
+    const savedSearch = localStorage.getItem('peterSearchTerm');
+    if (savedSearch) {
+        searchInput.value = savedSearch;
+        doFilter(savedSearch.toLowerCase().trim());
+    }
 
     // Focus search input on page load
     searchInput.focus();
