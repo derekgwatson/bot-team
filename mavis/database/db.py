@@ -28,6 +28,10 @@ class Database:
             schema = f.read()
 
         conn = sqlite3.connect(self.db_path)
+
+        # Enable WAL mode for better concurrent access
+        conn.execute("PRAGMA journal_mode=WAL")
+
         conn.executescript(schema)
         conn.commit()
 
