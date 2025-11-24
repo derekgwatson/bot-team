@@ -28,9 +28,6 @@ class ChesterService:
         self.client = BotHttpClient(self.chester_url, timeout=timeout)
         self.cache: Dict[str, Dict] = {}  # Simple in-memory cache
 
-        response = self.client.get("api/deployment/bots", timeout=5)
-        print("Chester /api/deployment/bots ->", response.status_code, response.text[:200])
-
     def get_bot_config(self, bot_name: str, use_cache: bool = True) -> Optional[Dict]:
         """
         Get deployment configuration for a specific bot from Chester.
