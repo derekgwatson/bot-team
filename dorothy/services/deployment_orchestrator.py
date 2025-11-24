@@ -1033,15 +1033,37 @@ class DeploymentOrchestrator:
 
         # Step 7: SSL certificate (if configured and not skipping nginx)
         # Uses 'install' first (reinstalls existing cert config), falls back to full certbot (gets new cert)
+        # Retries with backoff since certbot can only run one instance at a time
         if ssl_email and not skip_nginx:
             deployment['steps'].append({'name': 'SSL certificate', 'status': 'in_progress'})
 
-            ssl_result = self._call_sally(
-                server,
+            certbot_cmd = (
                 f"{self._sudo(f'certbot install --nginx -d {domain} --non-interactive')} 2>/dev/null || "
-                f"{self._sudo(f'certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}')}",
-                timeout=300
+                f"{self._sudo(f'certbot --nginx -d {domain} --non-interactive --agree-tos --email {ssl_email}')}"
             )
+
+            # Retry up to 5 times with increasing delay (certbot lock contention)
+            max_retries = 5
+            ssl_result = None
+            for attempt in range(max_retries):
+                ssl_result = self._call_sally(server, certbot_cmd, timeout=300)
+
+                # Success or non-lock error - don't retry
+                if ssl_result.get('success'):
+                    break
+
+                # Check if it's a lock error (another certbot instance running)
+                stderr = ssl_result.get('stderr', '') + ssl_result.get('stdout', '')
+                if 'another instance' in stderr.lower() or 'lock' in stderr.lower():
+                    if attempt < max_retries - 1:
+                        wait_time = 10 * (attempt + 1)  # 10s, 20s, 30s, 40s
+                        deployment['steps'][-1]['result'] = {
+                            'status': f'Waiting {wait_time}s for certbot lock (attempt {attempt + 1}/{max_retries})'
+                        }
+                        time.sleep(wait_time)
+                        continue
+                # Non-lock error, don't retry
+                break
 
             deployment['steps'][-1]['status'] = 'completed' if ssl_result.get('success') else 'failed'
             deployment['steps'][-1]['result'] = {
