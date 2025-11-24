@@ -22,7 +22,7 @@ class Database:
         self.init_db()
 
     def init_db(self):
-        """Initialize the database with schema"""
+        """Initialize the database with schema and run migrations"""
         schema_path = Path(__file__).parent / 'schema.sql'
         with open(schema_path, 'r') as f:
             schema = f.read()
@@ -30,7 +30,33 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         conn.executescript(schema)
         conn.commit()
+
+        # Run migrations for existing databases
+        self._run_migrations(conn)
+
         conn.close()
+
+    def _run_migrations(self, conn):
+        """Run database migrations to add missing columns to existing tables"""
+        cursor = conn.cursor()
+
+        # Check if is_sellable column exists, add if missing
+        cursor.execute("PRAGMA table_info(unleashed_products)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if 'is_sellable' not in columns:
+            cursor.execute("""
+                ALTER TABLE unleashed_products
+                ADD COLUMN is_sellable INTEGER DEFAULT 1
+            """)
+            conn.commit()
+
+        if 'is_obsolete' not in columns:
+            cursor.execute("""
+                ALTER TABLE unleashed_products
+                ADD COLUMN is_obsolete INTEGER DEFAULT 0
+            """)
+            conn.commit()
 
     def get_connection(self):
         """Get a database connection with row factory"""
