@@ -81,10 +81,12 @@ def products():
         product = db.get_product_by_code(code)
         # Add valid fabric flag
         if product:
+            sub_group = (product.get('product_sub_group') or '').lower()
             is_valid = (
                 product.get('product_group', '').lower().startswith('fabric')
                 and not product.get('is_obsolete')
                 and product.get('is_sellable')
+                and sub_group != 'ignore'
             )
             product['is_valid_fabric'] = is_valid
     # Otherwise search

@@ -114,6 +114,7 @@ class SyncService:
         # Extract product group/subgroup
         product_group = unleashed_product.get('ProductGroup')
         group_name = product_group.get('GroupName', '') if product_group else ''
+        sub_group_name = product_group.get('SubGroupName', '') if product_group else ''
 
         # Extract unit of measure
         unit_of_measure = unleashed_product.get('UnitOfMeasure')
@@ -123,6 +124,7 @@ class SyncService:
             'product_code': unleashed_product.get('ProductCode', ''),
             'product_description': unleashed_product.get('ProductDescription', ''),
             'product_group': group_name,
+            'product_sub_group': sub_group_name,
             'default_sell_price': unleashed_product.get('DefaultSellPrice'),
             'sell_price_tier_9': sell_price_tier_9,
             'unit_of_measure': uom_name,

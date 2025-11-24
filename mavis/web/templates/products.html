@@ -112,6 +112,14 @@
                         {% endif %}
                     </div>
 
+                    <div class="detail-label">Product Sub Group</div>
+                    <div class="detail-value">
+                        {{ product.product_sub_group or '-' }}
+                        {% if product.product_sub_group and product.product_sub_group.lower() == 'ignore' %}
+                            <span class="badge badge-warning">Ignored</span>
+                        {% endif %}
+                    </div>
+
                     <div class="detail-label">Is Sellable</div>
                     <div class="detail-value">
                         {% if product.is_sellable %}
@@ -153,6 +161,9 @@
                         <ul>
                             {% if not product.product_group or not product.product_group.lower().startswith('fabric') %}
                                 <li>Product group doesn't start with "Fabric" (currently: {{ product.product_group or 'empty' }})</li>
+                            {% endif %}
+                            {% if product.product_sub_group and product.product_sub_group.lower() == 'ignore' %}
+                                <li>Product sub group is "ignore"</li>
                             {% endif %}
                             {% if product.is_obsolete %}
                                 <li>Product is marked as obsolete</li>

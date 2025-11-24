@@ -58,6 +58,13 @@ class Database:
             """)
             conn.commit()
 
+        if 'product_sub_group' not in columns:
+            cursor.execute("""
+                ALTER TABLE unleashed_products
+                ADD COLUMN product_sub_group TEXT
+            """)
+            conn.commit()
+
     def get_connection(self):
         """Get a database connection with row factory"""
         conn = sqlite3.connect(self.db_path)
@@ -114,6 +121,7 @@ class Database:
                     UPDATE unleashed_products SET
                         product_description = ?,
                         product_group = ?,
+                        product_sub_group = ?,
                         default_sell_price = ?,
                         sell_price_tier_9 = ?,
                         unit_of_measure = ?,
@@ -126,6 +134,7 @@ class Database:
                 """, (
                     product_data.get('product_description'),
                     product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
                     product_data.get('default_sell_price'),
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
@@ -141,15 +150,16 @@ class Database:
                 # Insert new product
                 cursor.execute("""
                     INSERT INTO unleashed_products (
-                        product_code, product_description, product_group,
+                        product_code, product_description, product_group, product_sub_group,
                         default_sell_price, sell_price_tier_9,
                         unit_of_measure, width, is_sellable, is_obsolete,
                         raw_payload, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     code,
                     product_data.get('product_description'),
                     product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
                     product_data.get('default_sell_price'),
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
@@ -196,6 +206,7 @@ class Database:
                     WHEN LOWER(product_group) LIKE 'fabric%'
                         AND is_obsolete = 0
                         AND is_sellable = 1
+                        AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
                     THEN 1 ELSE 0
                 END as is_valid_fabric
             FROM unleashed_products
@@ -270,6 +281,7 @@ class Database:
         - product_group starts with 'Fabric' (case-insensitive)
         - is_obsolete = 0 (not obsolete)
         - is_sellable = 1 (sellable)
+        - product_sub_group is not 'ignore' (case-insensitive)
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -278,6 +290,7 @@ class Database:
             WHERE LOWER(product_group) LIKE 'fabric%'
               AND is_obsolete = 0
               AND is_sellable = 1
+              AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
             ORDER BY product_code
         """)
         rows = cursor.fetchall()
@@ -294,6 +307,7 @@ class Database:
             WHERE LOWER(product_group) LIKE 'fabric%'
               AND is_obsolete = 0
               AND is_sellable = 1
+              AND LOWER(COALESCE(product_sub_group, '')) != 'ignore'
             ORDER BY product_code
         """)
         rows = cursor.fetchall()
