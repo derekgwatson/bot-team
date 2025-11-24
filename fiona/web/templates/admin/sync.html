@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync with Mavis - Fiona Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header h1 a { color: white; text-decoration: none; }
+        .header h1 span { font-weight: 300; opacity: 0.9; }
+        .user-info a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; margin-left: 10px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .breadcrumb { margin-bottom: 20px; }
+        .breadcrumb a { color: #9b59b6; text-decoration: none; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; margin-right: 10px; }
+        .btn-primary { background: #9b59b6; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .alert { padding: 16px 20px; border-radius: 6px; margin-bottom: 20px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .alert-info { background: #e8f4f8; color: #0c5460; border: 1px solid #bee5eb; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-box { background: #f8f9fa; padding: 20px; border-radius: 6px; text-align: center; }
+        .stat-box .number { font-size: 32px; font-weight: 700; }
+        .stat-box .number.green { color: #27ae60; }
+        .stat-box .number.red { color: #e74c3c; }
+        .stat-box .number.orange { color: #f39c12; }
+        .stat-box .number.purple { color: #9b59b6; }
+        .stat-box .label { font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px; }
+        .code-list { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+        .code-list table { width: 100%; border-collapse: collapse; }
+        .code-list th, .code-list td { padding: 10px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .code-list th { background: #f8f9fa; font-weight: 600; font-size: 12px; text-transform: uppercase; position: sticky; top: 0; }
+        .code-list tr:hover { background: #f8f9fa; }
+        .code { font-family: monospace; color: #9b59b6; }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .select-all { margin-bottom: 10px; }
+        .empty-state { text-align: center; padding: 40px; color: #666; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1><a href="{{ url_for('web.admin_index') }}">Fiona Admin</a> <span>- Sync with Mavis</span></h1>
+        <div class="user-info">
+            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb"><a href="{{ url_for('web.admin_index') }}">Admin</a> / Sync with Mavis</div>
+
+        {% if add_result %}
+            {% if add_result.success %}
+            <div class="alert alert-success">
+                <strong>Added {{ add_result.added }} fabric(s)</strong> from Mavis.
+                {% if add_result.errors %}Some errors occurred.{% endif %}
+            </div>
+            {% else %}
+            <div class="alert alert-error"><strong>Error:</strong> {{ add_result.error }}</div>
+            {% endif %}
+        {% endif %}
+
+        {% if delete_result %}
+            {% if delete_result.success %}
+            <div class="alert alert-success">
+                <strong>Deleted {{ delete_result.deleted }} fabric(s)</strong> from Fiona.
+            </div>
+            {% else %}
+            <div class="alert alert-error"><strong>Error:</strong> {{ delete_result.error }}</div>
+            {% endif %}
+        {% endif %}
+
+        {% if delete_error %}
+        <div class="alert alert-warning">{{ delete_error }}</div>
+        {% endif %}
+
+        {% if not comparison.success %}
+        <div class="alert alert-error">
+            <strong>Error comparing with Mavis:</strong> {{ comparison.error }}
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-title">Sync Overview</div>
+            <p style="margin-bottom: 15px; color: #666;">
+                Compares fabrics in Fiona with valid fabrics from Mavis (product_group starts with 'Fabric', not obsolete, is sellable).
+            </p>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="number purple">{{ comparison.fiona_count }}</div>
+                    <div class="label">Fabrics in Fiona</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number purple">{{ comparison.mavis_count }}</div>
+                    <div class="label">Valid Fabrics in Mavis</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number {% if comparison.flagged_count > 0 %}red{% else %}green{% endif %}">{{ comparison.flagged_count }}</div>
+                    <div class="label">Flagged for Deletion</div>
+                </div>
+                <div class="stat-box">
+                    <div class="number {% if comparison.missing_count > 0 %}orange{% else %}green{% endif %}">{{ comparison.missing_count }}</div>
+                    <div class="label">Missing from Fiona</div>
+                </div>
+            </div>
+        </div>
+
+        {% if comparison.missing_count > 0 %}
+        <div class="card">
+            <div class="card-title">
+                <span>Missing from Fiona ({{ comparison.missing_count }})</span>
+                <form method="post" action="{{ url_for('web.sync_add_missing') }}" style="margin: 0;">
+                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Add {{ comparison.missing_count }} placeholder entries to Fiona?')">
+                        Add All Missing
+                    </button>
+                </form>
+            </div>
+            <p style="margin-bottom: 15px; color: #666;">
+                These fabric codes exist in Mavis but don't have descriptions in Fiona yet.
+            </p>
+            <div class="code-list">
+                <table>
+                    <thead>
+                        <tr><th>Product Code</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for code in comparison.missing_from_fiona %}
+                        <tr><td class="code">{{ code }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if comparison.flagged_count > 0 %}
+        <div class="card">
+            <div class="card-title">Flagged for Deletion ({{ comparison.flagged_count }})</div>
+            <p style="margin-bottom: 15px; color: #666;">
+                These fabrics exist in Fiona but are no longer valid in Mavis (obsolete, not sellable, or no longer a fabric product).
+                Review and select which ones to delete.
+            </p>
+            <form method="post" action="{{ url_for('web.sync_delete_flagged') }}">
+                <div class="select-all">
+                    <label>
+                        <input type="checkbox" id="selectAll" onchange="toggleAll(this)">
+                        Select all
+                    </label>
+                </div>
+                <div class="code-list">
+                    <table>
+                        <thead>
+                            <tr><th style="width: 40px;"></th><th>Product Code</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for code in comparison.flagged_for_deletion %}
+                            <tr>
+                                <td><input type="checkbox" name="codes" value="{{ code }}"></td>
+                                <td class="code">{{ code }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected fabrics from Fiona? This cannot be undone.')">
+                        Delete Selected
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if comparison.flagged_count == 0 and comparison.missing_count == 0 %}
+        <div class="card">
+            <div class="empty-state">
+                <h3 style="color: #27ae60;">All Synced!</h3>
+                <p>Fiona's fabric list matches the valid fabrics in Mavis.</p>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Back to Admin</a>
+    </div>
+
+    <script>
+        function toggleAll(source) {
+            const checkboxes = document.querySelectorAll('input[name="codes"]');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+        }
+    </script>
+</body>
+</html>

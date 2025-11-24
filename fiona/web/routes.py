@@ -10,11 +10,12 @@ Admin routes (admins only):
 - /admin/import - Import from Google Sheets
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from flask_login import current_user
 from database.db import db
 from services.mavis_service import mavis_service
 from services.sheets_import import sheets_import_service
+from services.fabric_sync import fabric_sync_service
 from services.auth import login_required, admin_required
 from config import config
 
@@ -230,5 +231,84 @@ def import_run():
         config=config,
         sheets_status=sheets_status,
         import_result=result,
+        current_user=current_user
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sync Routes (Admin Only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@web_bp.route('/admin/sync')
+@admin_required
+def sync_page():
+    """Sync status page - compare Fiona with Mavis (admin only)"""
+    comparison = fabric_sync_service.compare_with_mavis()
+
+    return render_template(
+        'admin/sync.html',
+        config=config,
+        comparison=comparison,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/sync/add-missing', methods=['POST'])
+@admin_required
+def sync_add_missing():
+    """Add missing fabrics from Mavis to Fiona (admin only)"""
+    result = fabric_sync_service.add_missing_fabrics(updated_by=current_user.email)
+
+    comparison = fabric_sync_service.compare_with_mavis()
+
+    return render_template(
+        'admin/sync.html',
+        config=config,
+        comparison=comparison,
+        add_result=result,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/sync/delete', methods=['POST'])
+@admin_required
+def sync_delete_flagged():
+    """Delete selected fabrics flagged for deletion (admin only)"""
+    codes_to_delete = request.form.getlist('codes')
+
+    if not codes_to_delete:
+        comparison = fabric_sync_service.compare_with_mavis()
+        return render_template(
+            'admin/sync.html',
+            config=config,
+            comparison=comparison,
+            delete_error='No fabrics selected for deletion',
+            current_user=current_user
+        )
+
+    result = fabric_sync_service.delete_flagged_fabrics(codes_to_delete)
+
+    comparison = fabric_sync_service.compare_with_mavis()
+
+    return render_template(
+        'admin/sync.html',
+        config=config,
+        comparison=comparison,
+        delete_result=result,
+        current_user=current_user
+    )
+
+
+@web_bp.route('/admin/incomplete')
+@admin_required
+def incomplete_page():
+    """View fabrics missing supplier description fields (admin only)"""
+    incomplete_fabrics = fabric_sync_service.get_incomplete_fabrics()
+
+    return render_template(
+        'admin/incomplete.html',
+        config=config,
+        fabrics=incomplete_fabrics,
+        total=len(incomplete_fabrics),
         current_user=current_user
     )

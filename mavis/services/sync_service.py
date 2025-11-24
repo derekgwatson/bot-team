@@ -95,6 +95,8 @@ class SyncService:
             'sell_price_tier_9': sell_price_tier_9,
             'unit_of_measure': unleashed_product.get('UnitOfMeasure', {}).get('Name', ''),
             'width': unleashed_product.get('Width'),
+            'is_sellable': unleashed_product.get('IsSellable', True),
+            'is_obsolete': unleashed_product.get('IsObsolete', False),
             'raw_payload': json.dumps(unleashed_product)
         }
 

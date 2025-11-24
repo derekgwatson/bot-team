@@ -84,17 +84,46 @@ class MavisService:
             logger.error(f"Failed to bulk fetch products from Mavis: {e}")
             return {'products': [], 'not_found': codes, 'error': str(e)}
 
-    def get_all_fabric_products(self) -> List[Dict]:
+    def get_valid_fabric_codes(self) -> Dict:
         """
-        Get all fabric products from Mavis.
+        Get all valid fabric product codes from Mavis.
 
-        This fetches products that are in the fabric-related product groups.
-        Note: This relies on Mavis having a product stats/list endpoint.
-        For now, we'll use the products/stats endpoint to check connectivity.
+        Valid fabrics are products where:
+        - product_group starts with 'Fabric'
+        - is_obsolete = false
+        - is_sellable = true
+
+        Returns:
+            {'codes': [...], 'count': int} or {'error': str}
         """
         try:
-            # First check if Mavis is available
-            url = f"{self._get_url()}/api/products/stats"
+            url = f"{self._get_url()}/api/products/fabrics"
+            response = requests.get(
+                url,
+                params={'codes_only': 'true'},
+                headers=self._get_headers(),
+                timeout=self.timeout
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"Mavis returned status {response.status_code}: {response.text}")
+                return {'error': f"Mavis returned status {response.status_code}"}
+
+        except requests.RequestException as e:
+            logger.error(f"Failed to get fabric codes from Mavis: {e}")
+            return {'error': str(e)}
+
+    def get_valid_fabric_products(self) -> Dict:
+        """
+        Get all valid fabric products with full details from Mavis.
+
+        Returns:
+            {'products': [...], 'count': int} or {'error': str}
+        """
+        try:
+            url = f"{self._get_url()}/api/products/fabrics"
             response = requests.get(
                 url,
                 headers=self._get_headers(),
@@ -104,11 +133,11 @@ class MavisService:
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.error(f"Mavis returned status {response.status_code}")
+                logger.error(f"Mavis returned status {response.status_code}: {response.text}")
                 return {'error': f"Mavis returned status {response.status_code}"}
 
         except requests.RequestException as e:
-            logger.error(f"Failed to connect to Mavis: {e}")
+            logger.error(f"Failed to get fabric products from Mavis: {e}")
             return {'error': str(e)}
 
     def check_connection(self) -> Dict:
