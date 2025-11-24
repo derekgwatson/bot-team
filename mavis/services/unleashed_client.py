@@ -127,7 +127,8 @@ class UnleashedClient:
         self,
         endpoint: str,
         items_key: str,
-        extra_params: Dict[str, Any] = None
+        extra_params: Dict[str, Any] = None,
+        progress_callback: callable = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch all pages of a paginated endpoint.
@@ -136,6 +137,7 @@ class UnleashedClient:
             endpoint: API endpoint
             items_key: Key in response that contains the items list
             extra_params: Additional query parameters
+            progress_callback: Optional callback(fetched_count) called after each page
 
         Returns:
             Combined list of all items from all pages
@@ -160,6 +162,10 @@ class UnleashedClient:
             logger.info(f"Fetched {len(items)} items from {endpoint} page {page} "
                        f"(total: {len(all_items)})")
 
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(len(all_items))
+
             # Check if we've reached the last page
             pagination = response.get('Pagination', {})
             total_pages = pagination.get('NumberOfPages', 1)
@@ -174,15 +180,18 @@ class UnleashedClient:
     # Product Methods
     # ─────────────────────────────────────────────────────────────
 
-    def fetch_all_products(self) -> List[Dict[str, Any]]:
+    def fetch_all_products(self, progress_callback: callable = None) -> List[Dict[str, Any]]:
         """
         Fetch all products from Unleashed.
+
+        Args:
+            progress_callback: Optional callback(fetched_count) called after each page
 
         Returns:
             List of product dictionaries
         """
         logger.info("Starting fetch of all products from Unleashed")
-        products = self._paginate('Products', 'Items')
+        products = self._paginate('Products', 'Items', progress_callback=progress_callback)
         logger.info(f"Completed fetching {len(products)} products from Unleashed")
         return products
 

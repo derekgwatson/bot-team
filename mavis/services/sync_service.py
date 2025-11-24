@@ -156,9 +156,19 @@ class SyncService:
         records_updated = 0
 
         try:
-            # Create client and fetch products
+            # Create client and fetch products with progress updates
             client = self._create_unleashed_client()
-            products = client.fetch_all_products()
+
+            # Progress callback to update UI during fetch phase
+            def on_fetch_progress(fetched_count):
+                db.update_sync_progress(
+                    sync_id,
+                    records_processed=fetched_count,
+                    records_created=0,
+                    records_updated=0
+                )
+
+            products = client.fetch_all_products(progress_callback=on_fetch_progress)
 
             logger.info(f"Fetched {len(products)} products from Unleashed, starting sync")
 
