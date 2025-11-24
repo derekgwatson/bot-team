@@ -83,8 +83,26 @@
             <h3 class="card-title">Bot Connectivity</h3>
         </div>
         <div id="bot-status-container" class="bot-status-list">
-            <div class="bot-status-item">
-                <span style="color: var(--gray-500);">Loading...</span>
+            <div class="bot-status-item" id="bot-status-mavis">
+                <span class="bot-name">Mavis</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
+            </div>
+            <div class="bot-status-item" id="bot-status-fiona">
+                <span class="bot-name">Fiona</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
+            </div>
+            <div class="bot-status-item" id="bot-status-sadie">
+                <span class="bot-name">Sadie</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
             </div>
         </div>
     </div>
@@ -157,34 +175,41 @@
 <script>
 // Load bot connectivity status asynchronously
 document.addEventListener('DOMContentLoaded', function() {
+    function updateBotStatus(botName, connected) {
+        const element = document.getElementById('bot-status-' + botName);
+        if (element) {
+            const statusSpan = element.querySelector('.status');
+            const statusClass = connected ? 'status-success' : 'status-danger';
+            const statusText = connected ? 'Connected' : 'Disconnected';
+            statusSpan.className = 'status ' + statusClass;
+            statusSpan.innerHTML = '<span class="status-dot"></span>' + statusText;
+        }
+    }
+
+    function setAllError() {
+        ['mavis', 'fiona', 'sadie'].forEach(bot => {
+            const element = document.getElementById('bot-status-' + bot);
+            if (element) {
+                const statusSpan = element.querySelector('.status');
+                statusSpan.className = 'status status-danger';
+                statusSpan.innerHTML = '<span class="status-dot"></span>Error';
+            }
+        });
+    }
+
     fetch('{{ url_for("web.get_bot_status_ajax") }}')
         .then(response => response.json())
         .then(data => {
-            const container = document.getElementById('bot-status-container');
             if (data.status === 'ok' && data.bots) {
-                let html = '';
                 for (const [botName, status] of Object.entries(data.bots)) {
-                    const connected = status.connected;
-                    const statusClass = connected ? 'status-success' : 'status-danger';
-                    const statusText = connected ? 'Connected' : 'Disconnected';
-                    html += `
-                        <div class="bot-status-item">
-                            <span class="bot-name">${botName.charAt(0).toUpperCase() + botName.slice(1)}</span>
-                            <span class="status ${statusClass}">
-                                <span class="status-dot"></span>
-                                ${statusText}
-                            </span>
-                        </div>
-                    `;
+                    updateBotStatus(botName, status.connected);
                 }
-                container.innerHTML = html;
             } else {
-                container.innerHTML = '<div class="bot-status-item"><span style="color: var(--danger);">Error loading status</span></div>';
+                setAllError();
             }
         })
         .catch(error => {
-            const container = document.getElementById('bot-status-container');
-            container.innerHTML = '<div class="bot-status-item"><span style="color: var(--danger);">Error loading status</span></div>';
+            setAllError();
         });
 });
 </script>

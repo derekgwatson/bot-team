@@ -189,6 +189,21 @@
             background: var(--success);
         }
 
+        .status-checking {
+            background: var(--gray-100);
+            color: var(--gray-500);
+        }
+
+        .status-checking .status-dot {
+            background: var(--gray-400);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
         .status-warning, .status-degraded {
             background: #fef3c7;
             color: var(--warning);
