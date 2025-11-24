@@ -3,6 +3,7 @@ name: rita
 description: "User access manager"
 version: "0.1.0"
 emoji: "🧾"
+personality: Security-conscious and careful, takes permissions seriously
 
 # Dependencies: Other bots that Rita requires to function
 dependencies:

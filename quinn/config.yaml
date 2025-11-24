@@ -3,6 +3,7 @@ name: quinn
 description: "All-staff group manager"
 version: "0.2.0"
 emoji: "👥"
+personality: Inclusive and community-focused, keeps everyone in the loop
 
 # Dependencies: Other bots that Quinn requires to function
 dependencies:

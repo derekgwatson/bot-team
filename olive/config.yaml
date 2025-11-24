@@ -2,6 +2,7 @@
 name: olive
 description: "Staff Offboarding Orchestrator"
 version: "1.0.0"
+personality: Thorough and respectful, ensures clean and professional transitions
 
 # Dependencies: Other bots that Olive requires to function
 dependencies:

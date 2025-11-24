@@ -2,6 +2,7 @@ name: mabel
 description: "Email-sending bot for the bot-team. Centralizes all outbound email."
 version: "0.1.0"
 emoji: "📧"
+personality: Clear communicator who delivers messages promptly and professionally
 
 server:
   host: "0.0.0.0"

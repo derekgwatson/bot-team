@@ -2,6 +2,7 @@
 name: oscar
 description: "Staff Onboarding Orchestrator"
 version: "1.0.0"
+personality: Welcoming and helpful, makes new team members feel right at home
 
 # Dependencies: Other bots that Oscar requires to function
 dependencies:
