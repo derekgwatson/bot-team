@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Fiona - Fabric Directory</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f6fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+            color: white;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #d5f4e6;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-info .email {
+            opacity: 0.9;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .user-info a {
+            color: white;
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .user-info a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .info-box {
+            background: #e8f6f3;
+            border-left: 4px solid #16a085;
+            padding: 18px 22px;
+            margin-bottom: 25px;
+            border-radius: 6px;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #555;
+        }
+
+        .info-box strong {
+            color: #16a085;
+        }
+
+        .search-bar {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #16a085;
+            box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.1);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .fabric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 16px;
+        }
+
+        .fabric-card {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            padding: 18px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .fabric-card:hover {
+            box-shadow: 0 4px 12px rgba(22, 160, 133, 0.12);
+            border-color: #1abc9c;
+            transform: translateY(-2px);
+        }
+
+        .fabric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .product-code {
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: #16a085;
+            background: #e8f6f3;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        .watson-indicator {
+            font-size: 11px;
+            background: #f39c12;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .fabric-details {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 6px 12px;
+            font-size: 14px;
+        }
+
+        .fabric-details dt {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .fabric-details dd {
+            color: #333;
+        }
+
+        .watson-name {
+            color: #f39c12;
+            font-weight: 500;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #noResults {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .fabric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .user-info {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <h1>Fiona</h1>
+                <p>Fabric Description Directory</p>
+            </div>
+            <div class="user-info">
+                <div class="email">{{ current_user.email }}</div>
+                <a href="{{ url_for('auth.logout') }}">Logout</a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('web.admin_index') }}">Admin</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="info-box">
+            <p><strong>Hi! I'm Fiona.</strong> I help you find friendly fabric descriptions quickly. Start typing in the search box to filter by product code, material, or colour.</p>
+        </div>
+
+        <div class="search-bar">
+            <input type="search" id="searchInput" placeholder="Start typing to search by product code, material, or colour..." autocomplete="off">
+        </div>
+
+        <div class="stats-bar">
+            <span id="resultCount">{{ total }} fabrics</span>
+            <span>Mavis: {{ 'Connected' if mavis_status.connected else 'Disconnected' }}</span>
+        </div>
+
+        <div id="noResults" class="empty-state">
+            <h3>No fabrics found</h3>
+            <p>Try a different search term.</p>
+        </div>
+
+        <div id="fabricDirectory" class="fabric-grid">
+            {% for fabric in fabrics %}
+            <div class="fabric-card" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.supplier_material_type|lower if fabric.supplier_material_type else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}">
+                <div class="fabric-header">
+                    <span class="product-code">{{ fabric.product_code }}</span>
+                    {% if fabric.watson_material or fabric.watson_colour %}
+                    <span class="watson-indicator">Watson</span>
+                    {% endif %}
+                </div>
+                <dl class="fabric-details">
+                    {% if fabric.supplier_material %}
+                    <dt>Material</dt>
+                    <dd>{{ fabric.supplier_material }}{% if fabric.watson_material %} <span class="watson-name">{{ fabric.watson_material }}</span>{% endif %}</dd>
+                    {% endif %}
+                    {% if fabric.supplier_material_type %}
+                    <dt>Type</dt>
+                    <dd>{{ fabric.supplier_material_type }}</dd>
+                    {% endif %}
+                    {% if fabric.supplier_colour %}
+                    <dt>Colour</dt>
+                    <dd>{{ fabric.supplier_colour }}{% if fabric.watson_colour %} <span class="watson-name">{{ fabric.watson_colour }}</span>{% endif %}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if not fabrics %}
+        <div class="empty-state">
+            <h3>No fabric descriptions yet</h3>
+            <p>Fabric descriptions will appear here once they're added.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Instant search functionality (like Pam)
+        const searchInput = document.getElementById('searchInput');
+        const noResults = document.getElementById('noResults');
+        const directory = document.getElementById('fabricDirectory');
+        const resultCount = document.getElementById('resultCount');
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const cards = document.querySelectorAll('.fabric-card');
+            let visibleCount = 0;
+
+            if (query === '') {
+                // Show everything if search is empty
+                cards.forEach(card => {
+                    card.style.display = '';
+                    card.classList.remove('hidden');
+                });
+                noResults.style.display = 'none';
+                directory.style.display = 'grid';
+                resultCount.textContent = cards.length + ' fabrics';
+                return;
+            }
+
+            // Filter cards
+            cards.forEach(card => {
+                const searchable = card.getAttribute('data-searchable');
+                if (searchable.includes(query)) {
+                    card.style.display = '';
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                    card.classList.add('hidden');
+                }
+            });
+
+            // Update count and show/hide no results
+            resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
+
+            if (visibleCount === 0) {
+                noResults.style.display = 'block';
+                directory.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                directory.style.display = 'grid';
+            }
+        });
+
+        // Focus search input on page load
+        searchInput.focus();
+    </script>
+</body>
+</html>

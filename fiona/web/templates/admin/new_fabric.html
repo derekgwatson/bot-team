@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Fabric - Fiona Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header h1 a { color: white; text-decoration: none; }
+        .header h1 span { font-weight: 300; opacity: 0.9; }
+        .user-info a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; margin-left: 10px; }
+        .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+        .breadcrumb { margin-bottom: 20px; }
+        .breadcrumb a { color: #9b59b6; text-decoration: none; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        input[type="text"] { width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 16px; text-transform: uppercase; }
+        input[type="text"]:focus { outline: none; border-color: #9b59b6; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+        .btn-primary { background: #9b59b6; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .lookup-form { display: flex; gap: 10px; }
+        .lookup-form input { flex: 1; }
+        .product-found { background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .product-found h3 { color: #155724; margin-bottom: 10px; }
+        .product-found p { color: #155724; margin-bottom: 15px; }
+        .product-not-found { background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .product-not-found h3 { color: #721c24; margin-bottom: 10px; }
+        .product-not-found p { color: #721c24; }
+        .alert-error { background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1><a href="{{ url_for('web.admin_index') }}">Fiona Admin</a> <span>- New Fabric</span></h1>
+        <div class="user-info">
+            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb"><a href="{{ url_for('web.admin_index') }}">Admin</a> / New Fabric</div>
+
+        {% if request.args.get('error') %}<div class="alert-error">{{ request.args.get('error') }}</div>{% endif %}
+
+        <div class="card">
+            <div class="card-title">Step 1: Enter Product Code</div>
+            <p style="color: #666; margin-bottom: 20px;">Enter the Unleashed product code to look up the product and create a fabric description.</p>
+            <form class="lookup-form" method="post" action="{{ url_for('web.lookup_product') }}">
+                <input type="text" name="product_code" placeholder="Enter product code..." value="{{ product_code or '' }}" autofocus>
+                <button type="submit" class="btn btn-primary">Look Up</button>
+            </form>
+        </div>
+
+        {% if product_code %}
+            {% if mavis_product %}
+            <div class="product-found">
+                <h3>Product Found in Unleashed</h3>
+                <p><strong>{{ product_code }}</strong> - {{ mavis_product.product_description or 'No description' }}
+                {% if mavis_product.product_group %}<br><small>Group: {{ mavis_product.product_group }}</small>{% endif %}</p>
+                <a href="{{ url_for('web.edit_fabric', code=product_code) }}" class="btn btn-primary">Create Fabric Description</a>
+            </div>
+            {% else %}
+            <div class="product-not-found">
+                <h3>Product Not Found</h3>
+                <p><strong>{{ product_code }}</strong> was not found in Mavis/Unleashed. You can still create a fabric description for it.</p>
+                <a href="{{ url_for('web.edit_fabric', code=product_code) }}" class="btn btn-secondary">Create Anyway</a>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Back to List</a>
+    </div>
+</body>
+</html>

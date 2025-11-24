@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import - Fiona Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header h1 a { color: white; text-decoration: none; }
+        .header h1 span { font-weight: 300; opacity: 0.9; }
+        .user-info a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; margin-left: 10px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .breadcrumb { margin-bottom: 20px; }
+        .breadcrumb a { color: #9b59b6; text-decoration: none; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; margin-right: 10px; }
+        .btn-primary { background: #9b59b6; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .alert { padding: 16px 20px; border-radius: 6px; margin-bottom: 20px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .alert-info { background: #e8f4f8; color: #0c5460; border: 1px solid #bee5eb; }
+        .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .status-dot.green { background: #27ae60; }
+        .status-dot.red { background: #e74c3c; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 6px; text-align: center; }
+        .stat-box .number { font-size: 28px; font-weight: 700; color: #9b59b6; }
+        .stat-box .label { font-size: 12px; color: #666; text-transform: uppercase; }
+        .preview-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
+        .preview-table th, .preview-table td { padding: 8px 12px; border: 1px solid #eee; text-align: left; }
+        .preview-table th { background: #f8f9fa; font-weight: 600; }
+        .preview-table .code { font-family: monospace; color: #9b59b6; }
+        code { background: #f1f1f1; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1><a href="{{ url_for('web.admin_index') }}">Fiona Admin</a> <span>- Import</span></h1>
+        <div class="user-info">
+            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb"><a href="{{ url_for('web.admin_index') }}">Admin</a> / Import from Google Sheets</div>
+
+        {% if import_result %}
+            {% if import_result.success %}
+            <div class="alert alert-success">
+                <strong>Import Complete!</strong> {{ import_result.message }}
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box"><div class="number">{{ import_result.stats.created }}</div><div class="label">Created</div></div>
+                <div class="stat-box"><div class="number">{{ import_result.stats.updated }}</div><div class="label">Updated</div></div>
+                <div class="stat-box"><div class="number">{{ import_result.stats.errors }}</div><div class="label">Errors</div></div>
+            </div>
+            {% else %}
+            <div class="alert alert-error"><strong>Import Failed:</strong> {{ import_result.error }}</div>
+            {% endif %}
+        {% endif %}
+
+        {% if preview_result %}
+            {% if preview_result.success %}
+            <div class="alert alert-info">
+                <strong>Preview:</strong> {{ preview_result.message }}
+            </div>
+            <div class="card">
+                <div class="card-title">Preview (first 10 fabrics)</div>
+                {% if preview_result.preview %}
+                <table class="preview-table">
+                    <thead>
+                        <tr><th>Product Code</th><th>Material</th><th>Type</th><th>Colour</th><th>Watson Mat.</th><th>Watson Col.</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for f in preview_result.preview %}
+                        <tr>
+                            <td class="code">{{ f.product_code }}</td>
+                            <td>{{ f.supplier_material or '-' }}</td>
+                            <td>{{ f.supplier_material_type or '-' }}</td>
+                            <td>{{ f.supplier_colour or '-' }}</td>
+                            <td>{{ f.watson_material or '-' }}</td>
+                            <td>{{ f.watson_colour or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+                <form method="post" action="{{ url_for('web.import_run') }}" style="margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" onclick="return confirm('Run the import? This will update {{ preview_result.stats.fabrics_found }} fabric descriptions.')">Run Import</button>
+                    <a href="{{ url_for('web.import_page') }}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+            {% else %}
+            <div class="alert alert-error"><strong>Preview Failed:</strong> {{ preview_result.error }}</div>
+            {% endif %}
+        {% endif %}
+
+        <div class="card">
+            <div class="card-title">Google Sheets Connection</div>
+            <p>
+                <span class="status-dot {{ 'green' if sheets_status.available else 'red' }}"></span>
+                {% if sheets_status.available %}
+                    Connected to spreadsheet <code>{{ sheets_status.spreadsheet_id[:20] }}...</code>
+                {% else %}
+                    Not configured: {{ sheets_status.error }}
+                {% endif %}
+            </p>
+        </div>
+
+        {% if sheets_status.available and not preview_result %}
+        <div class="card">
+            <div class="card-title">Import Fabric Descriptions</div>
+            <p style="margin-bottom: 15px;">This will import fabric descriptions from the <strong>Friendly_Descriptions</strong> sheet.</p>
+            <p style="margin-bottom: 15px; font-size: 14px; color: #666;">
+                Column mapping:<br>
+                A: Product Code, D: FD1 (material), E: FD2 (type), F: FD3 (colour), G: Watson material, I: Watson colour
+            </p>
+            <form method="post" action="{{ url_for('web.import_preview') }}">
+                <button type="submit" class="btn btn-primary">Preview Import</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Back to Admin</a>
+    </div>
+</body>
+</html>
