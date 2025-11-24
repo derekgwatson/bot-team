@@ -909,7 +909,7 @@ class DeploymentOrchestrator:
                     description=description,
                     domain=domain,
                     bot_path=path,
-                    port=port
+                    PORT=port
                 )
 
                 # Escape quotes for shell
