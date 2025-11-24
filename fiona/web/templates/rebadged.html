@@ -87,9 +87,7 @@
                 <tbody>
                     {% for fabric in fabrics %}
                     <tr data-changes="{{ fabric.rebadged_changes | map(attribute='field') | join(',') }}">
-                        <td class="product-code">
-                            <a href="{{ url_for('web.view_fabric', code=fabric.product_code) }}">{{ fabric.product_code }}</a>
-                        </td>
+                        <td class="product-code">{{ fabric.product_code }}</td>
                         <td>
                             {% set material_change = fabric.rebadged_changes | selectattr('field', 'eq', 'material') | first %}
                             {% if material_change %}
