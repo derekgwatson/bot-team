@@ -128,7 +128,8 @@ class UnleashedClient:
         endpoint: str,
         items_key: str,
         extra_params: Dict[str, Any] = None,
-        progress_callback: callable = None
+        progress_callback: callable = None,
+        max_records: int = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch all pages of a paginated endpoint.
@@ -138,6 +139,7 @@ class UnleashedClient:
             items_key: Key in response that contains the items list
             extra_params: Additional query parameters
             progress_callback: Optional callback(fetched_count) called after each page
+            max_records: Optional limit on total records to fetch (for testing)
 
         Returns:
             Combined list of all items from all pages
@@ -166,6 +168,11 @@ class UnleashedClient:
             if progress_callback:
                 progress_callback(len(all_items))
 
+            # Check if we've hit the max_records limit
+            if max_records and len(all_items) >= max_records:
+                logger.info(f"Reached max_records limit ({max_records}), stopping pagination")
+                break
+
             # Check if we've reached the last page
             pagination = response.get('Pagination', {})
             total_pages = pagination.get('NumberOfPages', 1)
@@ -180,18 +187,19 @@ class UnleashedClient:
     # Product Methods
     # ─────────────────────────────────────────────────────────────
 
-    def fetch_all_products(self, progress_callback: callable = None) -> List[Dict[str, Any]]:
+    def fetch_all_products(self, progress_callback: callable = None, max_records: int = None) -> List[Dict[str, Any]]:
         """
         Fetch all products from Unleashed.
 
         Args:
             progress_callback: Optional callback(fetched_count) called after each page
+            max_records: Optional limit on total records to fetch (for testing)
 
         Returns:
             List of product dictionaries
         """
-        logger.info("Starting fetch of all products from Unleashed")
-        products = self._paginate('Products', 'Items', progress_callback=progress_callback)
+        logger.info(f"Starting fetch of products from Unleashed (max: {max_records or 'unlimited'})")
+        products = self._paginate('Products', 'Items', progress_callback=progress_callback, max_records=max_records)
         logger.info(f"Completed fetching {len(products)} products from Unleashed")
         return products
 

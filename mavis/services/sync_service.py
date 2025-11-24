@@ -168,7 +168,8 @@ class SyncService:
                     records_updated=0
                 )
 
-            products = client.fetch_all_products(progress_callback=on_fetch_progress)
+            # TODO: Remove max_records limit after debugging pagination issue
+            products = client.fetch_all_products(progress_callback=on_fetch_progress, max_records=500)
 
             # Debug: Check for duplicates in fetched data
             unique_codes = set(p.get('ProductCode') for p in products)
