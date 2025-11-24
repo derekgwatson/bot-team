@@ -46,7 +46,7 @@
             <th>Next Run</th>
             <td>
                 {% if job.next_run_time %}
-                    <strong>{{ job.next_run_time }}</strong>
+                    <strong><span title="{{ job.next_run_time }}">{{ job.next_run_time|relative_time }}</span></strong>
                 {% else %}
                     <span class="text-muted">Not scheduled</span>
                 {% endif %}
@@ -54,11 +54,23 @@
         </tr>
         <tr>
             <th>Last Run</th>
-            <td>{{ job.last_run or 'Never' }}</td>
+            <td>
+                {% if job.last_run %}
+                    <span title="{{ job.last_run }}">{{ job.last_run|relative_time }}</span>
+                {% else %}
+                    Never
+                {% endif %}
+            </td>
         </tr>
         <tr>
             <th>Last Success</th>
-            <td>{{ job.last_success or 'Never' }}</td>
+            <td>
+                {% if job.last_success %}
+                    <span title="{{ job.last_success }}">{{ job.last_success|relative_time }}</span>
+                {% else %}
+                    Never
+                {% endif %}
+            </td>
         </tr>
         <tr>
             <th>Created By</th>
@@ -66,7 +78,13 @@
         </tr>
         <tr>
             <th>Created At</th>
-            <td>{{ job.created_at }}</td>
+            <td>
+                {% if job.created_at %}
+                    <span title="{{ job.created_at }}">{{ job.created_at|relative_time }}</span>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
         </tr>
     </table>
 
@@ -104,7 +122,7 @@
         <tbody>
             {% for exec in history %}
             <tr>
-                <td>{{ exec.executed_at }}</td>
+                <td><span title="{{ exec.executed_at }}">{{ exec.executed_at|relative_time }}</span></td>
                 <td>
                     <span class="badge badge-{{ exec.status }}">{{ exec.status }}</span>
                 </td>

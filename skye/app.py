@@ -9,6 +9,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import os
 import atexit
+from datetime import datetime, timezone
 from flask import Flask, jsonify
 from config import config
 from services.auth import init_auth
@@ -20,6 +21,63 @@ from web.auth_routes import auth_bp
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+
+def relative_time(timestamp: str) -> str:
+    """
+    Convert ISO timestamp to human-readable relative time.
+    Returns: "Just now", "X minutes ago", "in X minutes", etc.
+    """
+    if not timestamp:
+        return "Never"
+
+    try:
+        # Parse ISO timestamp (handle various formats)
+        ts = timestamp.replace('Z', '+00:00')
+        if '+' not in ts and len(ts) == 19:
+            # No timezone info, assume UTC
+            dt = datetime.fromisoformat(ts).replace(tzinfo=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(ts)
+
+        now = datetime.now(timezone.utc)
+        diff = now - dt
+        seconds = diff.total_seconds()
+
+        # Future time (negative seconds)
+        if seconds < 0:
+            seconds = abs(seconds)
+            if seconds < 60:
+                return "in a moment"
+            elif seconds < 3600:
+                minutes = int(seconds / 60)
+                return f"in {minutes} minute{'s' if minutes != 1 else ''}"
+            elif seconds < 86400:
+                hours = int(seconds / 3600)
+                return f"in {hours} hour{'s' if hours != 1 else ''}"
+            else:
+                days = int(seconds / 86400)
+                return f"in {days} day{'s' if days != 1 else ''}"
+
+        # Past time
+        if seconds < 60:
+            return "Just now"
+        elif seconds < 3600:
+            minutes = int(seconds / 60)
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        else:
+            days = int(seconds / 86400)
+            return f"{days} day{'s' if days != 1 else ''} ago"
+    except (ValueError, TypeError):
+        return timestamp[:19] if len(str(timestamp)) >= 19 else str(timestamp)
+
+
+# Register Jinja2 filter
+app.jinja_env.filters['relative_time'] = relative_time
+
 
 # Initialize authentication
 init_auth(app)

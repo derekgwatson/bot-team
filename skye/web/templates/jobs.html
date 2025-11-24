@@ -39,7 +39,7 @@
             <td><code>{{ job.schedule_config }}</code></td>
             <td>
                 {% if job.next_run_time %}
-                    {{ job.next_run_time[:19] }}
+                    <span title="{{ job.next_run_time[:19] }}">{{ job.next_run_time|relative_time }}</span>
                 {% else %}
                     <span class="text-muted">-</span>
                 {% endif %}

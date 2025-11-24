@@ -72,14 +72,14 @@
                 <td><code>{{ job.schedule_type }}: {{ job.schedule_config }}</code></td>
                 <td>
                     {% if job.next_run_time %}
-                        {{ job.next_run_time[:19] }}
+                        <span title="{{ job.next_run_time[:19] }}">{{ job.next_run_time|relative_time }}</span>
                     {% else %}
                         <span class="text-muted">-</span>
                     {% endif %}
                 </td>
                 <td>
                     {% if job.last_run %}
-                        {{ job.last_run[:19] }}
+                        <span title="{{ job.last_run[:19] }}">{{ job.last_run|relative_time }}</span>
                     {% else %}
                         <span class="text-muted">Never</span>
                     {% endif %}
@@ -130,7 +130,7 @@
             <tr>
                 <td>{{ exec.job_name }}</td>
                 <td>{{ exec.target_bot }}</td>
-                <td>{{ exec.executed_at[:19] }}</td>
+                <td><span title="{{ exec.executed_at[:19] }}">{{ exec.executed_at|relative_time }}</span></td>
                 <td>
                     {% if exec.error_message %}
                         {{ exec.error_message[:100] }}
@@ -169,7 +169,7 @@
             <tr>
                 <td>{{ exec.job_name }}</td>
                 <td>{{ exec.target_bot }}</td>
-                <td>{{ exec.executed_at[:19] }}</td>
+                <td><span title="{{ exec.executed_at[:19] }}">{{ exec.executed_at|relative_time }}</span></td>
                 <td>
                     <span class="badge badge-{{ exec.status }}">{{ exec.status }}</span>
                 </td>
