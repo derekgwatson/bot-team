@@ -262,7 +262,7 @@ function createNetwork(nodes, edges) {
         return {
             id: node.id,
             label: `${node.emoji}\n${node.label}`,
-            title: `<b>${node.emoji} ${node.label}</b><br>${node.description}<br><i>Click for details</i>`,
+            title: `${node.emoji} ${node.label}\n${node.description}\nClick for details`,
             shape: 'box',
             color: {
                 background: hasDeps ? '#97C2FC' : '#FB7E81',
