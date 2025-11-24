@@ -310,6 +310,29 @@ class Database:
                 sync_id
             ))
 
+    def update_sync_progress(
+        self,
+        sync_id: int,
+        records_processed: int,
+        records_created: int,
+        records_updated: int
+    ):
+        """Update sync progress counts without changing status (for live updates)"""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE sync_metadata SET
+                    records_processed = ?,
+                    records_created = ?,
+                    records_updated = ?
+                WHERE id = ?
+            """, (
+                records_processed,
+                records_created,
+                records_updated,
+                sync_id
+            ))
+
     def get_last_successful_sync(self, sync_type: str) -> Optional[Dict]:
         """Get the most recent successful sync for a type"""
         conn = self.get_connection()
