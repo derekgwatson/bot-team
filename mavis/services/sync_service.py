@@ -60,9 +60,37 @@ class SyncService:
         )
 
     def get_status(self) -> Dict[str, Any]:
-        """Get current sync status"""
-        with self._lock:
-            return self._status.copy()
+        """
+        Get current sync status from database.
+
+        Reads from database to ensure accuracy across workers/requests.
+        """
+        # Get the most recent sync record
+        history = db.get_sync_history('products', limit=1)
+        last_successful = db.get_last_successful_sync('products')
+
+        if not history:
+            return {
+                'status': 'idle',
+                'last_run_started_at': None,
+                'last_run_finished_at': None,
+                'last_successful_sync_at': None,
+                'last_error': None
+            }
+
+        latest = history[0]
+        status = latest.get('status', 'idle')
+
+        # Map 'success'/'failed' to 'idle' for display if not running
+        display_status = status if status == 'running' else status
+
+        return {
+            'status': display_status,
+            'last_run_started_at': latest.get('started_at'),
+            'last_run_finished_at': latest.get('finished_at'),
+            'last_successful_sync_at': last_successful.get('finished_at') if last_successful else None,
+            'last_error': latest.get('error_message') if status == 'failed' else None
+        }
 
     def is_running(self) -> bool:
         """Check if a sync is currently running (database-based for multi-worker)"""
