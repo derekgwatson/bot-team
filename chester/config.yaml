@@ -307,6 +307,27 @@ bot_team:
       mavis_status: /api/mavis/status
     personality: Organized and detail-oriented, keeps fabric naming consistent and clear
 
+  scout:
+    name: Scout
+    port: 8019
+    description: System Monitoring Bot
+    capabilities:
+      - Monitor systems for discrepancies between Mavis and Fiona
+      - Detect fabrics missing descriptions
+      - Detect obsolete fabric descriptions
+      - Monitor Mavis sync health
+      - Create Zendesk tickets via Sadie for issues
+      - Track reported issues to avoid duplicates
+      - Run checks on configurable schedule
+    api_endpoints:
+      info: /info
+      health: /health
+      checks_run: /api/checks/run
+      checks_status: /api/checks/status
+      issues: /api/issues
+      bots_status: /api/bots/status
+    personality: Vigilant and proactive, keeps watch for issues across systems
+
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
 # This means even in dev, Chester checks prod bot health status.

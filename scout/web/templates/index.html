@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card-header">
+    <h1>Monitoring Dashboard</h1>
+    <form action="{{ url_for('web.run_checks') }}" method="post" style="display: inline;">
+        <button type="submit" class="btn btn-primary">Run Checks Now</button>
+    </form>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-4" style="margin-bottom: 1.5rem;">
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.open }}</div>
+            <div class="stat-label">Open Issues</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.resolved }}</div>
+            <div class="stat-label">Resolved</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.with_tickets }}</div>
+            <div class="stat-label">Tickets Created</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ scheduler_status.interval_minutes }}</div>
+            <div class="stat-label">Check Interval (min)</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <!-- Last Check Run -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Last Check Run</h3>
+            {% if last_run %}
+            <span class="status status-{{ last_run.status }}">
+                <span class="status-dot"></span>
+                {{ last_run.status | capitalize }}
+            </span>
+            {% endif %}
+        </div>
+        {% if last_run %}
+        <table>
+            <tr>
+                <td>Started</td>
+                <td>{{ time_ago(last_run.started_at) }}</td>
+            </tr>
+            <tr>
+                <td>Finished</td>
+                <td>{{ format_datetime(last_run.finished_at) }}</td>
+            </tr>
+            <tr>
+                <td>Issues Found</td>
+                <td>{{ last_run.issues_found }}</td>
+            </tr>
+            <tr>
+                <td>Tickets Created</td>
+                <td>{{ last_run.tickets_created }}</td>
+            </tr>
+            {% if last_run.error_message %}
+            <tr>
+                <td>Error</td>
+                <td style="color: var(--danger);">{{ last_run.error_message }}</td>
+            </tr>
+            {% endif %}
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <p>No checks have been run yet</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Scheduler Status -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Scheduler Status</h3>
+            <span class="status {% if scheduler_status.running %}status-success{% else %}status-warning{% endif %}">
+                <span class="status-dot"></span>
+                {{ 'Running' if scheduler_status.running else 'Stopped' }}
+            </span>
+        </div>
+        <table>
+            <tr>
+                <td>Enabled</td>
+                <td>{{ 'Yes' if scheduler_status.enabled else 'No' }}</td>
+            </tr>
+            <tr>
+                <td>Check Interval</td>
+                <td>{{ scheduler_status.interval_minutes }} minutes</td>
+            </tr>
+            <tr>
+                <td>Run on Startup</td>
+                <td>{{ 'Yes' if scheduler_status.run_on_startup else 'No' }}</td>
+            </tr>
+            <tr>
+                <td>Last Run</td>
+                <td>{{ time_ago(scheduler_status.last_run_time) }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-2" style="margin-top: 1rem;">
+    <!-- Bot Connectivity -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Bot Connectivity</h3>
+        </div>
+        <div class="bot-status-list">
+            {% for bot_name, status in bot_status.items() %}
+            <div class="bot-status-item">
+                <span class="bot-name">{{ bot_name | capitalize }}</span>
+                <span class="status {% if status.connected %}status-success{% else %}status-danger{% endif %}">
+                    <span class="status-dot"></span>
+                    {{ 'Connected' if status.connected else 'Disconnected' }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Open Issues by Type -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Open Issues by Type</h3>
+            <a href="{{ url_for('web.issues', status='open') }}" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        {% if issue_stats.by_type %}
+        <table>
+            {% for issue_type, count in issue_stats.by_type.items() %}
+            <tr>
+                <td><span class="issue-type issue-type-{{ issue_type }}">{{ issue_type.replace('_', ' ') | title }}</span></td>
+                <td style="text-align: right;">{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">✓</div>
+            <p>No open issues</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Open Issues -->
+{% if open_issues %}
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3 class="card-title">Recent Open Issues</h3>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Key</th>
+                <th>First Detected</th>
+                <th>Ticket</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in open_issues[:10] %}
+            <tr>
+                <td><span class="issue-type issue-type-{{ issue.issue_type }}">{{ issue.issue_type.replace('_', ' ') | title }}</span></td>
+                <td><code>{{ issue.issue_key }}</code></td>
+                <td>{{ time_ago(issue.first_detected_at) }}</td>
+                <td>
+                    {% if issue.ticket_url %}
+                    <a href="{{ issue.ticket_url }}" target="_blank" class="link">#{{ issue.ticket_id }}</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <form action="{{ url_for('web.resolve_issue', issue_type=issue.issue_type, issue_key=issue.issue_key) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
