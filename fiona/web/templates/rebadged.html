@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rebadged Fabrics - Fiona Admin</title>
+    <title>Rebadged Fabrics - Fiona</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
@@ -44,15 +44,15 @@
 </head>
 <body>
     <header class="header">
-        <h1><a href="{{ url_for('web.admin_index') }}">Fiona Admin</a> <span>- Rebadged Fabrics</span></h1>
+        <h1><a href="{{ url_for('web.index') }}">Fiona</a> <span>- Rebadged Fabrics</span></h1>
         <div class="user-info">
-            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('web.index') }}">Home</a>
             <a href="{{ url_for('auth.logout') }}">Logout</a>
         </div>
     </header>
 
     <div class="container">
-        <div class="breadcrumb"><a href="{{ url_for('web.admin_index') }}">Admin</a> / Rebadged Fabrics</div>
+        <div class="breadcrumb"><a href="{{ url_for('web.index') }}">Home</a> / Rebadged Fabrics</div>
 
         <div class="alert alert-info">
             <strong>Rebadged fabrics</strong> have a Watson name that differs from the supplier name.
@@ -88,7 +88,7 @@
                     {% for fabric in fabrics %}
                     <tr data-changes="{{ fabric.rebadged_changes | map(attribute='field') | join(',') }}">
                         <td class="product-code">
-                            <a href="{{ url_for('web.edit_fabric', code=fabric.product_code) }}">{{ fabric.product_code }}</a>
+                            <a href="{{ url_for('web.view_fabric', code=fabric.product_code) }}">{{ fabric.product_code }}</a>
                         </td>
                         <td>
                             {% set material_change = fabric.rebadged_changes | selectattr('field', 'eq', 'material') | first %}
@@ -130,7 +130,7 @@
         {% endif %}
 
         <div style="margin-top: 20px;">
-            <a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Back to Admin</a>
+            <a href="{{ url_for('web.index') }}" class="btn btn-secondary">Back to Home</a>
         </div>
     </div>
 
