@@ -11,13 +11,16 @@ database:
   path: "database/scout.db"
 
 # Scheduler configuration
+# NOTE: Scheduling is typically managed by Skye (the scheduling bot).
+# The internal scheduler is disabled by default - Skye calls POST /api/checks/run
+# Enable only if running Scout standalone without Skye.
 scheduler:
-  # How often to run checks (in minutes)
+  # How often to run checks (in minutes) - only used if enabled=true
   check_interval_minutes: 60
-  # Whether to run checks on startup
-  run_on_startup: true
-  # Enable/disable the scheduler
-  enabled: true
+  # Whether to run checks on startup - only used if enabled=true
+  run_on_startup: false
+  # Enable/disable the internal scheduler (disable if using Skye)
+  enabled: false
 
 # Bot dependencies for monitoring
 bots:
