@@ -4,9 +4,8 @@
 <div class="card">
     <h2>Staff Directory</h2>
 
-    <div class="search-bar" style="position: relative; display: inline-block; width: 100%; max-width: 500px;">
-        <input type="search" id="searchInput" placeholder="Start typing to filter by name, position, extension, email..." autocomplete="off" data-lpignore="true" data-form-type="other" style="padding-right: 35px;">
-        <button type="button" id="clearSearch" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: #999; padding: 5px; display: none;" title="Clear search">&times;</button>
+    <div class="search-bar">
+        <input type="search" id="searchInput" placeholder="Start typing to filter by name, position, extension, email..." autocomplete="off" data-lpignore="true" data-form-type="other">
     </div>
 
     <div id="noResults" style="display: none; text-align: center; padding: 40px; color: #7f8c8d;">
@@ -119,16 +118,10 @@
 <script>
     // Live search functionality
     const searchInput = document.getElementById('searchInput');
-    const clearButton = document.getElementById('clearSearch');
     const noResults = document.getElementById('noResults');
     const staffRows = document.querySelectorAll('.staff-row');
     const sectionHeaders = document.querySelectorAll('.section-header');
     const tables = document.querySelectorAll('table[data-section]');
-
-    // Show/hide clear button based on input content
-    function updateClearButton() {
-        clearButton.style.display = searchInput.value ? 'block' : 'none';
-    }
 
     function doFilter(query) {
         let visibleCount = 0;
@@ -179,18 +172,20 @@
     // Save search term to localStorage on input
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
-        localStorage.setItem('peterSearchTerm', this.value);
+        if (this.value) {
+            localStorage.setItem('peterSearchTerm', this.value);
+        } else {
+            localStorage.removeItem('peterSearchTerm');
+        }
         doFilter(query);
-        updateClearButton();
     });
 
-    // Clear button click handler
-    clearButton.addEventListener('click', function() {
-        searchInput.value = '';
-        localStorage.removeItem('peterSearchTerm');
-        doFilter('');
-        updateClearButton();
-        searchInput.focus();
+    // Handle native clear button (fires 'search' event when cleared)
+    searchInput.addEventListener('search', function() {
+        if (!this.value) {
+            localStorage.removeItem('peterSearchTerm');
+            doFilter('');
+        }
     });
 
     // Restore search term from localStorage on page load
@@ -199,7 +194,6 @@
         searchInput.value = savedSearch;
         doFilter(savedSearch.toLowerCase().trim());
     }
-    updateClearButton();
 
     // Focus search input on page load
     searchInput.focus();
