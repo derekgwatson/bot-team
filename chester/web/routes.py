@@ -170,3 +170,10 @@ def add_bot_form():
         config=config,
         defaults=defaults
     )
+
+
+@web_bp.route('/network')
+@login_required
+def network():
+    """Interactive network visualization of bot dependencies."""
+    return render_template('network.html', config=config)
