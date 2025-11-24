@@ -7,8 +7,9 @@ Based on shared authentication patterns.
 
 import os
 import logging
-from flask import Flask
-from flask_login import LoginManager, UserMixin
+from functools import wraps
+from flask import Flask, session, redirect, url_for, request
+from flask_login import LoginManager, UserMixin, current_user
 from authlib.integrations.flask_client import OAuth
 
 logger = logging.getLogger(__name__)
@@ -37,19 +38,28 @@ class User(UserMixin):
         )
 
 
-# In-memory user store (users are only stored during session)
-_users = {}
-
-
 @login_manager.user_loader
 def load_user(user_id: str) -> User:
-    """Load user by ID from in-memory store"""
-    return _users.get(user_id)
+    """Load user from session"""
+    if 'user' in session:
+        user_data = session['user']
+        return User(
+            user_id=user_data['id'],
+            email=user_data['email'],
+            name=user_data.get('name'),
+            picture=user_data.get('picture')
+        )
+    return None
 
 
 def store_user(user: User):
-    """Store user in memory"""
-    _users[user.id] = user
+    """Store user in session for persistence across requests"""
+    session['user'] = {
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        'picture': user.picture
+    }
 
 
 def is_email_allowed(email: str) -> bool:
@@ -95,7 +105,12 @@ def init_auth(app: Flask):
 def login_required(f):
     """
     Decorator that requires login for a route.
-    Uses Flask-Login's login_required internally.
+    Saves the requested URL for redirect after login.
     """
-    from flask_login import login_required as flask_login_required
-    return flask_login_required(f)
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            session['next'] = request.url
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
