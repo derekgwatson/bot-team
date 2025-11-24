@@ -144,7 +144,8 @@ class UnleashedClient:
         page = 1
 
         while True:
-            params = {'pageSize': self.page_size, 'page': page}
+            # Unleashed API uses 'pageNumber' not 'page'
+            params = {'pageSize': self.page_size, 'pageNumber': page}
             if extra_params:
                 params.update(extra_params)
 
