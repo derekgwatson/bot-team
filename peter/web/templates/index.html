@@ -4,6 +4,15 @@
 <div class="card">
     <h2>Staff Directory</h2>
 
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Start typing to filter by name, position, extension, email..." autocomplete="off">
+    </div>
+
+    <div id="noResults" style="display: none; text-align: center; padding: 40px; color: #7f8c8d;">
+        <h3>No matching staff found</h3>
+        <p>Try a different search term.</p>
+    </div>
+
     {% if error %}
     <div class="error">
         <strong>Error:</strong> {{ error }}
@@ -12,9 +21,9 @@
 
     {% if sections %}
         {% for section_name, staff_list in sections.items() %}
-        <div class="section-header">{{ section_name }}</div>
+        <div class="section-header" data-section="{{ section_name }}">{{ section_name }}</div>
 
-        <table>
+        <table data-section="{{ section_name }}">
             <thead>
                 <tr>
                     <th>Ext</th>
@@ -28,7 +37,7 @@
             </thead>
             <tbody>
                 {% for staff in staff_list %}
-                <tr>
+                <tr class="staff-row" data-searchable="{{ section_name|lower }} {{ staff.name|lower }} {{ staff.position|lower if staff.position else '' }} {{ staff.extension or '' }} {{ staff.phone_fixed or '' }} {{ staff.phone_mobile or '' }} {{ staff.work_email|lower if staff.work_email else '' }} {{ staff.personal_email|lower if staff.personal_email else '' }}">
                     <td>
                         {% if staff.extension %}
                         <span class="badge">{{ staff.extension }}</span>
@@ -105,4 +114,63 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+    // Live search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const staffRows = document.querySelectorAll('.staff-row');
+    const sectionHeaders = document.querySelectorAll('.section-header');
+    const tables = document.querySelectorAll('table[data-section]');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        if (query === '') {
+            // Show everything if search is empty
+            staffRows.forEach(row => row.style.display = '');
+            sectionHeaders.forEach(header => header.style.display = '');
+            tables.forEach(table => table.style.display = '');
+            noResults.style.display = 'none';
+            return;
+        }
+
+        // Track which sections have visible rows
+        const sectionsWithResults = new Set();
+
+        // Filter rows
+        staffRows.forEach(row => {
+            const searchable = row.getAttribute('data-searchable');
+            if (searchable.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+                // Find the section this row belongs to
+                const table = row.closest('table');
+                if (table) {
+                    sectionsWithResults.add(table.getAttribute('data-section'));
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Show/hide section headers and tables based on whether they have visible rows
+        sectionHeaders.forEach(header => {
+            const sectionName = header.getAttribute('data-section');
+            header.style.display = sectionsWithResults.has(sectionName) ? '' : 'none';
+        });
+
+        tables.forEach(table => {
+            const sectionName = table.getAttribute('data-section');
+            table.style.display = sectionsWithResults.has(sectionName) ? '' : 'none';
+        });
+
+        // Show/hide no results message
+        noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    });
+
+    // Focus search input on page load
+    searchInput.focus();
+</script>
 {% endblock %}
