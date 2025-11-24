@@ -148,13 +148,15 @@ class UnleashedClient:
         page = 1
 
         while True:
-            # Unleashed API uses 'pageNumber' not 'page'
-            params = {'pageSize': self.page_size, 'pageNumber': page}
+            # Unleashed API: page number goes in URL path, not query params
+            # e.g., /Products/2 for page 2
+            paged_endpoint = f"{endpoint}/{page}"
+            params = {'pageSize': self.page_size}
             if extra_params:
                 params.update(extra_params)
 
-            logger.info(f"Fetching {endpoint} page {page} with params: {params}")
-            response = self._make_request(endpoint, params)
+            logger.info(f"Fetching {paged_endpoint} with params: {params}")
+            response = self._make_request(paged_endpoint, params)
 
             items = response.get(items_key, [])
             if not items:
