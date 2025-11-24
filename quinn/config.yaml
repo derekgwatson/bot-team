@@ -10,7 +10,9 @@ server:
   port: 8006
 
 # Peter API configuration (Quinn's source of truth for staff info)
-peter_url: "http://peter:8003"
+# URL is now determined by environment:
+#   - Dev (FLASK_DEBUG=true): http://localhost:8003
+#   - Production: https://peter.watsonblinds.com.au
 
 # Sync configuration
 sync:

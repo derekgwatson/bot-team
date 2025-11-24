@@ -22,9 +22,6 @@ class Config:
         self.server_host = data['server']['host']
         self.server_port = data['server']['port']
 
-        # Store Peter URL default (will be made session-aware via property)
-        self._peter_url_default = data.get('peter_url', 'http://localhost:8003')
-
         # Sync config
         sync_config = data.get('sync', {})
         self.sync_interval_seconds = sync_config.get('interval_seconds', 300)
@@ -54,35 +51,24 @@ class Config:
             auth_section = data.get('auth') or {}
             self.admin_emails = auth_section.get('admin_emails', [])
 
-    def _get_bot_url(self, bot_name: str, default_url: str) -> str:
+    def _get_bot_url(self, bot_name: str) -> str:
         """
-        Get the URL for a bot, respecting dev mode configuration.
+        Get the URL for a bot based on environment.
 
-        In dev mode, checks Flask session for overrides:
-        - If session says use 'prod' for this bot, use prod URL
-        - Otherwise use default (localhost for dev)
+        In dev mode (FLASK_DEBUG=true), use localhost.
+        In production, use the production URL.
 
         Returns the URL for the bot API
         """
-        try:
-            from flask import session, has_request_context
-
-            # Check if we're in a request context and have dev config
-            if has_request_context():
-                dev_config = session.get('dev_bot_config', {})
-                if dev_config.get(bot_name) == 'prod':
-                    # Use production URL
-                    return f"https://{bot_name}.watsonblinds.com.au"
-        except:
-            # If Flask isn't available or there's no request context, use default
-            pass
-
-        # Default to environment variable or default (localhost for dev)
-        return default_url
+        # In dev mode, use localhost
+        if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+            return f'http://localhost:8003'
+        # In production, use the production URL
+        return f"https://{bot_name}.watsonblinds.com.au"
 
     @property
     def peter_url(self):
-        """Get Peter's API URL (session-aware)"""
-        return self._get_bot_url('peter', self._peter_url_default)
+        """Get Peter's API URL (environment-aware)"""
+        return self._get_bot_url('peter')
 
 config = Config()
