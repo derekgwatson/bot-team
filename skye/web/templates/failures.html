@@ -26,7 +26,7 @@
     <tbody>
         {% for exec in failures %}
         <tr>
-            <td><span title="{{ exec.executed_at[:19] }}">{{ exec.executed_at|relative_time }}</span></td>
+            <td><span class="local-time" data-utc="{{ exec.executed_at }}">{{ exec.executed_at|relative_time }}</span></td>
             <td>
                 <a href="{{ url_for('web.job_detail', job_id=exec.job_id) }}">{{ exec.job_name }}</a>
             </td>
