@@ -10,7 +10,6 @@ from flask import Flask, jsonify
 from config import config
 from api.routes import api_bp
 from web.simple_routes import simple_web_bp
-from services.sync_service import sync_service
 import os
 
 app = Flask(__name__)
@@ -18,9 +17,8 @@ app = Flask(__name__)
 # Configure Flask for sessions
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Start the sync service
-sync_service.interval_seconds = config.sync_interval_seconds
-sync_service.start()
+# Note: Sync scheduling is now handled by Skye's scheduler service
+# Quinn's /api/sync/now endpoint is called by Skye on a schedule
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
@@ -70,7 +68,7 @@ def info():
             }
         },
         'sync': {
-            'interval': f'{config.sync_interval_seconds} seconds',
+            'scheduler': 'Skye',
             'source': 'Peter staff database',
             'target': 'Google all-staff group'
         }
@@ -81,7 +79,7 @@ if __name__ == '__main__':
     print("👥 Hi! I'm Quinn")
     print("   All-Staff Group Sync Service")
     print(f"   Running on http://localhost:{config.server_port}")
-    print(f"   Syncing with Peter every {config.sync_interval_seconds}s")
+    print("   Sync scheduling handled by Skye")
     print("="*50 + "\n")
 
     app.run(
