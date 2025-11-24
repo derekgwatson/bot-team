@@ -46,6 +46,11 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+# Always update main first, regardless of whether there's a branch to merge
+info "Switching to $MAIN_BRANCH and updating from $REMOTE/$MAIN_BRANCH..."
+git checkout "$MAIN_BRANCH"
+git pull "$REMOTE" "$MAIN_BRANCH"
+
 info "Finding latest remote branch matching pattern: $BRANCH_PATTERN"
 LATEST_REMOTE_BRANCH=$(
   git for-each-ref \
@@ -57,6 +62,7 @@ LATEST_REMOTE_BRANCH=$(
 
 if [[ -z "${LATEST_REMOTE_BRANCH:-}" ]]; then
   warning "No remote branches found matching pattern '$BRANCH_PATTERN'. Nothing to merge."
+  success "$MAIN_BRANCH is up to date with $REMOTE/$MAIN_BRANCH."
   exit 0
 fi
 
@@ -75,9 +81,8 @@ else
   git checkout -b "$LOCAL_BRANCH" "$LATEST_REMOTE_BRANCH"
 fi
 
-info "Switching to $MAIN_BRANCH and updating from $REMOTE/$MAIN_BRANCH..."
+info "Switching back to $MAIN_BRANCH for merge..."
 git checkout "$MAIN_BRANCH"
-git pull "$REMOTE" "$MAIN_BRANCH"
 
 info "Merging '$LOCAL_BRANCH' into '$MAIN_BRANCH'..."
 if ! git merge --no-ff "$LOCAL_BRANCH" -m "Merge $LOCAL_BRANCH (latest matching branch) into $MAIN_BRANCH"; then
