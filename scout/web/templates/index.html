@@ -11,7 +11,7 @@
 </div>
 
 <!-- Stats Row -->
-<div class="grid grid-4" style="margin-bottom: 1.5rem;">
+<div class="grid grid-3" style="margin-bottom: 1.5rem;">
     <div class="card">
         <div class="stat">
             <div class="stat-value">{{ issue_stats.open }}</div>
@@ -30,90 +30,53 @@
             <div class="stat-label">Tickets Created</div>
         </div>
     </div>
-    <div class="card">
-        <div class="stat">
-            <div class="stat-value">{{ scheduler_status.interval_minutes }}</div>
-            <div class="stat-label">Check Interval (min)</div>
-        </div>
+</div>
+
+<!-- Last Check Run -->
+<div class="card" style="margin-bottom: 1rem;">
+    <div class="card-header">
+        <h3 class="card-title">Last Check Run</h3>
+        {% if last_run %}
+        <span class="status status-{{ last_run.status }}">
+            <span class="status-dot"></span>
+            {{ last_run.status | capitalize }}
+        </span>
+        {% endif %}
     </div>
+    {% if last_run %}
+    <table>
+        <tr>
+            <td>Started</td>
+            <td>{{ time_ago(last_run.started_at) }}</td>
+        </tr>
+        <tr>
+            <td>Finished</td>
+            <td>{{ format_datetime(last_run.finished_at) }}</td>
+        </tr>
+        <tr>
+            <td>Issues Found</td>
+            <td>{{ last_run.issues_found }}</td>
+        </tr>
+        <tr>
+            <td>Tickets Created</td>
+            <td>{{ last_run.tickets_created }}</td>
+        </tr>
+        {% if last_run.error_message %}
+        <tr>
+            <td>Error</td>
+            <td style="color: var(--danger);">{{ last_run.error_message }}</td>
+        </tr>
+        {% endif %}
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>No checks have been run yet</p>
+    </div>
+    {% endif %}
 </div>
 
 <div class="grid grid-2">
-    <!-- Last Check Run -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Last Check Run</h3>
-            {% if last_run %}
-            <span class="status status-{{ last_run.status }}">
-                <span class="status-dot"></span>
-                {{ last_run.status | capitalize }}
-            </span>
-            {% endif %}
-        </div>
-        {% if last_run %}
-        <table>
-            <tr>
-                <td>Started</td>
-                <td>{{ time_ago(last_run.started_at) }}</td>
-            </tr>
-            <tr>
-                <td>Finished</td>
-                <td>{{ format_datetime(last_run.finished_at) }}</td>
-            </tr>
-            <tr>
-                <td>Issues Found</td>
-                <td>{{ last_run.issues_found }}</td>
-            </tr>
-            <tr>
-                <td>Tickets Created</td>
-                <td>{{ last_run.tickets_created }}</td>
-            </tr>
-            {% if last_run.error_message %}
-            <tr>
-                <td>Error</td>
-                <td style="color: var(--danger);">{{ last_run.error_message }}</td>
-            </tr>
-            {% endif %}
-        </table>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <p>No checks have been run yet</p>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Scheduler Status -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Scheduler Status</h3>
-            <span class="status {% if scheduler_status.running %}status-success{% else %}status-warning{% endif %}">
-                <span class="status-dot"></span>
-                {{ 'Running' if scheduler_status.running else 'Stopped' }}
-            </span>
-        </div>
-        <table>
-            <tr>
-                <td>Enabled</td>
-                <td>{{ 'Yes' if scheduler_status.enabled else 'No' }}</td>
-            </tr>
-            <tr>
-                <td>Check Interval</td>
-                <td>{{ scheduler_status.interval_minutes }} minutes</td>
-            </tr>
-            <tr>
-                <td>Run on Startup</td>
-                <td>{{ 'Yes' if scheduler_status.run_on_startup else 'No' }}</td>
-            </tr>
-            <tr>
-                <td>Last Run</td>
-                <td>{{ time_ago(scheduler_status.last_run_time) }}</td>
-            </tr>
-        </table>
-    </div>
-</div>
-
-<div class="grid grid-2" style="margin-top: 1rem;">
     <!-- Bot Connectivity -->
     <div class="card">
         <div class="card-header">

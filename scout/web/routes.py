@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 from database.db import db
 from services.checker import checker
-from services.scheduler import scheduler
 from services.auth import login_required
 
 logger = logging.getLogger(__name__)
@@ -24,9 +23,6 @@ def index():
     """Dashboard showing monitoring status"""
     # Get last check run
     last_run = db.get_last_check_run()
-
-    # Get scheduler status
-    scheduler_status = scheduler.get_status()
 
     # Get issue stats
     issue_stats = db.get_issue_stats()
@@ -48,7 +44,6 @@ def index():
     return render_template(
         'index.html',
         last_run=last_run,
-        scheduler_status=scheduler_status,
         issue_stats=issue_stats,
         open_issues=open_issues,
         bot_status=bot_status

@@ -14,11 +14,9 @@ from web.routes import web_bp
 from web.auth_routes import auth_bp
 from services.auth import init_auth
 from services.checker import checker
-from services.scheduler import scheduler
 from database.db import db
 import os
 import logging
-import atexit
 
 # Configure logging
 logging.basicConfig(
@@ -59,12 +57,9 @@ def health():
     Health check endpoint.
 
     Returns 200 if the app is running.
-    Includes scheduler and bot connectivity status for monitoring.
+    Includes bot connectivity status for monitoring.
     """
     try:
-        # Get scheduler status
-        scheduler_status = scheduler.get_status()
-
         # Get issue stats
         issue_stats = db.get_issue_stats()
 
@@ -90,11 +85,6 @@ def health():
             'status': status,
             'bot': config.name,
             'version': config.version,
-            'scheduler': {
-                'enabled': scheduler_status['enabled'],
-                'running': scheduler_status['running'],
-                'interval_minutes': scheduler_status['interval_minutes']
-            },
             'issues': {
                 'open': issue_stats.get('open', 0),
                 'total': issue_stats.get('total', 0)
@@ -129,8 +119,8 @@ def info():
         'endpoints': {
             'api': {
                 'GET /api/intro': 'Bot introduction and capabilities',
-                'POST /api/checks/run': 'Trigger a manual check run',
-                'GET /api/checks/status': 'Get scheduler and last run status',
+                'POST /api/checks/run': 'Trigger a check run (called by Skye)',
+                'GET /api/checks/status': 'Get last run status',
                 'GET /api/checks/history': 'Get check run history',
                 'GET /api/issues': 'Get tracked issues',
                 'GET /api/issues/stats': 'Get issue statistics',
@@ -138,7 +128,7 @@ def info():
                 'GET /api/bots/status': 'Get status of dependent bots'
             },
             'system': {
-                '/health': 'Health check with scheduler and bot status',
+                '/health': 'Health check with bot status',
                 '/info': 'Bot information'
             }
         },
@@ -159,34 +149,13 @@ def not_found(error):
     return jsonify({'error': 'Not found'}), 404
 
 
-def start_scheduler():
-    """Start the background scheduler"""
-    if config.scheduler_enabled:
-        scheduler.start(checker.run_all_checks)
-        logger.info("Scheduler started")
-    else:
-        logger.info("Scheduler disabled in configuration")
-
-
-def stop_scheduler():
-    """Stop the background scheduler"""
-    scheduler.stop()
-    logger.info("Scheduler stopped")
-
-
-# Register cleanup
-atexit.register(stop_scheduler)
-
-
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("🔭 Hi! I'm Scout")
     print("   System Monitoring Bot")
     print(f"   Running on http://localhost:{config.server_port}")
+    print("   Scheduling managed by Skye")
     print("="*50 + "\n")
-
-    # Start scheduler
-    start_scheduler()
 
     app.run(
         host=config.server_host,

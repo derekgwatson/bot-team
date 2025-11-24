@@ -9,7 +9,6 @@ import logging
 
 from database.db import db
 from services.checker import checker
-from services.scheduler import scheduler
 from shared.auth.bot_api import api_key_required
 
 logger = logging.getLogger(__name__)
@@ -30,8 +29,8 @@ def intro():
         'role': 'System Monitoring Bot',
         'description': (
             'I monitor systems for discrepancies and raise tickets via Sadie. '
-            'I periodically check Mavis and Fiona for fabric data issues, '
-            'track what I\'ve already reported, and avoid creating duplicate tickets.'
+            'Skye calls me periodically to check Mavis and Fiona for fabric data issues. '
+            'I track what I\'ve already reported and avoid creating duplicate tickets.'
         ),
         'capabilities': [
             'Detect fabrics in Mavis without Fiona descriptions',
@@ -39,12 +38,11 @@ def intro():
             'Detect incomplete fabric descriptions',
             'Monitor Mavis sync health',
             'Create Zendesk tickets via Sadie for issues',
-            'Track reported issues to avoid duplicates',
-            'Run checks on a configurable schedule'
+            'Track reported issues to avoid duplicates'
         ],
         'endpoints': {
-            'POST /api/checks/run': 'Trigger a manual check run',
-            'GET /api/checks/status': 'Get scheduler and last run status',
+            'POST /api/checks/run': 'Trigger a check run (called by Skye)',
+            'GET /api/checks/status': 'Get last run status',
             'GET /api/checks/history': 'Get check run history',
             'GET /api/issues': 'Get tracked issues',
             'GET /api/issues/stats': 'Get issue statistics',
@@ -81,13 +79,11 @@ def run_checks():
 @api_bp.route('/checks/status', methods=['GET'])
 @api_key_required
 def get_check_status():
-    """Get scheduler status and last check run info"""
+    """Get last check run info"""
     try:
         last_run = db.get_last_check_run()
-        scheduler_status = scheduler.get_status()
 
         return jsonify({
-            'scheduler': scheduler_status,
             'last_run': last_run
         })
     except Exception as e:

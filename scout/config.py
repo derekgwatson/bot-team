@@ -33,15 +33,6 @@ class Config:
         db_config = data.get("database", {}) or {}
         self.database_path = db_config.get("path", "database/scout.db")
 
-        # ── Scheduler config ────────────────────────────────────
-        scheduler_config = data.get("scheduler", {}) or {}
-        self.check_interval_minutes = int(
-            os.environ.get("SCOUT_CHECK_INTERVAL_MINUTES")
-            or scheduler_config.get("check_interval_minutes", 60)
-        )
-        self.run_on_startup = scheduler_config.get("run_on_startup", True)
-        self.scheduler_enabled = scheduler_config.get("enabled", True)
-
         # ── Bot URLs ────────────────────────────────────────────
         bots_config = data.get("bots", {}) or {}
 
