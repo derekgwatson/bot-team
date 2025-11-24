@@ -177,6 +177,7 @@ class SyncService:
 
                     # Update progress periodically so UI can show live updates
                     if records_processed % progress_interval == 0:
+                        logger.info(f"Sync progress: {records_processed} processed, {records_created} created, {records_updated} updated")
                         db.update_sync_progress(
                             sync_id,
                             records_processed=records_processed,
