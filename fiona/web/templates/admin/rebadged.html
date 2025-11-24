@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rebadged Fabrics - Fiona Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #2c3e50; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header h1 a { color: white; text-decoration: none; }
+        .header h1 span { font-weight: 300; opacity: 0.9; }
+        .user-info a { color: white; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; margin-left: 10px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .breadcrumb { margin-bottom: 20px; }
+        .breadcrumb a { color: #9b59b6; text-decoration: none; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 20px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; margin-right: 10px; }
+        .btn-primary { background: #9b59b6; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .alert { padding: 16px 20px; border-radius: 6px; margin-bottom: 20px; }
+        .alert-info { background: #e8daef; color: #6c3483; border: 1px solid #d7bde2; }
+        .stat-box { background: #e8daef; padding: 20px; border-radius: 6px; text-align: center; display: inline-block; margin-bottom: 20px; }
+        .stat-box .number { font-size: 48px; font-weight: 700; color: #9b59b6; }
+        .stat-box .label { font-size: 14px; color: #6c3483; }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: #f8f9fa; }
+        .product-code { font-family: monospace; font-weight: 600; }
+        .product-code a { color: #9b59b6; text-decoration: none; }
+        .product-code a:hover { text-decoration: underline; }
+        .change-badge { display: inline-block; padding: 3px 8px; background: #e8daef; color: #6c3483; border-radius: 4px; font-size: 11px; font-weight: 500; margin: 2px; }
+        .supplier-name { color: #999; text-decoration: line-through; }
+        .watson-name { color: #9b59b6; font-weight: 600; }
+        .arrow { color: #999; margin: 0 8px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state h3 { color: #9b59b6; margin-bottom: 10px; }
+        .filter-bar { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .filter-bar select { padding: 10px 15px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1><a href="{{ url_for('web.admin_index') }}">Fiona Admin</a> <span>- Rebadged Fabrics</span></h1>
+        <div class="user-info">
+            <a href="{{ url_for('web.index') }}">Public View</a>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb"><a href="{{ url_for('web.admin_index') }}">Admin</a> / Rebadged Fabrics</div>
+
+        <div class="alert alert-info">
+            <strong>Rebadged fabrics</strong> have a Watson name that differs from the supplier name.
+            These are fabrics where we've customised the material or colour name for Watson branding.
+        </div>
+
+        {% if fabrics %}
+        <div class="stat-box">
+            <div class="number">{{ total }}</div>
+            <div class="label">Rebadged Fabric(s)</div>
+        </div>
+
+        <div class="filter-bar">
+            <label>Filter by change type:</label>
+            <select id="filterField" onchange="filterTable()">
+                <option value="">All rebadged</option>
+                <option value="material">Material changed</option>
+                <option value="colour">Colour changed</option>
+            </select>
+        </div>
+
+        <div class="table-container">
+            <table id="fabricTable">
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Material</th>
+                        <th>Colour</th>
+                        <th>Changes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fabric in fabrics %}
+                    <tr data-changes="{{ fabric.rebadged_changes | map(attribute='field') | join(',') }}">
+                        <td class="product-code">
+                            <a href="{{ url_for('web.edit_fabric', code=fabric.product_code) }}">{{ fabric.product_code }}</a>
+                        </td>
+                        <td>
+                            {% set material_change = fabric.rebadged_changes | selectattr('field', 'eq', 'material') | first %}
+                            {% if material_change %}
+                                <span class="supplier-name">{{ material_change.supplier }}</span>
+                                <span class="arrow">&rarr;</span>
+                                <span class="watson-name">{{ material_change.watson }}</span>
+                            {% else %}
+                                {{ fabric.supplier_material or '-' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set colour_change = fabric.rebadged_changes | selectattr('field', 'eq', 'colour') | first %}
+                            {% if colour_change %}
+                                <span class="supplier-name">{{ colour_change.supplier }}</span>
+                                <span class="arrow">&rarr;</span>
+                                <span class="watson-name">{{ colour_change.watson }}</span>
+                            {% else %}
+                                {{ fabric.supplier_colour or '-' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for change in fabric.rebadged_changes %}
+                            <span class="change-badge">{{ change.field }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty-state">
+                <h3>No Rebadged Fabrics</h3>
+                <p>No fabrics have Watson names that differ from their supplier names.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 20px;">
+            <a href="{{ url_for('web.admin_index') }}" class="btn btn-secondary">Back to Admin</a>
+        </div>
+    </div>
+
+    <script>
+        function filterTable() {
+            const filter = document.getElementById('filterField').value;
+            const rows = document.querySelectorAll('#fabricTable tbody tr');
+
+            rows.forEach(row => {
+                const changes = row.dataset.changes || '';
+                if (!filter || changes.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

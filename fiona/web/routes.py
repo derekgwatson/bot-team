@@ -312,3 +312,18 @@ def incomplete_page():
         total=len(incomplete_fabrics),
         current_user=current_user
     )
+
+
+@web_bp.route('/admin/rebadged')
+@admin_required
+def rebadged_page():
+    """View fabrics with Watson names different from supplier names (admin only)"""
+    rebadged_fabrics = fabric_sync_service.get_rebadged_fabrics()
+
+    return render_template(
+        'admin/rebadged.html',
+        config=config,
+        fabrics=rebadged_fabrics,
+        total=len(rebadged_fabrics),
+        current_user=current_user
+    )
