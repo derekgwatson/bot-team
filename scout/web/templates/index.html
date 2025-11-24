@@ -77,21 +77,15 @@
 </div>
 
 <div class="grid grid-2">
-    <!-- Bot Connectivity -->
+    <!-- Bot Connectivity (loaded async) -->
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Bot Connectivity</h3>
         </div>
-        <div class="bot-status-list">
-            {% for bot_name, status in bot_status.items() %}
+        <div id="bot-status-container" class="bot-status-list">
             <div class="bot-status-item">
-                <span class="bot-name">{{ bot_name | capitalize }}</span>
-                <span class="status {% if status.connected %}status-success{% else %}status-danger{% endif %}">
-                    <span class="status-dot"></span>
-                    {{ 'Connected' if status.connected else 'Disconnected' }}
-                </span>
+                <span style="color: var(--gray-500);">Loading...</span>
             </div>
-            {% endfor %}
         </div>
     </div>
 
@@ -159,4 +153,39 @@
     </table>
 </div>
 {% endif %}
+
+<script>
+// Load bot connectivity status asynchronously
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('{{ url_for("web.get_bot_status_ajax") }}')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('bot-status-container');
+            if (data.status === 'ok' && data.bots) {
+                let html = '';
+                for (const [botName, status] of Object.entries(data.bots)) {
+                    const connected = status.connected;
+                    const statusClass = connected ? 'status-success' : 'status-danger';
+                    const statusText = connected ? 'Connected' : 'Disconnected';
+                    html += `
+                        <div class="bot-status-item">
+                            <span class="bot-name">${botName.charAt(0).toUpperCase() + botName.slice(1)}</span>
+                            <span class="status ${statusClass}">
+                                <span class="status-dot"></span>
+                                ${statusText}
+                            </span>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="bot-status-item"><span style="color: var(--danger);">Error loading status</span></div>';
+            }
+        })
+        .catch(error => {
+            const container = document.getElementById('bot-status-container');
+            container.innerHTML = '<div class="bot-status-item"><span style="color: var(--danger);">Error loading status</span></div>';
+        });
+});
+</script>
 {% endblock %}

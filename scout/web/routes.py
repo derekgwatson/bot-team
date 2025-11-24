@@ -30,24 +30,25 @@ def index():
     # Get open issues
     open_issues = db.get_open_issues()
 
-    # Get bot status
-    try:
-        bot_status = checker.get_bot_status()
-    except Exception as e:
-        logger.error(f"Error getting bot status: {e}")
-        bot_status = {
-            'mavis': {'connected': False, 'error': str(e)},
-            'fiona': {'connected': False, 'error': str(e)},
-            'sadie': {'connected': False, 'error': str(e)}
-        }
-
+    # Bot status is loaded async via AJAX to speed up page load
     return render_template(
         'index.html',
         last_run=last_run,
         issue_stats=issue_stats,
-        open_issues=open_issues,
-        bot_status=bot_status
+        open_issues=open_issues
     )
+
+
+@web_bp.route('/api/bot-status')
+@login_required
+def get_bot_status_ajax():
+    """Get bot connectivity status (for AJAX loading)"""
+    try:
+        bot_status = checker.get_bot_status()
+        return {'status': 'ok', 'bots': bot_status}
+    except Exception as e:
+        logger.error(f"Error getting bot status: {e}")
+        return {'status': 'error', 'error': str(e)}
 
 
 @web_bp.route('/issues')
