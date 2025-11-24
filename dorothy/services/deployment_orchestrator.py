@@ -561,6 +561,7 @@ class DeploymentOrchestrator:
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
+        timeout = bot_config.get('timeout', 120)
         description = bot_config.get('description', bot_name)
         ssl_email = bot_config.get('ssl_email') or config.default_ssl_email
         skip_nginx = bot_config.get('skip_nginx', False)
@@ -647,6 +648,7 @@ class DeploymentOrchestrator:
                 bot_path=path,
                 repo_path=repo_path,
                 workers=workers,
+                timeout=timeout,
                 bind_config=bind_config
             )
 
@@ -707,6 +709,7 @@ class DeploymentOrchestrator:
         service_name = bot_config.get('service', f"gunicorn-bot-team-{bot_name}")
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
+        timeout = bot_config.get('timeout', 120)
         description = bot_config.get('description', bot_name)
         ssl_email = bot_config.get('ssl_email') or config.default_ssl_email
         skip_nginx = bot_config.get('skip_nginx', False)
@@ -980,6 +983,7 @@ class DeploymentOrchestrator:
                 bot_path=path,
                 repo_path=repo_path,
                 workers=workers,
+                timeout=timeout,
                 bind_config=bind_config
             )
 
