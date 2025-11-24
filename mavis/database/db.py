@@ -178,8 +178,8 @@ class Database:
 
     def batch_upsert_products(self, products: List[Dict[str, Any]], progress_callback=None) -> Dict[str, int]:
         """
-        Batch insert/update products in a single transaction.
-        Much faster than individual upserts for large datasets.
+        Batch insert/update products with commits every 500 records.
+        Commits frequently to avoid database locking issues.
 
         Args:
             products: List of product data dicts
@@ -193,63 +193,69 @@ class Database:
 
         now = utc_now_iso()
 
-        with self.connection() as conn:
+        # Get existing product codes first (separate transaction)
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT product_code FROM unleashed_products")
+        existing_codes = set(row[0] for row in cursor.fetchall())
+        conn.close()
+
+        created = 0
+        updated = 0
+
+        # Process in batches of 500, committing each batch
+        batch_size = 500
+        for i in range(0, len(products), batch_size):
+            batch = products[i:i + batch_size]
+
+            conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Get existing product codes in one query
-            cursor.execute("SELECT product_code FROM unleashed_products")
-            existing_codes = set(row[0] for row in cursor.fetchall())
+            for product_data in batch:
+                code = self.normalize_product_code(product_data.get('product_code', ''))
+                if not code:
+                    continue
 
-            created = 0
-            updated = 0
+                is_new = code not in existing_codes
 
-            # Process in batches of 500 for memory efficiency
-            batch_size = 500
-            for i in range(0, len(products), batch_size):
-                batch = products[i:i + batch_size]
+                cursor.execute("""
+                    INSERT OR REPLACE INTO unleashed_products (
+                        product_code, product_description, product_group, product_sub_group,
+                        default_sell_price, sell_price_tier_9,
+                        unit_of_measure, width, is_sellable, is_obsolete,
+                        raw_payload, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    code,
+                    product_data.get('product_description'),
+                    product_data.get('product_group'),
+                    product_data.get('product_sub_group'),
+                    product_data.get('default_sell_price'),
+                    product_data.get('sell_price_tier_9'),
+                    product_data.get('unit_of_measure'),
+                    product_data.get('width'),
+                    1 if product_data.get('is_sellable', True) else 0,
+                    1 if product_data.get('is_obsolete', False) else 0,
+                    product_data.get('raw_payload'),
+                    now,
+                    now
+                ))
 
-                for product_data in batch:
-                    code = self.normalize_product_code(product_data.get('product_code', ''))
-                    if not code:
-                        continue
+                if is_new:
+                    created += 1
+                    existing_codes.add(code)
+                else:
+                    updated += 1
 
-                    is_new = code not in existing_codes
+            # Commit this batch and close connection
+            conn.commit()
+            conn.close()
 
-                    # Use INSERT OR REPLACE for efficiency
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO unleashed_products (
-                            product_code, product_description, product_group, product_sub_group,
-                            default_sell_price, sell_price_tier_9,
-                            unit_of_measure, width, is_sellable, is_obsolete,
-                            raw_payload, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        code,
-                        product_data.get('product_description'),
-                        product_data.get('product_group'),
-                        product_data.get('product_sub_group'),
-                        product_data.get('default_sell_price'),
-                        product_data.get('sell_price_tier_9'),
-                        product_data.get('unit_of_measure'),
-                        product_data.get('width'),
-                        1 if product_data.get('is_sellable', True) else 0,
-                        1 if product_data.get('is_obsolete', False) else 0,
-                        product_data.get('raw_payload'),
-                        now if is_new else now,  # created_at (will be replaced if exists)
-                        now
-                    ))
+            # Call progress callback after each batch (outside transaction)
+            if progress_callback:
+                progress_callback(created + updated, created, updated)
 
-                    if is_new:
-                        created += 1
-                        existing_codes.add(code)  # Track so duplicates in same batch are counted as updates
-                    else:
-                        updated += 1
-
-                # Call progress callback after each batch
-                if progress_callback:
-                    progress_callback(created + updated, created, updated)
-
-            return {'created': created, 'updated': updated}
+        return {'created': created, 'updated': updated}
 
     def get_product_by_code(self, code: str) -> Optional[Dict]:
         """Get a product by its code"""
