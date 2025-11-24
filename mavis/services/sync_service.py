@@ -185,38 +185,33 @@ class SyncService:
 
             logger.info(f"Starting sync of {len(products)} products")
 
-            # Transform all products first (fast, in-memory)
-            logger.info("Transforming product data...")
-            transformed_products = []
-            transform_errors = 0
+            # Process each product
+            progress_interval = 100
             for product in products:
                 try:
                     product_data = self._extract_product_data(product)
-                    transformed_products.append(product_data)
+                    product_id, was_created = db.upsert_product(product_data)
+
+                    records_processed += 1
+                    if was_created:
+                        records_created += 1
+                    else:
+                        records_updated += 1
+
+                    # Update progress periodically
+                    if records_processed % progress_interval == 0:
+                        logger.info(f"Sync progress: {records_processed} processed, {records_created} created, {records_updated} updated")
+                        db.update_sync_progress(
+                            sync_id,
+                            records_processed=records_processed,
+                            records_created=records_created,
+                            records_updated=records_updated
+                        )
+
                 except Exception as e:
-                    transform_errors += 1
                     logger.error(
-                        f"Error transforming product {product.get('ProductCode', 'unknown')}: {e}"
+                        f"Error processing product {product.get('ProductCode', 'unknown')}: {e}"
                     )
-
-            if transform_errors:
-                logger.warning(f"Skipped {transform_errors} products due to transformation errors")
-
-            # Batch upsert with progress callback
-            def on_db_progress(processed, created, updated):
-                logger.info(f"Sync progress: {processed} processed, {created} created, {updated} updated")
-                db.update_sync_progress(
-                    sync_id,
-                    records_processed=processed,
-                    records_created=created,
-                    records_updated=updated
-                )
-
-            logger.info(f"Batch upserting {len(transformed_products)} products...")
-            result = db.batch_upsert_products(transformed_products, progress_callback=on_db_progress)
-            records_processed = result['created'] + result['updated']
-            records_created = result['created']
-            records_updated = result['updated']
 
             # Mark sync as successful
             finished_at = utc_now_iso()
