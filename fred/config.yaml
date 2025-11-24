@@ -11,7 +11,7 @@ server:
 
 # Google Workspace configuration
 google_workspace:
-  # Path to service account credentials JSON file
-  credentials_file: "credentials.json"
+  # Path to service account credentials JSON file (shared in root directory)
+  credentials_file: "../credentials.json"
   # Domain and admin email are stored in .env file (not in git!)
   # See .env.example for required environment variables

@@ -15,8 +15,8 @@ shared_config: "../shared/config/organization.yaml"
 
 # Google Sheets configuration
 google_sheets:
-  # Path to service account credentials JSON file
-  credentials_file: "credentials.json"
+  # Path to service account credentials JSON file (shared in root directory)
+  credentials_file: "../credentials.json"
   # Spreadsheet ID (from URL)
   spreadsheet_id: "1ESrvIP52ThLQkOxpWcLWrPMeHcaerYQf6lHkUIC7DcA"
   # Sheet/tab name
