@@ -241,6 +241,7 @@ def create_staff():
             phone_mobile=data.get('phone_mobile', ''),
             work_email=data.get('work_email', ''),
             personal_email=data.get('personal_email', ''),
+            google_primary_email=data.get('google_primary_email', ''),
             zendesk_access=data.get('zendesk_access', False),
             buz_access=data.get('buz_access', False),
             google_access=data.get('google_access', False),
@@ -481,6 +482,10 @@ def is_approved():
     Check if an email is approved for access
     (For other bots like Pam to check external staff access)
 
+    Checks all email fields: google_primary_email, work_email, and personal_email.
+    This handles the case where a user logs in with their Google primary email
+    but their work_email in Peter is set to an alias.
+
     Returns:
         approved: boolean
         name: staff name (if approved)
@@ -492,20 +497,13 @@ def is_approved():
         return jsonify({'error': 'email parameter is required'}), 400
 
     try:
-        # Search for staff by email (work or personal)
-        conn = staff_db.get_connection()
-        cursor = conn.execute(
-            '''SELECT name, work_email, personal_email FROM staff
-               WHERE (work_email = ? OR personal_email = ?) AND status = 'active' ''',
-            (email, email)
-        )
-        row = cursor.fetchone()
-        conn.close()
+        # Search for staff by any email (google_primary_email, work, or personal)
+        staff = staff_db.get_staff_by_email(email)
 
-        if row:
+        if staff:
             return jsonify({
                 'approved': True,
-                'name': row['name'],
+                'name': staff['name'],
                 'email': email
             })
         else:

@@ -80,6 +80,7 @@ def mock_google_workspace_service():
         'users': [
             {
                 'primaryEmail': 'test@example.com',
+                'aliases': ['test.alias@example.com', 'testalias@example.com'],
                 'name': {'fullName': 'Test User'},
                 'suspended': False,
                 'archived': False
@@ -90,6 +91,7 @@ def mock_google_workspace_service():
     # Mock users().get() response
     mock_service.users().get().execute.return_value = {
         'primaryEmail': 'test@example.com',
+        'aliases': ['test.alias@example.com', 'testalias@example.com'],
         'name': {'fullName': 'Test User'},
         'suspended': False,
         'archived': False

@@ -128,10 +128,11 @@ class StaffDatabase:
                    extension LIKE ? OR
                    phone_fixed LIKE ? OR
                    phone_mobile LIKE ? OR
-                   work_email LIKE ?)
+                   work_email LIKE ? OR
+                   google_primary_email LIKE ?)
             AND status = ?
             ORDER BY name
-        ''', (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, 'active'))
+        ''', (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, 'active'))
 
         staff = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -155,8 +156,35 @@ class StaffDatabase:
 
         return dict(row) if row else None
 
+    def get_staff_by_email(self, email):
+        """
+        Get a staff member by any of their email addresses.
+
+        Checks google_primary_email, work_email, and personal_email.
+        This is particularly useful for OAuth matching, as Google returns
+        the primary account email which may differ from work_email if
+        the user uses an alias day-to-day.
+
+        Args:
+            email: Email address to search for
+
+        Returns:
+            Staff dictionary or None
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            SELECT * FROM staff
+            WHERE (google_primary_email = ? OR work_email = ? OR personal_email = ?)
+            AND status = 'active'
+        ''', (email, email, email))
+        row = cursor.fetchone()
+        conn.close()
+
+        return dict(row) if row else None
+
     def add_staff(self, name, position='', section='', extension='', phone_fixed='',
                   phone_mobile='', work_email='', personal_email='',
+                  google_primary_email='',
                   zendesk_access=False, buz_access=False, google_access=False,
                   wiki_access=False, voip_access=False,
                   show_on_phone_list=True, include_in_allstaff=True,
@@ -181,14 +209,14 @@ class StaffDatabase:
         cursor = conn.execute('''
             INSERT INTO staff (
                 name, position, section, extension, phone_fixed, phone_mobile,
-                work_email, personal_email,
+                work_email, personal_email, google_primary_email,
                 zendesk_access, buz_access, google_access, wiki_access, voip_access,
                 show_on_phone_list, include_in_allstaff, status,
                 created_by, modified_by, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             name, position, section, extension, phone_fixed, phone_mobile,
-            work_email, personal_email,
+            work_email, personal_email, google_primary_email,
             1 if zendesk_access else 0,
             1 if buz_access else 0,
             1 if google_access else 0,
@@ -238,7 +266,7 @@ class StaffDatabase:
         # Build update query dynamically
         valid_fields = [
             'name', 'position', 'section', 'extension', 'phone_fixed', 'phone_mobile',
-            'work_email', 'personal_email',
+            'work_email', 'personal_email', 'google_primary_email',
             'zendesk_access', 'buz_access', 'google_access', 'wiki_access', 'voip_access',
             'show_on_phone_list', 'include_in_allstaff', 'status', 'notes', 'finish_date'
         ]
