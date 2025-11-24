@@ -253,7 +253,7 @@
                 </span>
                 <span style="color: #666; font-size: 14px;">
                     {% if sync_status.last_successful_sync_at %}
-                        Last successful sync: {{ sync_status.last_successful_sync_at }}
+                        Last successful sync: <span class="relative-time" data-timestamp="{{ sync_status.last_successful_sync_at }}">{{ sync_status.last_successful_sync_at }}</span>
                     {% else %}
                         No successful sync yet
                     {% endif %}
@@ -269,11 +269,19 @@
             <div class="sync-info">
                 <div class="sync-info-item">
                     <strong>Last Run Started:</strong><br>
-                    {{ sync_status.last_run_started_at or 'Never' }}
+                    {% if sync_status.last_run_started_at %}
+                        <span class="relative-time" data-timestamp="{{ sync_status.last_run_started_at }}">{{ sync_status.last_run_started_at }}</span>
+                    {% else %}
+                        Never
+                    {% endif %}
                 </div>
                 <div class="sync-info-item">
                     <strong>Last Run Finished:</strong><br>
-                    {{ sync_status.last_run_finished_at or 'Never' }}
+                    {% if sync_status.last_run_finished_at %}
+                        <span class="relative-time" data-timestamp="{{ sync_status.last_run_finished_at }}">{{ sync_status.last_run_finished_at }}</span>
+                    {% else %}
+                        Never
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -305,7 +313,13 @@
                 <tbody>
                     {% for sync in sync_history %}
                     <tr>
-                        <td>{{ sync.started_at or '-' }}</td>
+                        <td>
+                            {% if sync.started_at %}
+                                <span class="relative-time" data-timestamp="{{ sync.started_at }}">{{ sync.started_at }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="status-badge status-{{ sync.status }}">
                                 {{ sync.status }}
@@ -356,5 +370,38 @@
             </ul>
         </div>
     </div>
+
+    <script>
+        function timeAgo(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) {
+                const mins = Math.floor(seconds / 60);
+                return mins + 'm ago';
+            }
+            if (seconds < 86400) {
+                const hours = Math.floor(seconds / 3600);
+                return hours + 'h ago';
+            }
+            if (seconds < 604800) {
+                const days = Math.floor(seconds / 86400);
+                return days + 'd ago';
+            }
+            // Older than a week - show local date/time
+            return date.toLocaleString();
+        }
+
+        // Convert all relative-time spans
+        document.querySelectorAll('.relative-time').forEach(function(el) {
+            const timestamp = el.dataset.timestamp;
+            if (timestamp) {
+                el.textContent = timeAgo(timestamp);
+                el.title = new Date(timestamp).toLocaleString();
+            }
+        });
+    </script>
 </body>
 </html>
