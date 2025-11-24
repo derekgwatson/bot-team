@@ -197,7 +197,7 @@ async function loadNetworkData() {
     try {
         const response = await fetch('/api/bots/network', {
             headers: {
-                'X-API-Key': '{{ config.api_key }}'
+                'X-API-Key': '{{ config.bot_api_key }}'
             }
         });
         const data = await response.json();
