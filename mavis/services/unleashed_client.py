@@ -153,12 +153,18 @@ class UnleashedClient:
             if extra_params:
                 params.update(extra_params)
 
-            logger.debug(f"Fetching {endpoint} page {page}")
+            logger.info(f"Fetching {endpoint} page {page} with params: {params}")
             response = self._make_request(endpoint, params)
 
             items = response.get(items_key, [])
             if not items:
                 break
+
+            # Log first product code to verify we're getting different pages
+            if items and page <= 3:
+                first_code = items[0].get('ProductCode', 'N/A')
+                last_code = items[-1].get('ProductCode', 'N/A')
+                logger.info(f"Page {page} first product: {first_code}, last product: {last_code}")
 
             all_items.extend(items)
             logger.info(f"Fetched {len(items)} items from {endpoint} page {page} "
@@ -175,6 +181,7 @@ class UnleashedClient:
 
             # Check if we've reached the last page
             pagination = response.get('Pagination', {})
+            logger.info(f"Pagination response: {pagination}")
             total_pages = pagination.get('NumberOfPages', 1)
             if page >= total_pages:
                 break
