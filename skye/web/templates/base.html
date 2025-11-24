@@ -366,6 +366,26 @@
         </footer>
     </div>
 
+    <script>
+        // Convert UTC timestamps to local time for tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.local-time[data-utc]').forEach(function(el) {
+                var utc = el.getAttribute('data-utc');
+                if (utc && utc !== 'None') {
+                    try {
+                        // Parse ISO timestamp and convert to local time
+                        var date = new Date(utc.replace(' ', 'T') + (utc.includes('+') || utc.includes('Z') ? '' : 'Z'));
+                        if (!isNaN(date.getTime())) {
+                            el.title = date.toLocaleString();
+                        }
+                    } catch (e) {
+                        // Keep original if parsing fails
+                    }
+                }
+            });
+        });
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
