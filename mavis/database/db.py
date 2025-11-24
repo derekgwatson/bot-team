@@ -92,6 +92,8 @@ class Database:
                         sell_price_tier_9 = ?,
                         unit_of_measure = ?,
                         width = ?,
+                        is_sellable = ?,
+                        is_obsolete = ?,
                         raw_payload = ?,
                         updated_at = ?
                     WHERE product_code = ?
@@ -102,6 +104,8 @@ class Database:
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
                     product_data.get('width'),
+                    1 if product_data.get('is_sellable', True) else 0,
+                    1 if product_data.get('is_obsolete', False) else 0,
                     product_data.get('raw_payload'),
                     now,
                     code
@@ -113,9 +117,9 @@ class Database:
                     INSERT INTO unleashed_products (
                         product_code, product_description, product_group,
                         default_sell_price, sell_price_tier_9,
-                        unit_of_measure, width, raw_payload,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        unit_of_measure, width, is_sellable, is_obsolete,
+                        raw_payload, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     code,
                     product_data.get('product_description'),
@@ -124,6 +128,8 @@ class Database:
                     product_data.get('sell_price_tier_9'),
                     product_data.get('unit_of_measure'),
                     product_data.get('width'),
+                    1 if product_data.get('is_sellable', True) else 0,
+                    1 if product_data.get('is_obsolete', False) else 0,
                     product_data.get('raw_payload'),
                     now,
                     now
@@ -200,6 +206,45 @@ class Database:
         count = cursor.fetchone()[0]
         conn.close()
         return count
+
+    def get_valid_fabric_products(self) -> List[Dict]:
+        """
+        Get all valid fabric products.
+
+        Valid fabrics are products where:
+        - product_group starts with 'Fabric' (case-insensitive)
+        - is_obsolete = 0 (not obsolete)
+        - is_sellable = 1 (sellable)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM unleashed_products
+            WHERE LOWER(product_group) LIKE 'fabric%'
+              AND is_obsolete = 0
+              AND is_sellable = 1
+            ORDER BY product_code
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_valid_fabric_codes(self) -> List[str]:
+        """Get just the product codes for valid fabrics"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT product_code FROM unleashed_products
+            WHERE LOWER(product_group) LIKE 'fabric%'
+              AND is_obsolete = 0
+              AND is_sellable = 1
+            ORDER BY product_code
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [row['product_code'] for row in rows]
 
     # ─────────────────────────────────────────────────────────────
     # Sync Metadata Operations

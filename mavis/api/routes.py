@@ -255,3 +255,38 @@ def get_product_stats():
     except Exception as e:
         logger.exception("Error getting product stats")
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/products/fabrics', methods=['GET'])
+@api_key_required
+def get_valid_fabrics():
+    """
+    Get all valid fabric products.
+
+    Valid fabrics are products where:
+    - product_group starts with 'Fabric' (case-insensitive)
+    - is_obsolete = false
+    - is_sellable = true
+
+    Query parameters:
+        codes_only (optional): If 'true', return just product codes
+    """
+    try:
+        codes_only = request.args.get('codes_only', '').lower() == 'true'
+
+        if codes_only:
+            codes = db.get_valid_fabric_codes()
+            return jsonify({
+                'codes': codes,
+                'count': len(codes)
+            })
+        else:
+            fabrics = db.get_valid_fabric_products()
+            return jsonify({
+                'products': [format_product_response(f) for f in fabrics],
+                'count': len(fabrics)
+            })
+
+    except Exception as e:
+        logger.exception("Error getting valid fabrics")
+        return jsonify({'error': str(e)}), 500

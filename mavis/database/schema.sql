@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS unleashed_products (
     unit_of_measure TEXT,
     width REAL,
 
+    -- Product status flags (from Unleashed)
+    is_sellable INTEGER DEFAULT 1,   -- 1 = sellable, 0 = not sellable
+    is_obsolete INTEGER DEFAULT 0,   -- 1 = obsolete, 0 = active
+
     -- Raw data storage for debugging/future use
     raw_payload TEXT,  -- JSON string of full Unleashed product
 
