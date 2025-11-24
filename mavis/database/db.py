@@ -343,19 +343,34 @@ class Database:
         records_created: int,
         records_updated: int
     ):
-        """Update sync progress counts without changing status (for live updates)"""
+        """Update sync progress counts and elapsed time (for live updates)"""
         with self.connection() as conn:
             cursor = conn.cursor()
+
+            # Get started_at to calculate elapsed duration
+            cursor.execute(
+                "SELECT started_at FROM sync_metadata WHERE id = ?",
+                (sync_id,)
+            )
+            row = cursor.fetchone()
+            duration = None
+            if row and row['started_at']:
+                started = datetime.fromisoformat(row['started_at'].replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                duration = (now - started).total_seconds()
+
             cursor.execute("""
                 UPDATE sync_metadata SET
                     records_processed = ?,
                     records_created = ?,
-                    records_updated = ?
+                    records_updated = ?,
+                    duration_seconds = ?
                 WHERE id = ?
             """, (
                 records_processed,
                 records_created,
                 records_updated,
+                duration,
                 sync_id
             ))
 
