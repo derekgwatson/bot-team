@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Issues{% endblock %}
+
+{% block content %}
+<h1>Tracked Issues</h1>
+
+<!-- Filters -->
+<div class="card">
+    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <span style="color: var(--gray-500);">Filter:</span>
+        <a href="{{ url_for('web.issues', status='all') }}"
+           class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">
+            All ({{ issue_stats.total }})
+        </a>
+        <a href="{{ url_for('web.issues', status='open') }}"
+           class="btn btn-sm {% if status_filter == 'open' %}btn-primary{% else %}btn-secondary{% endif %}">
+            Open ({{ issue_stats.open }})
+        </a>
+        <a href="{{ url_for('web.issues', status='resolved') }}"
+           class="btn btn-sm {% if status_filter == 'resolved' %}btn-primary{% else %}btn-secondary{% endif %}">
+            Resolved ({{ issue_stats.resolved }})
+        </a>
+
+        {% if issue_stats.by_type %}
+        <span style="border-left: 1px solid var(--gray-200); height: 1.5rem;"></span>
+        {% for itype in issue_stats.by_type.keys() %}
+        <a href="{{ url_for('web.issues', status=status_filter, type=itype) }}"
+           class="btn btn-sm {% if type_filter == itype %}btn-primary{% else %}btn-secondary{% endif %}">
+            {{ itype.replace('_', ' ') | title }}
+        </a>
+        {% endfor %}
+        {% endif %}
+
+        {% if type_filter %}
+        <a href="{{ url_for('web.issues', status=status_filter) }}" class="btn btn-sm btn-secondary">
+            Clear Type Filter
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Issues Table -->
+<div class="card">
+    {% if issues %}
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Key</th>
+                <th>Status</th>
+                <th>First Detected</th>
+                <th>Last Seen</th>
+                <th>Ticket</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in issues %}
+            <tr>
+                <td><span class="issue-type issue-type-{{ issue.issue_type }}">{{ issue.issue_type.replace('_', ' ') | title }}</span></td>
+                <td><code>{{ issue.issue_key }}</code></td>
+                <td>
+                    <span class="status status-{{ issue.status }}">
+                        <span class="status-dot"></span>
+                        {{ issue.status | capitalize }}
+                    </span>
+                </td>
+                <td>{{ time_ago(issue.first_detected_at) }}</td>
+                <td>{{ time_ago(issue.last_seen_at) }}</td>
+                <td>
+                    {% if issue.ticket_url %}
+                    <a href="{{ issue.ticket_url }}" target="_blank" class="link">#{{ issue.ticket_id }}</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if issue.status == 'open' %}
+                    <form action="{{ url_for('web.resolve_issue', issue_type=issue.issue_type, issue_key=issue.issue_key) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                    </form>
+                    {% else %}
+                    <span style="color: var(--gray-400);">Resolved {{ time_ago(issue.resolved_at) }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">✓</div>
+        <p>No issues found matching your filters</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+name: Scout
+description: System monitoring bot - watches for discrepancies and raises tickets via Sadie
+version: 1.0.0
+personality: Vigilant and proactive, keeps watch for issues across systems and ensures nothing falls through the cracks
+
+server:
+  host: 0.0.0.0
+  port: 8019
+
+database:
+  path: "database/scout.db"
+
+# NOTE: Scheduling is managed by Skye (the scheduling bot).
+# Skye calls POST /api/checks/run periodically to trigger checks.
+
+# Bot dependencies for monitoring
+bots:
+  mavis:
+    dev_url: "http://localhost:8017"
+    prod_url: "https://mavis.watsonblinds.com.au"
+  fiona:
+    dev_url: "http://localhost:8018"
+    prod_url: "https://fiona.watsonblinds.com.au"
+  sadie:
+    dev_url: "http://localhost:8010"
+    prod_url: "https://sadie.watsonblinds.com.au"
+
+# Check configuration
+checks:
+  # Fabrics in Mavis without Fiona descriptions
+  missing_descriptions:
+    enabled: true
+    priority: normal
+    ticket_type: task
+
+  # Fabrics in Fiona that are no longer valid in Mavis
+  obsolete_fabrics:
+    enabled: true
+    priority: normal
+    ticket_type: task
+
+  # Incomplete Fiona descriptions (missing supplier fields)
+  incomplete_descriptions:
+    enabled: true
+    priority: low
+    ticket_type: task
+
+  # Mavis sync health issues
+  sync_health:
+    enabled: true
+    priority: high
+    ticket_type: incident
+    # Alert if last successful sync is older than this many hours
+    stale_threshold_hours: 24

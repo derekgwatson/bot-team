@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Check History{% endblock %}
+
+{% block content %}
+<h1>Check Run History</h1>
+
+<div class="card">
+    {% if history %}
+    <table>
+        <thead>
+            <tr>
+                <th>Run ID</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Duration</th>
+                <th>Issues Found</th>
+                <th>Tickets Created</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in history %}
+            <tr>
+                <td>#{{ run.id }}</td>
+                <td>
+                    <span class="status status-{{ run.status }}">
+                        <span class="status-dot"></span>
+                        {{ run.status | capitalize }}
+                    </span>
+                </td>
+                <td>{{ time_ago(run.started_at) }}</td>
+                <td>
+                    {% if run.started_at and run.finished_at %}
+                        {% set start = run.started_at | replace('Z', '+00:00') %}
+                        {% set end = run.finished_at | replace('Z', '+00:00') %}
+                        {{ run.finished_at[:19] if run.finished_at else '-' }}
+                    {% elif run.status == 'running' %}
+                        <span style="color: var(--warning);">In progress...</span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ run.issues_found }}</td>
+                <td>{{ run.tickets_created }}</td>
+                <td>
+                    {% if run.error_message %}
+                    <span style="color: var(--danger);" title="{{ run.error_message }}">
+                        Error
+                    </span>
+                    {% elif run.check_results %}
+                    <details>
+                        <summary style="cursor: pointer; color: var(--primary);">View</summary>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--gray-50); border-radius: 0.25rem; font-size: 0.75rem;">
+                            {% for check_name, check_result in run.check_results.items() %}
+                            <div style="margin-bottom: 0.5rem;">
+                                <strong>{{ check_name.replace('_', ' ') | title }}:</strong>
+                                {% if check_result.details %}
+                                    {% if check_result.details.missing_count is defined %}
+                                    {{ check_result.details.missing_count }} missing
+                                    {% elif check_result.details.obsolete_count is defined %}
+                                    {{ check_result.details.obsolete_count }} obsolete
+                                    {% elif check_result.details.incomplete_count is defined %}
+                                    {{ check_result.details.incomplete_count }} incomplete
+                                    {% elif check_result.details.sync_status is defined %}
+                                    {{ check_result.details.sync_status.status }}
+                                    {% else %}
+                                    {{ check_result.issues_found }} issues
+                                    {% endif %}
+                                {% else %}
+                                OK
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>No check runs recorded yet</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

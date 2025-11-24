@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card-header">
+    <h1>Monitoring Dashboard</h1>
+    <form action="{{ url_for('web.run_checks') }}" method="post" style="display: inline;">
+        <button type="submit" class="btn btn-primary">Run Checks Now</button>
+    </form>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-3" style="margin-bottom: 1.5rem;">
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.open }}</div>
+            <div class="stat-label">Open Issues</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.resolved }}</div>
+            <div class="stat-label">Resolved</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="stat">
+            <div class="stat-value">{{ issue_stats.with_tickets }}</div>
+            <div class="stat-label">Tickets Created</div>
+        </div>
+    </div>
+</div>
+
+<!-- Last Check Run -->
+<div class="card" style="margin-bottom: 1rem;">
+    <div class="card-header">
+        <h3 class="card-title">Last Check Run</h3>
+        {% if last_run %}
+        <span class="status status-{{ last_run.status }}">
+            <span class="status-dot"></span>
+            {{ last_run.status | capitalize }}
+        </span>
+        {% endif %}
+    </div>
+    {% if last_run %}
+    <table>
+        <tr>
+            <td>Started</td>
+            <td>{{ time_ago(last_run.started_at) }}</td>
+        </tr>
+        <tr>
+            <td>Finished</td>
+            <td>{{ format_datetime(last_run.finished_at) }}</td>
+        </tr>
+        <tr>
+            <td>Issues Found</td>
+            <td>{{ last_run.issues_found }}</td>
+        </tr>
+        <tr>
+            <td>Tickets Created</td>
+            <td>{{ last_run.tickets_created }}</td>
+        </tr>
+        {% if last_run.error_message %}
+        <tr>
+            <td>Error</td>
+            <td style="color: var(--danger);">{{ last_run.error_message }}</td>
+        </tr>
+        {% endif %}
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>No checks have been run yet</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid grid-2">
+    <!-- Bot Connectivity (loaded async) -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Bot Connectivity</h3>
+        </div>
+        <div id="bot-status-container" class="bot-status-list">
+            <div class="bot-status-item" id="bot-status-mavis">
+                <span class="bot-name">Mavis</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
+            </div>
+            <div class="bot-status-item" id="bot-status-fiona">
+                <span class="bot-name">Fiona</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
+            </div>
+            <div class="bot-status-item" id="bot-status-sadie">
+                <span class="bot-name">Sadie</span>
+                <span class="status status-checking">
+                    <span class="status-dot"></span>
+                    Checking...
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Issues by Type -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Open Issues by Type</h3>
+            <a href="{{ url_for('web.issues', status='open') }}" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        {% if issue_stats.by_type %}
+        <table>
+            {% for issue_type, count in issue_stats.by_type.items() %}
+            <tr>
+                <td><span class="issue-type issue-type-{{ issue_type }}">{{ issue_type.replace('_', ' ') | title }}</span></td>
+                <td style="text-align: right;">{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">✓</div>
+            <p>No open issues</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Open Issues -->
+{% if open_issues %}
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3 class="card-title">Recent Open Issues</h3>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Key</th>
+                <th>First Detected</th>
+                <th>Ticket</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in open_issues[:10] %}
+            <tr>
+                <td><span class="issue-type issue-type-{{ issue.issue_type }}">{{ issue.issue_type.replace('_', ' ') | title }}</span></td>
+                <td><code>{{ issue.issue_key }}</code></td>
+                <td>{{ time_ago(issue.first_detected_at) }}</td>
+                <td>
+                    {% if issue.ticket_url %}
+                    <a href="{{ issue.ticket_url }}" target="_blank" class="link">#{{ issue.ticket_id }}</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <form action="{{ url_for('web.resolve_issue', issue_type=issue.issue_type, issue_key=issue.issue_key) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<script>
+// Load bot connectivity status asynchronously
+document.addEventListener('DOMContentLoaded', function() {
+    function updateBotStatus(botName, connected) {
+        const element = document.getElementById('bot-status-' + botName);
+        if (element) {
+            const statusSpan = element.querySelector('.status');
+            const statusClass = connected ? 'status-success' : 'status-danger';
+            const statusText = connected ? 'Connected' : 'Disconnected';
+            statusSpan.className = 'status ' + statusClass;
+            statusSpan.innerHTML = '<span class="status-dot"></span>' + statusText;
+        }
+    }
+
+    function setAllError() {
+        ['mavis', 'fiona', 'sadie'].forEach(bot => {
+            const element = document.getElementById('bot-status-' + bot);
+            if (element) {
+                const statusSpan = element.querySelector('.status');
+                statusSpan.className = 'status status-danger';
+                statusSpan.innerHTML = '<span class="status-dot"></span>Error';
+            }
+        });
+    }
+
+    fetch('{{ url_for("web.get_bot_status_ajax") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'ok' && data.bots) {
+                for (const [botName, status] of Object.entries(data.bots)) {
+                    updateBotStatus(botName, status.connected);
+                }
+            } else {
+                setAllError();
+            }
+        })
+        .catch(error => {
+            setAllError();
+        });
+});
+</script>
+{% endblock %}
