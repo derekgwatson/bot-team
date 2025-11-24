@@ -52,7 +52,9 @@ class Config:
             [],
         )
         self.default_server: str = self.deployment.get("default_server", "prod")
-        self.default_ssl_email: str = self.deployment.get("default_ssl_email", "")
+        # SSL email: env var takes precedence, then YAML, then empty
+        import os
+        self.default_ssl_email: str = os.getenv("SSL_EMAIL") or self.deployment.get("default_ssl_email", "")
 
         # ── Bot metadata (from YAML; optional) ───────────────
         # This is *descriptive only* – actual deployment config lives in Chester.
