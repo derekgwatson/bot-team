@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ job.name }} - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Edit Job: {{ job.name }}</h2>
+
+<div class="card">
+    <form action="{{ url_for('web.update_job', job_id=job.job_id) }}" method="post">
+        <div class="form-group">
+            <label>Job ID</label>
+            <input type="text" value="{{ job.job_id }}" disabled>
+            <small class="text-muted">Cannot be changed</small>
+        </div>
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required value="{{ job.name }}">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="2">{{ job.description or '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="target_bot">Target Bot</label>
+            <input type="text" id="target_bot" name="target_bot" required value="{{ job.target_bot }}">
+        </div>
+
+        <div class="form-group">
+            <label for="endpoint">API Endpoint</label>
+            <input type="text" id="endpoint" name="endpoint" required value="{{ job.endpoint }}">
+        </div>
+
+        <div class="form-group">
+            <label for="method">HTTP Method</label>
+            <select id="method" name="method">
+                <option value="POST" {% if job.method == 'POST' %}selected{% endif %}>POST</option>
+                <option value="GET" {% if job.method == 'GET' %}selected{% endif %}>GET</option>
+                <option value="PUT" {% if job.method == 'PUT' %}selected{% endif %}>PUT</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="schedule_type">Schedule Type</label>
+            <select id="schedule_type" name="schedule_type" onchange="toggleScheduleConfig()">
+                <option value="cron" {% if job.schedule_type == 'cron' %}selected{% endif %}>Cron (time-based)</option>
+                <option value="interval" {% if job.schedule_type == 'interval' %}selected{% endif %}>Interval (periodic)</option>
+            </select>
+        </div>
+
+        <div id="cron_config" {% if job.schedule_type != 'cron' %}style="display: none;"{% endif %}>
+            <h4 style="margin: 20px 0 10px;">Cron Schedule</h4>
+            <div class="form-inline" style="flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <label>Hour</label>
+                    <input type="text" name="cron_hour" value="{{ job.schedule_config_parsed.get('hour', '*') }}" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Minute</label>
+                    <input type="text" name="cron_minute" value="{{ job.schedule_config_parsed.get('minute', '0') }}" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Day of Week</label>
+                    <input type="text" name="cron_dow" value="{{ job.schedule_config_parsed.get('day_of_week', '') }}" style="width: 100px;">
+                </div>
+                <div>
+                    <label>Day of Month</label>
+                    <input type="text" name="cron_day" value="{{ job.schedule_config_parsed.get('day', '') }}" style="width: 80px;">
+                </div>
+            </div>
+        </div>
+
+        <div id="interval_config" {% if job.schedule_type != 'interval' %}style="display: none;"{% endif %}>
+            <h4 style="margin: 20px 0 10px;">Interval Schedule</h4>
+            <div class="form-inline">
+                <div>
+                    <label>Hours</label>
+                    <input type="number" name="interval_hours" value="{{ job.schedule_config_parsed.get('hours', 0) }}" min="0" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Minutes</label>
+                    <input type="number" name="interval_minutes" value="{{ job.schedule_config_parsed.get('minutes', 0) }}" min="0" style="width: 80px;">
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button type="submit" class="btn btn-success">Save Changes</button>
+            <a href="{{ url_for('web.job_detail', job_id=job.job_id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleScheduleConfig() {
+    var scheduleType = document.getElementById('schedule_type').value;
+    document.getElementById('cron_config').style.display = scheduleType === 'cron' ? 'block' : 'none';
+    document.getElementById('interval_config').style.display = scheduleType === 'interval' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

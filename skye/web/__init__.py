@@ -1,0 +1,1 @@
+"""Skye web routes."""
