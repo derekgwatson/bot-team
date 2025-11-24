@@ -41,7 +41,25 @@ def up(conn):
         'skye-setup'
     ))
 
+    # Quinn-Peter Sync - every 5 minutes
+    cursor.execute('''
+        INSERT OR IGNORE INTO jobs
+        (job_id, name, description, target_bot, endpoint, method, schedule_type, schedule_config, enabled, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        'quinn_peter_sync',
+        'Quinn-Peter Sync',
+        'Sync allstaff Google Group with Peter staff database. Adds/removes members as needed.',
+        'quinn',
+        '/api/sync/now',
+        'POST',
+        'interval',
+        json.dumps({'minutes': 5}),
+        1,
+        'skye-setup'
+    ))
+
 
 def down(conn):
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM jobs WHERE job_id IN ('fiona_mavis_sync', 'mavis_unleashed_sync')")
+    cursor.execute("DELETE FROM jobs WHERE job_id IN ('fiona_mavis_sync', 'mavis_unleashed_sync', 'quinn_peter_sync')")

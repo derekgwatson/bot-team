@@ -80,8 +80,9 @@ class SyncService:
         current_emails = {m['email'].lower() for m in current_members if m.get('email')}
         print(f"Google Group currently has {len(current_emails)} members")
 
-        # Get managers list (these are protected from removal)
-        managers = {m.lower() for m in settings.get_managers()}
+        # Get managers list from Peter (internal staff with Google accounts)
+        # These are protected from removal during sync
+        managers = {m.lower() for m in peter_client.get_allstaff_managers()}
         print(f"Protecting {len(managers)} managers from removal")
 
         # Convert desired to lowercase for comparison

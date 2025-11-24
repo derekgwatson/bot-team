@@ -30,6 +30,7 @@ class PeterClient:
     def get_allstaff_emails(self):
         """
         Get list of email addresses that should be in the allstaff group
+        (external staff without Google accounts)
 
         Returns:
             List of email addresses, or empty list on error
@@ -42,6 +43,28 @@ class PeterClient:
                 return data.get("emails", [])
             else:
                 print(f"Error getting allstaff members from Peter: {response.status_code}")
+                return []
+
+        except Exception as e:
+            print(f"Error calling Peter: {e}")
+            return []
+
+    def get_allstaff_managers(self):
+        """
+        Get list of manager email addresses for the allstaff group
+        (internal staff with Google accounts who can send to the group)
+
+        Returns:
+            List of email addresses, or empty list on error
+        """
+        try:
+            response = self.client.get("/api/staff/allstaff-managers")
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("emails", [])
+            else:
+                print(f"Error getting allstaff managers from Peter: {response.status_code}")
                 return []
 
         except Exception as e:
