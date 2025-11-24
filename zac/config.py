@@ -1,6 +1,7 @@
 import yaml
 import os
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +21,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = data['server']['port']
+        self.server_port = get_port("zac", 8007)
 
         # Database config
         self.database_path = data['database']['path']

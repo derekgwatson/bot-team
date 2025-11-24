@@ -4,6 +4,7 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 
 # Load environment variables from .env file
 load_dotenv()
@@ -31,7 +32,7 @@ class Config:
         # Server config
         server_cfg = data.get("server", {}) or {}
         self.server_host = server_cfg.get("host", "0.0.0.0")
-        self.server_port = server_cfg.get("port", 8012)
+        self.server_port = get_port("banji", 8014)
 
         # Browser config
         browser_cfg = data.get("browser", {}) or {}

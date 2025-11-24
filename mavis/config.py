@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # noqa: F401
+from shared.config.ports import get_port
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,7 +28,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = server.get("port", 8017)
+        self.server_port = get_port("mavis", 8017)
 
         # ── Database config (from YAML) ──────────────────────
         db_config = data.get("database", {}) or {}

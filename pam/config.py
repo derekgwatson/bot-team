@@ -4,6 +4,7 @@ import requests
 from pathlib import Path
 from dotenv import load_dotenv
 from shared.config.env_loader import SHARED_ENV  # Loads root .env automatically
+from shared.config.ports import get_port
 
 # Load bot-specific .env (can override global values)
 bot_env_path = Path(__file__).parent / '.env'
@@ -23,7 +24,7 @@ class Config:
 
         # Server config
         self.server_host = data['server']['host']
-        self.server_port = data['server']['port']
+        self.server_port = get_port("pam", 8009)
 
         # Load shared organization config
         shared_config_path = os.path.join(os.path.dirname(__file__), data['shared_config'])
