@@ -111,10 +111,13 @@ class SyncService:
                     sell_price_tier_9 = tier.get('Value')
                     break
 
-        # Extract product group/subgroup
+        # Extract product group
         product_group = unleashed_product.get('ProductGroup')
         group_name = product_group.get('GroupName', '') if product_group else ''
-        sub_group_name = product_group.get('SubGroupName', '') if product_group else ''
+
+        # ProductSubGroup is a separate field in Unleashed, not nested in ProductGroup
+        product_sub_group = unleashed_product.get('ProductSubGroup')
+        sub_group_name = product_sub_group.get('GroupName', '') if product_sub_group else ''
 
         # Extract unit of measure
         unit_of_measure = unleashed_product.get('UnitOfMeasure')
