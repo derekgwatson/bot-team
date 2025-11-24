@@ -562,7 +562,7 @@ class DeploymentOrchestrator:
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
-        ssl_email = bot_config.get('ssl_email')
+        ssl_email = bot_config.get('ssl_email') or config.default_ssl_email
         skip_nginx = bot_config.get('skip_nginx', False)
 
         # Build the plan
@@ -708,7 +708,7 @@ class DeploymentOrchestrator:
         nginx_config_name = bot_config.get('nginx_config_name', bot_name)
         workers = bot_config.get('workers', 3)
         description = bot_config.get('description', bot_name)
-        ssl_email = bot_config.get('ssl_email')
+        ssl_email = bot_config.get('ssl_email') or config.default_ssl_email
         skip_nginx = bot_config.get('skip_nginx', False)
 
         # Step 1: Clone/update repository
