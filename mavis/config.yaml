@@ -17,7 +17,7 @@ database:
 # Unleashed API configuration (credentials come from environment)
 unleashed:
   base_url: "https://api.unleashedsoftware.com"
-  page_size: 200
+  page_size: 1000  # Max allowed by Unleashed API (reduces 43 API calls to 9)
   timeout: 30
 
 # Sync configuration
