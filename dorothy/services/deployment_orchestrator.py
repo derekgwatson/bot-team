@@ -599,23 +599,30 @@ class DeploymentOrchestrator:
         })
 
         # Step 2: Nginx config (skip for internal-only bots)
+        # NOTE: Only creates nginx config if it doesn't exist, to preserve SSL config added by certbot
         if not skip_nginx:
             try:
+                port = get_port(bot_name)
+                if not port:
+                    raise ValueError(f"No port configured for {bot_name} in chester/config.yaml")
+
                 nginx_config = self._load_template(
                     'nginx.conf.template',
                     bot_name=bot_name,
                     bot_name_title=bot_name.title(),
                     description=description,
                     domain=domain,
-                    bot_path=path
+                    bot_path=path,
+                    PORT=port
                 )
 
                 plan['steps'].append({
                     'name': 'Nginx configuration',
-                    'description': 'Create nginx site configuration',
+                    'description': 'Create nginx site configuration (only if not exists - preserves SSL)',
                     'config_content': nginx_config,
+                    'skip_if_exists': f"/etc/nginx/sites-available/{nginx_config_name}",
                     'commands': [
-                        f"# Write config to /etc/nginx/sites-available/{nginx_config_name}",
+                        f"# Write config to /etc/nginx/sites-available/{nginx_config_name} (only if missing)",
                         f"sudo ln -sf /etc/nginx/sites-available/{nginx_config_name} /etc/nginx/sites-enabled/{nginx_config_name}",
                         f"sudo nginx -t"
                     ]

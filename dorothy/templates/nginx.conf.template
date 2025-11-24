@@ -1,10 +1,35 @@
 # {bot_name_title} - {description}
 # {domain}
-
-# Initial HTTP-only configuration
-# Run certbot to obtain SSL certificates and enable HTTPS:
+#
+# ============================================================================
+# IMPORTANT: This is an HTTP-only template for NEW bot deployments.
+# ============================================================================
+#
+# Dorothy will ONLY deploy this file if no nginx config exists for this bot.
+# This prevents overwriting SSL configurations added by certbot.
+#
+# After initial deployment, run certbot to add SSL:
 #   sudo certbot --nginx -d {domain}
-# Certbot will automatically add the HTTPS server block and redirect
+#
+# ----------------------------------------------------------------------------
+# TO UPDATE NGINX CONFIG FOR EXISTING BOTS:
+# ----------------------------------------------------------------------------
+# Option 1: Edit directly on server
+#   sudo nano /etc/nginx/sites-available/{bot_name}
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Option 2: Bulk update all bots (preserves SSL)
+#   Use sed/awk to make targeted changes, e.g.:
+#   for f in /etc/nginx/sites-available/*; do
+#     sudo sed -i 's/old_setting/new_setting/' "$f"
+#   done
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Option 3: Force redeploy (will need to re-run certbot after)
+#   1. Delete the existing config: sudo rm /etc/nginx/sites-available/{bot_name}
+#   2. Redeploy via Dorothy
+#   3. Re-run certbot: sudo certbot --nginx -d {domain}
+# ============================================================================
 
 server {{
     server_name {domain};
