@@ -112,8 +112,12 @@ class SyncService:
                     break
 
         # Extract product group/subgroup
-        product_group = unleashed_product.get('ProductGroup', {})
+        product_group = unleashed_product.get('ProductGroup')
         group_name = product_group.get('GroupName', '') if product_group else ''
+
+        # Extract unit of measure
+        unit_of_measure = unleashed_product.get('UnitOfMeasure')
+        uom_name = unit_of_measure.get('Name', '') if unit_of_measure else ''
 
         return {
             'product_code': unleashed_product.get('ProductCode', ''),
@@ -121,7 +125,7 @@ class SyncService:
             'product_group': group_name,
             'default_sell_price': unleashed_product.get('DefaultSellPrice'),
             'sell_price_tier_9': sell_price_tier_9,
-            'unit_of_measure': unleashed_product.get('UnitOfMeasure', {}).get('Name', ''),
+            'unit_of_measure': uom_name,
             'width': unleashed_product.get('Width'),
             'is_sellable': unleashed_product.get('IsSellable', True),
             'is_obsolete': unleashed_product.get('IsObsolete', False),
