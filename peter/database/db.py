@@ -10,7 +10,11 @@ from shared.migrations import MigrationRunner
 class StaffDatabase:
     """SQLite database for staff information"""
 
-    def __init__(self, db_path='database/staff.db'):
+    def __init__(self, db_path=None):
+        # Default to database file in the same directory as this module
+        # Using __file__ ensures the path works regardless of working directory
+        if db_path is None:
+            db_path = os.path.join(os.path.dirname(__file__), 'staff.db')
         self.db_path = db_path
         self._ensure_database()
 
