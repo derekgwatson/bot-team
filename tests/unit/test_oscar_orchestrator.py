@@ -417,7 +417,7 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
 def test_notify_ian_success(mock_config, sample_onboarding_request):
     """Test successful email notification to HR."""
     mock_email_instance = Mock()
-    mock_email_instance.send_email.return_value = True
+    mock_email_instance.send_email.return_value = (True, None)
 
     # Set up mock email service module to avoid import conflicts
     setup_mock_email_service(mock_email_instance)
@@ -440,7 +440,7 @@ def test_notify_ian_success(mock_config, sample_onboarding_request):
 def test_notify_ian_email_failure(mock_config, sample_onboarding_request):
     """Test handling email send failure."""
     mock_email_instance = Mock()
-    mock_email_instance.send_email.return_value = False
+    mock_email_instance.send_email.return_value = (False, "SMTP connection failed")
 
     # Set up mock email service module to avoid import conflicts
     setup_mock_email_service(mock_email_instance)
