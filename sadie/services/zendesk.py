@@ -400,7 +400,9 @@ class ZendeskTicketService:
                 ticket.tags = tags if isinstance(tags, list) else [tags]
 
             # Create the ticket
-            created_ticket = self.client.tickets.create(ticket)
+            # Zenpy returns a TicketAudit object, the ticket is in .ticket
+            result = self.client.tickets.create(ticket)
+            created_ticket = result.ticket
 
             logger.info(f"Created ticket #{created_ticket.id}: {subject}")
 
