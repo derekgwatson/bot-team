@@ -53,10 +53,23 @@
             </label>
         </div>
 
+        <input type="hidden" id="queue_only" name="queue_only" value="0">
+
         <div class="form-group">
-            <button type="submit" class="btn btn-success">Create Agent</button>
+            <button type="submit" class="btn btn-success">Create Agent Now</button>
+            <button type="button" onclick="queueForLater()" class="btn" style="background: #9b59b6; color: white;">Queue for Later</button>
             <a href="{{ url_for('web.index') }}" class="btn">Cancel</a>
         </div>
+        <p style="color: #666; font-size: 13px; margin-top: 10px;">
+            "Queue for Later" saves the agent info without creating the account. Go to Pending to create it when ready.
+        </p>
     </form>
 </div>
+
+<script>
+function queueForLater() {
+    document.getElementById('queue_only').value = '1';
+    document.querySelector('form').submit();
+}
+</script>
 {% endblock %}

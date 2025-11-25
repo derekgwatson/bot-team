@@ -77,10 +77,16 @@
             </small>
         </div>
 
+        <input type="hidden" id="queue_only" name="queue_only" value="0">
+
         <div style="margin-top: 20px;">
-            <button type="submit" class="btn">Create User</button>
+            <button type="submit" class="btn">Create User Now</button>
+            <button type="button" onclick="queueForLater()" class="btn" style="background: #9b59b6; margin-left: 10px;">Queue for Later</button>
             <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Cancel</a>
         </div>
+        <p style="color: #666; font-size: 13px; margin-top: 10px;">
+            "Queue for Later" saves the user info without creating the account. Go to Pending to create it when ready.
+        </p>
     </form>
 </div>
 
@@ -114,6 +120,12 @@ function generatePassword() {
 
     const password = `${adj1}-${noun}-${adj2}-${num}`;
     document.getElementById('f3a').value = password;
+}
+
+function queueForLater() {
+    document.getElementById('queue_only').value = '1';
+    combineFields();
+    document.querySelector('form').submit();
 }
 </script>
 {% endblock %}

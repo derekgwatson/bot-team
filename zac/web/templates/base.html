@@ -235,6 +235,21 @@
             color: white;
         }
 
+        .badge-info {
+            background: #3498db;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .badge-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -411,7 +426,8 @@
             <p>Zendesk User Management</p>
             {% if current_user and current_user.is_authenticated %}
             <nav>
-                <a href="{{ url_for('web.index') }}" class="active">Users</a>
+                <a href="{{ url_for('web.index') }}" {% if active_nav == 'users' %}class="active"{% endif %}>Users</a>
+                <a href="{{ url_for('web.pending') }}" {% if active_nav == 'pending' %}class="active"{% endif %}>Pending{% if pending_count %} ({{ pending_count }}){% endif %}</a>
                 <a href="{{ url_for('web.create_user') }}">Create User</a>
             </nav>
             {% endif %}

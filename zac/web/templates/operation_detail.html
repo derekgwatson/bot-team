@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Operation #{{ operation.id }}</h2>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+            <p><strong>Type:</strong>
+                {% if operation.operation_type == 'create_user' %}
+                    <span style="color: #27ae60;">Create Agent</span>
+                {% elif operation.operation_type == 'suspend_user' %}
+                    <span style="color: #f39c12;">Suspend User</span>
+                {% elif operation.operation_type == 'unsuspend_user' %}
+                    <span style="color: #3498db;">Unsuspend User</span>
+                {% elif operation.operation_type == 'delete_user' %}
+                    <span style="color: #e74c3c;">Delete User</span>
+                {% else %}
+                    {{ operation.operation_type }}
+                {% endif %}
+            </p>
+            <p><strong>Target:</strong> {{ operation.target_email or operation.target_name or 'N/A' }}</p>
+            {% if operation.target_name %}
+            <p><strong>Name:</strong> {{ operation.target_name }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <p><strong>Status:</strong>
+                {% if operation.status == 'pending' %}
+                    <span class="badge badge-info">Pending</span>
+                {% elif operation.status == 'executing' %}
+                    <span class="badge badge-warning">Executing</span>
+                {% elif operation.status == 'completed' %}
+                    <span class="badge badge-active">Completed</span>
+                {% elif operation.status == 'failed' %}
+                    <span class="badge badge-suspended">Failed</span>
+                {% elif operation.status == 'cancelled' %}
+                    <span class="badge badge-secondary">Cancelled</span>
+                {% endif %}
+            </p>
+            <p><strong>Created:</strong> {{ operation.created_date or 'N/A' }}</p>
+            {% if operation.executed_date %}
+            <p><strong>Executed:</strong> {{ operation.executed_date }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if operation.error_message %}
+    <div class="alert alert-error" style="margin-bottom: 20px;">
+        <strong>Error:</strong> {{ operation.error_message }}
+    </div>
+    {% endif %}
+
+    {% if operation.status == 'completed' and operation.result_data %}
+    <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; border: 1px solid #a5d6a7; margin-bottom: 20px;">
+        <h3 style="color: #2e7d32; margin-bottom: 15px;">Operation Result</h3>
+
+        {% if operation.operation_type == 'create_user' and operation.result_data %}
+        <div style="display: grid; gap: 15px;">
+            {% if operation.result_data.user_id %}
+            <div>
+                <strong>User ID:</strong>
+                <code style="background: white; padding: 5px 10px; border-radius: 4px; margin-left: 10px;">{{ operation.result_data.user_id }}</code>
+            </div>
+            {% endif %}
+
+            {% if operation.result_data.email %}
+            <div>
+                <strong>Email:</strong>
+                <code style="background: white; padding: 5px 10px; border-radius: 4px; margin-left: 10px;">{{ operation.result_data.email }}</code>
+            </div>
+            {% endif %}
+
+            {% if operation.result_data.group_memberships %}
+            <div>
+                <strong>Groups Added:</strong> {{ operation.result_data.group_memberships|length }} group(s)
+            </div>
+            {% endif %}
+        </div>
+        {% elif operation.operation_type == 'suspend_user' %}
+        <p style="color: #2e7d32;">User has been suspended successfully.</p>
+        {% elif operation.operation_type == 'unsuspend_user' %}
+        <p style="color: #2e7d32;">User has been unsuspended successfully.</p>
+        {% elif operation.operation_type == 'delete_user' %}
+        <p style="color: #2e7d32;">User has been permanently deleted.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 20px;">
+        <a href="{{ url_for('web.pending') }}" class="btn" style="background: #95a5a6;">Back to Pending</a>
+
+        {% if operation.status == 'pending' %}
+        <form method="POST" action="{{ url_for('web.execute_operation', operation_id=operation.id) }}" style="display: inline; margin-left: 10px;">
+            <button type="submit" class="btn btn-success">Execute Now</button>
+        </form>
+        <form method="POST" action="{{ url_for('web.cancel_operation', operation_id=operation.id) }}" style="display: inline; margin-left: 10px;">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Cancel this operation?')">Cancel</button>
+        </form>
+        {% elif operation.status == 'failed' %}
+        <form method="POST" action="{{ url_for('web.retry_operation', operation_id=operation.id) }}" style="display: inline; margin-left: 10px;">
+            <button type="submit" class="btn" style="background: #f39c12; color: white;">Retry</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
