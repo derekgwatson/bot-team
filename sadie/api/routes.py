@@ -57,6 +57,7 @@ def create_ticket():
         priority: Ticket priority ('low', 'normal', 'high', 'urgent') - default: 'normal'
         type: Ticket type ('question', 'incident', 'problem', 'task') - default: 'task'
         requester_id: Zendesk user ID of the requester (optional)
+        group_id: Zendesk group ID to assign the ticket to (optional)
         tags: List of tags or single tag string (optional)
 
     Returns:
@@ -82,6 +83,7 @@ def create_ticket():
             priority=data.get('priority', 'normal'),
             ticket_type=data.get('type', 'task'),
             requester_id=data.get('requester_id'),
+            group_id=data.get('group_id'),
             tags=data.get('tags')
         )
 

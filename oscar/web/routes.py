@@ -50,6 +50,22 @@ def _get_zendesk_groups():
     return []  # Return empty list on failure
 
 
+def _get_sadie_groups():
+    """Fetch available groups from Sadie's API for ticket assignment"""
+    try:
+        sadie_url = config.bots.get('sadie', {}).get('url', 'http://localhost:8005')
+        response = http_requests.get(
+            f"{sadie_url}/api/groups",
+            headers={'X-API-Key': config.bot_api_key},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return response.json().get('groups', [])
+    except Exception as e:
+        logger.warning(f"Could not fetch groups from Sadie: {e}")
+    return []  # Return empty list on failure
+
+
 @web_bp.route('/')
 @login_required
 def index():
@@ -328,3 +344,47 @@ def all_requests():
         logger.exception("Error viewing all requests")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('web.index'))
+
+
+@web_bp.route('/settings')
+@login_required
+def settings():
+    """View and edit Oscar settings"""
+    try:
+        all_settings = db.get_all_settings()
+        # Fetch Zendesk groups from Sadie for the dropdown
+        zendesk_groups = _get_sadie_groups()
+
+        return render_template('settings.html',
+                             settings=all_settings,
+                             zendesk_groups=zendesk_groups,
+                             user=current_user)
+
+    except Exception as e:
+        logger.exception("Error viewing settings")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('web.index'))
+
+
+@web_bp.route('/settings/save', methods=['POST'])
+@login_required
+def save_settings():
+    """Save Oscar settings"""
+    try:
+        # Get form data
+        settings_to_update = {
+            'hr_notification_email': request.form.get('hr_notification_email', '').strip(),
+            'hr_notification_name': request.form.get('hr_notification_name', '').strip(),
+            'voip_ticket_group_id': request.form.get('voip_ticket_group_id', '').strip(),
+            'voip_ticket_group_name': request.form.get('voip_ticket_group_name', '').strip(),
+        }
+
+        db.update_settings(settings_to_update, updated_by=current_user.email)
+
+        flash('Settings saved successfully!', 'success')
+        return redirect(url_for('web.settings'))
+
+    except Exception as e:
+        logger.exception("Error saving settings")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('web.settings'))

@@ -280,6 +280,7 @@
             <a href="{{ url_for('web.new_onboard') }}" {% if request.endpoint == 'web.new_onboard' %}class="active"{% endif %}>New Onboarding</a>
             <a href="{{ url_for('web.all_requests') }}" {% if request.endpoint == 'web.all_requests' %}class="active"{% endif %}>All Requests</a>
             <a href="{{ url_for('web.manual_tasks') }}" {% if request.endpoint == 'web.manual_tasks' %}class="active"{% endif %}>Manual Tasks</a>
+            <a href="{{ url_for('web.settings') }}" {% if request.endpoint == 'web.settings' %}class="active"{% endif %} style="float: right;">Settings</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}

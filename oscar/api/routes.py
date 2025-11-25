@@ -332,3 +332,135 @@ def update_dev_config():
         'success': True,
         'config': dev_config
     })
+
+
+@api_bp.route('/check-pending-tickets', methods=['POST'])
+@api_key_required
+def check_pending_tickets():
+    """
+    Check status of pending VOIP tickets and update workflow steps accordingly.
+
+    This endpoint is designed to be called periodically by Skye (the scheduler).
+    It queries Sadie for the status of each pending VOIP ticket and marks
+    the workflow step as complete if the ticket has been solved.
+
+    Returns:
+        JSON object with results of the check
+    """
+    import requests as http_requests
+    from config import config
+
+    try:
+        # Get all in-progress VOIP steps with ticket IDs
+        pending_steps = db.get_pending_voip_steps()
+
+        if not pending_steps:
+            return jsonify({
+                'success': True,
+                'message': 'No pending VOIP tickets to check',
+                'checked': 0,
+                'completed': 0
+            })
+
+        results = {
+            'success': True,
+            'checked': len(pending_steps),
+            'completed': 0,
+            'still_pending': 0,
+            'errors': 0,
+            'details': []
+        }
+
+        # Get Sadie URL from config
+        sadie_url = config.bots.get('sadie', {}).get('url', 'http://localhost:8005')
+
+        for step in pending_steps:
+            ticket_id = step.get('zendesk_ticket_id')
+            step_id = step.get('id')
+            request_id = step.get('request_id')
+            full_name = step.get('full_name', 'Unknown')
+
+            if not ticket_id:
+                continue
+
+            try:
+                # Query Sadie for ticket status
+                response = http_requests.get(
+                    f"{sadie_url}/api/tickets/{ticket_id}",
+                    headers={'X-API-Key': config.bot_api_key},
+                    timeout=10
+                )
+
+                if response.status_code == 200:
+                    ticket_data = response.json().get('ticket', {})
+                    ticket_status = ticket_data.get('status', '')
+
+                    if ticket_status in ['solved', 'closed']:
+                        # Ticket is complete - mark the step as completed
+                        db.update_workflow_step(
+                            step_id,
+                            'completed',
+                            success=True,
+                            result_data={
+                                'ticket_status': ticket_status,
+                                'auto_completed': True,
+                                'completed_by': 'Oscar (auto-check)'
+                            }
+                        )
+
+                        db.log_activity(
+                            request_id,
+                            'voip_ticket_auto_completed',
+                            f'VOIP ticket #{ticket_id} was {ticket_status} - step auto-completed',
+                            created_by='oscar_scheduler'
+                        )
+
+                        # Check if all steps are now complete
+                        remaining = db.get_connection().execute(
+                            """SELECT COUNT(*) FROM workflow_steps
+                               WHERE onboarding_request_id = ? AND status NOT IN ('completed', 'skipped')""",
+                            (request_id,)
+                        ).fetchone()[0]
+
+                        if remaining == 0:
+                            db.update_onboarding_status(request_id, 'completed')
+
+                        results['completed'] += 1
+                        results['details'].append({
+                            'ticket_id': ticket_id,
+                            'full_name': full_name,
+                            'status': 'completed',
+                            'ticket_status': ticket_status
+                        })
+                    else:
+                        results['still_pending'] += 1
+                        results['details'].append({
+                            'ticket_id': ticket_id,
+                            'full_name': full_name,
+                            'status': 'still_pending',
+                            'ticket_status': ticket_status
+                        })
+                else:
+                    results['errors'] += 1
+                    results['details'].append({
+                        'ticket_id': ticket_id,
+                        'full_name': full_name,
+                        'status': 'error',
+                        'error': f'Sadie returned {response.status_code}'
+                    })
+
+            except Exception as e:
+                logger.warning(f"Error checking ticket {ticket_id}: {e}")
+                results['errors'] += 1
+                results['details'].append({
+                    'ticket_id': ticket_id,
+                    'full_name': full_name,
+                    'status': 'error',
+                    'error': str(e)
+                })
+
+        return jsonify(results)
+
+    except Exception as e:
+        logger.exception("Error checking pending tickets")
+        return jsonify({'error': str(e)}), 500

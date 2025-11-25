@@ -304,5 +304,81 @@ class Database:
 
         return [dict(row) for row in rows]
 
+    # Settings
+    def get_setting(self, key: str, default: str = None) -> Optional[str]:
+        """Get a setting value by key"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row and row['value']:
+            return row['value']
+        return default
+
+    def set_setting(self, key: str, value: str, updated_by: str = 'system'):
+        """Set a setting value"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO settings (key, value, updated_at, updated_by)
+            VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP,
+                updated_by = excluded.updated_by
+        """, (key, value, updated_by))
+
+        conn.commit()
+        conn.close()
+
+    def get_all_settings(self) -> Dict[str, str]:
+        """Get all settings as a dictionary"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT key, value, description FROM settings")
+        rows = cursor.fetchall()
+        conn.close()
+
+        return {row['key']: {'value': row['value'] or '', 'description': row['description']} for row in rows}
+
+    def update_settings(self, settings: Dict[str, str], updated_by: str = 'system'):
+        """Update multiple settings at once"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        for key, value in settings.items():
+            cursor.execute("""
+                UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ?
+                WHERE key = ?
+            """, (value, updated_by, key))
+
+        conn.commit()
+        conn.close()
+
+    # Pending ticket checks
+    def get_pending_voip_steps(self) -> List[Dict]:
+        """Get all VOIP steps that are in_progress with a ticket ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT ws.*, onr.full_name, onr.id as request_id
+            FROM workflow_steps ws
+            JOIN onboarding_requests onr ON ws.onboarding_request_id = onr.id
+            WHERE ws.step_name = 'voip_ticket'
+            AND ws.status = 'in_progress'
+            AND ws.zendesk_ticket_id IS NOT NULL
+        """)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
 # Global database instance
 db = Database()

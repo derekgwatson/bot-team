@@ -368,7 +368,7 @@ class ZendeskTicketService:
             logger.error(f"Error listing groups: {str(e)}")
             raise
 
-    def create_ticket(self, subject, description, priority='normal', ticket_type='task', requester_id=None, tags=None):
+    def create_ticket(self, subject, description, priority='normal', ticket_type='task', requester_id=None, group_id=None, tags=None):
         """
         Create a new Zendesk ticket
 
@@ -378,6 +378,7 @@ class ZendeskTicketService:
             priority: Ticket priority ('low', 'normal', 'high', 'urgent') - default: 'normal'
             ticket_type: Ticket type ('question', 'incident', 'problem', 'task') - default: 'task'
             requester_id: Zendesk user ID of the requester (optional)
+            group_id: Zendesk group ID to assign the ticket to (optional)
             tags: List of tags to add to the ticket (optional)
 
         Returns:
@@ -395,6 +396,9 @@ class ZendeskTicketService:
             # Add optional fields if provided
             if requester_id:
                 ticket.requester_id = requester_id
+
+            if group_id:
+                ticket.group_id = group_id
 
             if tags:
                 ticket.tags = tags if isinstance(tags, list) else [tags]
@@ -415,6 +419,7 @@ class ZendeskTicketService:
                 'priority': created_ticket.priority,
                 'type': created_ticket.type,
                 'requester_id': created_ticket.requester_id,
+                'group_id': created_ticket.group_id,
                 'created_at': str(created_ticket.created_at) if created_ticket.created_at else None,
                 'url': f"https://{config.zendesk_subdomain}.zendesk.com/agent/tickets/{created_ticket.id}",
                 'tags': created_ticket.tags if hasattr(created_ticket, 'tags') else []
