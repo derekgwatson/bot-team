@@ -30,6 +30,14 @@ class StaffDatabase:
         runner = MigrationRunner(db_path=self.db_path, migrations_dir=migrations_dir)
         runner.run_pending_migrations(verbose=True)
 
+        # Debug: verify schema after migrations
+        print(f"DEBUG: Using database at {self.db_path}")
+        conn = sqlite3.connect(self.db_path)
+        cols = [row[1] for row in conn.execute('PRAGMA table_info(staff)')]
+        print(f"DEBUG: Staff columns: {cols}")
+        print(f"DEBUG: google_primary_email exists: {'google_primary_email' in cols}")
+        conn.close()
+
     def get_connection(self):
         """Get database connection"""
         conn = sqlite3.connect(self.db_path)
