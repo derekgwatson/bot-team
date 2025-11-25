@@ -98,7 +98,8 @@ def create_user():
             "email": "user@example.com",
             "first_name": "John",
             "last_name": "Doe",
-            "password": "TempPassword123!"
+            "password": "TempPassword123!",
+            "change_password_at_next_login": true  (optional, default: true)
         }
 
     Creates a new user
@@ -127,11 +128,15 @@ def create_user():
     if email_domain not in allowed_domains_lower:
         return jsonify({'error': f'Email must use one of these domains: {", ".join(allowed_domains)}'}), 400
 
+    # Optional: change_password_at_next_login (default: True)
+    change_password = data.get('change_password_at_next_login', True)
+
     result = workspace_service.create_user(
         email=data['email'],
         first_name=data['first_name'],
         last_name=data['last_name'],
-        password=data['password']
+        password=data['password'],
+        change_password_at_next_login=change_password
     )
 
     if isinstance(result, dict) and 'error' in result:

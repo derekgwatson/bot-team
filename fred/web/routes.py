@@ -62,6 +62,7 @@ def new_user():
         first_name = request.form.get('f2a')
         last_name = request.form.get('f2b')
         password = request.form.get('f3a')
+        change_password = request.form.get('f3b') == 'on'  # Checkbox for change password at next login
 
         # Validate email domain
         if '@' not in email:
@@ -76,7 +77,8 @@ def new_user():
             email=email,
             first_name=first_name,
             last_name=last_name,
-            password=password
+            password=password,
+            change_password_at_next_login=change_password
         )
 
         if isinstance(result, dict) and 'error' in result:

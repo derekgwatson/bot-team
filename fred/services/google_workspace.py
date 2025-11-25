@@ -132,7 +132,7 @@ class GoogleWorkspaceService:
         except Exception as e:
             return {'error': f'Unexpected error: {e}'}
 
-    def create_user(self, email, first_name, last_name, password):
+    def create_user(self, email, first_name, last_name, password, change_password_at_next_login=True):
         """
         Create a new user in Google Workspace
 
@@ -141,6 +141,7 @@ class GoogleWorkspaceService:
             first_name: User's first name
             last_name: User's last name
             password: Initial password
+            change_password_at_next_login: If True, user must change password on first login
 
         Returns:
             Created user dictionary or error
@@ -156,7 +157,7 @@ class GoogleWorkspaceService:
                     'familyName': last_name
                 },
                 'password': password,
-                'changePasswordAtNextLogin': True
+                'changePasswordAtNextLogin': change_password_at_next_login
             }
 
             user = self.service.users().insert(body=user_body).execute()
