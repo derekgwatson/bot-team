@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from shared.migrations import MigrationRunner
 
 
 class Database:
@@ -13,18 +14,16 @@ class Database:
             db_dir = Path(__file__).parent
             db_path = db_dir / 'zac.db'
         self.db_path = str(db_path)
-        self.init_db()
+        self._run_migrations()
 
-    def init_db(self):
-        """Initialize the database with schema"""
-        schema_path = Path(__file__).parent / 'schema.sql'
-        with open(schema_path, 'r') as f:
-            schema = f.read()
-
-        conn = sqlite3.connect(self.db_path)
-        conn.executescript(schema)
-        conn.commit()
-        conn.close()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
 
     def get_connection(self):
         """Get a database connection"""

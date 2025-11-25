@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
+from shared.migrations import MigrationRunner
 
 logger = logging.getLogger(__name__)
 
@@ -31,25 +32,17 @@ class Database:
 
         self.db_path = str(db_path)
         logger.info(f"Database path: {self.db_path}")
-        self.init_db()
+        self._run_migrations()
 
-    def init_db(self):
-        """Initialize database schema from schema.sql"""
-        schema_path = Path(__file__).parent / 'schema.sql'
-
-        with open(schema_path, 'r') as f:
-            schema = f.read()
-
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.executescript(schema)
-            conn.commit()
-            logger.info("Database initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize database: {e}")
-            raise
-        finally:
-            conn.close()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
+        logger.info("Database migrations completed")
 
     def get_connection(self) -> sqlite3.Connection:
         """

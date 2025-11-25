@@ -4,7 +4,9 @@ SQLite database management for external staff
 import sqlite3
 import os
 from datetime import datetime
+from pathlib import Path
 from config import config
+from shared.migrations import MigrationRunner
 
 
 class ExternalStaffDB:
@@ -21,19 +23,17 @@ class ExternalStaffDB:
         if db_dir:  # Only create directory if path has a directory component
             os.makedirs(db_dir, exist_ok=True)
 
-        # Initialize database
-        self._init_db()
+        # Run migrations
+        self._run_migrations()
 
-    def _init_db(self):
-        """Create database tables if they don't exist"""
-        schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
-        with open(schema_path, 'r') as f:
-            schema = f.read()
-
-        conn = sqlite3.connect(self.db_path)
-        conn.executescript(schema)
-        conn.commit()
-        conn.close()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
 
     def _get_connection(self):
         """Get database connection with row factory"""
