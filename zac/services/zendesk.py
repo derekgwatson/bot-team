@@ -291,7 +291,9 @@ class ZendeskService:
             Success boolean
         """
         try:
-            self.client.users.delete(user_id)
+            # Zenpy requires a User object, not just an ID
+            user = self.client.users(id=user_id)
+            self.client.users.delete(user)
             logger.info(f"Deleted user {user_id}")
             return True
         except Exception as e:
