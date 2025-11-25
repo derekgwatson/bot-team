@@ -12,7 +12,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from flask import Blueprint, render_template_string, request
-from collections import defaultdict
 import logging
 
 from monica.database.db import db
@@ -203,14 +202,8 @@ def dashboard():
     # Enrich with computed status
     enriched_devices = [status_service.enrich_device(d) for d in devices]
 
-    # Group by store
-    stores = defaultdict(list)
-    for device in enriched_devices:
-        store_code = device['store_code']
-        stores[store_code].append(device)
-
-    # Sort stores and devices
-    sorted_stores = sorted(stores.items(), key=lambda x: x[0])
+    # Sort devices by store code then device label (flat list, no grouping)
+    sorted_devices = sorted(enriched_devices, key=lambda d: (d['store_code'], d['device_label']))
 
     template = """
 <!DOCTYPE html>
@@ -248,24 +241,25 @@ def dashboard():
             color: #6b7280;
             font-size: 0.9em;
         }
-        .store-section {
+        .devices-container {
             background: white;
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 24px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .store-header {
-            font-size: 1.5em;
-            color: #1f2937;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #e5e7eb;
-        }
         .devices-grid {
             display: grid;
             gap: 16px;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+        .device-store {
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+            margin-bottom: 8px;
         }
         .device-card {
             border: 2px solid #e5e7eb;
@@ -827,14 +821,10 @@ def dashboard():
         </div>
     </div>
 
-    {% if stores %}
-        {% for store_code, store_devices in stores %}
-        <div class="store-section">
-            <div class="store-header">
-                🏪 {{ store_code }}
-            </div>
+    {% if devices %}
+        <div class="devices-container">
             <div class="devices-grid">
-                {% for device in store_devices %}
+                {% for device in devices %}
                 <div class="device-card {{ device.computed_status }}">
                     <div class="device-header">
                         <div class="device-title">
@@ -843,6 +833,7 @@ def dashboard():
                         </div>
                         <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
                     </div>
+                    <div class="device-store">{{ device.store_code }}</div>
                     <div class="device-info">
                         <strong>Status:</strong>
                         <span class="status-badge {{ device.computed_status }}">
@@ -850,20 +841,19 @@ def dashboard():
                         </span>
                         <br>
                         <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
+                        {% if device.last_latency_ms is not none %}
+                        <strong>Latency:</strong> {{ device.last_latency_ms | round | int }} ms<br>
+                        {% endif %}
                         {% if device.last_public_ip %}
                         <strong>IP:</strong> {{ device.last_public_ip }}<br>
-                        {% endif %}
-                        {% if device.last_heartbeat_at %}
-                        <strong>Timestamp:</strong> {{ device.last_heartbeat_at }}<br>
                         {% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-        {% endfor %}
     {% else %}
-        <div class="store-section">
+        <div class="devices-container">
             <div class="empty-state">
                 <div class="empty-state-icon">📡</div>
                 <h2>No devices registered yet</h2>
@@ -931,7 +921,7 @@ def dashboard():
 </body>
 </html>
     """
-    return render_template_string(template, config=config, stores=sorted_stores)
+    return render_template_string(template, config=config, devices=sorted_devices)
 
 
 @web_bp.route('/agent')

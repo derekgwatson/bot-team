@@ -213,10 +213,10 @@ class Database:
 
     def get_all_devices_with_stores(self) -> List[Dict[str, Any]]:
         """
-        Get all devices with their store information
+        Get all devices with their store information and latest heartbeat metrics
 
         Returns:
-            List of device dictionaries with store info
+            List of device dictionaries with store info and latest latency/speed
         """
         conn = self.get_connection()
         try:
@@ -224,9 +224,20 @@ class Database:
                 SELECT
                     d.*,
                     s.store_code,
-                    s.display_name as store_display_name
+                    s.display_name as store_display_name,
+                    latest_hb.latency_ms as last_latency_ms,
+                    latest_hb.download_mbps as last_download_mbps
                 FROM devices d
                 JOIN stores s ON d.store_id = s.id
+                LEFT JOIN (
+                    SELECT device_id, latency_ms, download_mbps
+                    FROM heartbeats h1
+                    WHERE h1.id = (
+                        SELECT MAX(h2.id)
+                        FROM heartbeats h2
+                        WHERE h2.device_id = h1.device_id
+                    )
+                ) latest_hb ON latest_hb.device_id = d.id
                 ORDER BY s.store_code, d.device_label
             """)
             return [dict(row) for row in cursor.fetchall()]
