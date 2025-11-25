@@ -105,8 +105,10 @@ def up(conn):
         print(f"  Imported {added} staff members and {len(unique_sections)} sections")
 
     except Exception as e:
-        print(f"  ERROR: Failed to import from Google Sheets: {e}")
-        raise  # Fail fast - this should not fail in production!
+        # Don't fail the migration - Google Sheets import is optional
+        # Data can be added manually through the web UI
+        print(f"  WARNING: Could not import from Google Sheets: {e}")
+        print(f"  Continuing without import - staff can be added via the web UI")
 
 
 def down(conn):
