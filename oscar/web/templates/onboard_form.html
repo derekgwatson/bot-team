@@ -123,19 +123,21 @@
     <h1 style="margin-bottom: 10px;">New Staff Onboarding</h1>
     <p style="color: #666; margin-bottom: 30px;">Fill out the form below to start the onboarding process for a new staff member.</p>
 
-    <form action="{{ url_for('web.submit_onboard') }}" method="POST">
+    <form action="{{ url_for('web.submit_onboard') }}" method="POST" autocomplete="off" data-lpignore="true">
         <div class="form-section">
             <h3>Personal Information</h3>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="full_name" class="required">Full Name</label>
-                    <input type="text" id="full_name" name="full_name" required>
+                    <input type="text" id="full_name" name="full_name" required
+                           autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                 </div>
 
                 <div class="form-group">
                     <label for="preferred_name">Preferred Name</label>
-                    <input type="text" id="preferred_name" name="preferred_name">
+                    <input type="text" id="preferred_name" name="preferred_name"
+                           autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                     <div class="form-help">Leave blank if same as full name</div>
                 </div>
             </div>
@@ -172,8 +174,9 @@
             <h3>Contact Information</h3>
 
             <div class="form-group">
-                <label for="personal_email" class="required">Personal Email</label>
-                <input type="email" id="personal_email" name="personal_email" required>
+                <label for="recovery_contact" class="required">Personal Email</label>
+                <input type="email" id="recovery_contact" name="personal_email" required
+                       autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                 <div class="form-help">Used for account recovery and initial notifications</div>
             </div>
 
@@ -201,12 +204,14 @@
             <!-- Work Email Section (shown when Google access is checked) -->
             <div id="work_email_section" style="margin-left: 28px; margin-bottom: 15px; padding: 15px; background: #fff; border-radius: 6px; border: 1px solid #e0e0e0;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label for="work_email_username" class="required">Work Email Address</label>
+                    <label for="acct_local_part" class="required">Work Email Address</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="text" id="work_email_username" name="work_email_username"
-                               placeholder="firstname.lastname" style="flex: 1;">
+                        <input type="text" id="acct_local_part" name="work_email_username"
+                               placeholder="firstname.lastname" style="flex: 1;"
+                               autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
                         <span style="font-size: 16px; color: #666;">@</span>
-                        <select id="work_email_domain" name="work_email_domain" style="flex: 1;">
+                        <select id="acct_domain" name="work_email_domain" style="flex: 1; padding: 12px;"
+                                data-lpignore="true" data-1p-ignore="true">
                             {% if google_domains %}
                                 {% for domain in google_domains %}
                                 <option value="{{ domain }}">{{ domain }}</option>
@@ -259,14 +264,14 @@
 function toggleWorkEmail() {
     const googleAccess = document.getElementById('google_access');
     const workEmailSection = document.getElementById('work_email_section');
-    const usernameInput = document.getElementById('work_email_username');
+    const localPartInput = document.getElementById('acct_local_part');
 
     if (googleAccess.checked) {
         workEmailSection.style.display = 'block';
-        usernameInput.required = true;
+        localPartInput.required = true;
     } else {
         workEmailSection.style.display = 'none';
-        usernameInput.required = false;
+        localPartInput.required = false;
     }
 }
 
