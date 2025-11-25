@@ -118,8 +118,11 @@ $reply = Read-Host "Delete branch '$LocalBranch' (local and remote)? [Y/n]"
 if ($reply -match '^[nN]') {
     Write-Warn "Keeping branch '$LocalBranch'."
 } else {
+    # Temporarily allow errors so git stderr doesn't cause exceptions
+    $ErrorActionPreference = "Continue"
+
     Write-Info "Deleting local branch '$LocalBranch'..."
-    git branch -d $LocalBranch 2>$null
+    $null = git branch -d $LocalBranch 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Local branch deleted."
     } else {
@@ -127,12 +130,14 @@ if ($reply -match '^[nN]') {
     }
 
     Write-Info "Deleting remote branch '$Remote/$LocalBranch'..."
-    git push $Remote --delete $LocalBranch 2>$null
+    $null = git push $Remote --delete $LocalBranch 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Remote branch deleted."
     } else {
         Write-Warn "Could not delete remote branch (maybe already gone?)."
     }
+
+    $ErrorActionPreference = "Stop"
 }
 
 Write-Host ""
