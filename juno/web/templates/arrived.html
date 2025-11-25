@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Your Visit{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Hi {{ customer_name }}!</h1>
+    </div>
+
+    <div class="arrived-container">
+        <div class="arrived-icon">✅</div>
+        <h2 class="status-text status-arrived">Your technician has arrived!</h2>
+        <p class="status-detail" style="margin-top: 10px; color: #666;">
+            They should be with you now.
+        </p>
+    </div>
+
+    {% if link.destination_address %}
+    <div class="info-card">
+        <div class="info-row">
+            <span class="info-label">Location</span>
+            <span class="info-value">{{ link.destination_address }}</span>
+        </div>
+        {% if link.arrived_at %}
+        <div class="info-row">
+            <span class="info-label">Arrived at</span>
+            <span class="info-value">{{ link.arrived_at }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

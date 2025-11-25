@@ -365,6 +365,23 @@ bot_team:
       journeys: /api/journeys
     personality: Friendly road companion who always knows where everyone is, while keeping secrets safe
 
+  juno:
+    name: Juno
+    port: 8022
+    description: Customer Tracking Experience
+    capabilities:
+      - Generate unique tracking links for customers
+      - Serve customer-facing map tracking page
+      - Display real-time ETA and driver location
+      - Call Travis for privacy-aware location data
+      - Auto-expire tracking links after delivery
+    api_endpoints:
+      info: /info
+      health: /health
+      tracking_links: /api/tracking-links
+      track: /track
+    personality: Warm and reassuring, keeps customers informed about their upcoming visit
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
