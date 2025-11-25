@@ -392,7 +392,8 @@ def check_pending_tickets():
                 )
 
                 if response.status_code == 200:
-                    ticket_data = response.json().get('ticket', {})
+                    # Sadie returns ticket data directly, not wrapped in {"ticket": ...}
+                    ticket_data = response.json()
                     ticket_status = ticket_data.get('status', '')
 
                     if ticket_status in ['solved', 'closed']:
