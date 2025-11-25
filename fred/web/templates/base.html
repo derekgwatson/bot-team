@@ -289,9 +289,8 @@
             <h1>👤 Fred</h1>
             <p>Google Workspace User Management</p>
             <nav>
-                <a href="/" {% if active_nav == 'active' %}class="active"{% endif %}>Active Users</a>
-                <a href="/archived" {% if active_nav == 'archived' %}class="active"{% endif %}>Archived Users</a>
-                <a href="/pending" {% if active_nav == 'pending' %}class="active"{% endif %}>Pending{% if pending_count %} ({{ pending_count }}){% endif %}</a>
+                <a href="/" {% if not archived %}class="active"{% endif %}>Active Users</a>
+                <a href="/archived" {% if archived %}class="active"{% endif %}>Archived Users</a>
                 <a href="/users/new">Add User</a>
             </nav>
         </div>

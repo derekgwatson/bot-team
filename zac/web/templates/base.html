@@ -427,8 +427,7 @@
             {% if current_user and current_user.is_authenticated %}
             <nav>
                 <a href="{{ url_for('web.index') }}" {% if active_nav == 'users' %}class="active"{% endif %}>Users</a>
-                <a href="{{ url_for('web.pending') }}" {% if active_nav == 'pending' %}class="active"{% endif %}>Pending{% if pending_count %} ({{ pending_count }}){% endif %}</a>
-                <a href="{{ url_for('web.create_user') }}">Create User</a>
+                <a href="{{ url_for('web.create_user') }}">Create Agent</a>
             </nav>
             {% endif %}
         </div>
