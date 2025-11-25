@@ -10,7 +10,8 @@ class GoogleWorkspaceService:
     SCOPES = [
         'https://www.googleapis.com/auth/admin.directory.user',
         'https://www.googleapis.com/auth/admin.directory.user.readonly',
-        'https://www.googleapis.com/auth/admin.directory.domain.readonly'
+        'https://www.googleapis.com/auth/admin.directory.domain.readonly',
+        'https://www.googleapis.com/auth/admin.directory.user.security'
     ]
 
     def __init__(self):
@@ -217,6 +218,44 @@ class GoogleWorkspaceService:
         try:
             self.service.users().delete(userKey=email).execute()
             return {'success': True, 'message': f'User {email} deleted successfully'}
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                return {'error': 'User not found'}
+            return {'error': f'API error: {e}'}
+        except Exception as e:
+            return {'error': f'Unexpected error: {e}'}
+
+    def generate_backup_codes(self, email):
+        """
+        Generate backup verification codes for a user (used for 2FA recovery)
+
+        Args:
+            email: User's email address
+
+        Returns:
+            Dict with list of backup codes or error
+        """
+        if not self.service:
+            return {'error': 'Google Workspace service not initialized'}
+
+        try:
+            # Generate new backup codes (this invalidates any existing ones)
+            self.service.verificationCodes().generate(userKey=email).execute()
+
+            # Retrieve the newly generated codes
+            result = self.service.verificationCodes().list(userKey=email).execute()
+            codes = result.get('items', [])
+
+            # Extract just the verification codes
+            backup_codes = [item.get('verificationCode') for item in codes if item.get('verificationCode')]
+
+            return {
+                'success': True,
+                'email': email,
+                'backup_codes': backup_codes,
+                'count': len(backup_codes)
+            }
 
         except HttpError as e:
             if e.resp.status == 404:

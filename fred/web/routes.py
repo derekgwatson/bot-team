@@ -63,6 +63,7 @@ def new_user():
         last_name = request.form.get('f2b')
         password = request.form.get('f3a')
         change_password = request.form.get('f3b') == 'on'  # Checkbox for change password at next login
+        generate_backup = request.form.get('f4a') == 'on'  # Checkbox for backup codes
 
         # Validate email domain
         if '@' not in email:
@@ -84,7 +85,19 @@ def new_user():
         if isinstance(result, dict) and 'error' in result:
             return render_template('new_user.html', error=result['error'], allowed_domains=allowed_domains)
 
-        return redirect(url_for('web.index'))
+        # Generate backup codes if requested
+        backup_codes = []
+        if generate_backup:
+            backup_result = workspace_service.generate_backup_codes(email)
+            if backup_result.get('success'):
+                backup_codes = backup_result.get('backup_codes', [])
+
+        # Show success page with credentials
+        return render_template('user_created.html',
+                             email=email,
+                             password=password,
+                             change_password=change_password,
+                             backup_codes=backup_codes)
 
     return render_template('new_user.html', allowed_domains=allowed_domains)
 

@@ -175,3 +175,22 @@ def delete_user(email):
         return jsonify(result), status_code
 
     return jsonify(result)
+
+@api_bp.route('/users/<email>/backup-codes', methods=['POST'])
+@api_key_required
+def generate_backup_codes(email):
+    """
+    POST /api/users/<email>/backup-codes
+
+    Generates new backup verification codes for 2FA recovery.
+    Note: This invalidates any existing backup codes for the user.
+
+    Returns list of 10 backup codes
+    """
+    result = workspace_service.generate_backup_codes(email)
+
+    if isinstance(result, dict) and 'error' in result:
+        status_code = 404 if result['error'] == 'User not found' else 500
+        return jsonify(result), status_code
+
+    return jsonify(result)
