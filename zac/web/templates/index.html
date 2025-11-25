@@ -59,14 +59,10 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
     {% endif %}
 
-    <!-- Search Bar -->
-    <form method="GET" action="{{ url_for('web.index') }}" class="search-bar" onsubmit="showLoading()">
-        <input type="search" name="q" placeholder="Search users by name or email..." value="{{ search_query or '' }}" data-lpignore="true" data-form-type="other">
-        <button type="submit" class="btn">Search</button>
-        {% if search_query %}
-        <a href="{{ url_for('web.index') }}" class="btn" onclick="showLoading()">Clear</a>
-        {% endif %}
-    </form>
+    <!-- Instant Search Bar -->
+    <div class="search-bar">
+        <input type="search" id="searchInput" placeholder="Start typing to filter users..." autocomplete="off" data-lpignore="true" data-form-type="other">
+    </div>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
@@ -101,7 +97,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </thead>
         <tbody>
             {% for user in users %}
-            <tr>
+            <tr class="user-row" data-searchable="{{ user.id }} {{ user.name|lower }} {{ user.email|lower }} {{ user.role|lower }}">
                 <td>{{ user.id }}</td>
                 <td>{{ user.name }}</td>
                 <td>{{ user.email }}</td>
@@ -136,21 +132,21 @@ window.addEventListener('DOMContentLoaded', function() {
     {% if total_pages > 1 %}
     <div class="pagination">
         {% if page > 1 %}
-        <a href="{{ url_for('web.index', page=page-1, role=role_filter, q=search_query) }}">&laquo; Previous</a>
+        <a href="{{ url_for('web.index', page=page-1, role=role_filter) }}">&laquo; Previous</a>
         {% endif %}
 
         {% for p in range(1, total_pages + 1) %}
             {% if p == page %}
             <span class="current">{{ p }}</span>
             {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-            <a href="{{ url_for('web.index', page=p, role=role_filter, q=search_query) }}">{{ p }}</a>
+            <a href="{{ url_for('web.index', page=p, role=role_filter) }}">{{ p }}</a>
             {% elif p == page - 3 or p == page + 3 %}
             <span>...</span>
             {% endif %}
         {% endfor %}
 
         {% if page < total_pages %}
-        <a href="{{ url_for('web.index', page=page+1, role=role_filter, q=search_query) }}">Next &raquo;</a>
+        <a href="{{ url_for('web.index', page=page+1, role=role_filter) }}">Next &raquo;</a>
         {% endif %}
     </div>
     {% endif %}
@@ -162,14 +158,49 @@ window.addEventListener('DOMContentLoaded', function() {
     {% else %}
     <div class="empty-state">
         <h3>No users found</h3>
-        {% if search_query %}
-        <p>No users match your search query.</p>
-        <a href="{{ url_for('web.index') }}" class="btn">Clear search</a>
-        {% else %}
         <p>Get started by creating your first user.</p>
         <a href="{{ url_for('web.create_user') }}" class="btn">Create User</a>
-        {% endif %}
     </div>
     {% endif %}
 </div>
+
+<script>
+    // Instant search functionality
+    const searchInput = document.getElementById('searchInput');
+    const userRows = document.querySelectorAll('.user-row');
+    const tableBody = document.querySelector('tbody');
+
+    if (searchInput && userRows.length > 0) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            userRows.forEach(row => {
+                if (query === '') {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    const searchable = row.getAttribute('data-searchable');
+                    if (searchable.includes(query)) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+
+            // Update the showing count
+            const showingText = document.querySelector('p[style*="margin-top: 20px"]');
+            if (showingText && query !== '') {
+                showingText.innerHTML = `Showing <strong>${visibleCount}</strong> of {{ users|length }} users on this page`;
+            } else if (showingText) {
+                showingText.innerHTML = `Showing {{ users|length }} of {{ total }} users`;
+            }
+        });
+
+        // Focus search input on page load
+        searchInput.focus();
+    }
+</script>
 {% endblock %}

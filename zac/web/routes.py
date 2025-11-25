@@ -12,22 +12,9 @@ def index():
     """Main dashboard - list all Zendesk users"""
     page = request.args.get('page', 1, type=int)
     role_filter = request.args.get('role')
-    search_query = request.args.get('q')
 
     try:
-        if search_query:
-            # Search mode
-            users = zendesk_service.search_users(search_query)
-            result = {
-                'users': users,
-                'total': len(users),
-                'page': 1,
-                'per_page': len(users),
-                'total_pages': 1
-            }
-        else:
-            # List mode with pagination
-            result = zendesk_service.list_users(role=role_filter, page=page, per_page=100)
+        result = zendesk_service.list_users(role=role_filter, page=page, per_page=100)
 
         return render_template('index.html',
                              users=result['users'],
@@ -35,7 +22,6 @@ def index():
                              total_pages=result['total_pages'],
                              total=result['total'],
                              role_filter=role_filter,
-                             search_query=search_query,
                              user=current_user)
 
     except Exception as e:
