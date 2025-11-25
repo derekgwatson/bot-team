@@ -225,8 +225,11 @@ class OnboardingOrchestrator:
 
     def execute_all_pending(self, request_id: int) -> Dict[str, Any]:
         """
-        Execute all pending workflow steps.
+        Execute all pending workflow steps (except those marked run_separately).
         This is the "Create All" button functionality.
+
+        Steps marked with run_separately=True (like notify_hr) must be
+        executed manually after all other steps succeed.
 
         Returns: Dict with success status and results
         """
@@ -241,12 +244,18 @@ class OnboardingOrchestrator:
         results = {
             'request_id': request_id,
             'success': True,
-            'steps': []
+            'steps': [],
+            'skipped_run_separately': []
         }
 
         for step_db in steps:
             # Skip already completed or failed steps
             if step_db['status'] in ['completed', 'skipped']:
+                continue
+
+            # Skip steps marked as run_separately (must be run manually)
+            if step_db.get('run_separately'):
+                results['skipped_run_separately'].append(step_db['step_name'])
                 continue
 
             step = {
@@ -305,17 +314,7 @@ class OnboardingOrchestrator:
         steps = []
         order = 1
 
-        # Step 1: Notify HR (configurable recipient)
-        hr_name = db.get_setting('hr_notification_name', 'HR')
-        steps.append({
-            'name': 'notify_hr',
-            'order': order,
-            'description': f'Notify {hr_name} about new staff member',
-            'critical': True
-        })
-        order += 1
-
-        # Step 2: Create Google User (if required)
+        # Step 1: Create Google User (if required)
         if request.get('google_access'):
             steps.append({
                 'name': 'create_google_user',
@@ -325,7 +324,7 @@ class OnboardingOrchestrator:
             })
             order += 1
 
-        # Step 3: Create Zendesk User (if required)
+        # Step 2: Create Zendesk User (if required)
         if request.get('zendesk_access'):
             steps.append({
                 'name': 'create_zendesk_user',
@@ -335,7 +334,7 @@ class OnboardingOrchestrator:
             })
             order += 1
 
-        # Step 4: Register with Peter (always done)
+        # Step 3: Register with Peter (always done)
         steps.append({
             'name': 'register_peter',
             'order': order,
@@ -344,7 +343,7 @@ class OnboardingOrchestrator:
         })
         order += 1
 
-        # Step 5: Create VOIP ticket (if required)
+        # Step 4: Create VOIP ticket (if required)
         if request.get('voip_access'):
             steps.append({
                 'name': 'voip_ticket',
@@ -355,6 +354,17 @@ class OnboardingOrchestrator:
                 'manual_action_instructions': 'Create VOIP user account in PBX system'
             })
             order += 1
+
+        # Step 5: Notify HR (always last, run separately after all other steps succeed)
+        hr_name = db.get_setting('hr_notification_name', 'HR')
+        steps.append({
+            'name': 'notify_hr',
+            'order': order,
+            'description': f'Notify {hr_name} about new staff member',
+            'critical': False,
+            'run_separately': True  # Excluded from "Create All" - must be run manually
+        })
+        order += 1
 
         return steps
 
