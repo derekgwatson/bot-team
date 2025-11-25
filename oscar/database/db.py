@@ -163,14 +163,15 @@ class Database:
             cursor.execute("""
                 INSERT INTO workflow_steps (
                     onboarding_request_id, step_name, step_order,
-                    requires_manual_action, manual_action_instructions
-                ) VALUES (?, ?, ?, ?, ?)
+                    requires_manual_action, manual_action_instructions, run_separately
+                ) VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 request_id,
                 step['name'],
                 step['order'],
                 step.get('requires_manual_action', False),
-                step.get('manual_action_instructions', None)
+                step.get('manual_action_instructions', None),
+                step.get('run_separately', False)
             ))
 
         conn.commit()
