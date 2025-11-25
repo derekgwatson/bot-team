@@ -1,0 +1,121 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Active Links - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    h2 {
+        color: #4a00e0;
+        margin-bottom: 20px;
+    }
+
+    .links-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .links-table th,
+    .links-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .links-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #4a00e0;
+    }
+
+    .links-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 500;
+    }
+
+    .status-active { background: #e8f5e9; color: #2e7d32; }
+    .status-arrived { background: #e3f2fd; color: #1976d2; }
+    .status-expired { background: #f5f5f5; color: #757575; }
+    .status-cancelled { background: #ffebee; color: #c62828; }
+
+    .tracking-link {
+        font-family: monospace;
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .empty-state .icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+
+    .view-count {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>🔗 Active Tracking Links</h2>
+
+{% if links %}
+<table class="links-table">
+    <thead>
+        <tr>
+            <th>Customer</th>
+            <th>Code</th>
+            <th>Status</th>
+            <th>Views</th>
+            <th>Created</th>
+            <th>Expires</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for link in links %}
+        <tr>
+            <td>{{ link.customer_name or 'Unknown' }}</td>
+            <td>
+                <a href="/track/{{ link.code }}" target="_blank" class="tracking-link">
+                    {{ link.code }}
+                </a>
+            </td>
+            <td>
+                <span class="status-badge status-{{ link.status }}">
+                    {% if link.status == 'active' %}🟢{% endif %}
+                    {% if link.status == 'arrived' %}✅{% endif %}
+                    {% if link.status == 'expired' %}⏰{% endif %}
+                    {% if link.status == 'cancelled' %}❌{% endif %}
+                    {{ link.status | title }}
+                </span>
+            </td>
+            <td class="view-count">{{ link.view_count }} views</td>
+            <td>{{ link.created_at }}</td>
+            <td>{{ link.expires_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <div class="icon">🔗</div>
+    <h3>No Active Links</h3>
+    <p>Tracking links will appear here when created</p>
+    <p><code>POST /api/tracking-links</code></p>
+</div>
+{% endif %}
+{% endblock %}

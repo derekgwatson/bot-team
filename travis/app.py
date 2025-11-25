@@ -17,6 +17,7 @@ from flask import Flask, jsonify
 
 from travis.config import config
 from travis.api.routes import api_bp
+from travis.web.routes import web_bp
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -32,10 +33,13 @@ logger = logging.getLogger(__name__)
 logger.info(f"Logging configured at {log_level_name} level")
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__,
+            template_folder='web/templates',
+            static_folder='web/static')
 app.secret_key = config.secret_key
 
 # Register blueprints
+app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 
 

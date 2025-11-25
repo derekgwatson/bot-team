@@ -1,6 +1,6 @@
 """
 Juno Web Routes
-Serves customer-facing tracking pages
+Serves customer-facing tracking pages and admin dashboard
 """
 
 import sys
@@ -11,7 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, redirect, request, url_for
 import logging
 
 from juno.config import config
@@ -22,14 +22,55 @@ logger = logging.getLogger(__name__)
 web_bp = Blueprint('web', __name__)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Customer-facing routes
+# ══════════════════════════════════════════════════════════════════════════════
+
 @web_bp.route('/')
-def home():
-    """Home page - redirect to info"""
-    return jsonify({
-        'name': 'Juno',
-        'description': config.description,
-        'message': 'Tracking links are accessed via /track/<code>'
-    })
+def index():
+    """Customer homepage - enter code or look up by phone"""
+    error = request.args.get('error')
+    return render_template('index.html', error=error)
+
+
+@web_bp.route('/go')
+def go():
+    """Redirect to tracking page from code entry"""
+    code = request.args.get('code', '').strip().lower()
+
+    if not code:
+        return redirect(url_for('web.index', error='Please enter a tracking code'))
+
+    # Check if link exists
+    link = db.get_tracking_link_by_code(code)
+
+    if not link:
+        return redirect(url_for('web.index', error='That code wasn\'t found. Please check and try again.'))
+
+    return redirect(url_for('web.track', code=code))
+
+
+@web_bp.route('/lookup', methods=['POST'])
+def lookup():
+    """Look up tracking link by phone number"""
+    phone = request.form.get('phone', '').strip()
+
+    if not phone:
+        return redirect(url_for('web.index', error='Please enter your phone number'))
+
+    # Find active links for this phone
+    links = db.get_active_links_by_phone(phone)
+
+    if not links:
+        return redirect(url_for('web.index',
+            error='No active tracking found for that phone number. Your technician may not have started their journey yet.'))
+
+    # If exactly one link, go straight to it
+    if len(links) == 1:
+        return redirect(url_for('web.track', code=links[0]['code']))
+
+    # Multiple links - show selection page
+    return render_template('select_link.html', links=links, phone=phone)
 
 
 @web_bp.route('/track/<code>')
@@ -88,3 +129,27 @@ def track(code: str):
         poll_interval=config.poll_interval * 1000,  # Convert to milliseconds
         google_maps_api_key=config.google_maps_api_key or ''
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Admin routes
+# ══════════════════════════════════════════════════════════════════════════════
+
+@web_bp.route('/admin/')
+def admin_index():
+    """Admin dashboard"""
+    return render_template('admin_index.html', config=config)
+
+
+@web_bp.route('/admin/links')
+def admin_links():
+    """Active tracking links admin page"""
+    active_links = db.get_all_active_links()
+    return render_template('links.html', config=config, links=active_links)
+
+
+# Keep old /links route as redirect for backwards compatibility
+@web_bp.route('/links')
+def links_redirect():
+    """Redirect old /links to /admin/links"""
+    return redirect(url_for('web.admin_links'))

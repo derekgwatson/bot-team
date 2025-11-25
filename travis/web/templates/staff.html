@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Staff - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    h2 {
+        color: #134e5e;
+        margin-bottom: 20px;
+    }
+
+    .staff-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .staff-table th,
+    .staff-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .staff-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #134e5e;
+    }
+
+    .staff-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 500;
+    }
+
+    .status-in_transit { background: #e3f2fd; color: #1976d2; }
+    .status-at_customer { background: #fff3e0; color: #f57c00; }
+    .status-off_duty { background: #f5f5f5; color: #757575; }
+    .status-on_break { background: #fce4ec; color: #c2185b; }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .empty-state .icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>👥 Field Staff</h2>
+
+{% if staff %}
+<table class="staff-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Last Ping</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in staff %}
+        <tr>
+            <td>{{ s.name }}</td>
+            <td>{{ s.email }}</td>
+            <td>
+                <span class="status-badge status-{{ s.current_status }}">
+                    {% if s.current_status == 'in_transit' %}🚗{% endif %}
+                    {% if s.current_status == 'at_customer' %}🏠{% endif %}
+                    {% if s.current_status == 'off_duty' %}😴{% endif %}
+                    {% if s.current_status == 'on_break' %}☕{% endif %}
+                    {{ s.current_status | replace('_', ' ') | title }}
+                </span>
+            </td>
+            <td>{{ s.last_ping_at or 'Never' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <div class="icon">👥</div>
+    <h3>No Staff Registered</h3>
+    <p>Use the API to register field staff members</p>
+    <p><code>POST /api/staff</code></p>
+</div>
+{% endif %}
+{% endblock %}

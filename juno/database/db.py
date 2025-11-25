@@ -342,6 +342,37 @@ class Database:
         finally:
             conn.close()
 
+    def get_active_links_by_phone(self, phone: str) -> List[Dict[str, Any]]:
+        """
+        Get active tracking links for a phone number
+
+        Args:
+            phone: Customer phone number (normalized to digits only)
+
+        Returns:
+            List of active tracking links for this phone
+        """
+        # Normalize phone - keep only digits for comparison
+        normalized = ''.join(c for c in phone if c.isdigit())
+        if len(normalized) < 8:
+            return []
+
+        conn = self.get_connection()
+        try:
+            # Look for active links where the stored phone ends with these digits
+            # This handles cases where country codes may differ
+            cursor = conn.execute(
+                """SELECT * FROM tracking_links
+                   WHERE status = 'active'
+                   AND customer_phone IS NOT NULL
+                   AND REPLACE(REPLACE(REPLACE(customer_phone, ' ', ''), '-', ''), '+', '') LIKE '%' || ?
+                   ORDER BY created_at DESC""",
+                (normalized[-10:],)  # Match last 10 digits
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
     # ══════════════════════════════════════════════════════════════
     # Event logging
     # ══════════════════════════════════════════════════════════════
