@@ -68,6 +68,25 @@ def get_user(email):
 
     return jsonify(user)
 
+@api_bp.route('/domains', methods=['GET'])
+@api_key_required
+def list_domains():
+    """
+    GET /api/domains
+
+    Returns list of domains registered in the Google Workspace account
+    """
+    domains = workspace_service.list_domains()
+
+    if isinstance(domains, dict) and 'error' in domains:
+        return jsonify(domains), 500
+
+    return jsonify({
+        'domains': domains,
+        'count': len(domains)
+    })
+
+
 @api_bp.route('/users', methods=['POST'])
 @api_key_required
 def create_user():
@@ -92,15 +111,21 @@ def create_user():
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
 
-    # Validate email domain
+    # Validate email domain against allowed domains from Google Workspace
     email = data['email']
     if '@' not in email:
         return jsonify({'error': 'Invalid email address'}), 400
 
     email_domain = email.split('@')[1].lower()
-    allowed_domain = config.google_domain.lower()
-    if email_domain != allowed_domain:
-        return jsonify({'error': f'Email must use domain @{config.google_domain}'}), 400
+    allowed_domains = workspace_service.list_domains()
+
+    # Fall back to config if API fails
+    if isinstance(allowed_domains, dict) and 'error' in allowed_domains:
+        allowed_domains = [config.google_domain]
+
+    allowed_domains_lower = [d.lower() for d in allowed_domains]
+    if email_domain not in allowed_domains_lower:
+        return jsonify({'error': f'Email must use one of these domains: {", ".join(allowed_domains)}'}), 400
 
     result = workspace_service.create_user(
         email=data['email'],

@@ -51,7 +51,10 @@ def user_detail(email):
 @login_required
 def new_user():
     """Create new user form"""
-    allowed_domain = config.google_domain
+    # Get allowed domains from Google Workspace
+    allowed_domains = workspace_service.list_domains()
+    if isinstance(allowed_domains, dict) and 'error' in allowed_domains:
+        allowed_domains = [config.google_domain]  # Fallback
 
     if request.method == 'POST':
         email = request.form.get('email')
@@ -61,11 +64,12 @@ def new_user():
 
         # Validate email domain
         if '@' not in email:
-            return render_template('new_user.html', error='Invalid email address', allowed_domain=allowed_domain)
+            return render_template('new_user.html', error='Invalid email address', allowed_domains=allowed_domains)
 
         email_domain = email.split('@')[1].lower()
-        if email_domain != allowed_domain.lower():
-            return render_template('new_user.html', error=f'Email must use domain @{allowed_domain}', allowed_domain=allowed_domain)
+        allowed_domains_lower = [d.lower() for d in allowed_domains]
+        if email_domain not in allowed_domains_lower:
+            return render_template('new_user.html', error=f'Email must use one of these domains: {", ".join(allowed_domains)}', allowed_domains=allowed_domains)
 
         result = workspace_service.create_user(
             email=email,
@@ -75,11 +79,11 @@ def new_user():
         )
 
         if isinstance(result, dict) and 'error' in result:
-            return render_template('new_user.html', error=result['error'], allowed_domain=allowed_domain)
+            return render_template('new_user.html', error=result['error'], allowed_domains=allowed_domains)
 
         return redirect(url_for('web.index'))
 
-    return render_template('new_user.html', allowed_domain=allowed_domain)
+    return render_template('new_user.html', allowed_domains=allowed_domains)
 
 @web_bp.route('/users/<email>/archive', methods=['POST'])
 @login_required

@@ -10,14 +10,20 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="/users/new">
+    <form method="POST" action="/users/new" onsubmit="combineEmail()">
         <div class="form-group">
-            <label for="email">Email Address *</label>
-            <input type="email" id="email" name="email" required
-                   placeholder="user@{{ allowed_domain or 'example.com' }}">
-            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                Must use domain @{{ allowed_domain or 'your-domain.com' }}
-            </small>
+            <label for="username">Email Address *</label>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <input type="text" id="username" name="username" required
+                       placeholder="username" style="flex: 1;">
+                <span style="font-size: 18px; color: #666;">@</span>
+                <select id="domain" name="domain" style="flex: 1;" required>
+                    {% for domain in allowed_domains %}
+                    <option value="{{ domain }}">{{ domain }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" id="email" name="email">
         </div>
 
         <div class="form-group">
@@ -47,4 +53,12 @@
         </div>
     </form>
 </div>
+
+<script>
+function combineEmail() {
+    const username = document.getElementById('username').value;
+    const domain = document.getElementById('domain').value;
+    document.getElementById('email').value = username + '@' + domain;
+}
+</script>
 {% endblock %}

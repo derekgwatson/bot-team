@@ -9,7 +9,8 @@ class GoogleWorkspaceService:
 
     SCOPES = [
         'https://www.googleapis.com/auth/admin.directory.user',
-        'https://www.googleapis.com/auth/admin.directory.user.readonly'
+        'https://www.googleapis.com/auth/admin.directory.user.readonly',
+        'https://www.googleapis.com/auth/admin.directory.domain.readonly'
     ]
 
     def __init__(self):
@@ -42,6 +43,36 @@ class GoogleWorkspaceService:
         except Exception as e:
             print(f"Error initializing Google Workspace service: {e}")
             self.service = None
+
+    def list_domains(self):
+        """
+        List all domains registered in the Google Workspace account
+
+        Returns:
+            List of domain names or error dict
+        """
+        if not self.service:
+            return {'error': 'Google Workspace service not initialized'}
+
+        try:
+            results = self.service.domains().list(customer='my_customer').execute()
+            domains = results.get('domains', [])
+
+            # Return list of domain names, primary domain first
+            domain_list = []
+            for domain in domains:
+                domain_name = domain.get('domainName')
+                if domain.get('isPrimary'):
+                    domain_list.insert(0, domain_name)
+                else:
+                    domain_list.append(domain_name)
+
+            return domain_list
+
+        except HttpError as e:
+            return {'error': f'API error: {e}'}
+        except Exception as e:
+            return {'error': f'Unexpected error: {e}'}
 
     def list_users(self, max_results=100, archived=False):
         """
