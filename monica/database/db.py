@@ -225,19 +225,21 @@ class Database:
                     d.*,
                     s.store_code,
                     s.display_name as store_display_name,
-                    latest_hb.latency_ms as last_latency_ms,
-                    latest_hb.download_mbps as last_download_mbps
+                    latest_metrics.latency_ms as last_latency_ms,
+                    latest_metrics.download_mbps as last_download_mbps
                 FROM devices d
                 JOIN stores s ON d.store_id = s.id
                 LEFT JOIN (
                     SELECT device_id, latency_ms, download_mbps
                     FROM heartbeats h1
-                    WHERE h1.id = (
+                    WHERE h1.latency_ms IS NOT NULL
+                      AND h1.id = (
                         SELECT MAX(h2.id)
                         FROM heartbeats h2
                         WHERE h2.device_id = h1.device_id
+                          AND h2.latency_ms IS NOT NULL
                     )
-                ) latest_hb ON latest_hb.device_id = d.id
+                ) latest_metrics ON latest_metrics.device_id = d.id
                 ORDER BY s.store_code, d.device_label
             """)
             return [dict(row) for row in cursor.fetchall()]
@@ -394,6 +396,62 @@ class Database:
                 (device_id, limit)
             )
             return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_device_latency_history(
+        self,
+        device_id: int,
+        hours: int = 24
+    ) -> List[Dict[str, Any]]:
+        """
+        Get latency history for a device over a time period
+
+        Args:
+            device_id: Device ID
+            hours: Number of hours of history to retrieve
+
+        Returns:
+            List of heartbeat dictionaries with latency data, oldest first
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT id, timestamp, latency_ms, download_mbps
+                   FROM heartbeats
+                   WHERE device_id = ?
+                     AND latency_ms IS NOT NULL
+                     AND timestamp >= datetime('now', '-' || ? || ' hours')
+                   ORDER BY timestamp ASC""",
+                (device_id, hours)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_device_by_id(self, device_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a device by ID with store information
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            Device dictionary with store info or None if not found
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT
+                    d.*,
+                    s.store_code,
+                    s.display_name as store_display_name
+                FROM devices d
+                JOIN stores s ON d.store_id = s.id
+                WHERE d.id = ?
+            """, (device_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
         finally:
             conn.close()
 

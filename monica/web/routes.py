@@ -896,13 +896,13 @@ def dashboard():
         <div class="devices-container">
             <div class="devices-grid">
                 {% for device in devices %}
-                <div class="device-card {{ device.computed_status }}">
+                <div class="device-card {{ device.computed_status }}" onclick="window.location='/device/{{ device.id }}'" style="cursor: pointer;">
                     <div class="device-header">
                         <div class="device-title">
                             <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
                             <div class="device-name">{{ device.store_code }}</div>
                         </div>
-                        <div class="card-actions">
+                        <div class="card-actions" onclick="event.stopPropagation();">
                             <button class="edit-btn" onclick="showEditModal({{ device.id }}, '{{ device.store_code }}', '{{ device.device_label }}')">Edit</button>
                             <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
                         </div>
@@ -1016,6 +1016,419 @@ def dashboard():
 </html>
     """
     return render_template_string(template, config=config, devices=sorted_devices)
+
+
+@web_bp.route('/device/<int:device_id>')
+@login_required
+def device_detail(device_id):
+    """Device detail page showing latency history graph"""
+    device = db.get_device_by_id(device_id)
+
+    if not device:
+        return "Device not found", 404
+
+    # Enrich with status info
+    device = status_service.enrich_device(device)
+
+    template = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ device.store_code }} - {{ device.device_label }} - {{ config.name }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .device-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .device-title h1 {
+            font-size: 1.8em;
+            color: #1f2937;
+        }
+        .device-subtitle {
+            font-size: 1em;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .status-emoji {
+            font-size: 2em;
+        }
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .status-badge.online {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.degraded {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-badge.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .stats-row {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        .stat-item strong {
+            color: #1f2937;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .time-range-btns {
+            display: flex;
+            gap: 8px;
+        }
+        .time-btn {
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            color: #6b7280;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .time-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .time-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .stat-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #6b7280;
+        }
+        .no-data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #9ca3af;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .no-data-icon {
+            font-size: 3em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="device-title">
+                <span class="status-emoji">{{ device.status_emoji }}</span>
+                <div>
+                    <h1>{{ device.store_code }}</h1>
+                    <div class="device-subtitle">{{ device.device_label }}</div>
+                </div>
+            </div>
+            <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+        </div>
+        <div class="stats-row">
+            <div class="stat-item">
+                <strong>Status:</strong>
+                <span class="status-badge {{ device.computed_status }}">{{ device.status_label }}</span>
+            </div>
+            <div class="stat-item">
+                <strong>Last seen:</strong> {{ device.last_seen_text }}
+            </div>
+            {% if device.last_public_ip %}
+            <div class="stat-item">
+                <strong>IP:</strong> {{ device.last_public_ip }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Latency History</div>
+            <div class="time-range-btns">
+                <button class="time-btn" data-hours="6">6h</button>
+                <button class="time-btn active" data-hours="24">24h</button>
+                <button class="time-btn" data-hours="72">3d</button>
+                <button class="time-btn" data-hours="168">7d</button>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div id="loading" class="loading">Loading latency data...</div>
+            <div id="no-data" class="no-data" style="display: none;">
+                <div class="no-data-icon">📊</div>
+                <div>No latency data available for this time period</div>
+            </div>
+            <canvas id="latencyChart" style="display: none;"></canvas>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-current">--</div>
+                <div class="stat-label">Current (ms)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-avg">--</div>
+                <div class="stat-label">Average (ms)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-min">--</div>
+                <div class="stat-label">Min (ms)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-max">--</div>
+                <div class="stat-label">Max (ms)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const deviceId = {{ device.id }};
+        let chart = null;
+        let currentHours = 24;
+
+        // Initialize chart
+        async function loadLatencyData(hours) {
+            currentHours = hours;
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('no-data').style.display = 'none';
+            document.getElementById('latencyChart').style.display = 'none';
+
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.hours) === hours);
+            });
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/latency?hours=${hours}`);
+                const result = await response.json();
+
+                if (!result.success || !result.data || result.data.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('no-data').style.display = 'flex';
+                    updateStats([]);
+                    return;
+                }
+
+                const data = result.data;
+                updateChart(data);
+                updateStats(data);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('latencyChart').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading latency data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('no-data').style.display = 'flex';
+            }
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('latencyChart').getContext('2d');
+
+            const chartData = data.map(d => ({
+                x: new Date(d.timestamp),
+                y: d.latency_ms
+            }));
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Latency (ms)',
+                        data: chartData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: currentHours <= 24 ? 3 : 1,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return new Date(context[0].parsed.x).toLocaleString();
+                                },
+                                label: function(context) {
+                                    return `Latency: ${context.parsed.y.toFixed(0)} ms`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: currentHours <= 24 ? 'hour' : 'day',
+                                displayFormats: {
+                                    hour: 'HH:mm',
+                                    day: 'MMM d'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Latency (ms)'
+                            },
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStats(data) {
+            if (data.length === 0) {
+                document.getElementById('stat-current').textContent = '--';
+                document.getElementById('stat-avg').textContent = '--';
+                document.getElementById('stat-min').textContent = '--';
+                document.getElementById('stat-max').textContent = '--';
+                return;
+            }
+
+            const latencies = data.map(d => d.latency_ms);
+            const current = latencies[latencies.length - 1];
+            const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+            const min = Math.min(...latencies);
+            const max = Math.max(...latencies);
+
+            document.getElementById('stat-current').textContent = Math.round(current);
+            document.getElementById('stat-avg').textContent = Math.round(avg);
+            document.getElementById('stat-min').textContent = Math.round(min);
+            document.getElementById('stat-max').textContent = Math.round(max);
+        }
+
+        // Event listeners for time range buttons
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                loadLatencyData(parseInt(btn.dataset.hours));
+            });
+        });
+
+        // Initial load
+        loadLatencyData(24);
+    </script>
+</body>
+</html>
+    """
+    return render_template_string(template, config=config, device=device)
 
 
 @web_bp.route('/agent')

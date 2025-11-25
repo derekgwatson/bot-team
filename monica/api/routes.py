@@ -324,6 +324,42 @@ def get_device_heartbeats(device_id: int):
         }), 500
 
 
+@api_bp.route('/devices/<int:device_id>/latency', methods=['GET'])
+def get_device_latency_history(device_id: int):
+    """
+    Get latency history for a specific device
+
+    Query params:
+        hours: Number of hours of history (default 24, max 168 for 1 week)
+
+    Response JSON:
+        {
+            "success": true,
+            "data": [
+                {"timestamp": "2025-11-25T10:30:00", "latency_ms": 45.2, "download_mbps": 50.1},
+                ...
+            ]
+        }
+    """
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        hours = min(hours, 168)  # Cap at 1 week
+
+        history = db.get_device_latency_history(device_id, hours)
+
+        return jsonify({
+            'success': True,
+            'data': history
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get latency history error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
 @api_bp.route('/devices/<int:device_id>', methods=['DELETE'])
 def delete_device(device_id: int):
     """
