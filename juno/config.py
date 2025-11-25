@@ -25,12 +25,12 @@ class Config:
         local_config_file = self.base_dir / "config.local.yaml"
 
         # Load main config.yaml
-        with open(config_file, "r") as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         # Merge with local config if it exists
         if local_config_file.exists():
-            with open(local_config_file, "r") as f:
+            with open(local_config_file, "r", encoding="utf-8") as f:
                 local_data = yaml.safe_load(f) or {}
                 data.update(local_data)
 
