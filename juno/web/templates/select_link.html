@@ -1,0 +1,92 @@
+{% extends "customer_base.html" %}
+
+{% block title %}Select Your Visit{% endblock %}
+
+{% block header %}
+<h1>Multiple Visits Found</h1>
+<p>Select which visit you'd like to track</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .intro {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #555;
+    }
+
+    .link-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .link-card {
+        display: block;
+        padding: 20px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        text-decoration: none;
+        color: #333;
+        transition: all 0.3s;
+    }
+
+    .link-card:hover {
+        border-color: #4a00e0;
+        background: #fafafa;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(74, 0, 224, 0.15);
+    }
+
+    .link-address {
+        font-weight: 600;
+        font-size: 1.05em;
+        margin-bottom: 6px;
+        color: #4a00e0;
+    }
+
+    .link-time {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+
+    .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 25px;
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 0.9em;
+    }
+
+    .back-link:hover {
+        color: #4a00e0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="intro">
+    <p>We found multiple active visits for your phone number. Please select which one you'd like to track:</p>
+</div>
+
+<div class="link-list">
+    {% for link in links %}
+    <a href="/track/{{ link.code }}" class="link-card">
+        <div class="link-address">
+            {% if link.destination_address %}
+                {{ link.destination_address }}
+            {% else %}
+                Visit #{{ loop.index }}
+            {% endif %}
+        </div>
+        <div class="link-time">
+            Created {{ link.created_at }}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+<a href="/" class="back-link">Back to home</a>
+{% endblock %}

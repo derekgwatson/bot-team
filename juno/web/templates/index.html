@@ -1,195 +1,226 @@
-{% extends "admin_base.html" %}
+{% extends "customer_base.html" %}
+
+{% block title %}Track Your Technician{% endblock %}
+
+{% block header %}
+<h1>Track Your Technician</h1>
+<p>Watch your technician travel to you in real-time</p>
+{% endblock %}
 
 {% block extra_css %}
 <style>
-    .welcome {
+    .intro {
         text-align: center;
-        padding: 40px 20px;
-    }
-
-    .welcome h2 {
-        font-size: 2em;
-        color: #4a00e0;
-        margin-bottom: 20px;
-    }
-
-    .welcome p {
-        font-size: 1.2em;
-        color: #6c757d;
         margin-bottom: 30px;
-        line-height: 1.8;
+        color: #555;
     }
 
-    .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 25px;
-        margin-top: 40px;
+    .intro p {
+        font-size: 1.05em;
+        line-height: 1.7;
     }
 
-    .feature-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 30px;
-        border-radius: 12px;
-        color: white;
-        text-align: center;
-        transition: transform 0.3s, box-shadow 0.3s;
+    .section {
+        margin-bottom: 25px;
     }
 
-    .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    .section-title {
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        margin-bottom: 12px;
+        font-weight: 600;
     }
 
-    .feature-card h3 {
-        font-size: 1.3em;
-        margin-bottom: 10px;
-    }
-
-    .feature-card p {
-        font-size: 0.95em;
-        opacity: 0.95;
-        color: white;
-    }
-
-    .icon {
-        font-size: 2.5em;
-        margin-bottom: 15px;
-    }
-
-    .flow-diagram {
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 30px;
-        margin-top: 40px;
-    }
-
-    .flow-diagram h3 {
-        color: #4a00e0;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-
-    .flow-steps {
+    .code-form {
         display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
         gap: 10px;
     }
 
-    .flow-step {
-        background: white;
-        padding: 15px 20px;
+    .code-input {
+        flex: 1;
+        padding: 14px 16px;
+        font-size: 1.1em;
+        border: 2px solid #e9ecef;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        text-align: center;
+        transition: border-color 0.3s;
+        font-family: monospace;
+        letter-spacing: 1px;
     }
 
-    .flow-step .step-icon {
-        font-size: 1.5em;
-        margin-bottom: 5px;
+    .code-input:focus {
+        outline: none;
+        border-color: #4a00e0;
     }
 
-    .flow-arrow {
-        font-size: 1.5em;
-        color: #4a00e0;
-    }
-
-    .integration-note {
-        background: #e8eaf6;
-        border-left: 4px solid #4a00e0;
-        padding: 20px;
-        margin-top: 40px;
-        border-radius: 0 8px 8px 0;
-        text-align: left;
-    }
-
-    .integration-note h3 {
-        color: #4a00e0;
-        margin-bottom: 10px;
-    }
-
-    .integration-note p {
-        color: #555;
+    .btn {
+        padding: 14px 24px;
         font-size: 1em;
-        margin: 0;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #4a00e0 0%, #8e2de2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(74, 0, 224, 0.3);
+    }
+
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #4a00e0;
+        border: 2px solid #e9ecef;
+        width: 100%;
+    }
+
+    .btn-secondary:hover {
+        background: #e9ecef;
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        margin: 25px 0;
+        color: #adb5bd;
+    }
+
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e9ecef;
+    }
+
+    .divider span {
+        padding: 0 15px;
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .phone-form {
+        display: none;
+    }
+
+    .phone-form.active {
+        display: block;
+    }
+
+    .phone-input {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 1.1em;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        transition: border-color 0.3s;
+    }
+
+    .phone-input:focus {
+        outline: none;
+        border-color: #4a00e0;
+    }
+
+    .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 0.95em;
+    }
+
+    .help-text {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin-top: 8px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="welcome">
-    <h2>👋 Hello! I'm Juno</h2>
+<div class="intro">
     <p>
-        I create the magical tracking experience for your customers. When a technician
-        is on their way, I send a beautiful live map so customers can watch their
-        arrival in real-time — just like tracking a pizza delivery!
+        When our technician is on their way to you, you can track their
+        journey live on a map - just like tracking a delivery!
     </p>
-
-    <div class="features">
-        <div class="feature-card">
-            <div class="icon">🔗</div>
-            <h3>Tracking Links</h3>
-            <p>Generate unique, time-limited links for each customer appointment</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="icon">🗺️</div>
-            <h3>Live Map</h3>
-            <p>Beautiful mobile-friendly map showing real-time technician location</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="icon">🤝</div>
-            <h3>Travis Integration</h3>
-            <p>Works with Travis to get privacy-aware location data</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="icon">⏰</div>
-            <h3>Auto-Expire</h3>
-            <p>Links automatically expire after the visit is complete</p>
-        </div>
-    </div>
-
-    <div class="flow-diagram">
-        <h3>Customer Journey</h3>
-        <div class="flow-steps">
-            <div class="flow-step">
-                <div class="step-icon">📱</div>
-                <div>Staff starts journey</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-                <div class="step-icon">🔗</div>
-                <div>Link created</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-                <div class="step-icon">💬</div>
-                <div>SMS sent</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-                <div class="step-icon">🗺️</div>
-                <div>Customer tracks</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-step">
-                <div class="step-icon">✅</div>
-                <div>Arrival!</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="integration-note">
-        <h3>🔒 Privacy by Design</h3>
-        <p>
-            Juno works with Travis to respect privacy. When a technician is at another customer's home,
-            we only show "with previous customer" — never the actual location. Customers only see
-            the live map when their technician is actively travelling to them.
-        </p>
-    </div>
 </div>
+
+{% if error %}
+<div class="error-message">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="section">
+    <div class="section-title">Have a tracking code?</div>
+    <form class="code-form" action="/go" method="GET">
+        <input
+            type="text"
+            name="code"
+            class="code-input"
+            placeholder="Enter your code"
+            maxlength="20"
+            autocomplete="off"
+            autocapitalize="none"
+            required
+        >
+        <button type="submit" class="btn btn-primary">Go</button>
+    </form>
+    <p class="help-text">The code from your SMS or email</p>
+</div>
+
+<div class="divider">
+    <span>or</span>
+</div>
+
+<div class="section">
+    <button type="button" class="btn btn-secondary" onclick="togglePhoneForm()">
+        Look up by phone number
+    </button>
+
+    <form class="phone-form" id="phoneForm" action="/lookup" method="POST">
+        <p class="help-text" style="margin: 15px 0;">
+            Enter the phone number associated with your appointment
+        </p>
+        <input
+            type="tel"
+            name="phone"
+            class="phone-input"
+            placeholder="Your phone number"
+            autocomplete="tel"
+            required
+        >
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Find my tracking link
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePhoneForm() {
+    const form = document.getElementById('phoneForm');
+    const btn = event.target;
+
+    if (form.classList.contains('active')) {
+        form.classList.remove('active');
+        btn.style.display = 'block';
+    } else {
+        form.classList.add('active');
+        btn.style.display = 'none';
+        form.querySelector('input').focus();
+    }
+}
+</script>
 {% endblock %}

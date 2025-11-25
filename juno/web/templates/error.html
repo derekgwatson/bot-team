@@ -1,13 +1,52 @@
-{% extends "base.html" %}
+{% extends "customer_base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block header %}
+<h1>{{ title }}</h1>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-content {
+        text-align: center;
+        padding: 20px 0;
+    }
+
+    .error-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+
+    .error-message {
+        font-size: 1.1em;
+        color: #555;
+        line-height: 1.6;
+        margin-bottom: 25px;
+    }
+
+    .home-link {
+        display: inline-block;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #4a00e0 0%, #8e2de2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .home-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(74, 0, 224, 0.3);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
-    <div class="error-container">
-        <div class="error-icon">😕</div>
-        <h1 class="error-title">{{ title }}</h1>
-        <p class="error-message">{{ message }}</p>
-    </div>
+<div class="error-content">
+    <div class="error-icon">😕</div>
+    <p class="error-message">{{ message }}</p>
+    <a href="/" class="home-link">Back to home</a>
 </div>
 {% endblock %}
