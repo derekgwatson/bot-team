@@ -244,6 +244,61 @@ class Database:
         finally:
             conn.close()
 
+    def update_device(self, device_id: int, device_label: Optional[str] = None,
+                      store_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Update a device's label and/or store
+
+        Args:
+            device_id: Device ID to update
+            device_label: New device label (optional)
+            store_code: New store code (optional)
+
+        Returns:
+            Updated device dictionary or None if not found
+        """
+        conn = self.get_connection()
+        try:
+            # Build dynamic update query
+            updates = []
+            params = []
+
+            if device_label is not None:
+                updates.append("device_label = ?")
+                params.append(device_label)
+
+            if store_code is not None:
+                # Get or create the store
+                store = self.get_or_create_store(store_code)
+                updates.append("store_id = ?")
+                params.append(store['id'])
+
+            if not updates:
+                # Nothing to update, just return current device
+                cursor = conn.execute("SELECT * FROM devices WHERE id = ?", (device_id,))
+                row = cursor.fetchone()
+                return dict(row) if row else None
+
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(device_id)
+
+            cursor = conn.execute(
+                f"UPDATE devices SET {', '.join(updates)} WHERE id = ?",
+                params
+            )
+            conn.commit()
+
+            if cursor.rowcount == 0:
+                return None
+
+            logger.info(f"Updated device {device_id}: label={device_label}, store={store_code}")
+
+            # Return updated device
+            cursor = conn.execute("SELECT * FROM devices WHERE id = ?", (device_id,))
+            return dict(cursor.fetchone())
+        finally:
+            conn.close()
+
     def delete_device(self, device_id: int) -> bool:
         """
         Delete a device and all its associated heartbeats
