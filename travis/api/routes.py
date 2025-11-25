@@ -1,5 +1,5 @@
 """
-Tracker API Routes
+Travis API Routes
 Handles location pings, staff management, and journey tracking
 """
 
@@ -15,8 +15,8 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 import logging
 
-from tracker.config import config
-from tracker.database.db import db
+from travis.config import config
+from travis.database.db import db
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
--- Tracker (Field Staff Location Tracking) Database Schema
+-- Travis (Field Staff Location Tracking) Database Schema
 -- SQLite database for tracking staff locations during customer journeys
 
 -- Staff table: field staff who use the tracking app

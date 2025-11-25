@@ -1,5 +1,5 @@
 """
-Tracker Database Manager
+Travis Database Manager
 Handles SQLite database connections and operations for location tracking
 """
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Database:
     """
-    Database manager for Tracker's SQLite database
+    Database manager for Travis's SQLite database
     """
 
     def __init__(self, db_path: Optional[str] = None):
@@ -27,7 +27,7 @@ class Database:
         """
         if db_path is None:
             db_dir = Path(__file__).parent
-            db_path = db_dir / 'tracker.db'
+            db_path = db_dir / 'travis.db'
 
         self.db_path = str(db_path)
         logger.info(f"Database path: {self.db_path}")

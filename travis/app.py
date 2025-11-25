@@ -1,5 +1,5 @@
 """
-Tracker - Field Staff Location Tracking Bot
+Travis - Field Staff Location Tracking Bot
 Flask application entry point
 """
 
@@ -15,8 +15,8 @@ import os
 import logging
 from flask import Flask, jsonify
 
-from tracker.config import config
-from tracker.api.routes import api_bp
+from travis.config import config
+from travis.api.routes import api_bp
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()

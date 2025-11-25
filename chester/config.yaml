@@ -347,8 +347,8 @@ bot_team:
       stats: /api/stats
     personality: Punctual and reliable, ensures everything happens at the right time
 
-  tracker:
-    name: Tracker
+  travis:
+    name: Travis
     port: 8021
     description: Field Staff Location Tracking
     capabilities:
@@ -363,7 +363,7 @@ bot_team:
       location: /api/location
       staff: /api/staff
       journeys: /api/journeys
-    personality: Watchful and discreet, tracks locations while respecting privacy
+    personality: Friendly road companion who always knows where everyone is, while keeping secrets safe
 
 
 # Health check configuration

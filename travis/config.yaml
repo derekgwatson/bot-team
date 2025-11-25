@@ -1,11 +1,11 @@
-# Tracker Configuration
+# Travis Configuration
 # Field Staff Location Tracking Bot
 
-name: tracker
+name: travis
 description: Field staff location tracking with privacy-aware sharing
 version: 1.0.0
-emoji: 📍
-personality: Watchful and discreet, tracks locations while respecting privacy
+emoji: 🚗
+personality: Friendly road companion who always knows where everyone is, while keeping secrets safe
 
 # Server configuration
 server:

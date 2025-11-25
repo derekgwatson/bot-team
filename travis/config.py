@@ -1,5 +1,5 @@
 """
-Tracker Configuration Loader
+Travis Configuration Loader
 Loads configuration from YAML and environment variables
 """
 
@@ -15,7 +15,7 @@ load_dotenv()
 
 
 class Config:
-    """Configuration loader for Tracker"""
+    """Configuration loader for Travis"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
@@ -35,7 +35,7 @@ class Config:
                 data.update(local_data)
 
         # ── Bot info (from YAML) ───────────────────────────────
-        self.name = data.get("name", "tracker")
+        self.name = data.get("name", "travis")
         self.description = data.get("description", "")
         self.version = data.get("version", "1.0.0")
         self.emoji = data.get("emoji", "📍")
@@ -43,7 +43,7 @@ class Config:
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
-        self.server_port = get_port("tracker")
+        self.server_port = get_port("travis")
 
         # ── Location settings ──────────────────────────────────
         location = data.get("location", {}) or {}
