@@ -357,6 +357,62 @@ def delete_device(device_id: int):
         }), 500
 
 
+@api_bp.route('/devices/<int:device_id>', methods=['PUT'])
+def update_device(device_id: int):
+    """
+    Update a device's label and/or store
+
+    Request JSON:
+        {
+            "device_label": "New Name",  // optional
+            "store_code": "NEWSTORE"     // optional
+        }
+
+    Response JSON:
+        {
+            "success": true,
+            "message": "Device updated successfully"
+        }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+
+        device_label = data.get('device_label', '').strip() if data.get('device_label') else None
+        store_code = data.get('store_code', '').strip().upper() if data.get('store_code') else None
+
+        if not device_label and not store_code:
+            return jsonify({
+                'success': False,
+                'error': 'No updates provided'
+            }), 400
+
+        updated = db.update_device(device_id, device_label=device_label, store_code=store_code)
+
+        if updated:
+            return jsonify({
+                'success': True,
+                'message': 'Device updated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Device not found'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Update device error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
 # Registration code management endpoints
 
 @api_bp.route('/registration-codes', methods=['POST'])

@@ -291,6 +291,25 @@ def dashboard():
             font-weight: 600;
             color: #1f2937;
         }
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .edit-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .edit-btn:hover {
+            background: #4b5563;
+            transform: scale(1.05);
+        }
         .delete-btn {
             background: #ef4444;
             color: white;
@@ -789,6 +808,58 @@ def dashboard():
                 }, 2000);
             });
         }
+
+        // Show edit device modal
+        function showEditModal(deviceId, storeCode, deviceLabel) {
+            clearTimeout(autoRefreshTimer);
+            document.getElementById('edit-device-id').value = deviceId;
+            document.getElementById('edit-store-code').value = storeCode;
+            document.getElementById('edit-device-label').value = deviceLabel;
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        // Hide edit modal
+        function hideEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+            autoRefreshTimer = setTimeout(function() {
+                location.reload();
+            }, {{ config.auto_refresh * 1000 }});
+        }
+
+        // Save device changes
+        async function saveDevice() {
+            const deviceId = document.getElementById('edit-device-id').value;
+            const storeCode = document.getElementById('edit-store-code').value.trim().toUpperCase();
+            const deviceLabel = document.getElementById('edit-device-label').value.trim();
+
+            if (!storeCode || !deviceLabel) {
+                showToast('Please enter both store code and device name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_code: storeCode,
+                        device_label: deviceLabel
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('Device updated successfully', 'success');
+                    clearTimeout(autoRefreshTimer);
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(`Failed to update device: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Error updating device: ${error.message}`, 'error');
+            }
+        }
     </script>
 </head>
 <body>
@@ -829,11 +900,14 @@ def dashboard():
                     <div class="device-header">
                         <div class="device-title">
                             <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
-                            <div class="device-name">{{ device.device_label }}</div>
+                            <div class="device-name">{{ device.store_code }}</div>
                         </div>
-                        <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
+                        <div class="card-actions">
+                            <button class="edit-btn" onclick="showEditModal({{ device.id }}, '{{ device.store_code }}', '{{ device.device_label }}')">Edit</button>
+                            <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
+                        </div>
                     </div>
-                    <div class="device-store">{{ device.store_code }}</div>
+                    <div class="device-store">{{ device.device_label }}</div>
                     <div class="device-info">
                         <strong>Status:</strong>
                         <span class="status-badge {{ device.computed_status }}">
@@ -912,6 +986,26 @@ def dashboard():
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="hideConfirmModal()">Cancel</button>
                 <button id="confirm-btn" class="btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Device Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Device</div>
+            <input type="hidden" id="edit-device-id">
+            <div class="form-group">
+                <label for="edit-store-code">Store Code</label>
+                <input type="text" id="edit-store-code" placeholder="FYSHWICK" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+                <label for="edit-device-label">Device Name</label>
+                <input type="text" id="edit-device-label" placeholder="Front Counter">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="hideEditModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveDevice()">Save Changes</button>
             </div>
         </div>
     </div>
