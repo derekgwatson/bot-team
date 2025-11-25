@@ -10,43 +10,43 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="/users/new" onsubmit="combineEmail()" autocomplete="off" data-lpignore="true">
+    <form method="POST" action="/users/new" onsubmit="combineFields()" autocomplete="off" data-lpignore="true" role="presentation">
         <div class="form-group">
-            <label for="email_local_part">Email Address *</label>
+            <label for="f1a">Email Address *</label>
             <div style="display: flex; align-items: center; gap: 5px;">
-                <input type="text" id="email_local_part" name="email_local_part" required
+                <input type="text" id="f1a" name="f1a" required
                        placeholder="firstname.lastname" style="flex: 1;"
-                       autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                       autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
                 <span style="font-size: 18px; color: #666;">@</span>
-                <select id="domain" name="domain" style="flex: 1; padding: 10px;" required
+                <select id="f1b" name="f1b" style="flex: 1; padding: 10px;" required
                         data-lpignore="true" data-1p-ignore="true">
                     {% for domain in allowed_domains %}
                     <option value="{{ domain }}">{{ domain }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <input type="hidden" id="email" name="email">
+            <input type="hidden" id="f1c" name="f1c">
         </div>
 
         <div class="form-group">
-            <label for="given_name">First Name *</label>
-            <input type="text" id="given_name" name="first_name" required
+            <label for="f2a">First Name *</label>
+            <input type="text" id="f2a" name="f2a" required
                    placeholder="John"
-                   autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                   autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
         </div>
 
         <div class="form-group">
-            <label for="family_name">Last Name *</label>
-            <input type="text" id="family_name" name="last_name" required
+            <label for="f2b">Last Name *</label>
+            <input type="text" id="f2b" name="f2b" required
                    placeholder="Doe"
-                   autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                   autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
         </div>
 
         <div class="form-group">
-            <label for="temp_credential">Temporary Password *</label>
-            <input type="text" id="temp_credential" name="password" required
+            <label for="f3a">Temporary Password *</label>
+            <input type="text" id="f3a" name="f3a" required
                    placeholder="Minimum 8 characters"
-                   autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                   autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
             <small style="color: #7f8c8d; display: block; margin-top: 5px;">
                 User will be prompted to change password on first login
             </small>
@@ -60,10 +60,10 @@
 </div>
 
 <script>
-function combineEmail() {
-    const localPart = document.getElementById('email_local_part').value;
-    const domain = document.getElementById('domain').value;
-    document.getElementById('email').value = localPart + '@' + domain;
+function combineFields() {
+    const localPart = document.getElementById('f1a').value;
+    const domain = document.getElementById('f1b').value;
+    document.getElementById('f1c').value = localPart + '@' + domain;
 }
 </script>
 {% endblock %}

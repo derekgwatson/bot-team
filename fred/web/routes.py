@@ -57,10 +57,11 @@ def new_user():
         allowed_domains = [config.google_domain]  # Fallback
 
     if request.method == 'POST':
-        email = request.form.get('email')
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        password = request.form.get('password')
+        # Field names obfuscated to prevent password manager detection
+        email = request.form.get('f1c')  # Combined email from JS
+        first_name = request.form.get('f2a')
+        last_name = request.form.get('f2b')
+        password = request.form.get('f3a')
 
         # Validate email domain
         if '@' not in email:

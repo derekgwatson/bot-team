@@ -94,9 +94,10 @@ def submit_onboard():
         }
 
         # Build work email if Google access is requested
+        # Field names obfuscated to prevent password manager detection
         if data['google_access']:
-            work_username = request.form.get('work_email_username', '').strip().lower()
-            work_domain = request.form.get('work_email_domain', '')
+            work_username = request.form.get('wx1', '').strip().lower()
+            work_domain = request.form.get('wx2', '')
             if work_username and work_domain:
                 data['work_email'] = f"{work_username}@{work_domain}"
 

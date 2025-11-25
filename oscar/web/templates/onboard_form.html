@@ -204,13 +204,13 @@
             <!-- Work Email Section (shown when Google access is checked) -->
             <div id="work_email_section" style="margin-left: 28px; margin-bottom: 15px; padding: 15px; background: #fff; border-radius: 6px; border: 1px solid #e0e0e0;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label for="acct_local_part" class="required">Work Email Address</label>
+                    <label for="wx1" class="required">Work Email Address</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="text" id="acct_local_part" name="work_email_username"
+                        <input type="text" id="wx1" name="wx1"
                                placeholder="firstname.lastname" style="flex: 1;"
-                               autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                               autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
                         <span style="font-size: 16px; color: #666;">@</span>
-                        <select id="acct_domain" name="work_email_domain" style="flex: 1; padding: 12px;"
+                        <select id="wx2" name="wx2" style="flex: 1; padding: 12px;"
                                 data-lpignore="true" data-1p-ignore="true">
                             {% if google_domains %}
                                 {% for domain in google_domains %}
@@ -264,7 +264,7 @@
 function toggleWorkEmail() {
     const googleAccess = document.getElementById('google_access');
     const workEmailSection = document.getElementById('work_email_section');
-    const localPartInput = document.getElementById('acct_local_part');
+    const localPartInput = document.getElementById('wx1');
 
     if (googleAccess.checked) {
         workEmailSection.style.display = 'block';
