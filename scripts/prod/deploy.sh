@@ -40,14 +40,78 @@ header() {
 }
 
 PROD_SCRIPTS_DIR="/var/www/bot-team/scripts/prod"
+REPO_PATH="/var/www/bot-team"
+BRANCH_PATTERN="claude/*"
+REMOTE="origin"
+MAIN_BRANCH="main"
 
 header "Deploying Latest Git Branch (default: claude/*)"
 
-# Step 1: Merge latest matching branch into main
-header "Step 1: Merging latest matching git branch into main"
-info "Running merge_latest_git_branch.sh as www-data..."
-sudo -u www-data "$PROD_SCRIPTS_DIR/merge_latest_git_branch.sh"
-success "Merge step complete"
+# Step 1: Preview and confirm branch merge
+header "Step 1: Checking for feature branches to merge"
+
+info "Fetching latest from $REMOTE..."
+sudo -u www-data git -C "$REPO_PATH" fetch "$REMOTE" --prune
+
+# Find the latest matching branch
+LATEST_REMOTE_BRANCH=$(
+  sudo -u www-data git -C "$REPO_PATH" for-each-ref \
+    --sort=-committerdate \
+    --format='%(refname:short)' \
+    "refs/remotes/$REMOTE/$BRANCH_PATTERN" \
+    | head -n 1
+)
+
+if [[ -z "${LATEST_REMOTE_BRANCH:-}" ]]; then
+    warning "No remote branches found matching pattern '$BRANCH_PATTERN'."
+    info "Skipping merge step - will just update $MAIN_BRANCH and restart bots."
+    SKIP_MERGE=1
+else
+    LOCAL_BRANCH="${LATEST_REMOTE_BRANCH#${REMOTE}/}"
+
+    echo ""
+    info "Latest matching branch: ${WHITE}$LOCAL_BRANCH${NC}"
+
+    # Show recent commits on the branch
+    echo ""
+    info "Recent commits on this branch:"
+    sudo -u www-data git -C "$REPO_PATH" log --oneline -5 "$LATEST_REMOTE_BRANCH" 2>/dev/null | while read -r line; do
+        echo "    $line"
+    done
+    echo ""
+
+    # Prompt for confirmation
+    if [ -t 0 ]; then
+        read -r -p "Merge '$LOCAL_BRANCH' into $MAIN_BRANCH? [Y/n]: " REPLY
+        case "$REPLY" in
+            n|N|no|NO)
+                warning "Merge skipped by user."
+                info "Will just update $MAIN_BRANCH from remote and restart bots."
+                SKIP_MERGE=1
+                ;;
+            *)
+                info "Proceeding with merge..."
+                SKIP_MERGE=0
+                ;;
+        esac
+    else
+        warning "Non-interactive shell detected; proceeding with merge automatically."
+        SKIP_MERGE=0
+    fi
+fi
+
+if [[ "${SKIP_MERGE:-0}" == "0" ]]; then
+    header "Merging feature branch into main"
+    info "Running merge_latest_git_branch.sh as www-data..."
+    sudo -u www-data "$PROD_SCRIPTS_DIR/merge_latest_git_branch.sh"
+    success "Merge step complete"
+else
+    header "Updating main branch"
+    info "Pulling latest $MAIN_BRANCH from $REMOTE..."
+    sudo -u www-data git -C "$REPO_PATH" checkout "$MAIN_BRANCH" 2>/dev/null || true
+    sudo -u www-data git -C "$REPO_PATH" pull "$REMOTE" "$MAIN_BRANCH"
+    success "Main branch updated"
+fi
 
 # ==== Check if scripts were updated ====
 if [ -z "${DEPLOY_REEXEC:-}" ] && [ -n "${DEPLOY_SCRIPT_HASH_BEFORE:-}" ]; then
