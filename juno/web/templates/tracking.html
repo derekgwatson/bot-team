@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Track Your Visit{% endblock %}
+
+{% block extra_head %}
+<style>
+    #map {
+        height: 350px;
+    }
+
+    .destination-marker {
+        background: #4CAF50;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .driver-marker {
+        font-size: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Hi {{ customer_name }}!</h1>
+        <div class="subtitle">Track your upcoming visit</div>
+    </div>
+
+    <div class="status-card" id="status-card">
+        <div class="status-icon" id="status-icon">🔄</div>
+        <div class="status-text" id="status-text">Loading...</div>
+        <div class="status-detail" id="status-detail">Getting location information</div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+    {% if destination_address %}
+    <div class="info-card">
+        <div class="info-row">
+            <span class="info-label">Destination</span>
+            <span class="info-value">{{ destination_address }}</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Configuration from server
+    const CONFIG = {
+        code: '{{ code }}',
+        pollInterval: {{ poll_interval }},
+        destinationLat: {{ destination_lat }},
+        destinationLng: {{ destination_lng }},
+        defaultZoom: {{ default_zoom }},
+        googleMapsApiKey: '{{ google_maps_api_key }}'
+    };
+
+    let map = null;
+    let driverMarker = null;
+    let destinationMarker = null;
+
+    // Initialize map with Leaflet (free, no API key needed)
+    function initMap() {
+        // Create map centered on destination
+        map = L.map('map').setView([CONFIG.destinationLat, CONFIG.destinationLng], CONFIG.defaultZoom);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add destination marker
+        const destinationIcon = L.divIcon({
+            className: 'destination-marker-container',
+            html: '<div style="background: #4CAF50; border: 3px solid #fff; border-radius: 50%; width: 16px; height: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+
+        destinationMarker = L.marker([CONFIG.destinationLat, CONFIG.destinationLng], {
+            icon: destinationIcon
+        }).addTo(map);
+        destinationMarker.bindPopup('Your location').openPopup();
+    }
+
+    // Update status display
+    function updateStatus(data) {
+        const statusIcon = document.getElementById('status-icon');
+        const statusText = document.getElementById('status-text');
+        const statusDetail = document.getElementById('status-detail');
+        const statusCard = document.getElementById('status-card');
+
+        if (data.shareable && data.status === 'in_transit') {
+            // Driver is on the way!
+            statusIcon.textContent = '🚗';
+            statusIcon.classList.add('pulse');
+            statusText.textContent = 'On the way!';
+            statusText.className = 'status-text status-in-transit';
+            statusDetail.textContent = 'Your technician is heading to you now';
+
+            // Update driver marker on map
+            updateDriverMarker(data.latitude, data.longitude, data.heading);
+
+        } else if (data.status === 'at_customer') {
+            // At previous customer
+            statusIcon.textContent = '⏳';
+            statusIcon.classList.remove('pulse');
+            statusText.textContent = 'Almost ready';
+            statusText.className = 'status-text status-at-customer';
+            statusDetail.textContent = 'Finishing up with a previous appointment';
+
+            // Remove driver marker if exists
+            if (driverMarker) {
+                map.removeLayer(driverMarker);
+                driverMarker = null;
+            }
+
+        } else if (data.status === 'arrived') {
+            // Arrived!
+            statusIcon.textContent = '✅';
+            statusIcon.classList.remove('pulse');
+            statusText.textContent = 'Arrived!';
+            statusText.className = 'status-text status-arrived';
+            statusDetail.textContent = 'Your technician has arrived';
+
+        } else {
+            // Not active or other status
+            statusIcon.textContent = '📍';
+            statusIcon.classList.remove('pulse');
+            statusText.textContent = 'Tracking';
+            statusText.className = 'status-text status-offline';
+            statusDetail.textContent = data.message || 'Waiting for location update';
+
+            // Remove driver marker if exists
+            if (driverMarker) {
+                map.removeLayer(driverMarker);
+                driverMarker = null;
+            }
+        }
+    }
+
+    // Update driver marker on map
+    function updateDriverMarker(lat, lng, heading) {
+        const driverIcon = L.divIcon({
+            className: 'driver-marker',
+            html: '🚗',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        if (driverMarker) {
+            driverMarker.setLatLng([lat, lng]);
+        } else {
+            driverMarker = L.marker([lat, lng], {
+                icon: driverIcon
+            }).addTo(map);
+        }
+
+        // Fit map to show both markers
+        const bounds = L.latLngBounds([
+            [lat, lng],
+            [CONFIG.destinationLat, CONFIG.destinationLng]
+        ]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
+
+    // Fetch location from API
+    async function fetchLocation() {
+        try {
+            const response = await fetch(`/api/tracking-links/${CONFIG.code}/location`);
+            const data = await response.json();
+            updateStatus(data);
+        } catch (error) {
+            console.error('Failed to fetch location:', error);
+            updateStatus({
+                shareable: false,
+                message: 'Unable to get location'
+            });
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load Leaflet CSS
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        // Load Leaflet JS
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = function() {
+            initMap();
+            fetchLocation();
+            // Poll for updates
+            setInterval(fetchLocation, CONFIG.pollInterval);
+        };
+        document.head.appendChild(script);
+    });
+</script>
+{% endblock %}

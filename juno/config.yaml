@@ -1,0 +1,44 @@
+# Juno Configuration
+# Customer Tracking Experience Bot
+
+name: juno
+description: Customer-facing tracking links and live map experience
+version: 1.0.0
+emoji: 🗺️
+personality: Warm and reassuring, keeps customers informed about their upcoming visit
+
+# Server configuration
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+# Tracking link settings
+tracking:
+  # How long tracking links remain valid after creation (hours)
+  link_expiry_hours: 24
+  # Auto-expire link after arrival (minutes after arrival)
+  post_arrival_expiry_minutes: 30
+  # Length of tracking code (characters)
+  code_length: 12
+
+# Travis integration
+travis:
+  # Travis bot URL for location data
+  base_url: http://localhost:8021
+  # How often to poll for location updates (seconds) - used by frontend
+  poll_interval: 10
+
+# Map settings
+map:
+  # Default map center (used before location is available)
+  default_lat: -35.2809
+  default_lng: 149.1300
+  default_zoom: 12
+
+# Database
+database:
+  cleanup_days: 7  # Delete expired tracking links after this many days
+
+# Logging
+logging:
+  level: INFO

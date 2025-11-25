@@ -347,6 +347,41 @@ bot_team:
       stats: /api/stats
     personality: Punctual and reliable, ensures everything happens at the right time
 
+  travis:
+    name: Travis
+    port: 8021
+    description: Field Staff Location Tracking
+    capabilities:
+      - Receive GPS location pings from field staff devices
+      - Track staff status (at_customer, in_transit, off_duty)
+      - Privacy-aware location sharing (only share when in transit)
+      - Store location history for active journeys
+      - Provide location API for Journey bot
+    api_endpoints:
+      info: /info
+      health: /health
+      location: /api/location
+      staff: /api/staff
+      journeys: /api/journeys
+    personality: Friendly road companion who always knows where everyone is, while keeping secrets safe
+
+  juno:
+    name: Juno
+    port: 8022
+    description: Customer Tracking Experience
+    capabilities:
+      - Generate unique tracking links for customers
+      - Serve customer-facing map tracking page
+      - Display real-time ETA and driver location
+      - Call Travis for privacy-aware location data
+      - Auto-expire tracking links after delivery
+    api_endpoints:
+      info: /info
+      health: /health
+      tracking_links: /api/tracking-links
+      track: /track
+    personality: Warm and reassuring, keeps customers informed about their upcoming visit
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
