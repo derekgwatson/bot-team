@@ -213,6 +213,7 @@ def dashboard():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>📊 Dashboard - {{ config.name }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -274,6 +275,13 @@ def dashboard():
         .device-card.online { border-left: 4px solid #10b981; }
         .device-card.degraded { border-left: 4px solid #f59e0b; }
         .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-card.sortable-ghost {
+            opacity: 0.4;
+        }
+        .device-card.sortable-drag {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: scale(1.02);
+        }
         .device-header {
             display: flex;
             align-items: center;
@@ -894,9 +902,9 @@ def dashboard():
 
     {% if devices %}
         <div class="devices-container">
-            <div class="devices-grid">
+            <div class="devices-grid" id="devices-grid">
                 {% for device in devices %}
-                <div class="device-card {{ device.computed_status }}" onclick="window.location='/device/{{ device.id }}'" style="cursor: pointer;">
+                <div class="device-card {{ device.computed_status }}" data-id="{{ device.id }}" onclick="window.location='/device/{{ device.id }}'" style="cursor: pointer;">
                     <div class="device-header">
                         <div class="device-title">
                             <span style="font-size: 1.5em;">{{ device.status_emoji }}</span>
@@ -1012,6 +1020,62 @@ def dashboard():
 
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // Drag and drop reordering
+        (function() {
+            const grid = document.getElementById('devices-grid');
+            if (!grid) return;
+
+            const STORAGE_KEY = 'monica_device_order';
+
+            // Restore saved order
+            function restoreOrder() {
+                const savedOrder = localStorage.getItem(STORAGE_KEY);
+                if (!savedOrder) return;
+
+                try {
+                    const order = JSON.parse(savedOrder);
+                    const cards = Array.from(grid.children);
+                    const cardMap = {};
+                    cards.forEach(card => {
+                        cardMap[card.dataset.id] = card;
+                    });
+
+                    // Reorder based on saved order
+                    order.forEach(id => {
+                        if (cardMap[id]) {
+                            grid.appendChild(cardMap[id]);
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error restoring order:', e);
+                }
+            }
+
+            // Save current order
+            function saveOrder() {
+                const cards = Array.from(grid.children);
+                const order = cards.map(card => card.dataset.id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+            }
+
+            // Restore order on load
+            restoreOrder();
+
+            // Initialize Sortable
+            new Sortable(grid, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                delay: 150,  // Prevent accidental drags when clicking
+                delayOnTouchOnly: true,
+                onEnd: function() {
+                    saveOrder();
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
     """
