@@ -226,8 +226,28 @@
             </div>
 
             <div class="checkbox-group">
-                <input type="checkbox" id="zendesk_access" name="zendesk_access">
-                <label for="zendesk_access">Zendesk (Support System)</label>
+                <input type="checkbox" id="zendesk_access" name="zendesk_access" onchange="toggleZendeskGroups()">
+                <label for="zendesk_access">Zendesk (Support System) - Agent role</label>
+            </div>
+
+            <!-- Zendesk Groups Section (shown when Zendesk access is checked) -->
+            <div id="zendesk_groups_section" style="display: none; margin-left: 28px; margin-bottom: 15px; padding: 15px; background: #fff; border-radius: 6px; border: 1px solid #e0e0e0;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Assign to Groups</label>
+                    <div class="form-help" style="margin-bottom: 10px;">Select the Zendesk groups this agent should belong to:</div>
+                    {% if zendesk_groups %}
+                    <div style="max-height: 150px; overflow-y: auto;">
+                        {% for group in zendesk_groups %}
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="zg_{{ group.id }}" name="zendesk_groups" value="{{ group.id }}">
+                            <label for="zg_{{ group.id }}">{{ group.name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p style="color: #999; font-style: italic; margin: 0;">No groups available</p>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="checkbox-group">
@@ -251,11 +271,14 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary" style="font-size: 16px; padding: 15px 40px;">
-                🚀 Start Onboarding
+                📋 Save Onboarding Request
             </button>
             <a href="{{ url_for('web.index') }}" class="btn btn-secondary" style="font-size: 16px; padding: 15px 40px; margin-left: 10px;">
                 Cancel
             </a>
+            <div class="form-help" style="margin-top: 15px;">
+                Accounts will be created when you're ready. You can trigger each step individually or all at once.
+            </div>
         </div>
     </form>
 </div>
@@ -275,7 +298,24 @@ function toggleWorkEmail() {
     }
 }
 
+function toggleZendeskGroups() {
+    const zendeskAccess = document.getElementById('zendesk_access');
+    const groupsSection = document.getElementById('zendesk_groups_section');
+
+    if (zendeskAccess.checked) {
+        groupsSection.style.display = 'block';
+    } else {
+        groupsSection.style.display = 'none';
+        // Uncheck all group checkboxes when hiding
+        const checkboxes = groupsSection.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+    }
+}
+
 // Run on page load to set initial state
-document.addEventListener('DOMContentLoaded', toggleWorkEmail);
+document.addEventListener('DOMContentLoaded', function() {
+    toggleWorkEmail();
+    toggleZendeskGroups();
+});
 </script>
 {% endblock %}

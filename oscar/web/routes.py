@@ -34,6 +34,22 @@ def _get_google_domains():
     return []  # Return empty list on failure
 
 
+def _get_zendesk_groups():
+    """Fetch available groups from Zac's API"""
+    try:
+        zac_url = config.bots.get('zac', {}).get('url', 'http://localhost:8003')
+        response = http_requests.get(
+            f"{zac_url}/api/groups",
+            headers={'X-API-Key': config.bot_api_key},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return response.json().get('groups', [])
+    except Exception as e:
+        logger.warning(f"Could not fetch groups from Zac: {e}")
+    return []  # Return empty list on failure
+
+
 @web_bp.route('/')
 @login_required
 def index():
@@ -70,13 +86,16 @@ def new_onboard():
     """Show new onboarding form"""
     # Fetch available domains from Fred for work email selection
     google_domains = _get_google_domains()
-    return render_template('onboard_form.html', user=current_user, google_domains=google_domains)
+    # Fetch available groups from Zac for Zendesk agent assignment
+    zendesk_groups = _get_zendesk_groups()
+    return render_template('onboard_form.html', user=current_user,
+                         google_domains=google_domains, zendesk_groups=zendesk_groups)
 
 
 @web_bp.route('/onboard/submit', methods=['POST'])
 @login_required
 def submit_onboard():
-    """Submit a new onboarding request"""
+    """Submit a new onboarding request (prep-and-fire mode: sets up but doesn't execute)"""
     try:
         # Get form data
         data = {
@@ -102,6 +121,12 @@ def submit_onboard():
             if work_username and work_domain:
                 data['work_email'] = f"{work_username}@{work_domain}"
 
+        # Get selected Zendesk groups if Zendesk access is requested
+        if data['zendesk_access']:
+            selected_groups = request.form.getlist('zendesk_groups')
+            if selected_groups:
+                data['zendesk_groups'] = [int(g) for g in selected_groups]
+
         # Validate required fields
         required_fields = ['full_name', 'position', 'section', 'start_date', 'personal_email']
         for field in required_fields:
@@ -117,13 +142,13 @@ def submit_onboard():
         # Create the onboarding request
         request_id = db.create_onboarding_request(data, created_by=current_user.email)
 
-        # Auto-start the workflow
-        result = orchestrator.start_onboarding(request_id)
+        # Set up workflow steps (but don't execute them)
+        result = orchestrator.setup_workflow(request_id)
 
         if result.get('success'):
-            flash(f'Onboarding request created and workflow started for {data["full_name"]}!', 'success')
+            flash(f'Onboarding request created for {data["full_name"]}. Ready to create accounts when you are!', 'success')
         else:
-            flash(f'Onboarding request created but workflow failed: {result.get("error")}', 'warning')
+            flash(f'Onboarding request created but workflow setup failed: {result.get("error")}', 'warning')
 
         return redirect(url_for('web.view_onboard', request_id=request_id))
 
@@ -170,24 +195,53 @@ def view_onboard(request_id):
         return redirect(url_for('web.index'))
 
 
-@web_bp.route('/onboard/<int:request_id>/start', methods=['POST'])
+@web_bp.route('/onboard/<int:request_id>/execute/<step_name>', methods=['POST'])
 @login_required
-def start_onboard(request_id):
-    """Start the onboarding workflow"""
+def execute_step(request_id, step_name):
+    """Execute a single workflow step"""
     try:
-        result = orchestrator.start_onboarding(request_id)
+        result = orchestrator.execute_single_step(request_id, step_name)
 
         if result.get('success'):
-            flash('Onboarding workflow started successfully!', 'success')
+            flash(f'Step "{step_name.replace("_", " ").title()}" completed successfully!', 'success')
         else:
-            flash(f'Workflow failed: {result.get("error")}', 'error')
+            flash(f'Step failed: {result.get("error")}', 'error')
 
         return redirect(url_for('web.view_onboard', request_id=request_id))
 
     except Exception as e:
-        logger.exception(f"Error starting onboarding workflow {request_id}")
+        logger.exception(f"Error executing step {step_name} for request {request_id}")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('web.view_onboard', request_id=request_id))
+
+
+@web_bp.route('/onboard/<int:request_id>/execute-all', methods=['POST'])
+@login_required
+def execute_all_steps(request_id):
+    """Execute all pending workflow steps"""
+    try:
+        result = orchestrator.execute_all_pending(request_id)
+
+        if result.get('success'):
+            flash('All steps completed successfully!', 'success')
+        else:
+            completed = sum(1 for s in result.get('steps', []) if s.get('success'))
+            total = len(result.get('steps', []))
+            flash(f'Completed {completed}/{total} steps. Some steps failed.', 'warning')
+
+        return redirect(url_for('web.view_onboard', request_id=request_id))
+
+    except Exception as e:
+        logger.exception(f"Error executing all steps for request {request_id}")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('web.view_onboard', request_id=request_id))
+
+
+@web_bp.route('/onboard/<int:request_id>/start', methods=['POST'])
+@login_required
+def start_onboard(request_id):
+    """Start the onboarding workflow (legacy: execute all steps)"""
+    return execute_all_steps(request_id)
 
 
 @web_bp.route('/tasks')

@@ -84,12 +84,12 @@ def search_users():
 @api_key_required
 def create_user():
     """
-    Create a new Zendesk user
+    Create a new Zendesk agent
 
     Request Body:
         name: User's full name (required)
         email: User's email address (required)
-        role: User role (default: end-user)
+        role: Must be 'agent' (enforced for security)
         verified: Email verified status (default: false)
         phone: Phone number (optional)
         organization_id: Organization ID (optional)
@@ -109,7 +109,12 @@ def create_user():
         if not name or not email:
             return jsonify({'error': 'name and email are required'}), 400
 
-        role = data.get('role', 'end-user')
+        # Enforce agent role for security - no admin or end-user creation via API
+        requested_role = data.get('role', 'agent')
+        if requested_role != 'agent':
+            logger.warning(f"Attempted to create user with role '{requested_role}' - forcing agent role")
+        role = 'agent'
+
         verified = data.get('verified', False)
 
         # Extract additional properties
@@ -126,7 +131,7 @@ def create_user():
             **additional_props
         )
 
-        return jsonify(user), 201
+        return jsonify({'user': user, 'message': 'Agent created successfully'}), 201
 
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}")

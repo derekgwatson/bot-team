@@ -10,7 +10,8 @@
 {% endwith %}
 
 <div class="card">
-    <h2>Create New User</h2>
+    <h2>Create New Agent</h2>
+    <p style="color: #666; margin-bottom: 20px;">New users are created as Zendesk agents.</p>
 
     <form method="POST" action="{{ url_for('web.create_user') }}">
         <div class="form-group">
@@ -24,17 +25,8 @@
         </div>
 
         <div class="form-group">
-            <label for="role">Role</label>
-            <select id="role" name="role" onchange="toggleGroupsSection()">
-                <option value="end-user">End User</option>
-                <option value="agent">Agent</option>
-                <option value="admin">Admin</option>
-            </select>
-        </div>
-
-        <div class="form-group" id="groups-section" style="display: none;">
             <label>Assign to Groups</label>
-            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Select the groups this user should belong to:</p>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Select the groups this agent should belong to:</p>
             {% if groups %}
             <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
                 {% for group in groups %}
@@ -62,28 +54,9 @@
         </div>
 
         <div class="form-group">
-            <button type="submit" class="btn btn-success">Create User</button>
+            <button type="submit" class="btn btn-success">Create Agent</button>
             <a href="{{ url_for('web.index') }}" class="btn">Cancel</a>
         </div>
     </form>
 </div>
-
-<script>
-function toggleGroupsSection() {
-    const role = document.getElementById('role').value;
-    const groupsSection = document.getElementById('groups-section');
-
-    if (role === 'agent' || role === 'admin') {
-        groupsSection.style.display = 'block';
-    } else {
-        groupsSection.style.display = 'none';
-        // Uncheck all groups when switching away from agent/admin
-        const checkboxes = groupsSection.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = false);
-    }
-}
-
-// Run on page load in case of form validation error returning with agent/admin selected
-document.addEventListener('DOMContentLoaded', toggleGroupsSection);
-</script>
 {% endblock %}

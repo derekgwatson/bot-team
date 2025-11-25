@@ -52,7 +52,7 @@ def view_user(user_id):
 @web_bp.route('/user/create', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    """Create a new Zendesk user"""
+    """Create a new Zendesk agent (restricted to agent role only for security)"""
     # Fetch available groups for selection
     try:
         groups = zendesk_service.list_groups()
@@ -63,7 +63,8 @@ def create_user():
         try:
             name = request.form.get('name')
             email = request.form.get('email')
-            role = request.form.get('role', 'end-user')
+            # Always create as agent - no role selection in form
+            role = 'agent'
             verified = request.form.get('verified') == 'on'
             phone = request.form.get('phone', '')
             selected_groups = request.form.getlist('groups')  # Get selected group IDs
@@ -80,21 +81,21 @@ def create_user():
                 phone=phone if phone else None
             )
 
-            # Add user to selected groups (only for agents/admins)
-            if selected_groups and role in ['agent', 'admin']:
+            # Add user to selected groups
+            if selected_groups:
                 try:
                     group_ids = [int(gid) for gid in selected_groups]
                     zendesk_service.set_user_groups(user['id'], group_ids)
-                    flash(f'User {user["name"]} created and added to {len(group_ids)} group(s)', 'success')
+                    flash(f'Agent {user["name"]} created and added to {len(group_ids)} group(s)', 'success')
                 except Exception as e:
-                    flash(f'User created but failed to assign groups: {str(e)}', 'warning')
+                    flash(f'Agent created but failed to assign groups: {str(e)}', 'warning')
             else:
-                flash(f'User {user["name"]} created successfully', 'success')
+                flash(f'Agent {user["name"]} created successfully', 'success')
 
             return redirect(url_for('web.view_user', user_id=user['id']))
 
         except Exception as e:
-            flash(f'Error creating user: {str(e)}', 'error')
+            flash(f'Error creating agent: {str(e)}', 'error')
             return render_template('user_create.html', current_user=current_user, groups=groups)
 
     return render_template('user_create.html', current_user=current_user, groups=groups)

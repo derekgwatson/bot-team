@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS onboarding_requests (
     zendesk_access BOOLEAN DEFAULT 0,
     voip_access BOOLEAN DEFAULT 0,
 
+    -- Work email (stored when creating request, used when executing Google step)
+    work_email TEXT DEFAULT NULL,
+
+    -- Zendesk configuration
+    zendesk_groups TEXT DEFAULT NULL,  -- JSON array of group IDs to assign
+
     -- Additional Information
     notes TEXT DEFAULT '',
 

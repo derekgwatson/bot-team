@@ -26,6 +26,14 @@
     .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .step-name { font-weight: 600; color: #333; }
     .step-description { font-size: 13px; color: #666; }
+    .step-actions { margin-top: 10px; }
+    .btn-execute { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-execute-primary { background: #667eea; color: white; }
+    .btn-execute-primary:hover { background: #5a6fd6; }
+    .btn-execute-all { background: #28a745; color: white; padding: 10px 20px; font-size: 14px; }
+    .btn-execute-all:hover { background: #229a3d; }
+    .btn-retry { background: #ffc107; color: #333; }
+    .btn-retry:hover { background: #e0a800; }
     .activity-list { list-style: none; max-height: 400px; overflow-y: auto; }
     .activity-item { padding: 10px; border-left: 3px solid #667eea; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px; }
     .activity-time { font-size: 12px; color: #666; }
@@ -127,6 +135,19 @@
         <div class="info-card">
             <h3>Workflow Steps</h3>
             {% if steps %}
+            {% set pending_steps = steps | selectattr('status', 'equalto', 'pending') | list %}
+            {% set failed_steps = steps | selectattr('status', 'equalto', 'failed') | list %}
+
+            {% if pending_steps or failed_steps %}
+            <div style="margin-bottom: 20px; text-align: center;">
+                <form action="{{ url_for('web.execute_all_steps', request_id=request.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn-execute btn-execute-all">
+                        🚀 Create All ({{ pending_steps|length + failed_steps|length }} remaining)
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
             <ul class="steps-list">
                 {% for step in steps %}
                 <li class="step-item {{ step.status }}">
@@ -139,6 +160,22 @@
                     {% endif %}
                     {% if step.zendesk_ticket_id %}
                     <div style="color: #667eea; font-size: 13px; margin-top: 5px;">🎫 Zendesk Ticket: #{{ step.zendesk_ticket_id }}</div>
+                    {% endif %}
+
+                    {% if step.status == 'pending' %}
+                    <div class="step-actions">
+                        <form action="{{ url_for('web.execute_step', request_id=request.id, step_name=step.step_name) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn-execute btn-execute-primary">Create Now</button>
+                        </form>
+                    </div>
+                    {% elif step.status == 'failed' %}
+                    <div class="step-actions">
+                        <form action="{{ url_for('web.execute_step', request_id=request.id, step_name=step.step_name) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn-execute btn-retry">🔄 Retry</button>
+                        </form>
+                    </div>
+                    {% elif step.status == 'completed' %}
+                    <div style="color: #28a745; font-size: 13px; margin-top: 5px;">✓ Completed</div>
                     {% endif %}
                 </li>
                 {% endfor %}

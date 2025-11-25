@@ -37,13 +37,19 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
+        # Convert zendesk_groups list to JSON if provided
+        zendesk_groups = data.get('zendesk_groups')
+        if zendesk_groups and isinstance(zendesk_groups, list):
+            zendesk_groups = json.dumps(zendesk_groups)
+
         cursor.execute("""
             INSERT INTO onboarding_requests (
                 full_name, preferred_name, position, section, start_date,
                 personal_email, phone_mobile, phone_fixed,
                 google_access, zendesk_access, voip_access,
+                work_email, zendesk_groups,
                 notes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('full_name'),
             data.get('preferred_name', ''),
@@ -56,6 +62,8 @@ class Database:
             data.get('google_access', True),
             data.get('zendesk_access', False),
             data.get('voip_access', False),
+            data.get('work_email'),
+            zendesk_groups,
             data.get('notes', ''),
             created_by
         ))
@@ -181,6 +189,22 @@ class Database:
         conn.close()
 
         return [dict(row) for row in rows]
+
+    def get_workflow_step_by_name(self, request_id: int, step_name: str) -> Optional[Dict]:
+        """Get a specific workflow step by name for a request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM workflow_steps WHERE onboarding_request_id = ? AND step_name = ?",
+            (request_id, step_name)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
 
     def get_pending_manual_tasks(self) -> List[Dict]:
         """Get all workflow steps that require manual action and are pending"""
