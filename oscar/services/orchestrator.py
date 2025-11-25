@@ -69,12 +69,14 @@ class OnboardingOrchestrator:
             }
 
             # Add details about what each step would do
-            if step['name'] == 'notify_ian':
-                step_preview['would_do'] = f"Send email to {config.notification_email}"
+            if step['name'] == 'notify_hr':
+                hr_email = db.get_setting('hr_notification_email', 'Not configured')
+                hr_name = db.get_setting('hr_notification_name', 'HR')
+                step_preview['would_do'] = f"Send email to {hr_name} ({hr_email})"
                 preview['bot_calls'].append({
                     'bot': 'Mabel (email)',
                     'action': 'Send notification email',
-                    'recipient': config.notification_email
+                    'recipient': hr_email
                 })
 
             elif step['name'] == 'create_google_user':
@@ -303,11 +305,12 @@ class OnboardingOrchestrator:
         steps = []
         order = 1
 
-        # Step 1: Notify Ian (HR/Payroll)
+        # Step 1: Notify HR (configurable recipient)
+        hr_name = db.get_setting('hr_notification_name', 'HR')
         steps.append({
-            'name': 'notify_ian',
+            'name': 'notify_hr',
             'order': order,
-            'description': 'Notify HR/Payroll (Ian) about new staff member',
+            'description': f'Notify {hr_name} about new staff member',
             'critical': True
         })
         order += 1
@@ -379,8 +382,8 @@ class OnboardingOrchestrator:
         # Execute the step based on its name
         result = None
         try:
-            if step_name == 'notify_ian':
-                result = self._notify_ian(request_data)
+            if step_name == 'notify_hr':
+                result = self._notify_hr(request_data)
             elif step_name == 'create_google_user':
                 result = self._create_google_user(request_data)
             elif step_name == 'create_zendesk_user':
@@ -431,15 +434,24 @@ class OnboardingOrchestrator:
 
         return result
 
-    def _notify_ian(self, request_data: Dict) -> Dict[str, Any]:
-        """Send email notification to Ian (HR/Payroll)"""
+    def _notify_hr(self, request_data: Dict) -> Dict[str, Any]:
+        """Send email notification to HR (configurable recipient)"""
         from services.email_service import EmailService
+
+        # Get configured recipient from settings
+        hr_email = db.get_setting('hr_notification_email')
+        hr_name = db.get_setting('hr_notification_name', 'HR')
+
+        if not hr_email:
+            return {'success': False, 'error': 'HR notification email not configured. Please set it in Settings.'}
 
         email_service = EmailService()
         subject = f"New Staff Onboarding: {request_data['full_name']}"
 
         # Build email body
         body = f"""
+Hi {hr_name},
+
 New staff member onboarding initiated:
 
 Name: {request_data['full_name']}
@@ -465,13 +477,13 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
 """
 
         success = email_service.send_email(
-            to_email=config.notification_email,
+            to_email=hr_email,
             subject=subject,
             body=body
         )
 
         if success:
-            return {'success': True, 'data': {'notified': config.notification_email}}
+            return {'success': True, 'data': {'notified': hr_email, 'recipient_name': hr_name}}
         else:
             return {'success': False, 'error': 'Failed to send email notification'}
 
@@ -648,6 +660,10 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _create_voip_ticket(self, request_data: Dict) -> Dict[str, Any]:
         """Call Sadie to create a Zendesk ticket for VOIP setup"""
         try:
+            # Get configured group from settings
+            voip_group_id = db.get_setting('voip_ticket_group_id')
+            voip_group_name = db.get_setting('voip_ticket_group_name', 'Not configured')
+
             # Build ticket description with clear instructions
             description = f"""
 New staff member requires VOIP setup:
@@ -668,14 +684,21 @@ Once completed, please update this ticket with the assigned extension number and
 Automated request from Oscar (Staff Onboarding Bot)
 """
 
+            # Build request payload
+            ticket_payload = {
+                'subject': f"VOIP Setup Required: {request_data['full_name']}",
+                'description': description,
+                'priority': 'normal',
+                'type': 'task'
+            }
+
+            # Add group_id if configured
+            if voip_group_id:
+                ticket_payload['group_id'] = int(voip_group_id)
+
             response = requests.post(
                 f"{self._get_bot_url('sadie')}/api/tickets",
-                json={
-                    'subject': f"VOIP Setup Required: {request_data['full_name']}",
-                    'description': description,
-                    'priority': 'normal',
-                    'type': 'task'
-                },
+                json=ticket_payload,
                 headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
@@ -687,6 +710,7 @@ Automated request from Oscar (Staff Onboarding Bot)
                     'data': {
                         'ticket_id': result.get('ticket', {}).get('id'),
                         'ticket_url': result.get('ticket', {}).get('url'),
+                        'assigned_group': voip_group_name if voip_group_id else None,
                         'sadie_response': result
                     }
                 }
