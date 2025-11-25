@@ -23,13 +23,16 @@ web_bp = Blueprint('web', __name__)
 
 
 @web_bp.route('/')
-def home():
-    """Home page - redirect to info"""
-    return jsonify({
-        'name': 'Juno',
-        'description': config.description,
-        'message': 'Tracking links are accessed via /track/<code>'
-    })
+def index():
+    """Welcome page"""
+    return render_template('index.html', config=config)
+
+
+@web_bp.route('/links')
+def links():
+    """Active tracking links page"""
+    active_links = db.get_all_active_links()
+    return render_template('links.html', config=config, links=active_links)
 
 
 @web_bp.route('/track/<code>')
