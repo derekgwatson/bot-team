@@ -15,7 +15,7 @@ email:
   default_sender_name: "Bot Team"
   # Email provider config; some values come from env vars
   smtp:
-    host: "smtp.example.com"
+    host: "smtp.gmail.com"
     port: 587
     use_tls: true
     username_env_var: "EMAIL_SMTP_USERNAME"
