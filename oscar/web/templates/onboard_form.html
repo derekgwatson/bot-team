@@ -194,8 +194,30 @@
             <h3>System Access Requirements</h3>
 
             <div class="checkbox-group">
-                <input type="checkbox" id="google_access" name="google_access" checked>
+                <input type="checkbox" id="google_access" name="google_access" checked onchange="toggleWorkEmail()">
                 <label for="google_access">Google Workspace (Email, Drive, Calendar)</label>
+            </div>
+
+            <!-- Work Email Section (shown when Google access is checked) -->
+            <div id="work_email_section" style="margin-left: 28px; margin-bottom: 15px; padding: 15px; background: #fff; border-radius: 6px; border: 1px solid #e0e0e0;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="work_email_username" class="required">Work Email Address</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="work_email_username" name="work_email_username"
+                               placeholder="firstname.lastname" style="flex: 1;">
+                        <span style="font-size: 16px; color: #666;">@</span>
+                        <select id="work_email_domain" name="work_email_domain" style="flex: 1;">
+                            {% if google_domains %}
+                                {% for domain in google_domains %}
+                                <option value="{{ domain }}">{{ domain }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="">No domains available</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="form-help">This will be their primary work email address</div>
+                </div>
             </div>
 
             <div class="checkbox-group">
@@ -232,4 +254,23 @@
         </div>
     </form>
 </div>
+
+<script>
+function toggleWorkEmail() {
+    const googleAccess = document.getElementById('google_access');
+    const workEmailSection = document.getElementById('work_email_section');
+    const usernameInput = document.getElementById('work_email_username');
+
+    if (googleAccess.checked) {
+        workEmailSection.style.display = 'block';
+        usernameInput.required = true;
+    } else {
+        workEmailSection.style.display = 'none';
+        usernameInput.required = false;
+    }
+}
+
+// Run on page load to set initial state
+document.addEventListener('DOMContentLoaded', toggleWorkEmail);
+</script>
 {% endblock %}

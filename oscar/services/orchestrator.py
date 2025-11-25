@@ -40,16 +40,19 @@ class OnboardingOrchestrator:
         """
         steps = self._create_workflow_steps(request_data)
 
-        # Generate email that would be created
-        first_name = request_data['full_name'].split()[0].lower()
-        last_name = request_data['full_name'].split()[-1].lower() if len(
-            request_data['full_name'].split()) > 1 else ''
-        generated_email = f"{first_name}.{last_name}@watsonblinds.com.au" if last_name else f"{first_name}@watsonblinds.com.au"
+        # Use provided work email or generate a preview one
+        work_email = request_data.get('work_email')
+        if not work_email and request_data.get('google_access'):
+            # Fallback: generate email from name (for preview only)
+            first_name = request_data['full_name'].split()[0].lower()
+            last_name = request_data['full_name'].split()[-1].lower() if len(
+                request_data['full_name'].split()) > 1 else ''
+            work_email = f"{first_name}.{last_name}@example.com" if last_name else f"{first_name}@example.com"
 
         preview = {
             'dry_run': True,
             'request_data': request_data,
-            'generated_email': generated_email if request_data.get('google_access') else None,
+            'work_email': work_email if request_data.get('google_access') else None,
             'workflow_steps': [],
             'bot_calls': []
         }
@@ -73,21 +76,26 @@ class OnboardingOrchestrator:
                 })
 
             elif step['name'] == 'create_google_user':
-                step_preview['would_do'] = f"Create Google user: {generated_email}"
+                # Parse name for Fred API
+                name_parts = request_data['full_name'].split()
+                first_name = name_parts[0]
+                last_name = name_parts[-1] if len(name_parts) > 1 else ''
+
+                step_preview['would_do'] = f"Create Google user: {work_email}"
                 preview['bot_calls'].append({
                     'bot': 'Fred',
                     'url': self._get_bot_url('fred'),
                     'action': 'POST /api/users',
                     'payload': {
-                        'email': generated_email,
-                        'first_name': first_name.capitalize(),
-                        'last_name': last_name.capitalize(),
+                        'email': work_email,
+                        'first_name': first_name,
+                        'last_name': last_name,
                         'recovery_email': request_data['personal_email']
                     }
                 })
 
             elif step['name'] == 'create_zendesk_user':
-                zd_email = generated_email if request_data.get('google_access') else request_data['personal_email']
+                zd_email = work_email if request_data.get('google_access') else request_data['personal_email']
                 step_preview['would_do'] = f"Create Zendesk agent: {request_data['full_name']} ({zd_email})"
                 preview['bot_calls'].append({
                     'bot': 'Zac',
@@ -367,22 +375,26 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _create_google_user(self, request_data: Dict) -> Dict[str, Any]:
         """Call Fred to create a Google Workspace user"""
         try:
-            # Generate email address from name
-            first_name = request_data['full_name'].split()[0].lower()
-            last_name = request_data['full_name'].split()[-1].lower() if len(
-                request_data['full_name'].split()) > 1 else ''
+            # Use provided work email
+            email = request_data.get('work_email')
+            if not email:
+                return {'success': False, 'error': 'No work email provided'}
 
-            email = f"{first_name}.{last_name}@watsonblinds.com.au" if last_name else f"{first_name}@watsonblinds.com.au"
+            # Parse name for Fred API
+            name_parts = request_data['full_name'].split()
+            first_name = name_parts[0]
+            last_name = name_parts[-1] if len(name_parts) > 1 else ''
 
             # Call Fred's API
             response = requests.post(
                 f"{self._get_bot_url('fred')}/api/users",
                 json={
                     'email': email,
-                    'first_name': first_name.capitalize(),
-                    'last_name': last_name.capitalize(),
-                    'recovery_email': request_data['personal_email']
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'password': 'TempPassword123!'  # Fred requires a password
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
@@ -406,8 +418,8 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _create_zendesk_user(self, request_data: Dict) -> Dict[str, Any]:
         """Call Zac to create a Zendesk user"""
         try:
-            # Use the Google email if created, otherwise use personal email
-            email = request_data.get('google_user_email') or request_data['personal_email']
+            # Use work email if Google access, otherwise use personal email
+            email = request_data.get('work_email') or request_data.get('google_user_email') or request_data['personal_email']
 
             response = requests.post(
                 f"{self._get_bot_url('zac')}/api/users",
@@ -416,6 +428,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
                     'email': email,
                     'role': 'agent'  # Default to agent role
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
@@ -440,8 +453,8 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _register_peter(self, request_data: Dict) -> Dict[str, Any]:
         """Call Peter to register the staff member"""
         try:
-            # Use the Google email if created
-            work_email = request_data.get('google_user_email', '')
+            # Use provided work email or fall back to results from Google user creation
+            work_email = request_data.get('work_email') or request_data.get('google_user_email', '')
 
             response = requests.post(
                 f"{self._get_bot_url('peter')}/api/staff",
@@ -459,6 +472,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
                     'status': 'active',
                     'notes': request_data.get('notes', '')
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
@@ -494,7 +508,7 @@ Extension: (To be assigned)
 
 Please create a new VOIP user account in the PBX system with the following details:
 - Display Name: {request_data['full_name']}
-- Email: {request_data.get('google_user_email', request_data['personal_email'])}
+- Email: {request_data.get('work_email') or request_data.get('google_user_email') or request_data['personal_email']}
 - Mobile: {request_data.get('phone_mobile', 'N/A')}
 
 Once completed, please update this ticket with the assigned extension number and mark it as solved.
@@ -511,6 +525,7 @@ Automated request from Oscar (Staff Onboarding Bot)
                     'priority': 'normal',
                     'type': 'task'
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 

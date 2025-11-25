@@ -8,11 +8,29 @@ from flask_login import current_user
 from services.auth import login_required, admin_required
 from database.db import db
 from services.orchestrator import orchestrator
+from config import config
+import requests as http_requests
 import logging
 
 logger = logging.getLogger(__name__)
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
+
+
+def _get_google_domains():
+    """Fetch available domains from Fred's API"""
+    try:
+        fred_url = config.bots.get('fred', {}).get('url', 'http://localhost:8001')
+        response = http_requests.get(
+            f"{fred_url}/api/domains",
+            headers={'X-API-Key': config.bot_api_key},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return response.json().get('domains', [])
+    except Exception as e:
+        logger.warning(f"Could not fetch domains from Fred: {e}")
+    return []  # Return empty list on failure
 
 
 @web_bp.route('/')
@@ -49,7 +67,9 @@ def index():
 @login_required
 def new_onboard():
     """Show new onboarding form"""
-    return render_template('onboard_form.html', user=current_user)
+    # Fetch available domains from Fred for work email selection
+    google_domains = _get_google_domains()
+    return render_template('onboard_form.html', user=current_user, google_domains=google_domains)
 
 
 @web_bp.route('/onboard/submit', methods=['POST'])
@@ -73,12 +93,24 @@ def submit_onboard():
             'notes': request.form.get('notes', '')
         }
 
+        # Build work email if Google access is requested
+        if data['google_access']:
+            work_username = request.form.get('work_email_username', '').strip().lower()
+            work_domain = request.form.get('work_email_domain', '')
+            if work_username and work_domain:
+                data['work_email'] = f"{work_username}@{work_domain}"
+
         # Validate required fields
         required_fields = ['full_name', 'position', 'section', 'start_date', 'personal_email']
         for field in required_fields:
             if not data.get(field):
                 flash(f'Missing required field: {field}', 'error')
                 return redirect(url_for('web.new_onboard'))
+
+        # Validate work email if Google access requested
+        if data['google_access'] and not data.get('work_email'):
+            flash('Work email is required when Google access is enabled', 'error')
+            return redirect(url_for('web.new_onboard'))
 
         # Create the onboarding request
         request_id = db.create_onboarding_request(data, created_by=current_user.email)
