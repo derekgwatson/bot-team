@@ -219,3 +219,105 @@ def delete_user(user_id):
     except Exception as e:
         logger.error(f"Error deleting user {user_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+# Group Management Endpoints
+
+@api_bp.route('/groups', methods=['GET'])
+@api_key_required
+def list_groups():
+    """
+    List all Zendesk groups
+
+    Returns:
+        JSON array of groups
+    """
+    try:
+        groups = zendesk_service.list_groups()
+        return jsonify({'groups': groups}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing groups: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<int:user_id>/groups', methods=['GET'])
+@api_key_required
+def get_user_groups(user_id):
+    """
+    Get all groups a user belongs to
+
+    Args:
+        user_id: Zendesk user ID
+
+    Returns:
+        JSON array of groups the user is a member of
+    """
+    try:
+        groups = zendesk_service.get_user_groups(user_id)
+        return jsonify({'groups': groups, 'user_id': user_id}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting groups for user {user_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<int:user_id>/groups', methods=['POST'])
+@api_key_required
+def set_user_groups(user_id):
+    """
+    Add a user to one or more groups
+
+    Args:
+        user_id: Zendesk user ID
+
+    Request Body:
+        group_ids: List of group IDs to add the user to
+
+    Returns:
+        JSON object with created memberships
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'group_ids' not in data:
+            return jsonify({'error': 'group_ids array required'}), 400
+
+        group_ids = data['group_ids']
+        if not isinstance(group_ids, list):
+            return jsonify({'error': 'group_ids must be an array'}), 400
+
+        memberships = zendesk_service.set_user_groups(user_id, group_ids)
+        return jsonify({
+            'message': f'User added to {len(memberships)} groups',
+            'memberships': memberships
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error setting groups for user {user_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<int:user_id>/groups/<int:group_id>', methods=['DELETE'])
+@api_key_required
+def remove_user_from_group(user_id, group_id):
+    """
+    Remove a user from a specific group
+
+    Args:
+        user_id: Zendesk user ID
+        group_id: Group ID to remove the user from
+
+    Returns:
+        Success message
+    """
+    try:
+        result = zendesk_service.remove_user_from_group(user_id, group_id)
+        if result:
+            return jsonify({'message': f'User {user_id} removed from group {group_id}'}), 200
+        else:
+            return jsonify({'error': f'User {user_id} not found in group {group_id}'}), 404
+
+    except Exception as e:
+        logger.error(f"Error removing user {user_id} from group {group_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500

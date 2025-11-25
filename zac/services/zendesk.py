@@ -1,5 +1,5 @@
 from zenpy import Zenpy
-from zenpy.lib.api_objects import User
+from zenpy.lib.api_objects import User, GroupMembership
 from config import config
 import logging
 
@@ -298,6 +298,116 @@ class ZendeskService:
             return True
         except Exception as e:
             logger.error(f"Error deleting user {user_id}: {str(e)}")
+            raise
+
+    def list_groups(self):
+        """
+        List all Zendesk groups
+
+        Returns:
+            List of group objects with id and name
+        """
+        try:
+            groups = []
+            for group in self.client.groups():
+                groups.append({
+                    'id': group.id,
+                    'name': group.name,
+                    'description': getattr(group, 'description', ''),
+                    'default': getattr(group, 'default', False)
+                })
+            logger.info(f"Listed {len(groups)} groups")
+            return groups
+        except Exception as e:
+            logger.error(f"Error listing groups: {str(e)}")
+            raise
+
+    def get_user_groups(self, user_id):
+        """
+        Get all groups a user belongs to
+
+        Args:
+            user_id: Zendesk user ID
+
+        Returns:
+            List of group objects the user is a member of
+        """
+        try:
+            groups = []
+            for membership in self.client.group_memberships(user_id=user_id):
+                group = self.client.groups(id=membership.group_id)
+                groups.append({
+                    'id': group.id,
+                    'name': group.name,
+                    'membership_id': membership.id,
+                    'default': membership.default
+                })
+            logger.info(f"User {user_id} belongs to {len(groups)} groups")
+            return groups
+        except Exception as e:
+            logger.error(f"Error getting groups for user {user_id}: {str(e)}")
+            raise
+
+    def set_user_groups(self, user_id, group_ids):
+        """
+        Set the groups a user belongs to.
+        This will add the user to specified groups (doesn't remove from existing groups).
+
+        Args:
+            user_id: Zendesk user ID
+            group_ids: List of group IDs to add the user to
+
+        Returns:
+            List of created group memberships
+        """
+        try:
+            created_memberships = []
+
+            # Get existing group memberships to avoid duplicates
+            existing_group_ids = set()
+            for membership in self.client.group_memberships(user_id=user_id):
+                existing_group_ids.add(membership.group_id)
+
+            for group_id in group_ids:
+                if group_id in existing_group_ids:
+                    logger.info(f"User {user_id} already in group {group_id}, skipping")
+                    continue
+
+                membership = GroupMembership(user_id=user_id, group_id=group_id)
+                created = self.client.group_memberships.create(membership)
+                created_memberships.append({
+                    'id': created.id,
+                    'user_id': created.user_id,
+                    'group_id': created.group_id
+                })
+                logger.info(f"Added user {user_id} to group {group_id}")
+
+            return created_memberships
+        except Exception as e:
+            logger.error(f"Error setting groups for user {user_id}: {str(e)}")
+            raise
+
+    def remove_user_from_group(self, user_id, group_id):
+        """
+        Remove a user from a specific group
+
+        Args:
+            user_id: Zendesk user ID
+            group_id: Group ID to remove the user from
+
+        Returns:
+            Success boolean
+        """
+        try:
+            for membership in self.client.group_memberships(user_id=user_id):
+                if membership.group_id == group_id:
+                    self.client.group_memberships.delete(membership)
+                    logger.info(f"Removed user {user_id} from group {group_id}")
+                    return True
+            logger.warning(f"User {user_id} not found in group {group_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Error removing user {user_id} from group {group_id}: {str(e)}")
             raise
 
 # Initialize the service

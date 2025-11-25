@@ -25,11 +25,28 @@
 
         <div class="form-group">
             <label for="role">Role</label>
-            <select id="role" name="role">
+            <select id="role" name="role" onchange="toggleGroupsSection()">
                 <option value="end-user">End User</option>
                 <option value="agent">Agent</option>
                 <option value="admin">Admin</option>
             </select>
+        </div>
+
+        <div class="form-group" id="groups-section" style="display: none;">
+            <label>Assign to Groups</label>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Select the groups this user should belong to:</p>
+            {% if groups %}
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                {% for group in groups %}
+                <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                    <input type="checkbox" name="groups" value="{{ group.id }}">
+                    {{ group.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: #999; font-style: italic;">No groups available</p>
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -50,4 +67,23 @@
         </div>
     </form>
 </div>
+
+<script>
+function toggleGroupsSection() {
+    const role = document.getElementById('role').value;
+    const groupsSection = document.getElementById('groups-section');
+
+    if (role === 'agent' || role === 'admin') {
+        groupsSection.style.display = 'block';
+    } else {
+        groupsSection.style.display = 'none';
+        // Uncheck all groups when switching away from agent/admin
+        const checkboxes = groupsSection.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+    }
+}
+
+// Run on page load in case of form validation error returning with agent/admin selected
+document.addEventListener('DOMContentLoaded', toggleGroupsSection);
+</script>
 {% endblock %}
