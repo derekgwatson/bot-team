@@ -270,10 +270,10 @@ class Database:
                 params.append(device_label)
 
             if store_code is not None:
-                # Get or create the store
-                store = self.get_or_create_store(store_code)
+                # Get or create the store (returns store ID directly)
+                store_id = self.get_or_create_store(store_code)
                 updates.append("store_id = ?")
-                params.append(store['id'])
+                params.append(store_id)
 
             if not updates:
                 # Nothing to update, just return current device
