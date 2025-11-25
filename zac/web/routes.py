@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from services.zendesk import zendesk_service
 from services.auth import login_required
-from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
+
 
 @web_bp.route('/')
 @login_required
@@ -12,22 +12,9 @@ def index():
     """Main dashboard - list all Zendesk users"""
     page = request.args.get('page', 1, type=int)
     role_filter = request.args.get('role')
-    search_query = request.args.get('q')
 
     try:
-        if search_query:
-            # Search mode
-            users = zendesk_service.search_users(search_query)
-            result = {
-                'users': users,
-                'total': len(users),
-                'page': 1,
-                'per_page': len(users),
-                'total_pages': 1
-            }
-        else:
-            # List mode with pagination
-            result = zendesk_service.list_users(role=role_filter, page=page, per_page=100)
+        result = zendesk_service.list_users(role=role_filter, page=page, per_page=100)
 
         return render_template('index.html',
                              users=result['users'],
@@ -35,8 +22,8 @@ def index():
                              total_pages=result['total_pages'],
                              total=result['total'],
                              role_filter=role_filter,
-                             search_query=search_query,
-                             user=current_user)
+                             user=current_user,
+                             active_nav='users')
 
     except Exception as e:
         return render_template('index.html',
@@ -45,7 +32,8 @@ def index():
                              page=1,
                              total_pages=1,
                              total=0,
-                             user=current_user)
+                             user=current_user,
+                             active_nav='users')
 
 @web_bp.route('/user/<int:user_id>')
 @login_required
@@ -66,19 +54,27 @@ def view_user(user_id):
 @web_bp.route('/user/create', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    """Create a new Zendesk user"""
+    """Create a new Zendesk agent (restricted to agent role only for security)"""
+    # Fetch available groups for selection
+    try:
+        groups = zendesk_service.list_groups()
+    except Exception:
+        groups = []
+
     if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        # Always create as agent - no role selection in form
+        role = 'agent'
+        verified = request.form.get('verified') == 'on'
+        phone = request.form.get('phone', '')
+        selected_groups = request.form.getlist('groups')  # Get selected group IDs
+
+        if not name or not email:
+            flash('Name and email are required', 'error')
+            return render_template('user_create.html', current_user=current_user, groups=groups)
+
         try:
-            name = request.form.get('name')
-            email = request.form.get('email')
-            role = request.form.get('role', 'end-user')
-            verified = request.form.get('verified') == 'on'
-            phone = request.form.get('phone', '')
-
-            if not name or not email:
-                flash('Name and email are required', 'error')
-                return render_template('user_create.html', current_user=current_user)
-
             user = zendesk_service.create_user(
                 name=name,
                 email=email,
@@ -87,14 +83,24 @@ def create_user():
                 phone=phone if phone else None
             )
 
-            flash(f'User {user["name"]} created successfully', 'success')
+            # Add user to selected groups
+            if selected_groups:
+                try:
+                    group_ids = [int(gid) for gid in selected_groups]
+                    zendesk_service.set_user_groups(user['id'], group_ids)
+                    flash(f'Agent {user["name"]} created and added to {len(group_ids)} group(s)', 'success')
+                except Exception as e:
+                    flash(f'Agent created but failed to assign groups: {str(e)}', 'warning')
+            else:
+                flash(f'Agent {user["name"]} created successfully', 'success')
+
             return redirect(url_for('web.view_user', user_id=user['id']))
 
         except Exception as e:
-            flash(f'Error creating user: {str(e)}', 'error')
-            return render_template('user_create.html', current_user=current_user)
+            flash(f'Error creating agent: {str(e)}', 'error')
+            return render_template('user_create.html', current_user=current_user, groups=groups)
 
-    return render_template('user_create.html', current_user=current_user)
+    return render_template('user_create.html', current_user=current_user, groups=groups)
 
 @web_bp.route('/user/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required

@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 from contextlib import contextmanager
+from shared.migrations import MigrationRunner
 
 
 def utc_now_iso() -> str:
@@ -19,55 +20,23 @@ class Database:
             db_dir = Path(__file__).parent
             db_path = db_dir / 'mavis.db'
         self.db_path = str(db_path)
-        self.init_db()
+        self._run_migrations()
+        self._enable_wal_mode()
 
-    def init_db(self):
-        """Initialize the database with schema and run migrations"""
-        schema_path = Path(__file__).parent / 'schema.sql'
-        with open(schema_path, 'r') as f:
-            schema = f.read()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
 
+    def _enable_wal_mode(self):
+        """Enable WAL mode for better concurrent access"""
         conn = sqlite3.connect(self.db_path)
-
-        # Enable WAL mode for better concurrent access
         conn.execute("PRAGMA journal_mode=WAL")
-
-        conn.executescript(schema)
-        conn.commit()
-
-        # Run migrations for existing databases
-        self._run_migrations(conn)
-
         conn.close()
-
-    def _run_migrations(self, conn):
-        """Run database migrations to add missing columns to existing tables"""
-        cursor = conn.cursor()
-
-        # Check if is_sellable column exists, add if missing
-        cursor.execute("PRAGMA table_info(unleashed_products)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        if 'is_sellable' not in columns:
-            cursor.execute("""
-                ALTER TABLE unleashed_products
-                ADD COLUMN is_sellable INTEGER DEFAULT 1
-            """)
-            conn.commit()
-
-        if 'is_obsolete' not in columns:
-            cursor.execute("""
-                ALTER TABLE unleashed_products
-                ADD COLUMN is_obsolete INTEGER DEFAULT 0
-            """)
-            conn.commit()
-
-        if 'product_sub_group' not in columns:
-            cursor.execute("""
-                ALTER TABLE unleashed_products
-                ADD COLUMN product_sub_group TEXT
-            """)
-            conn.commit()
 
     def get_connection(self):
         """Get a database connection with row factory"""

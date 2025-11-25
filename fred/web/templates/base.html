@@ -141,6 +141,22 @@
             margin-bottom: 20px;
         }
 
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .alert-error {
+            background: #e74c3c;
+            color: white;
+        }
+
         .card {
             background: white;
             border-radius: 8px;
@@ -224,6 +240,16 @@
             color: white;
         }
 
+        .badge-info {
+            background: #3498db;
+            color: white;
+        }
+
+        .badge-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -271,6 +297,13 @@
     </header>
 
     <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <div class="intro-box">
             <p><strong>Hi! I'm Fred.</strong> I handle all the user account stuff for your Google Workspace - creating accounts when people join, archiving them when they leave, and keeping track of who's using how much storage. Think of me as your friendly neighborhood account manager.</p>
         </div>

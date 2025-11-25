@@ -10,7 +10,8 @@
 {% endwith %}
 
 <div class="card">
-    <h2>Create New User</h2>
+    <h2>Create New Agent</h2>
+    <p style="color: #666; margin-bottom: 20px;">New users are created as Zendesk agents.</p>
 
     <form method="POST" action="{{ url_for('web.create_user') }}">
         <div class="form-group">
@@ -24,12 +25,20 @@
         </div>
 
         <div class="form-group">
-            <label for="role">Role</label>
-            <select id="role" name="role">
-                <option value="end-user">End User</option>
-                <option value="agent">Agent</option>
-                <option value="admin">Admin</option>
-            </select>
+            <label>Assign to Groups</label>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Select the groups this agent should belong to:</p>
+            {% if groups %}
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                {% for group in groups %}
+                <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                    <input type="checkbox" name="groups" value="{{ group.id }}">
+                    {{ group.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: #999; font-style: italic;">No groups available</p>
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -45,8 +54,8 @@
         </div>
 
         <div class="form-group">
-            <button type="submit" class="btn btn-success">Create User</button>
-            <a href="{{ url_for('web.index') }}" class="btn">Cancel</a>
+            <button type="submit" class="btn btn-success">Create Agent</button>
+            <a href="{{ url_for('web.index') }}" class="btn" style="background: #95a5a6;">Cancel</a>
         </div>
     </form>
 </div>

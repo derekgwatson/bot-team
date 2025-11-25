@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS onboarding_requests (
     zendesk_access BOOLEAN DEFAULT 0,
     voip_access BOOLEAN DEFAULT 0,
 
+    -- Work email (stored when creating request, used when executing Google step)
+    work_email TEXT DEFAULT NULL,
+
+    -- Zendesk configuration
+    zendesk_groups TEXT DEFAULT NULL,  -- JSON array of group IDs to assign
+
     -- Additional Information
     notes TEXT DEFAULT '',
 
@@ -35,6 +41,8 @@ CREATE TABLE IF NOT EXISTS onboarding_requests (
 
     -- Result tracking
     google_user_email TEXT DEFAULT NULL,
+    google_user_password TEXT DEFAULT NULL,
+    google_backup_codes TEXT DEFAULT NULL,  -- JSON array of backup codes
     zendesk_user_id TEXT DEFAULT NULL,
     peter_staff_id TEXT DEFAULT NULL,
     error_message TEXT DEFAULT NULL

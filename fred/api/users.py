@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.google_workspace import workspace_service
 from shared.auth.bot_api import api_key_required
+from config import config
 
 api_bp = Blueprint('api', __name__)
 
@@ -67,6 +68,25 @@ def get_user(email):
 
     return jsonify(user)
 
+@api_bp.route('/domains', methods=['GET'])
+@api_key_required
+def list_domains():
+    """
+    GET /api/domains
+
+    Returns list of domains registered in the Google Workspace account
+    """
+    domains = workspace_service.list_domains()
+
+    if isinstance(domains, dict) and 'error' in domains:
+        return jsonify(domains), 500
+
+    return jsonify({
+        'domains': domains,
+        'count': len(domains)
+    })
+
+
 @api_bp.route('/users', methods=['POST'])
 @api_key_required
 def create_user():
@@ -78,7 +98,8 @@ def create_user():
             "email": "user@example.com",
             "first_name": "John",
             "last_name": "Doe",
-            "password": "TempPassword123!"
+            "password": "TempPassword123!",
+            "change_password_at_next_login": true  (optional, default: true)
         }
 
     Creates a new user
@@ -91,11 +112,31 @@ def create_user():
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
 
+    # Validate email domain against allowed domains from Google Workspace
+    email = data['email']
+    if '@' not in email:
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    email_domain = email.split('@')[1].lower()
+    allowed_domains = workspace_service.list_domains()
+
+    # Fall back to config if API fails
+    if isinstance(allowed_domains, dict) and 'error' in allowed_domains:
+        allowed_domains = [config.google_domain]
+
+    allowed_domains_lower = [d.lower() for d in allowed_domains]
+    if email_domain not in allowed_domains_lower:
+        return jsonify({'error': f'Email must use one of these domains: {", ".join(allowed_domains)}'}), 400
+
+    # Optional: change_password_at_next_login (default: True)
+    change_password = data.get('change_password_at_next_login', True)
+
     result = workspace_service.create_user(
         email=data['email'],
         first_name=data['first_name'],
         last_name=data['last_name'],
-        password=data['password']
+        password=data['password'],
+        change_password_at_next_login=change_password
     )
 
     if isinstance(result, dict) and 'error' in result:
@@ -128,6 +169,25 @@ def delete_user(email):
     Permanently deletes a user (cannot be undone)
     """
     result = workspace_service.delete_user(email)
+
+    if isinstance(result, dict) and 'error' in result:
+        status_code = 404 if result['error'] == 'User not found' else 500
+        return jsonify(result), status_code
+
+    return jsonify(result)
+
+@api_bp.route('/users/<email>/backup-codes', methods=['POST'])
+@api_key_required
+def generate_backup_codes(email):
+    """
+    POST /api/users/<email>/backup-codes
+
+    Generates new backup verification codes for 2FA recovery.
+    Note: This invalidates any existing backup codes for the user.
+
+    Returns list of 10 backup codes
+    """
+    result = workspace_service.generate_backup_codes(email)
 
     if isinstance(result, dict) and 'error' in result:
         status_code = 404 if result['error'] == 'User not found' else 500

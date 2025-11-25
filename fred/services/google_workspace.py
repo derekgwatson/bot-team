@@ -9,7 +9,9 @@ class GoogleWorkspaceService:
 
     SCOPES = [
         'https://www.googleapis.com/auth/admin.directory.user',
-        'https://www.googleapis.com/auth/admin.directory.user.readonly'
+        'https://www.googleapis.com/auth/admin.directory.user.readonly',
+        'https://www.googleapis.com/auth/admin.directory.domain.readonly',
+        'https://www.googleapis.com/auth/admin.directory.user.security'
     ]
 
     def __init__(self):
@@ -42,6 +44,36 @@ class GoogleWorkspaceService:
         except Exception as e:
             print(f"Error initializing Google Workspace service: {e}")
             self.service = None
+
+    def list_domains(self):
+        """
+        List all domains registered in the Google Workspace account
+
+        Returns:
+            List of domain names or error dict
+        """
+        if not self.service:
+            return {'error': 'Google Workspace service not initialized'}
+
+        try:
+            results = self.service.domains().list(customer='my_customer').execute()
+            domains = results.get('domains', [])
+
+            # Return list of domain names, primary domain first
+            domain_list = []
+            for domain in domains:
+                domain_name = domain.get('domainName')
+                if domain.get('isPrimary'):
+                    domain_list.insert(0, domain_name)
+                else:
+                    domain_list.append(domain_name)
+
+            return domain_list
+
+        except HttpError as e:
+            return {'error': f'API error: {e}'}
+        except Exception as e:
+            return {'error': f'Unexpected error: {e}'}
 
     def list_users(self, max_results=100, archived=False):
         """
@@ -101,7 +133,7 @@ class GoogleWorkspaceService:
         except Exception as e:
             return {'error': f'Unexpected error: {e}'}
 
-    def create_user(self, email, first_name, last_name, password):
+    def create_user(self, email, first_name, last_name, password, change_password_at_next_login=True):
         """
         Create a new user in Google Workspace
 
@@ -110,6 +142,7 @@ class GoogleWorkspaceService:
             first_name: User's first name
             last_name: User's last name
             password: Initial password
+            change_password_at_next_login: If True, user must change password on first login
 
         Returns:
             Created user dictionary or error
@@ -125,7 +158,7 @@ class GoogleWorkspaceService:
                     'familyName': last_name
                 },
                 'password': password,
-                'changePasswordAtNextLogin': True
+                'changePasswordAtNextLogin': change_password_at_next_login
             }
 
             user = self.service.users().insert(body=user_body).execute()
@@ -185,6 +218,44 @@ class GoogleWorkspaceService:
         try:
             self.service.users().delete(userKey=email).execute()
             return {'success': True, 'message': f'User {email} deleted successfully'}
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                return {'error': 'User not found'}
+            return {'error': f'API error: {e}'}
+        except Exception as e:
+            return {'error': f'Unexpected error: {e}'}
+
+    def generate_backup_codes(self, email):
+        """
+        Generate backup verification codes for a user (used for 2FA recovery)
+
+        Args:
+            email: User's email address
+
+        Returns:
+            Dict with list of backup codes or error
+        """
+        if not self.service:
+            return {'error': 'Google Workspace service not initialized'}
+
+        try:
+            # Generate new backup codes (this invalidates any existing ones)
+            self.service.verificationCodes().generate(userKey=email).execute()
+
+            # Retrieve the newly generated codes
+            result = self.service.verificationCodes().list(userKey=email).execute()
+            codes = result.get('items', [])
+
+            # Extract just the verification codes
+            backup_codes = [item.get('verificationCode') for item in codes if item.get('verificationCode')]
+
+            return {
+                'success': True,
+                'email': email,
+                'backup_codes': backup_codes,
+                'count': len(backup_codes)
+            }
 
         except HttpError as e:
             if e.resp.status == 404:

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: #27ae60;">User Created Successfully</h2>
+
+    <div style="background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 15px 0; font-weight: 600; color: #2e7d32;">
+            Copy and save these credentials now - the password won't be shown again!
+        </p>
+
+        <table style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #c8e6c9; font-weight: 500; width: 150px;">Email:</td>
+                <td style="padding: 10px; border-bottom: 1px solid #c8e6c9;">
+                    <code style="background: white; padding: 5px 10px; border-radius: 4px; font-size: 15px;">{{ email }}</code>
+                    <button type="button" onclick="copyToClipboard('{{ email }}')" class="btn btn-small" style="margin-left: 10px; background: #27ae60;">Copy</button>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #c8e6c9; font-weight: 500;">Password:</td>
+                <td style="padding: 10px; border-bottom: 1px solid #c8e6c9;">
+                    <code style="background: white; padding: 5px 10px; border-radius: 4px; font-size: 15px;">{{ password }}</code>
+                    <button type="button" onclick="copyToClipboard('{{ password }}')" class="btn btn-small" style="margin-left: 10px; background: #27ae60;">Copy</button>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; font-weight: 500;">Password change:</td>
+                <td style="padding: 10px;">
+                    {% if change_password %}
+                    <span class="badge badge-warning">Required on first login</span>
+                    {% else %}
+                    <span class="badge badge-success">Not required</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {% if backup_codes %}
+    <div style="background: #fff3e0; border: 1px solid #ffcc80; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin: 0 0 15px 0; color: #e65100;">2FA Backup Codes</h3>
+        <p style="margin: 0 0 15px 0; color: #bf360c;">
+            Save these codes securely! Each code can only be used once. These are used if the user loses access to their 2FA device.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+            {% for code in backup_codes %}
+            <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 16px; text-align: center; border: 1px solid #ffe0b2;">
+                {{ code }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" onclick="copyBackupCodes()" class="btn" style="background: #f57c00;">
+            Copy All Backup Codes
+        </button>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 30px;">
+        <a href="/users/new" class="btn" style="background: #27ae60;">Create Another User</a>
+        <a href="/" class="btn" style="background: #95a5a6; margin-left: 10px;">Back to User List</a>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Brief visual feedback could be added here
+    });
+}
+
+function copyBackupCodes() {
+    const codes = [
+        {% for code in backup_codes %}'{{ code }}'{% if not loop.last %}, {% endif %}{% endfor %}
+    ];
+    const text = codes.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Backup codes copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

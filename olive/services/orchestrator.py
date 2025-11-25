@@ -114,11 +114,11 @@ class OffboardingOrchestrator:
         })
         order += 1
 
-        # Step 4: Deactivate Zendesk account
+        # Step 4: Downgrade Zendesk account to end-user
         steps.append({
             'name': 'deactivate_zendesk',
             'order': order,
-            'description': 'Deactivate Zendesk account',
+            'description': 'Downgrade Zendesk account to end-user',
             'critical': False
         })
         order += 1
@@ -314,7 +314,7 @@ class OffboardingOrchestrator:
             return {'success': False, 'error': f'Failed to call Fred: {str(e)}'}
 
     def _deactivate_zendesk(self, request_data: Dict) -> Dict[str, Any]:
-        """Deactivate Zendesk account via Zac"""
+        """Downgrade Zendesk account to end-user via Zac"""
         # Check if user had Zendesk access
         if not request_data.get('had_zendesk_access'):
             return {'success': True, 'data': {'message': 'No Zendesk access to remove'}}
@@ -324,10 +324,10 @@ class OffboardingOrchestrator:
             if not user_id:
                 return {'success': False, 'error': 'No Zendesk user ID found'}
 
-            # Call Zac's API to deactivate user
+            # Call Zac's API to downgrade user to end-user (don't suspend, just remove agent access)
             response = requests.patch(
                 f"{self._get_bot_url('zac')}/api/users/{user_id}",
-                json={'suspended': True, 'role': 'end-user'},
+                json={'role': 'end-user'},
                 timeout=30
             )
 
@@ -336,7 +336,7 @@ class OffboardingOrchestrator:
                     'success': True,
                     'data': {
                         'user_id': user_id,
-                        'suspended': True
+                        'role': 'end-user'
                     }
                 }
             else:

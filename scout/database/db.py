@@ -15,6 +15,7 @@ from typing import Optional
 import json
 
 from config import config
+from shared.migrations import MigrationRunner
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class ScoutDatabase:
 
         self.db_path = db_path
         self._ensure_directory()
-        self._init_db()
+        self._run_migrations()
 
     def _ensure_directory(self):
         """Ensure database directory exists"""
@@ -44,59 +45,15 @@ class ScoutDatabase:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def _init_db(self):
-        """Initialize database tables"""
-        conn = self._get_connection()
-        try:
-            cursor = conn.cursor()
-
-            # Table for tracking reported issues
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS reported_issues (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    issue_type TEXT NOT NULL,
-                    issue_key TEXT NOT NULL,
-                    issue_details TEXT,
-                    ticket_id INTEGER,
-                    ticket_url TEXT,
-                    status TEXT DEFAULT 'open',
-                    first_detected_at TEXT NOT NULL,
-                    last_seen_at TEXT NOT NULL,
-                    resolved_at TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(issue_type, issue_key)
-                )
-            """)
-
-            # Table for check run history
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS check_runs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    started_at TEXT NOT NULL,
-                    finished_at TEXT,
-                    status TEXT DEFAULT 'running',
-                    issues_found INTEGER DEFAULT 0,
-                    tickets_created INTEGER DEFAULT 0,
-                    error_message TEXT,
-                    check_results TEXT
-                )
-            """)
-
-            # Index for efficient lookups
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_reported_issues_type_key
-                ON reported_issues(issue_type, issue_key)
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_reported_issues_status
-                ON reported_issues(status)
-            """)
-
-            conn.commit()
-            logger.info(f"Database initialized at {self.db_path}")
-        finally:
-            conn.close()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
+        logger.info(f"Database initialized at {self.db_path}")
 
     # ─────────────────────────────────────────────────────────────────────────────
     # Issue tracking

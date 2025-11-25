@@ -3,10 +3,12 @@ Oscar's Orchestration Service
 Coordinates onboarding workflow across multiple bots
 """
 
+import json
 import requests
 from typing import Dict, List, Any, Optional
 from config import config
 from database.db import db
+from shared.password_generator import generate_memorable_password
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,16 +42,19 @@ class OnboardingOrchestrator:
         """
         steps = self._create_workflow_steps(request_data)
 
-        # Generate email that would be created
-        first_name = request_data['full_name'].split()[0].lower()
-        last_name = request_data['full_name'].split()[-1].lower() if len(
-            request_data['full_name'].split()) > 1 else ''
-        generated_email = f"{first_name}.{last_name}@watsonblinds.com.au" if last_name else f"{first_name}@watsonblinds.com.au"
+        # Use provided work email or generate a preview one
+        work_email = request_data.get('work_email')
+        if not work_email and request_data.get('google_access'):
+            # Fallback: generate email from name (for preview only)
+            first_name = request_data['full_name'].split()[0].lower()
+            last_name = request_data['full_name'].split()[-1].lower() if len(
+                request_data['full_name'].split()) > 1 else ''
+            work_email = f"{first_name}.{last_name}@example.com" if last_name else f"{first_name}@example.com"
 
         preview = {
             'dry_run': True,
             'request_data': request_data,
-            'generated_email': generated_email if request_data.get('google_access') else None,
+            'work_email': work_email if request_data.get('google_access') else None,
             'workflow_steps': [],
             'bot_calls': []
         }
@@ -73,21 +78,26 @@ class OnboardingOrchestrator:
                 })
 
             elif step['name'] == 'create_google_user':
-                step_preview['would_do'] = f"Create Google user: {generated_email}"
+                # Parse name for Fred API
+                name_parts = request_data['full_name'].split()
+                first_name = name_parts[0]
+                last_name = name_parts[-1] if len(name_parts) > 1 else ''
+
+                step_preview['would_do'] = f"Create Google user: {work_email}"
                 preview['bot_calls'].append({
                     'bot': 'Fred',
                     'url': self._get_bot_url('fred'),
                     'action': 'POST /api/users',
                     'payload': {
-                        'email': generated_email,
-                        'first_name': first_name.capitalize(),
-                        'last_name': last_name.capitalize(),
+                        'email': work_email,
+                        'first_name': first_name,
+                        'last_name': last_name,
                         'recovery_email': request_data['personal_email']
                     }
                 })
 
             elif step['name'] == 'create_zendesk_user':
-                zd_email = generated_email if request_data.get('google_access') else request_data['personal_email']
+                zd_email = work_email if request_data.get('google_access') else request_data['personal_email']
                 step_preview['would_do'] = f"Create Zendesk agent: {request_data['full_name']} ({zd_email})"
                 preview['bot_calls'].append({
                     'bot': 'Zac',
@@ -151,47 +161,142 @@ class OnboardingOrchestrator:
         # Default to config.yaml (localhost for dev)
         return config.bots.get(bot_name, {}).get('url', f'http://localhost:800{ord(bot_name[0]) % 10}')
 
-    def start_onboarding(self, request_id: int) -> Dict[str, Any]:
+    def setup_workflow(self, request_id: int) -> Dict[str, Any]:
         """
-        Start the onboarding workflow for a request
+        Set up the workflow steps for a request WITHOUT executing them.
+        This creates the steps in 'pending' state for later manual execution.
+
+        Returns: Dict with success status and created steps
+        """
+        request = db.get_onboarding_request(request_id)
+        if not request:
+            return {'success': False, 'error': 'Request not found'}
+
+        # Check if steps already exist
+        existing_steps = db.get_workflow_steps(request_id)
+        if existing_steps:
+            return {'success': True, 'steps': existing_steps, 'message': 'Steps already exist'}
+
+        # Define workflow steps based on request requirements
+        steps = self._create_workflow_steps(request)
+        db.create_workflow_steps(request_id, steps)
+
+        db.log_activity(request_id, 'workflow_setup',
+                       f'Workflow set up with {len(steps)} steps (pending execution)')
+
+        return {'success': True, 'steps': steps}
+
+    def execute_single_step(self, request_id: int, step_name: str) -> Dict[str, Any]:
+        """
+        Execute a single workflow step by name.
+        Used for the "prep and fire" approach where user triggers each step manually.
+
+        Returns: Dict with success status and step result
+        """
+        request = db.get_onboarding_request(request_id)
+        if not request:
+            return {'success': False, 'error': 'Request not found'}
+
+        # Get the step from database
+        step_db = db.get_workflow_step_by_name(request_id, step_name)
+        if not step_db:
+            return {'success': False, 'error': f'Step {step_name} not found'}
+
+        # Check if already completed
+        if step_db['status'] == 'completed':
+            return {'success': True, 'message': 'Step already completed', 'data': step_db}
+
+        # Build step dict for execution
+        step = {
+            'name': step_name,
+            'order': step_db['step_order'],
+            'requires_manual_action': step_db['requires_manual_action']
+        }
+
+        # Execute the step
+        result = self._execute_step(request_id, step, request)
+
+        # Check if all steps are now complete
+        self._check_workflow_completion(request_id)
+
+        return result
+
+    def execute_all_pending(self, request_id: int) -> Dict[str, Any]:
+        """
+        Execute all pending workflow steps.
+        This is the "Create All" button functionality.
+
         Returns: Dict with success status and results
         """
         request = db.get_onboarding_request(request_id)
         if not request:
             return {'success': False, 'error': 'Request not found'}
 
-        # Update status to in_progress
-        db.update_onboarding_status(request_id, 'in_progress')
+        steps = db.get_workflow_steps(request_id)
+        if not steps:
+            return {'success': False, 'error': 'No workflow steps found'}
 
-        # Define workflow steps
-        steps = self._create_workflow_steps(request)
-        db.create_workflow_steps(request_id, steps)
-
-        # Execute workflow steps
         results = {
             'request_id': request_id,
             'success': True,
             'steps': []
         }
 
-        for step in steps:
+        for step_db in steps:
+            # Skip already completed or failed steps
+            if step_db['status'] in ['completed', 'skipped']:
+                continue
+
+            step = {
+                'name': step_db['step_name'],
+                'order': step_db['step_order'],
+                'requires_manual_action': step_db['requires_manual_action']
+            }
+
             step_result = self._execute_step(request_id, step, request)
             results['steps'].append(step_result)
 
-            # If a critical step fails, stop the workflow
-            if not step_result.get('success') and step.get('critical', True):
+            # If a step fails, continue but mark overall as partial success
+            if not step_result.get('success'):
                 results['success'] = False
-                db.update_onboarding_status(request_id, 'failed',
-                                           f"Step '{step['name']}' failed: {step_result.get('error')}")
-                break
 
-        # If all steps succeeded, mark as completed
-        if results['success']:
+        # Check completion status
+        self._check_workflow_completion(request_id)
+
+        return results
+
+    def _check_workflow_completion(self, request_id: int):
+        """Check if all steps are complete and update request status accordingly"""
+        steps = db.get_workflow_steps(request_id)
+
+        all_complete = all(s['status'] in ['completed', 'skipped'] for s in steps)
+        any_failed = any(s['status'] == 'failed' for s in steps)
+        any_pending = any(s['status'] == 'pending' for s in steps)
+
+        if all_complete:
             db.update_onboarding_status(request_id, 'completed')
             db.log_activity(request_id, 'onboarding_completed',
                           'All onboarding steps completed successfully')
+        elif any_failed and not any_pending:
+            db.update_onboarding_status(request_id, 'failed')
+        elif not any_pending:
+            # Some completed, some failed, but nothing pending
+            db.update_onboarding_status(request_id, 'in_progress')
 
-        return results
+    def start_onboarding(self, request_id: int) -> Dict[str, Any]:
+        """
+        Start the onboarding workflow for a request (legacy method).
+        Sets up and immediately executes all steps.
+
+        Returns: Dict with success status and results
+        """
+        # Set up workflow first
+        setup_result = self.setup_workflow(request_id)
+        if not setup_result.get('success'):
+            return setup_result
+
+        # Execute all steps
+        return self.execute_all_pending(request_id)
 
     def _create_workflow_steps(self, request: Dict) -> List[Dict]:
         """Create the workflow steps based on request requirements"""
@@ -301,8 +406,14 @@ class OnboardingOrchestrator:
 
             # Update onboarding request with result data
             if step_name == 'create_google_user' and result.get('data', {}).get('email'):
-                db.update_onboarding_results(request_id,
-                                            google_user_email=result['data']['email'])
+                data = result['data']
+                backup_codes_json = json.dumps(data.get('backup_codes', [])) if data.get('backup_codes') else None
+                db.update_onboarding_results(
+                    request_id,
+                    google_user_email=data['email'],
+                    google_user_password=data.get('password'),
+                    google_backup_codes=backup_codes_json
+                )
             elif step_name == 'create_zendesk_user' and result.get('data', {}).get('user_id'):
                 db.update_onboarding_results(request_id,
                                             zendesk_user_id=result['data']['user_id'])
@@ -367,38 +478,63 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _create_google_user(self, request_data: Dict) -> Dict[str, Any]:
         """Call Fred to create a Google Workspace user"""
         try:
-            # Generate email address from name
-            first_name = request_data['full_name'].split()[0].lower()
-            last_name = request_data['full_name'].split()[-1].lower() if len(
-                request_data['full_name'].split()) > 1 else ''
+            # Use provided work email
+            email = request_data.get('work_email')
+            if not email:
+                return {'success': False, 'error': 'No work email provided'}
 
-            email = f"{first_name}.{last_name}@watsonblinds.com.au" if last_name else f"{first_name}@watsonblinds.com.au"
+            # Parse name for Fred API
+            name_parts = request_data['full_name'].split()
+            first_name = name_parts[0]
+            last_name = name_parts[-1] if len(name_parts) > 1 else ''
 
-            # Call Fred's API
+            # Generate a memorable password
+            password = generate_memorable_password()
+
+            # Call Fred's API to create user
+            # Don't require password change so admin can log in first to set up 2FA
             response = requests.post(
                 f"{self._get_bot_url('fred')}/api/users",
                 json={
                     'email': email,
-                    'first_name': first_name.capitalize(),
-                    'last_name': last_name.capitalize(),
-                    'recovery_email': request_data['personal_email']
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'password': password,
+                    'change_password_at_next_login': False
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
-            if response.status_code in [200, 201]:
-                return {
-                    'success': True,
-                    'data': {
-                        'email': email,
-                        'fred_response': response.json()
-                    }
-                }
-            else:
+            if response.status_code not in [200, 201]:
                 return {
                     'success': False,
                     'error': f"Fred API error: {response.status_code} - {response.text}"
                 }
+
+            # Generate backup codes via Fred's API
+            backup_codes = []
+            try:
+                backup_response = requests.post(
+                    f"{self._get_bot_url('fred')}/api/users/{email}/backup-codes",
+                    headers={'X-API-Key': config.bot_api_key},
+                    timeout=30
+                )
+                if backup_response.status_code == 200:
+                    backup_result = backup_response.json()
+                    backup_codes = backup_result.get('backup_codes', [])
+            except Exception as e:
+                logger.warning(f"Failed to generate backup codes: {e}")
+
+            return {
+                'success': True,
+                'data': {
+                    'email': email,
+                    'password': password,
+                    'backup_codes': backup_codes,
+                    'fred_response': response.json()
+                }
+            }
 
         except Exception as e:
             return {'success': False, 'error': f'Failed to call Fred: {str(e)}'}
@@ -406,33 +542,61 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _create_zendesk_user(self, request_data: Dict) -> Dict[str, Any]:
         """Call Zac to create a Zendesk user"""
         try:
-            # Use the Google email if created, otherwise use personal email
-            email = request_data.get('google_user_email') or request_data['personal_email']
+            # Use work email if Google access, otherwise use personal email
+            email = request_data.get('work_email') or request_data.get('google_user_email') or request_data['personal_email']
 
+            # Parse zendesk_groups if stored as JSON string
+            zendesk_groups = request_data.get('zendesk_groups')
+            if zendesk_groups and isinstance(zendesk_groups, str):
+                try:
+                    zendesk_groups = json.loads(zendesk_groups)
+                except json.JSONDecodeError:
+                    zendesk_groups = []
+
+            # Create the user
             response = requests.post(
                 f"{self._get_bot_url('zac')}/api/users",
                 json={
                     'name': request_data['full_name'],
                     'email': email,
-                    'role': 'agent'  # Default to agent role
+                    'role': 'agent'  # Always agent role
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
-            if response.status_code in [200, 201]:
-                result = response.json()
-                return {
-                    'success': True,
-                    'data': {
-                        'user_id': result.get('user', {}).get('id'),
-                        'zac_response': result
-                    }
-                }
-            else:
+            if response.status_code not in [200, 201]:
                 return {
                     'success': False,
                     'error': f"Zac API error: {response.status_code} - {response.text}"
                 }
+
+            result = response.json()
+            user_id = result.get('user', {}).get('id')
+
+            # Assign to groups if specified
+            groups_assigned = []
+            if user_id and zendesk_groups:
+                try:
+                    groups_response = requests.post(
+                        f"{self._get_bot_url('zac')}/api/users/{user_id}/groups",
+                        json={'group_ids': zendesk_groups},
+                        headers={'X-API-Key': config.bot_api_key},
+                        timeout=30
+                    )
+                    if groups_response.status_code == 200:
+                        groups_assigned = zendesk_groups
+                except Exception as e:
+                    logger.warning(f"Failed to assign Zendesk groups: {e}")
+
+            return {
+                'success': True,
+                'data': {
+                    'user_id': user_id,
+                    'groups_assigned': groups_assigned,
+                    'zac_response': result
+                }
+            }
 
         except Exception as e:
             return {'success': False, 'error': f'Failed to call Zac: {str(e)}'}
@@ -440,8 +604,8 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
     def _register_peter(self, request_data: Dict) -> Dict[str, Any]:
         """Call Peter to register the staff member"""
         try:
-            # Use the Google email if created
-            work_email = request_data.get('google_user_email', '')
+            # Use provided work email or fall back to results from Google user creation
+            work_email = request_data.get('work_email') or request_data.get('google_user_email', '')
 
             response = requests.post(
                 f"{self._get_bot_url('peter')}/api/staff",
@@ -459,6 +623,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
                     'status': 'active',
                     'notes': request_data.get('notes', '')
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
@@ -494,7 +659,7 @@ Extension: (To be assigned)
 
 Please create a new VOIP user account in the PBX system with the following details:
 - Display Name: {request_data['full_name']}
-- Email: {request_data.get('google_user_email', request_data['personal_email'])}
+- Email: {request_data.get('work_email') or request_data.get('google_user_email') or request_data['personal_email']}
 - Mobile: {request_data.get('phone_mobile', 'N/A')}
 
 Once completed, please update this ticket with the assigned extension number and mark it as solved.
@@ -511,6 +676,7 @@ Automated request from Oscar (Staff Onboarding Bot)
                     'priority': 'normal',
                     'type': 'task'
                 },
+                headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 

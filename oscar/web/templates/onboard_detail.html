@@ -26,6 +26,14 @@
     .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .step-name { font-weight: 600; color: #333; }
     .step-description { font-size: 13px; color: #666; }
+    .step-actions { margin-top: 10px; }
+    .btn-execute { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-execute-primary { background: #667eea; color: white; }
+    .btn-execute-primary:hover { background: #5a6fd6; }
+    .btn-execute-all { background: #28a745; color: white; padding: 10px 20px; font-size: 14px; }
+    .btn-execute-all:hover { background: #229a3d; }
+    .btn-retry { background: #ffc107; color: #333; }
+    .btn-retry:hover { background: #e0a800; }
     .activity-list { list-style: none; max-height: 400px; overflow-y: auto; }
     .activity-item { padding: 10px; border-left: 3px solid #667eea; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px; }
     .activity-time { font-size: 12px; color: #666; }
@@ -79,9 +87,67 @@
             {% endif %}
         </div>
 
+        {% if request.google_user_password or request.google_backup_codes %}
+        <div class="info-card" style="margin-bottom: 20px; background: #e8f5e9; border: 1px solid #a5d6a7;">
+            <h3 style="color: #2e7d32;">Google Account Credentials</h3>
+            <p style="color: #2e7d32; font-size: 13px; margin-bottom: 15px;">
+                Copy and save these credentials - they are only stored temporarily!
+            </p>
+
+            {% if request.google_user_email %}
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">
+                    <code style="background: white; padding: 3px 8px; border-radius: 4px;">{{ request.google_user_email }}</code>
+                    <button type="button" onclick="copyToClipboard('{{ request.google_user_email }}')" style="margin-left: 8px; padding: 3px 10px; cursor: pointer; border: 1px solid #27ae60; background: white; border-radius: 4px; color: #27ae60; font-size: 12px;">Copy</button>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if request.google_user_password %}
+            <div class="info-row">
+                <div class="info-label">Password:</div>
+                <div class="info-value">
+                    <code style="background: white; padding: 3px 8px; border-radius: 4px; font-size: 14px;">{{ request.google_user_password }}</code>
+                    <button type="button" onclick="copyToClipboard('{{ request.google_user_password }}')" style="margin-left: 8px; padding: 3px 10px; cursor: pointer; border: 1px solid #27ae60; background: white; border-radius: 4px; color: #27ae60; font-size: 12px;">Copy</button>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if backup_codes %}
+            <div style="margin-top: 15px;">
+                <div class="info-label" style="margin-bottom: 10px;">2FA Backup Codes:</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                    {% for code in backup_codes %}
+                    <div style="background: white; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 14px; text-align: center; border: 1px solid #c8e6c9;">
+                        {{ code }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" onclick="copyBackupCodes()" style="margin-top: 10px; padding: 6px 15px; cursor: pointer; border: 1px solid #27ae60; background: #27ae60; border-radius: 4px; color: white; font-size: 12px;">
+                    Copy All Backup Codes
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="info-card">
             <h3>Workflow Steps</h3>
             {% if steps %}
+            {% set pending_steps = steps | selectattr('status', 'equalto', 'pending') | list %}
+            {% set failed_steps = steps | selectattr('status', 'equalto', 'failed') | list %}
+
+            {% if pending_steps or failed_steps %}
+            <div style="margin-bottom: 20px; text-align: center;">
+                <form action="{{ url_for('web.execute_all_steps', request_id=request.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn-execute btn-execute-all">
+                        🚀 Create All ({{ pending_steps|length + failed_steps|length }} remaining)
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
             <ul class="steps-list">
                 {% for step in steps %}
                 <li class="step-item {{ step.status }}">
@@ -94,6 +160,22 @@
                     {% endif %}
                     {% if step.zendesk_ticket_id %}
                     <div style="color: #667eea; font-size: 13px; margin-top: 5px;">🎫 Zendesk Ticket: #{{ step.zendesk_ticket_id }}</div>
+                    {% endif %}
+
+                    {% if step.status == 'pending' %}
+                    <div class="step-actions">
+                        <form action="{{ url_for('web.execute_step', request_id=request.id, step_name=step.step_name) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn-execute btn-execute-primary">Create Now</button>
+                        </form>
+                    </div>
+                    {% elif step.status == 'failed' %}
+                    <div class="step-actions">
+                        <form action="{{ url_for('web.execute_step', request_id=request.id, step_name=step.step_name) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn-execute btn-retry">🔄 Retry</button>
+                        </form>
+                    </div>
+                    {% elif step.status == 'completed' %}
+                    <div style="color: #28a745; font-size: 13px; margin-top: 5px;">✓ Completed</div>
                     {% endif %}
                 </li>
                 {% endfor %}
@@ -145,4 +227,22 @@
         </div>
     </div>
 </div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Brief visual feedback could be added here
+    });
+}
+
+function copyBackupCodes() {
+    const codes = [
+        {% for code in backup_codes %}'{{ code }}'{% if not loop.last %}, {% endif %}{% endfor %}
+    ];
+    const text = codes.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Backup codes copied to clipboard!');
+    });
+}
+</script>
 {% endblock %}

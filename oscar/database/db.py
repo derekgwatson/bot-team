@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from shared.migrations import MigrationRunner
+
 
 class Database:
     """Database manager for Oscar's onboarding workflows"""
@@ -12,18 +14,16 @@ class Database:
             db_dir = Path(__file__).parent
             db_path = db_dir / 'oscar.db'
         self.db_path = str(db_path)
-        self.init_db()
+        self._run_migrations()
 
-    def init_db(self):
-        """Initialize the database with schema"""
-        schema_path = Path(__file__).parent / 'schema.sql'
-        with open(schema_path, 'r') as f:
-            schema = f.read()
-
-        conn = sqlite3.connect(self.db_path)
-        conn.executescript(schema)
-        conn.commit()
-        conn.close()
+    def _run_migrations(self):
+        """Run database migrations"""
+        migrations_dir = Path(__file__).parent.parent / 'migrations'
+        runner = MigrationRunner(
+            db_path=self.db_path,
+            migrations_dir=str(migrations_dir)
+        )
+        runner.run_pending_migrations(verbose=True)
 
     def get_connection(self):
         """Get a database connection"""
@@ -37,13 +37,19 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
+        # Convert zendesk_groups list to JSON if provided
+        zendesk_groups = data.get('zendesk_groups')
+        if zendesk_groups and isinstance(zendesk_groups, list):
+            zendesk_groups = json.dumps(zendesk_groups)
+
         cursor.execute("""
             INSERT INTO onboarding_requests (
                 full_name, preferred_name, position, section, start_date,
                 personal_email, phone_mobile, phone_fixed,
                 google_access, zendesk_access, voip_access,
+                work_email, zendesk_groups,
                 notes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('full_name'),
             data.get('preferred_name', ''),
@@ -56,6 +62,8 @@ class Database:
             data.get('google_access', True),
             data.get('zendesk_access', False),
             data.get('voip_access', False),
+            data.get('work_email'),
+            zendesk_groups,
             data.get('notes', ''),
             created_by
         ))
@@ -130,8 +138,10 @@ class Database:
         # Build dynamic update query based on kwargs
         updates = []
         values = []
+        allowed_fields = ['google_user_email', 'google_user_password', 'google_backup_codes',
+                         'zendesk_user_id', 'peter_staff_id']
         for key, value in kwargs.items():
-            if key in ['google_user_email', 'zendesk_user_id', 'peter_staff_id']:
+            if key in allowed_fields:
                 updates.append(f"{key} = ?")
                 values.append(value)
 
@@ -179,6 +189,22 @@ class Database:
         conn.close()
 
         return [dict(row) for row in rows]
+
+    def get_workflow_step_by_name(self, request_id: int, step_name: str) -> Optional[Dict]:
+        """Get a specific workflow step by name for a request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM workflow_steps WHERE onboarding_request_id = ? AND step_name = ?",
+            (request_id, step_name)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
 
     def get_pending_manual_tasks(self) -> List[Dict]:
         """Get all workflow steps that require manual action and are pending"""

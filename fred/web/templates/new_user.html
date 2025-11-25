@@ -10,31 +10,70 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="/users/new">
+    <form method="POST" action="/users/new" onsubmit="combineFields()" autocomplete="off" data-lpignore="true" role="presentation">
         <div class="form-group">
-            <label for="email">Email Address *</label>
-            <input type="email" id="email" name="email" required
-                   placeholder="user@example.com">
+            <label for="f1a">Email Address *</label>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <input type="text" id="f1a" name="f1a" required
+                       placeholder="firstname.lastname" style="flex: 1;"
+                       autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
+                <span style="font-size: 18px; color: #666;">@</span>
+                <select id="f1b" name="f1b" style="flex: 1; padding: 10px;" required
+                        data-lpignore="true" data-1p-ignore="true">
+                    {% for domain in allowed_domains %}
+                    <option value="{{ domain }}">{{ domain }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" id="f1c" name="f1c">
         </div>
 
         <div class="form-group">
-            <label for="first_name">First Name *</label>
-            <input type="text" id="first_name" name="first_name" required
-                   placeholder="John">
+            <label for="f2a">First Name *</label>
+            <input type="text" id="f2a" name="f2a" required
+                   placeholder="John"
+                   autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
         </div>
 
         <div class="form-group">
-            <label for="last_name">Last Name *</label>
-            <input type="text" id="last_name" name="last_name" required
-                   placeholder="Doe">
+            <label for="f2b">Last Name *</label>
+            <input type="text" id="f2b" name="f2b" required
+                   placeholder="Doe"
+                   autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
         </div>
 
         <div class="form-group">
-            <label for="password">Temporary Password *</label>
-            <input type="password" id="password" name="password" required
-                   placeholder="Minimum 8 characters">
+            <label for="f3a">Temporary Password *</label>
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <input type="text" id="f3a" name="f3a" required
+                       placeholder="Minimum 8 characters" style="flex: 1;"
+                       autocomplete="nope" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-bwignore="true">
+                <button type="button" onclick="generatePassword()" class="btn" style="background: #27ae60; white-space: nowrap;">
+                    🎲 Generate
+                </button>
+            </div>
             <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                User will be prompted to change password on first login
+                Click Generate for a memorable password like "purple-tiger-sunset-42"
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="f3b" name="f3b" style="width: 18px; height: 18px;">
+                <span>Require password change on first login</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 28px;">
+                Uncheck if you need to log in as this user first (e.g., to set up backup codes)
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="f4a" name="f4a" style="width: 18px; height: 18px;" checked>
+                <span>Generate 2FA backup codes</span>
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-top: 5px; margin-left: 28px;">
+                Generate 10 one-time backup codes for account recovery (recommended)
             </small>
         </div>
 
@@ -44,4 +83,37 @@
         </div>
     </form>
 </div>
+
+<script>
+function combineFields() {
+    const localPart = document.getElementById('f1a').value;
+    const domain = document.getElementById('f1b').value;
+    document.getElementById('f1c').value = localPart + '@' + domain;
+}
+
+function generatePassword() {
+    // Word lists for memorable passwords
+    const adjectives = [
+        'purple', 'golden', 'silver', 'cosmic', 'happy', 'swift', 'brave', 'gentle',
+        'bright', 'calm', 'crisp', 'fresh', 'grand', 'keen', 'lucky', 'merry',
+        'noble', 'proud', 'quiet', 'royal', 'sunny', 'vivid', 'warm', 'zesty',
+        'amber', 'azure', 'coral', 'ivory', 'jade', 'maple', 'olive', 'rustic'
+    ];
+
+    const nouns = [
+        'tiger', 'eagle', 'river', 'mountain', 'forest', 'ocean', 'sunset', 'thunder',
+        'falcon', 'panda', 'dolphin', 'phoenix', 'dragon', 'maple', 'willow', 'cedar',
+        'canyon', 'meadow', 'glacier', 'comet', 'nebula', 'aurora', 'breeze', 'crystal',
+        'harbor', 'island', 'valley', 'summit', 'rapids', 'garden', 'castle', 'beacon'
+    ];
+
+    const adj1 = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const adj2 = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const num = Math.floor(Math.random() * 90) + 10; // 10-99
+
+    const password = `${adj1}-${noun}-${adj2}-${num}`;
+    document.getElementById('f3a').value = password;
+}
+</script>
 {% endblock %}
