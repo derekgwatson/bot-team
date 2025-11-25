@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from services.google_workspace import workspace_service
 from services.auth import login_required
+from config import config
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
@@ -50,11 +51,21 @@ def user_detail(email):
 @login_required
 def new_user():
     """Create new user form"""
+    allowed_domain = config.google_domain
+
     if request.method == 'POST':
         email = request.form.get('email')
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
         password = request.form.get('password')
+
+        # Validate email domain
+        if '@' not in email:
+            return render_template('new_user.html', error='Invalid email address', allowed_domain=allowed_domain)
+
+        email_domain = email.split('@')[1].lower()
+        if email_domain != allowed_domain.lower():
+            return render_template('new_user.html', error=f'Email must use domain @{allowed_domain}', allowed_domain=allowed_domain)
 
         result = workspace_service.create_user(
             email=email,
@@ -64,11 +75,11 @@ def new_user():
         )
 
         if isinstance(result, dict) and 'error' in result:
-            return render_template('new_user.html', error=result['error'])
+            return render_template('new_user.html', error=result['error'], allowed_domain=allowed_domain)
 
         return redirect(url_for('web.index'))
 
-    return render_template('new_user.html')
+    return render_template('new_user.html', allowed_domain=allowed_domain)
 
 @web_bp.route('/users/<email>/archive', methods=['POST'])
 @login_required

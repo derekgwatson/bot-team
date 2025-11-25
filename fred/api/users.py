@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.google_workspace import workspace_service
 from shared.auth.bot_api import api_key_required
+from config import config
 
 api_bp = Blueprint('api', __name__)
 
@@ -90,6 +91,16 @@ def create_user():
     for field in required_fields:
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
+
+    # Validate email domain
+    email = data['email']
+    if '@' not in email:
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    email_domain = email.split('@')[1].lower()
+    allowed_domain = config.google_domain.lower()
+    if email_domain != allowed_domain:
+        return jsonify({'error': f'Email must use domain @{config.google_domain}'}), 400
 
     result = workspace_service.create_user(
         email=data['email'],

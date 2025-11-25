@@ -14,7 +14,10 @@
         <div class="form-group">
             <label for="email">Email Address *</label>
             <input type="email" id="email" name="email" required
-                   placeholder="user@example.com">
+                   placeholder="user@{{ allowed_domain or 'example.com' }}">
+            <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                Must use domain @{{ allowed_domain or 'your-domain.com' }}
+            </small>
         </div>
 
         <div class="form-group">
