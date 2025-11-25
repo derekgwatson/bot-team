@@ -28,6 +28,19 @@ email:
   # Set MABEL_URL in .env if not using default http://localhost:8010
   from_address: "oscar@watsonblinds.com.au"
 
+# Bot URLs for API communication
+bots:
+  fred:
+    url: "http://localhost:8001"
+  zac:
+    url: "http://localhost:8007"
+  peter:
+    url: "http://localhost:8003"
+  sadie:
+    url: "http://localhost:8010"
+  mabel:
+    url: "http://localhost:8016"
+
 # Authentication configuration
 auth:
   # Google OAuth credentials and admin emails - stored in .env file (not in git!)
