@@ -1,9 +1,32 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from services.google_workspace import workspace_service
 from services.auth import login_required
 from config import config
+import time
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
+
+# How long to hide recently deleted/archived users (in seconds)
+# Google API eventual consistency usually resolves within 30 seconds
+HIDE_DELETED_DURATION = 60
+
+
+def _get_hidden_users():
+    """Get list of recently deleted/archived users that should be hidden from lists"""
+    hidden = session.get('hidden_users', {})
+    now = time.time()
+    # Clean up expired entries
+    hidden = {email: ts for email, ts in hidden.items() if now - ts < HIDE_DELETED_DURATION}
+    session['hidden_users'] = hidden
+    return set(hidden.keys())
+
+
+def _hide_user(email):
+    """Mark a user to be hidden from lists temporarily"""
+    hidden = session.get('hidden_users', {})
+    hidden[email] = time.time()
+    session['hidden_users'] = hidden
+
 
 @web_bp.route('/')
 @login_required
@@ -16,6 +39,10 @@ def index():
         users = []
     else:
         error = None
+        # Filter out recently deleted/archived users (Google API eventual consistency)
+        hidden = _get_hidden_users()
+        if hidden:
+            users = [u for u in users if u.get('email') not in hidden]
 
     return render_template('index.html', users=users, error=error, archived=False)
 
@@ -30,6 +57,10 @@ def archived():
         users = []
     else:
         error = None
+        # Filter out recently deleted users (Google API eventual consistency)
+        hidden = _get_hidden_users()
+        if hidden:
+            users = [u for u in users if u.get('email') not in hidden]
 
     return render_template('index.html', users=users, error=error, archived=True)
 
@@ -108,8 +139,11 @@ def archive_user_action(email):
     result = workspace_service.archive_user(email)
 
     if isinstance(result, dict) and 'error' in result:
-        # In a real app, you'd want flash messages
-        pass
+        flash(result['error'], 'error')
+    else:
+        # Hide user from list temporarily (Google API eventual consistency)
+        _hide_user(email)
+        flash(f'User {email} archived successfully', 'success')
 
     return redirect(url_for('web.index'))
 
@@ -120,7 +154,10 @@ def delete_user_action(email):
     result = workspace_service.delete_user(email)
 
     if isinstance(result, dict) and 'error' in result:
-        # In a real app, you'd want flash messages
-        pass
+        flash(result['error'], 'error')
+    else:
+        # Hide user from list temporarily (Google API eventual consistency)
+        _hide_user(email)
+        flash(f'User {email} deleted successfully', 'success')
 
     return redirect(url_for('web.index'))
