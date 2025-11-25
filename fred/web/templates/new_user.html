@@ -10,14 +10,15 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="/users/new" onsubmit="combineEmail()">
+    <form method="POST" action="/users/new" onsubmit="combineEmail()" autocomplete="off">
         <div class="form-group">
             <label for="username">Email Address *</label>
             <div style="display: flex; align-items: center; gap: 5px;">
                 <input type="text" id="username" name="username" required
-                       placeholder="username" style="flex: 1;">
+                       placeholder="username" style="flex: 1;"
+                       autocomplete="off" data-lpignore="true" data-form-type="other">
                 <span style="font-size: 18px; color: #666;">@</span>
-                <select id="domain" name="domain" style="flex: 1;" required>
+                <select id="domain" name="domain" style="flex: 1; padding: 10px;" required>
                     {% for domain in allowed_domains %}
                     <option value="{{ domain }}">{{ domain }}</option>
                     {% endfor %}
@@ -29,19 +30,22 @@
         <div class="form-group">
             <label for="first_name">First Name *</label>
             <input type="text" id="first_name" name="first_name" required
-                   placeholder="John">
+                   placeholder="John"
+                   autocomplete="off" data-lpignore="true" data-form-type="other">
         </div>
 
         <div class="form-group">
             <label for="last_name">Last Name *</label>
             <input type="text" id="last_name" name="last_name" required
-                   placeholder="Doe">
+                   placeholder="Doe"
+                   autocomplete="off" data-lpignore="true" data-form-type="other">
         </div>
 
         <div class="form-group">
             <label for="password">Temporary Password *</label>
-            <input type="password" id="password" name="password" required
-                   placeholder="Minimum 8 characters">
+            <input type="text" id="password" name="password" required
+                   placeholder="Minimum 8 characters"
+                   autocomplete="new-password" data-lpignore="true" data-form-type="other">
             <small style="color: #7f8c8d; display: block; margin-top: 5px;">
                 User will be prompted to change password on first login
             </small>
