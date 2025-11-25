@@ -6,7 +6,7 @@ Sends email notifications via Mabel (the centralized email bot)
 import os
 import logging
 import requests
-from typing import Optional
+from typing import Optional, Tuple
 from config import config
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class EmailService:
         self.from_address = config.email_from_address
 
     def send_email(self, to_email: str, subject: str, body: str,
-                   html_body: Optional[str] = None) -> bool:
+                   html_body: Optional[str] = None) -> Tuple[bool, Optional[str]]:
         """
         Send an email via Mabel
 
@@ -32,7 +32,9 @@ class EmailService:
             html_body: Optional HTML email body
 
         Returns:
-            bool: True if email sent successfully, False otherwise
+            Tuple[bool, Optional[str]]: (success, error_message)
+                - (True, None) if email sent successfully
+                - (False, error_message) if email failed to send
         """
         try:
             # Prepare request payload for Mabel
@@ -69,16 +71,41 @@ class EmailService:
 
             if response.status_code == 200:
                 logger.info(f"Email sent successfully to {to_email} via Mabel")
-                return True
+                return True, None
             else:
+                # Parse error from response
+                error_msg = f"Mabel returned HTTP {response.status_code}"
+                try:
+                    error_data = response.json()
+                    if 'error' in error_data:
+                        error_msg = f"{error_data['error']}"
+                        if 'details' in error_data:
+                            details = error_data['details']
+                            if isinstance(details, str):
+                                error_msg = f"{error_msg}: {details}"
+                            elif isinstance(details, list) and details:
+                                # Validation errors
+                                first_error = details[0]
+                                error_msg = f"{error_msg}: {first_error.get('msg', 'validation failed')}"
+                except Exception:
+                    pass
                 logger.error(f"Mabel returned error: {response.status_code} - {response.text}")
-                return False
+                return False, error_msg
 
+        except requests.exceptions.Timeout:
+            error_msg = "Request to email service timed out"
+            logger.error(f"Failed to send email via Mabel: {error_msg}")
+            return False, error_msg
+        except requests.exceptions.ConnectionError:
+            error_msg = "Could not connect to email service (Mabel)"
+            logger.error(f"Failed to send email via Mabel: {error_msg}")
+            return False, error_msg
         except Exception as e:
+            error_msg = f"Unexpected error: {str(e)}"
             logger.error(f"Failed to send email via Mabel: {str(e)}")
-            return False
+            return False, error_msg
 
-    def send_onboarding_notification(self, request_data: dict) -> bool:
+    def send_onboarding_notification(self, request_data: dict) -> Tuple[bool, Optional[str]]:
         """
         Send onboarding notification to HR/Payroll
 
@@ -86,7 +113,7 @@ class EmailService:
             request_data: Dictionary with onboarding request data
 
         Returns:
-            bool: True if email sent successfully
+            Tuple[bool, Optional[str]]: (success, error_message)
         """
         subject = f"New Staff Onboarding: {request_data['full_name']}"
 

@@ -486,7 +486,7 @@ Notes: {request_data.get('notes', 'None')}
 This is an automated notification from Oscar (Staff Onboarding Bot)
 """
 
-        success = email_service.send_email(
+        success, error_msg = email_service.send_email(
             to_email=hr_email,
             subject=subject,
             body=body
@@ -495,7 +495,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
         if success:
             return {'success': True, 'data': {'notified': hr_email, 'recipient_name': hr_name}}
         else:
-            return {'success': False, 'error': 'Failed to send email notification'}
+            return {'success': False, 'error': f'Failed to send email notification: {error_msg}'}
 
     def _create_google_user(self, request_data: Dict) -> Dict[str, Any]:
         """Call Fred to create a Google Workspace user"""
