@@ -347,6 +347,24 @@ bot_team:
       stats: /api/stats
     personality: Punctual and reliable, ensures everything happens at the right time
 
+  tracker:
+    name: Tracker
+    port: 8021
+    description: Field Staff Location Tracking
+    capabilities:
+      - Receive GPS location pings from field staff devices
+      - Track staff status (at_customer, in_transit, off_duty)
+      - Privacy-aware location sharing (only share when in transit)
+      - Store location history for active journeys
+      - Provide location API for Journey bot
+    api_endpoints:
+      info: /info
+      health: /health
+      location: /api/location
+      staff: /api/staff
+      journeys: /api/journeys
+    personality: Watchful and discreet, tracks locations while respecting privacy
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
