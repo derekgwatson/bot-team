@@ -130,8 +130,10 @@ class Database:
         # Build dynamic update query based on kwargs
         updates = []
         values = []
+        allowed_fields = ['google_user_email', 'google_user_password', 'google_backup_codes',
+                         'zendesk_user_id', 'peter_staff_id']
         for key, value in kwargs.items():
-            if key in ['google_user_email', 'zendesk_user_id', 'peter_staff_id']:
+            if key in allowed_fields:
                 updates.append(f"{key} = ?")
                 values.append(value)
 

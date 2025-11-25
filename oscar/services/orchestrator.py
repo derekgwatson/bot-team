@@ -3,10 +3,12 @@ Oscar's Orchestration Service
 Coordinates onboarding workflow across multiple bots
 """
 
+import json
 import requests
 from typing import Dict, List, Any, Optional
 from config import config
 from database.db import db
+from shared.password_generator import generate_memorable_password
 import logging
 
 logger = logging.getLogger(__name__)
@@ -309,8 +311,14 @@ class OnboardingOrchestrator:
 
             # Update onboarding request with result data
             if step_name == 'create_google_user' and result.get('data', {}).get('email'):
-                db.update_onboarding_results(request_id,
-                                            google_user_email=result['data']['email'])
+                data = result['data']
+                backup_codes_json = json.dumps(data.get('backup_codes', [])) if data.get('backup_codes') else None
+                db.update_onboarding_results(
+                    request_id,
+                    google_user_email=data['email'],
+                    google_user_password=data.get('password'),
+                    google_backup_codes=backup_codes_json
+                )
             elif step_name == 'create_zendesk_user' and result.get('data', {}).get('user_id'):
                 db.update_onboarding_results(request_id,
                                             zendesk_user_id=result['data']['user_id'])
@@ -385,32 +393,53 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             first_name = name_parts[0]
             last_name = name_parts[-1] if len(name_parts) > 1 else ''
 
-            # Call Fred's API
+            # Generate a memorable password
+            password = generate_memorable_password()
+
+            # Call Fred's API to create user
+            # Don't require password change so admin can log in first to set up 2FA
             response = requests.post(
                 f"{self._get_bot_url('fred')}/api/users",
                 json={
                     'email': email,
                     'first_name': first_name,
                     'last_name': last_name,
-                    'password': 'TempPassword123!'  # Fred requires a password
+                    'password': password,
+                    'change_password_at_next_login': False
                 },
                 headers={'X-API-Key': config.bot_api_key},
                 timeout=30
             )
 
-            if response.status_code in [200, 201]:
-                return {
-                    'success': True,
-                    'data': {
-                        'email': email,
-                        'fred_response': response.json()
-                    }
-                }
-            else:
+            if response.status_code not in [200, 201]:
                 return {
                     'success': False,
                     'error': f"Fred API error: {response.status_code} - {response.text}"
                 }
+
+            # Generate backup codes via Fred's API
+            backup_codes = []
+            try:
+                backup_response = requests.post(
+                    f"{self._get_bot_url('fred')}/api/users/{email}/backup-codes",
+                    headers={'X-API-Key': config.bot_api_key},
+                    timeout=30
+                )
+                if backup_response.status_code == 200:
+                    backup_result = backup_response.json()
+                    backup_codes = backup_result.get('backup_codes', [])
+            except Exception as e:
+                logger.warning(f"Failed to generate backup codes: {e}")
+
+            return {
+                'success': True,
+                'data': {
+                    'email': email,
+                    'password': password,
+                    'backup_codes': backup_codes,
+                    'fred_response': response.json()
+                }
+            }
 
         except Exception as e:
             return {'success': False, 'error': f'Failed to call Fred: {str(e)}'}

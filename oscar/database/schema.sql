@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS onboarding_requests (
 
     -- Result tracking
     google_user_email TEXT DEFAULT NULL,
+    google_user_password TEXT DEFAULT NULL,
+    google_backup_codes TEXT DEFAULT NULL,  -- JSON array of backup codes
     zendesk_user_id TEXT DEFAULT NULL,
     peter_staff_id TEXT DEFAULT NULL,
     error_message TEXT DEFAULT NULL

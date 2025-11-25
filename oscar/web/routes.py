@@ -3,6 +3,7 @@ Web Routes for Oscar
 User interface for onboarding workflows
 """
 
+import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from services.auth import login_required, admin_required
@@ -148,10 +149,19 @@ def view_onboard(request_id):
         # Get activity log
         activity = db.get_activity_log(request_id)
 
+        # Parse backup codes from JSON if present
+        backup_codes = []
+        if request_data.get('google_backup_codes'):
+            try:
+                backup_codes = json.loads(request_data['google_backup_codes'])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         return render_template('onboard_detail.html',
                              request=request_data,
                              steps=steps,
                              activity=activity,
+                             backup_codes=backup_codes,
                              user=current_user)
 
     except Exception as e:
