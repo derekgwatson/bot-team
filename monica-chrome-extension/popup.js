@@ -106,7 +106,8 @@ function updateUI() {
 
 // Restore temporary form values from storage
 async function restoreTemporaryFormValues() {
-  const { temp_monica_url, temp_registration_code } = await chrome.storage.local.get(['temp_monica_url', 'temp_registration_code']);
+  const { temp_monica_url, temp_registration_code, temp_awaiting_permission } =
+    await chrome.storage.local.get(['temp_monica_url', 'temp_registration_code', 'temp_awaiting_permission']);
 
   if (temp_monica_url) {
     document.getElementById('monica-url').value = temp_monica_url;
@@ -114,11 +115,30 @@ async function restoreTemporaryFormValues() {
   if (temp_registration_code) {
     document.getElementById('registration-code').value = temp_registration_code;
   }
+
+  // If we were waiting for permission and it's now granted, auto-continue
+  if (temp_awaiting_permission && temp_monica_url) {
+    try {
+      const urlObj = new URL(temp_monica_url);
+      const origin = `${urlObj.protocol}//${urlObj.host}/*`;
+      const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+
+      if (hasPermission) {
+        // Clear the flag and auto-continue with registration
+        await chrome.storage.local.remove(['temp_awaiting_permission']);
+        console.log('[Monica Popup] Permission was granted, auto-continuing...');
+        // Small delay to let the UI render
+        setTimeout(() => saveConfiguration(), 100);
+      }
+    } catch (e) {
+      console.log('[Monica Popup] Error checking permission:', e);
+    }
+  }
 }
 
 // Clear temporary form values from storage
 function clearTemporaryFormValues() {
-  chrome.storage.local.remove(['temp_monica_url', 'temp_registration_code']);
+  chrome.storage.local.remove(['temp_monica_url', 'temp_registration_code', 'temp_awaiting_permission']);
 }
 
 // Update status display
@@ -212,9 +232,14 @@ async function saveConfiguration() {
   // Request permission for the specific origin
   const origin = `${urlObj.protocol}//${urlObj.host}/*`;
 
+  // Set flag before requesting permission (popup may close during permission dialog)
+  chrome.storage.local.set({ temp_awaiting_permission: true });
+
   chrome.permissions.request({
     origins: [origin]
-  }, (granted) => {
+  }, async (granted) => {
+    // Clear the awaiting flag since we're continuing in this session
+    await chrome.storage.local.remove(['temp_awaiting_permission']);
     if (!granted) {
       hideLoadingOverlay();
       errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
