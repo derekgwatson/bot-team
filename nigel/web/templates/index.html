@@ -11,15 +11,15 @@
         <div class="label">Active Quotes</div>
         <div class="value">{{ stats.active_quotes }}</div>
     </div>
-    <div class="stat-card {% if stats.unresolved_discrepancies > 0 %}danger{% endif %}">
+    <div class="stat-card {% if (stats.unresolved_discrepancies or 0) > 0 %}danger{% endif %}">
         <div class="label">Unresolved Discrepancies</div>
-        <div class="value">{{ stats.unresolved_discrepancies }}</div>
+        <div class="value">{{ stats.unresolved_discrepancies or 0 }}</div>
     </div>
     <div class="stat-card">
         <div class="label">Checks (24h)</div>
         <div class="value">{{ recent_summary.total_checks or 0 }}</div>
     </div>
-    <div class="stat-card {% if recent_summary.errors > 0 %}warning{% endif %}">
+    <div class="stat-card {% if (recent_summary.errors or 0) > 0 %}warning{% endif %}">
         <div class="label">Errors (24h)</div>
         <div class="value">{{ recent_summary.errors or 0 }}</div>
     </div>
