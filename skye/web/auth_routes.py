@@ -17,7 +17,7 @@ def login():
     return oauth.google.authorize_redirect(redirect_uri)
 
 
-@auth_bp.route('/callback')
+@auth_bp.route('/auth/callback')
 def callback():
     """Handle Google OAuth callback."""
     try:

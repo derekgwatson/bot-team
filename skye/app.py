@@ -11,6 +11,7 @@ import os
 import atexit
 from datetime import datetime, timezone
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from services.auth import init_auth
 from services.scheduler import scheduler_service
@@ -21,6 +22,9 @@ from web.auth_routes import auth_bp
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 
 def relative_time(timestamp: str) -> str:
@@ -83,7 +87,7 @@ app.jinja_env.filters['relative_time'] = relative_time
 init_auth(app)
 
 # Register blueprints
-app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
 
