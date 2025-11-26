@@ -57,6 +57,16 @@ app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
 app.register_blueprint(web_bp)
 
 
+@app.route('/api/orgs')
+def list_orgs():
+    """List available organizations for Buz operations."""
+    # Combine configured orgs and those missing auth
+    all_orgs = list(config.buz_orgs.keys()) + list(config.buz_orgs_missing_auth.keys())
+    return jsonify({
+        'orgs': sorted(all_orgs)
+    })
+
+
 @app.route('/health')
 def health():
     """Health check endpoint."""
@@ -84,6 +94,7 @@ def info():
                 '/': 'Home page with session management UI'
             },
             'api': {
+                'GET /api/orgs': 'List available organizations',
                 'POST /api/sessions/start': 'Start a new browser session',
                 'DELETE /api/sessions/{session_id}': 'Close a browser session',
                 'GET /api/sessions/{session_id}': 'Get session status',

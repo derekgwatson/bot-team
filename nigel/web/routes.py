@@ -3,7 +3,7 @@ Web Routes for Nigel
 User interface for price monitoring
 """
 
-import os
+import requests
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from services.auth import login_required
@@ -12,12 +12,19 @@ from services.price_checker import PriceChecker, compare_prices
 from config import config
 import logging
 
-# Get available orgs from BUZ_ORGS env var (same source Banji uses)
-def get_available_orgs():
-    buz_orgs = os.environ.get('BUZ_ORGS', '').strip()
-    return [org.strip() for org in buz_orgs.split(',') if org.strip()] if buz_orgs else []
-
 logger = logging.getLogger(__name__)
+
+
+def get_available_orgs():
+    """Fetch available organizations from Banji's API."""
+    try:
+        banji_url = config.bots.get('banji', {}).get('base_url', 'http://localhost:8014')
+        response = requests.get(f"{banji_url}/api/orgs", timeout=5)
+        if response.ok:
+            return response.json().get('orgs', [])
+    except Exception as e:
+        logger.warning(f"Could not fetch orgs from Banji: {e}")
+    return []
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
