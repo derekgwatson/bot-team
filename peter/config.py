@@ -83,4 +83,8 @@ class Config:
     def bots(self):
         return self._config.get('bots', {})
 
+    @property
+    def auth(self):
+        return self._config.get('auth', {}) or {}
+
 config = Config()

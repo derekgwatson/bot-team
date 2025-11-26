@@ -24,6 +24,9 @@ class Config:
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
 
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
+
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")

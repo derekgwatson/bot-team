@@ -40,6 +40,12 @@ google_groups:
   # See .env.example for required environment variables
 
 # Authentication configuration
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
 auth:
-  # Google OAuth credentials and admin emails - stored in .env file (not in git!)
-  # See .env.example for required environment variables
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au

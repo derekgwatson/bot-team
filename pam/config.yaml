@@ -18,17 +18,15 @@ server:
 shared_config: "../shared/config/organization.yaml"
 
 # Authentication configuration
-auth:
-  # Google OAuth credentials - stored in .env file (not in git!)
-  # See .env.example for required environment variables:
-  #   GOOGLE_OAUTH_CLIENT_ID
-  #   GOOGLE_OAUTH_CLIENT_SECRET
-
-# Bot URLs are configured via environment variables (see .env.example)
-# Development defaults: Quinn=http://localhost:8005, Peter=http://localhost:8003
-# Production: Set QUINN_API_URL and PETER_API_URL in .env
-
-# Peter's API endpoint paths (where Pam gets contact data)
 peter_api:
   contacts_endpoint: "/api/contacts"
   search_endpoint: "/api/contacts/search"
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au

@@ -39,11 +39,19 @@ logger.info(f"Logging configured at {log_level_name} level")
 app = Flask(__name__)
 app.secret_key = config.secret_key
 
-# Initialize authentication
-init_auth(app)
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
+
 
 # Register blueprints
-app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 

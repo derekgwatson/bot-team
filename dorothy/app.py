@@ -14,10 +14,9 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 import os
 from flask import Flask, jsonify
 from config import config
+from shared.auth import GatewayAuth
 from api.deployments import api_bp
 from web.routes import web_bp
-from web.auth_routes import auth_bp
-from services.auth import init_auth
 from services.deployment_orchestrator import deployment_orchestrator
 
 app = Flask(__name__)
@@ -25,11 +24,19 @@ app = Flask(__name__)
 # Configure Flask for sessions and OAuth
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Initialize authentication
-init_auth(app)
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
+
 
 # Register blueprints
-app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 

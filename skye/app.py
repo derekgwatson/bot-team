@@ -12,15 +12,25 @@ import atexit
 from datetime import datetime, timezone
 from flask import Flask, jsonify
 from config import config
-from services.auth import init_auth
+from shared.auth import GatewayAuth
 from services.scheduler import scheduler_service
 from api.routes import api_bp
 from web.routes import web_bp
-from web.auth_routes import auth_bp
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
 
 
 def relative_time(timestamp: str) -> str:
@@ -79,8 +89,6 @@ def relative_time(timestamp: str) -> str:
 app.jinja_env.filters['relative_time'] = relative_time
 
 
-# Initialize authentication
-init_auth(app)
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/auth')

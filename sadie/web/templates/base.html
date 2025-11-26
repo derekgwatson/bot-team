@@ -373,7 +373,7 @@
             {% if current_user and current_user.is_authenticated %}
             <div class="user-info">
                 <div class="user-email">{{ current_user.email }}</div>
-                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+                <a href="{{ url_for('gateway_auth.logout') }}" class="btn-logout">Logout</a>
             </div>
             {% endif %}
             <h1>🎫 Sadie</h1>

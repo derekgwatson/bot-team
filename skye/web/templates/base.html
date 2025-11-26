@@ -332,7 +332,7 @@
             <p>{{ config.description }}</p>
             {% if current_user.is_authenticated %}
             <div class="user-info">
-                {{ current_user.name }} | <a href="{{ url_for('auth.logout') }}">Logout</a>
+                {{ current_user.name }} | <a href="{{ url_for('gateway_auth.logout') }}">Logout</a>
             </div>
             {% endif %}
         </header>

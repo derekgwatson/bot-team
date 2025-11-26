@@ -33,6 +33,9 @@ class Config:
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
 
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
+
         # ── Server config ─────────────────────────────────────
         server = data.get("server", {}) or {}
         # Host still comes from Olive's own config

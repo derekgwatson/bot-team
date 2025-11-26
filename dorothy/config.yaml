@@ -45,3 +45,13 @@ services:
 #
 # Chester must be running for Dorothy to retrieve bot configurations.
 # There is no local fallback - Chester is the single source of truth.
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au
+

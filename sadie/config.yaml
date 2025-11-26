@@ -8,3 +8,13 @@ server:
   # port is read from chester/config.yaml via shared/config/ports.py
 database:
   path: "database/tickets.db"
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au
+
