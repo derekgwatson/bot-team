@@ -3,6 +3,7 @@ Web Routes for Nigel
 User interface for price monitoring
 """
 
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from services.auth import login_required
@@ -10,6 +11,11 @@ from database.db import db
 from services.price_checker import PriceChecker, compare_prices
 from config import config
 import logging
+
+# Get available orgs from BUZ_ORGS env var (same source Banji uses)
+def get_available_orgs():
+    buz_orgs = os.environ.get('BUZ_ORGS', '').strip()
+    return [org.strip() for org in buz_orgs.split(',') if org.strip()] if buz_orgs else []
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +100,7 @@ def add_quote():
             flash(f'Error: {str(e)}', 'error')
             return redirect(url_for('web.add_quote'))
 
-    return render_template('add_quote.html', user=current_user)
+    return render_template('add_quote.html', user=current_user, available_orgs=get_available_orgs())
 
 
 @web_bp.route('/quotes/<quote_id>')

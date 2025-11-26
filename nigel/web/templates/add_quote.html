@@ -14,8 +14,17 @@
 
     <div class="form-group">
         <label for="org">Organization *</label>
+        {% if available_orgs %}
+        <select id="org" name="org" required>
+            <option value="">-- Select Organization --</option>
+            {% for org in available_orgs %}
+            <option value="{{ org }}">{{ org }}</option>
+            {% endfor %}
+        </select>
+        {% else %}
         <input type="text" id="org" name="org" required placeholder="e.g., designer_drapes">
-        <small style="color: #666;">The Buz organization this quote belongs to</small>
+        <small style="color: #999;">No organizations configured. Set BUZ_ORGS in .env</small>
+        {% endif %}
     </div>
 
     <div class="form-group">
