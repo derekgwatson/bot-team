@@ -1,8 +1,7 @@
 """API routes for Doc"""
 
 from flask import Blueprint, jsonify, request
-from shared.auth.bot_api import api_key_required
-from services.auth import api_or_admin_required
+from shared.auth.bot_api import api_key_required, api_or_session_auth
 
 from services.sync import sync_service
 from services.checkup import checkup_service
@@ -72,7 +71,7 @@ def get_bot(bot_name):
 
 
 @api_bp.route('/bots/sync', methods=['POST'])
-@api_or_admin_required
+@api_or_session_auth
 def sync_bots():
     """Sync bot registry from Chester (callable from dashboard or other bots)"""
     result = sync_service.sync_from_chester()
@@ -95,7 +94,7 @@ def sync_status():
 # ─────────────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/checkup', methods=['GET', 'POST'])
-@api_or_admin_required
+@api_or_session_auth
 def checkup_all():
     """
     Run health checkup on all bots.
@@ -184,7 +183,7 @@ def get_bot_vitals(bot_name):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/tests/run', methods=['POST'])
-@api_or_admin_required
+@api_or_session_auth
 def run_tests():
     """
     Run pytest tests (callable from dashboard or other bots).
