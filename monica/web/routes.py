@@ -284,14 +284,22 @@ def dashboard():
             border-radius: 6px;
             padding: 8px 12px;
             margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .registration-code-display .code-label {
+            font-size: 0.8em;
+            color: #6b7280;
+            font-weight: 600;
+        }
+        .registration-code-display .code-value {
             font-family: monospace;
             font-size: 1.1em;
             font-weight: 700;
             letter-spacing: 2px;
             color: #374151;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex: 1;
         }
         .copy-code-btn {
             background: #667eea;
@@ -742,23 +750,23 @@ def dashboard():
             );
         }
 
-        // Show generate code modal
-        function showGenerateCodeModal() {
+        // Show add device modal
+        function showAddDeviceModal() {
             // Pause auto-refresh while modal is open
             clearTimeout(autoRefreshTimer);
             codeWasGenerated = false; // Reset flag
-            document.getElementById('generate-modal').classList.add('active');
+            document.getElementById('add-device-modal').classList.add('active');
             document.getElementById('modal-form').style.display = 'block';
             document.getElementById('modal-result').style.display = 'none';
         }
 
         // Hide modal
         function hideModal() {
-            document.getElementById('generate-modal').classList.remove('active');
+            document.getElementById('add-device-modal').classList.remove('active');
             document.getElementById('store-code-input').value = '';
             document.getElementById('device-label-input').value = '';
 
-            // If a code was generated, refresh immediately to see new devices register
+            // If a device was added, refresh immediately to show it
             // Otherwise resume normal auto-refresh schedule
             if (codeWasGenerated) {
                 setTimeout(() => location.reload(), 500); // Brief delay for modal close animation
@@ -769,8 +777,8 @@ def dashboard():
             }
         }
 
-        // Generate registration code
-        async function generateCode() {
+        // Add device
+        async function addDevice() {
             const storeCode = document.getElementById('store-code-input').value.trim().toUpperCase();
             const deviceLabel = document.getElementById('device-label-input').value.trim();
 
@@ -880,7 +888,7 @@ def dashboard():
             </div>
         </div>
         <div style="display: flex; gap: 16px; align-items: center;">
-            <button onclick="showGenerateCodeModal()" class="btn-generate">🔑 Generate Registration Code</button>
+            <button onclick="showAddDeviceModal()" class="btn-generate">➕ Add Device</button>
             <div class="refresh-info">Auto-refreshes every {{ config.auto_refresh }}s</div>
         </div>
     </div>
@@ -939,7 +947,8 @@ def dashboard():
                     </div>
                     {% if device.is_pending and device.registration_code %}
                     <div class="registration-code-display" onclick="event.stopPropagation();">
-                        <span>{{ device.registration_code }}</span>
+                        <span class="code-label">Code:</span>
+                        <span class="code-value">{{ device.registration_code }}</span>
                         <button class="copy-code-btn" onclick="copyRegCode('{{ device.registration_code }}', this)">Copy</button>
                     </div>
                     {% endif %}
@@ -952,18 +961,18 @@ def dashboard():
             <div class="empty-state">
                 <div class="empty-state-icon">📡</div>
                 <h2>No devices registered yet</h2>
-                <p>To register a device, click "Generate Registration Code" above, then install the Chrome extension.</p>
+                <p>Click "Add Device" above to get started.</p>
                 <a href="/help" class="back-link">❓ View Setup Instructions</a>
             </div>
         </div>
     {% endif %}
 
-    <!-- Generate Registration Code Modal -->
-    <div id="generate-modal" class="modal">
+    <!-- Add Device Modal -->
+    <div id="add-device-modal" class="modal">
         <div class="modal-content">
             <!-- Form to input store and device -->
             <div id="modal-form">
-                <div class="modal-header">🔑 Generate Registration Code</div>
+                <div class="modal-header">➕ Add Device</div>
                 <div class="form-group">
                     <label for="store-code-input">Store Code</label>
                     <input type="text" id="store-code-input" placeholder="FYSHWICK" style="text-transform: uppercase;">
@@ -974,21 +983,21 @@ def dashboard():
                 </div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="hideModal()">Cancel</button>
-                    <button class="btn-primary" onclick="generateCode()">Generate Code</button>
+                    <button class="btn-primary" onclick="addDevice()">Add</button>
                 </div>
             </div>
 
-            <!-- Result display after generation -->
+            <!-- Result display after adding -->
             <div id="modal-result" style="display: none;">
-                <div class="modal-header">✓ Device Created</div>
+                <div class="modal-header">✓ Device Added</div>
                 <p style="color: #374151; margin-bottom: 16px;">
-                    <strong><span id="code-store"></span> / <span id="code-device"></span></strong> is now on the dashboard awaiting connection.
+                    <strong><span id="code-store"></span> / <span id="code-device"></span></strong> is now on the dashboard.
                 </p>
                 <p style="color: #6b7280; margin-bottom: 16px;">
-                    You can copy the registration code from the device card.
+                    Copy the code from the device card to set up the extension.
                 </p>
                 <div class="modal-actions">
-                    <button class="btn-primary" onclick="hideModal()">Done</button>
+                    <button class="btn-primary" onclick="hideModal()">Go</button>
                 </div>
             </div>
         </div>
