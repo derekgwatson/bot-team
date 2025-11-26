@@ -244,7 +244,7 @@ function updateStatusDisplay() {
 
 // Save configuration
 async function saveConfiguration() {
-  const monicaUrl = document.getElementById('monica-url').value.trim();
+  let monicaUrl = document.getElementById('monica-url').value.trim();
   const registrationCode = document.getElementById('registration-code').value.trim().toUpperCase();
 
   const errorDiv = document.getElementById('config-error');
@@ -254,6 +254,11 @@ async function saveConfiguration() {
   if (!monicaUrl || !registrationCode) {
     errorDiv.innerHTML = '<div class="error-message">All fields are required</div>';
     return;
+  }
+
+  // Add http:// if no protocol specified
+  if (!monicaUrl.match(/^https?:\/\//i)) {
+    monicaUrl = 'http://' + monicaUrl;
   }
 
   // Validate URL format
