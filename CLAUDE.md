@@ -221,11 +221,56 @@ def down(conn):
 
 ## Key Shared Modules
 
-- `shared/auth/bot_api.py` - `@api_key_required` decorator
+- `shared/auth/` - Authentication module (see below)
+- `shared/http_client.py` - BotHttpClient for bot-to-bot calls
 - `shared/config/env_loader.py` - Loads shared .env
 - `shared/config/organization.yaml` - Company domains for auth
 - `shared/config/ports.py` - Port lookup from Chester's config
 - `shared/migrations/` - Database migration framework
+
+### Shared Auth Module (`shared/auth/`)
+
+The shared auth module eliminates code duplication across bots. Import from `shared.auth`:
+
+```python
+from shared.auth import User, login_required, admin_required
+from shared.auth import is_email_allowed, is_email_allowed_by_domain, is_email_allowed_by_list
+from shared.auth import api_key_required, api_or_session_auth
+```
+
+**Components:**
+
+- `User` - Flask-Login compatible user class with optional `is_admin` and `picture` support
+- `login_required` - Decorator for routes requiring authentication
+- `admin_required` - Decorator for admin-only routes (checks `user.is_admin`)
+- `is_email_allowed_by_domain(email, domains)` - Check email against allowed domains
+- `is_email_allowed_by_list(email, allowed_list)` - Check email against specific list
+- `is_email_allowed(email, domains, admin_emails)` - Combined check
+- `api_key_required` - Decorator for API routes requiring `X-API-Key` header
+- `api_or_session_auth` - Decorator allowing either API key or logged-in session
+
+**Usage in auth.py:**
+
+```python
+from shared.auth import User
+from shared.auth.decorators import login_required, admin_required
+from shared.auth.email_check import is_email_allowed_by_domain
+
+def is_email_allowed(email):
+    """Bot-specific wrapper using shared function"""
+    return is_email_allowed_by_domain(email, config.allowed_domains)
+```
+
+**User class with admin support:**
+
+```python
+# In user_loader callback
+user = User(
+    email=user_data['email'],
+    name=user_data['name'],
+    admin_emails=config.admin_emails  # Enables is_admin property
+)
+```
 
 ## Common Gotchas
 
@@ -253,6 +298,8 @@ def down(conn):
 8. **Gunicorn: 1 worker only** - In production, all bots run with a single Gunicorn worker (`--workers 1`). This avoids concurrency issues with SQLite and shared state. The bot team doesn't have enough traffic to need multiple workers.
 
 9. **Always use migrations** - Never create database tables manually or outside the migration framework. Use `shared.migrations.MigrationRunner`. Migrations run automatically on startup, so prod DB changes just need a bot restart.
+
+10. **Always use BotHttpClient for bot-to-bot calls** - Never use raw `requests.get/post()` when calling other bots. Use `shared.http_client.BotHttpClient` which automatically adds the `X-API-Key` header. Raw requests will fail authentication.
 
 ## Testing
 
@@ -291,18 +338,45 @@ Bots discover each other via Chester:
 
 ### BotHttpClient (for inter-bot calls)
 
-Use `shared/http_client.py` for bot-to-bot communication. It automatically adds the `X-API-Key` header:
+**CRITICAL**: Always use `BotHttpClient` for bot-to-bot API calls. Never use raw `requests`.
+
+`BotHttpClient` automatically:
+- Adds `X-API-Key` header for authentication
+- Handles URL joining (no double slashes)
+- Provides sensible timeout defaults
 
 ```python
 from shared.http_client import BotHttpClient
 
 # Create client for a specific bot
-client = BotHttpClient("http://localhost:8008")  # Chester
+client = BotHttpClient("http://localhost:8008", timeout=30)
 
-# Make requests (X-API-Key added automatically)
+# Available methods (all add X-API-Key automatically)
 response = client.get("/api/bots")
-response = client.post("/api/sync", json={"force": True})
+response = client.get("/api/staff", params={'name': 'John'})
+response = client.post("/api/users", json={'email': 'test@example.com'})
+response = client.patch(f"/api/users/{user_id}", json={'suspended': True})
+response = client.put("/api/config", json={'setting': 'value'})
+response = client.delete(f"/api/users/{user_id}")
 ```
+
+**Pattern for orchestrator services:**
+
+```python
+from shared.http_client import BotHttpClient
+
+class OrchestrationService:
+    def _get_bot_client(self, bot_name: str, timeout: int = 30) -> BotHttpClient:
+        """Get a BotHttpClient for the specified bot."""
+        return BotHttpClient(self._get_bot_url(bot_name), timeout=timeout)
+
+    def call_fred(self, email: str):
+        fred = self._get_bot_client('fred')
+        response = fred.post('/api/users', json={'email': email})
+        return response.json()
+```
+
+**Why not raw requests?** Using `requests.get()` directly will fail authentication because the `X-API-Key` header won't be included.
 
 ## Service Layer Pattern
 
