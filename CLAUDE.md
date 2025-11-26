@@ -207,9 +207,10 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 
 ## Quick Start for New Bot
 
-1. Copy structure from similar bot (Skye is a good template)
-2. Add to Chester's config.yaml with next available port
-3. Create config.py loading shared patterns
-4. Set up auth following the `/auth/callback` pattern
-5. Create database with migrations
-6. Add `.env.example`
+1. **Pick a human name** - All bots are named like team members (Fred, Iris, Chester, Skye, Doc, etc.). No generic names like "tracker" or "journey".
+2. Copy structure from similar bot (Skye is a good template)
+3. Add to Chester's config.yaml with next available port
+4. Create config.py loading shared patterns
+5. Set up auth following the `/auth/callback` pattern
+6. Create database with migrations
+7. Add `.env.example`
