@@ -118,6 +118,27 @@ When creating a new bot:
 - Bots call each other with `X-API-Key` header
 - Key stored in `BOT_API_KEY` env var
 
+### Dashboard Calling API Endpoints
+
+When a bot's web UI needs to call its own API endpoints (e.g., a "Sync" button that calls `/api/sync`), use `@api_or_session_auth` from `shared.auth.bot_api`:
+
+```python
+from shared.auth.bot_api import api_or_session_auth
+
+@api_bp.route('/bots/sync', methods=['POST'])
+@api_or_session_auth
+def sync_bots():
+    """Callable from dashboard (session) or other bots (API key)"""
+    result = sync_service.sync_from_chester()
+    return jsonify(result)
+```
+
+This decorator allows either:
+- **API key** (`X-API-Key` header) - for bot-to-bot calls from Skye, etc.
+- **Session auth** - for calls from the bot's own web UI (user is logged in)
+
+Use this instead of `@api_key_required` when the endpoint will be called from dashboard buttons/AJAX.
+
 ### Web UI Authentication (Google OAuth)
 
 **How shared OAuth works:**
