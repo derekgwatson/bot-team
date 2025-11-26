@@ -276,8 +276,10 @@ async function saveConfiguration() {
   // Request permission for the specific origin
   const origin = `${urlObj.protocol}//${urlObj.host}/*`;
 
-  // Check if permission already exists (e.g., from auto-continue after permission dialog)
-  const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+  // Check if permission already exists (wrap in Promise for compatibility)
+  const hasPermission = await new Promise(resolve => {
+    chrome.permissions.contains({ origins: [origin] }, resolve);
+  });
 
   if (hasPermission) {
     // Permission already granted, skip straight to connection test
