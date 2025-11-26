@@ -1163,6 +1163,7 @@ def device_detail(device_id):
     <title>{{ device.store_code }} - {{ device.device_label }} - {{ config.name }}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1448,6 +1449,41 @@ def device_detail(device_id):
                 y: d.latency_ms
             }));
 
+            // Detect gaps in data (> 10 minutes between readings indicates probable offline)
+            const GAP_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+            const offlineGaps = [];
+            for (let i = 1; i < data.length; i++) {
+                const prevTime = new Date(data[i-1].timestamp).getTime();
+                const currTime = new Date(data[i].timestamp).getTime();
+                const gap = currTime - prevTime;
+                if (gap > GAP_THRESHOLD_MS) {
+                    offlineGaps.push({
+                        xMin: new Date(data[i-1].timestamp),
+                        xMax: new Date(data[i].timestamp)
+                    });
+                }
+            }
+
+            // Create annotation boxes for offline periods
+            const annotations = {};
+            offlineGaps.forEach((gap, index) => {
+                annotations[`offline${index}`] = {
+                    type: 'box',
+                    xMin: gap.xMin,
+                    xMax: gap.xMax,
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                    borderWidth: 1,
+                    label: {
+                        display: true,
+                        content: 'Offline',
+                        color: '#991b1b',
+                        font: { size: 10, weight: 'bold' },
+                        position: 'center'
+                    }
+                };
+            });
+
             if (chart) {
                 chart.destroy();
             }
@@ -1486,6 +1522,9 @@ def device_detail(device_id):
                                     return `Latency: ${context.parsed.y.toFixed(0)} ms`;
                                 }
                             }
+                        },
+                        annotation: {
+                            annotations: annotations
                         }
                     },
                     scales: {
