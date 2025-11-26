@@ -15,16 +15,16 @@ database:
 # Uses Chester's auth gateway for Google OAuth
 auth:
   # Mode options:
-  #   - admin_only: Only users in admin_emails can access
+  #   - admin_only: Only users in ADMIN_EMAILS env var can access
   #   - domain: Any user from allowed_domains can access
   #   - tiered: Domain users can access, admins get extra features
   mode: admin_only
-  # IT admin emails who can access Nigel
-  admin_emails:
-    - derek.watson@watsonblinds.com.au
-    - robert.watson@watsonblinds.com.au
-  # Chester URL (defaults to localhost if not set)
-  # chester_url: http://localhost:8008
+  # For admin_only mode, set ADMIN_EMAILS in .env file
+  # For domain/tiered modes, uncomment allowed_domains below:
+  # allowed_domains:
+  #   - watsonblinds.com.au
+  #   - watsoncommercial.com.au
+  #   - designerdrapes.com.au
 
 # Configuration for calling other bots
 bots:

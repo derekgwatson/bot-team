@@ -37,13 +37,18 @@ class Config:
             db_path = self.base_dir / db_path
         self.db_path = str(db_path)
 
-        # Authentication config - merge env var with YAML config
+        # Authentication config
         self.auth = data.get("auth", {}) or {}
 
-        # ADMIN_EMAILS from .env takes precedence over config.yaml
+        # ADMIN_EMAILS must come from .env (not duplicated in config.yaml)
         env_emails = os.environ.get('ADMIN_EMAILS', '')
         if env_emails:
             self.auth['admin_emails'] = [e.strip() for e in env_emails.split(',') if e.strip()]
+        elif self.auth.get('mode') == 'admin_only':
+            raise ValueError(
+                "ADMIN_EMAILS environment variable is required when auth mode is 'admin_only'.\n"
+                "Set it in your .env file: ADMIN_EMAILS=user1@example.com,user2@example.com"
+            )
 
         # Bots registry (from YAML)
         self.bots = data.get("bots", {}) or {}
