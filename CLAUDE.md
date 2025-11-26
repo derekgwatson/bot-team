@@ -59,11 +59,6 @@ Google Cloud Console only has **2 authorized redirect URIs**:
 
 All bots share the same OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` from root `.env`).
 
-In production, nginx routes all bot subdomains through Chester for OAuth:
-- User visits `doc.watsonblinds.com.au` → clicks login
-- OAuth redirects through `chester.watsonblinds.com.au/auth/callback`
-- After auth, user is redirected back to the original bot
-
 **CRITICAL**: Every bot must use the path `/auth/callback` (not `/callback`):
 
 ```python
@@ -184,6 +179,12 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Does NOT hardcode ports - uses its local DB (synced from Chester)
 - Admin-only access (uses `DOC_ADMIN_EMAILS` env var)
 - Runs health checks and test suites against other bots
+
+### Dorothy - Deployment Orchestrator
+- Deploys bots to production via SSH
+- Uses templates from `/dorothy/templates/` for nginx and gunicorn configs
+- `nginx.conf.template` - HTTP base config (certbot adds SSL)
+- `gunicorn.service.template` - systemd service (already has `--workers 1`)
 
 ### Peter - Staff Directory
 - Central HR database for staff information
