@@ -314,6 +314,38 @@
             display: flex;
             gap: 5px;
         }
+
+        /* Service unavailable banner */
+        .service-banner {
+            background: linear-gradient(135deg, #d63031 0%, #e74c3c 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .service-banner .icon {
+            font-size: 28px;
+        }
+
+        .service-banner .message {
+            flex: 1;
+        }
+
+        .service-banner .message strong {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .service-banner .message span {
+            font-size: 14px;
+            opacity: 0.9;
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -339,6 +371,16 @@
             <a href="{{ url_for('web.history') }}" {% if request.endpoint == 'web.history' %}class="active"{% endif %}>History</a>
             <a href="{{ url_for('web.discrepancies') }}" {% if request.endpoint == 'web.discrepancies' %}class="active"{% endif %}>Discrepancies</a>
         </div>
+
+        {% if banji_status and not banji_status.available %}
+        <div class="service-banner">
+            <div class="icon">&#9888;</div>
+            <div class="message">
+                <strong>Banji Unavailable</strong>
+                <span>{{ banji_status.error }}. Price checking is disabled until Banji is running.</span>
+            </div>
+        </div>
+        {% endif %}
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

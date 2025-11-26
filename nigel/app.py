@@ -29,11 +29,17 @@ auth_module.get_current_user = auth.get_current_user
 
 # Import blueprints after auth is set up
 from api.routes import api_bp
-from web.routes import web_bp
+from web.routes import web_bp, check_banji_status
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
+
+
+@app.context_processor
+def inject_banji_status():
+    """Make Banji status available to all templates."""
+    return {'banji_status': check_banji_status()}
 
 
 @app.route('/robots.txt')

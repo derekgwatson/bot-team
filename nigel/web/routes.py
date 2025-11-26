@@ -15,11 +15,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def get_banji_url():
+    """Get Banji's base URL from config."""
+    return config.bots.get('banji', {}).get('base_url', 'http://localhost:8014')
+
+
+def check_banji_status():
+    """Check if Banji is reachable. Returns dict with status info."""
+    try:
+        response = requests.get(f"{get_banji_url()}/health", timeout=3)
+        if response.ok:
+            return {'available': True, 'error': None}
+    except requests.exceptions.ConnectionError:
+        return {'available': False, 'error': 'Cannot connect to Banji'}
+    except requests.exceptions.Timeout:
+        return {'available': False, 'error': 'Banji is not responding'}
+    except Exception as e:
+        return {'available': False, 'error': str(e)}
+    return {'available': False, 'error': 'Banji returned an error'}
+
+
 def get_available_orgs():
     """Fetch available organizations from Banji's API."""
     try:
-        banji_url = config.bots.get('banji', {}).get('base_url', 'http://localhost:8014')
-        response = requests.get(f"{banji_url}/api/orgs", timeout=5)
+        response = requests.get(f"{get_banji_url()}/api/orgs", timeout=5)
         if response.ok:
             return response.json().get('orgs', [])
     except Exception as e:
