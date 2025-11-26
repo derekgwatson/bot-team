@@ -1,0 +1,18 @@
+name: Nigel
+description: Quote Price Monitor - watches quote prices and detects changes
+version: 1.0.0
+emoji: "🔍"
+personality: Vigilant and detail-oriented, keeps a watchful eye on quote prices
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+database:
+  path: "database/nigel.db"
+
+# Configuration for calling other bots
+bots:
+  banji:
+    # Banji provides the refresh-pricing endpoint
+    base_url: "http://localhost:8014"

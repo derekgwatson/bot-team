@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitored Quotes - Nigel{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>Monitored Quotes</h2>
+    <div>
+        <a href="{{ url_for('web.add_quote') }}" class="btn btn-primary">Add Quote</a>
+    </div>
+</div>
+
+<div style="margin-bottom: 20px;">
+    {% if show_inactive %}
+    <a href="{{ url_for('web.list_quotes') }}">Hide inactive quotes</a>
+    {% else %}
+    <a href="{{ url_for('web.list_quotes', show_inactive='true') }}">Show inactive quotes</a>
+    {% endif %}
+</div>
+
+{% if quotes %}
+<table>
+    <thead>
+        <tr>
+            <th>Quote ID</th>
+            <th>Organization</th>
+            <th>Last Known Price</th>
+            <th>Last Checked</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for q in quotes %}
+        <tr>
+            <td><a href="{{ url_for('web.view_quote', quote_id=q.quote_id) }}">{{ q.quote_id }}</a></td>
+            <td>{{ q.org }}</td>
+            <td>{% if q.last_known_price %}${{ q.last_known_price }}{% else %}<span style="color: #999;">-</span>{% endif %}</td>
+            <td>{% if q.last_checked_at %}{{ q.last_checked_at[:16] }}{% else %}<span style="color: #999;">Never</span>{% endif %}</td>
+            <td>
+                {% if q.is_active %}
+                <span class="badge badge-success">Active</span>
+                {% else %}
+                <span class="badge badge-warning">Inactive</span>
+                {% endif %}
+            </td>
+            <td class="actions">
+                <form action="{{ url_for('web.check_quote', quote_id=q.quote_id) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-primary">Check</button>
+                </form>
+                {% if q.is_active %}
+                <form action="{{ url_for('web.deactivate_quote', quote_id=q.quote_id) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-warning">Pause</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('web.activate_quote', quote_id=q.quote_id) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">Resume</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color: #666; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+    No quotes being monitored. <a href="{{ url_for('web.add_quote') }}">Add your first quote</a>
+</p>
+{% endif %}
+{% endblock %}

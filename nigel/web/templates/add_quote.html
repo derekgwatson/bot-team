@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Quote - Nigel{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Add Quote to Monitor</h2>
+
+<form action="{{ url_for('web.add_quote') }}" method="post" style="max-width: 500px;">
+    <div class="form-group">
+        <label for="quote_id">Quote ID *</label>
+        <input type="text" id="quote_id" name="quote_id" required placeholder="e.g., Q-12345">
+        <small style="color: #666;">The quote identifier in Buz</small>
+    </div>
+
+    <div class="form-group">
+        <label for="org">Organization *</label>
+        <input type="text" id="org" name="org" required placeholder="e.g., designer_drapes">
+        <small style="color: #666;">The Buz organization this quote belongs to</small>
+    </div>
+
+    <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3" placeholder="Optional notes about this quote"></textarea>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary">Add Quote</button>
+        <a href="{{ url_for('web.list_quotes') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
