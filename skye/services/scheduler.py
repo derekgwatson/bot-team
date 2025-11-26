@@ -10,7 +10,6 @@ This service:
 
 import json
 import logging
-import requests
 import os
 from datetime import datetime
 from typing import Dict, Optional
@@ -19,6 +18,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from config import config
+from shared.http_client import BotHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -177,27 +177,22 @@ class SchedulerService:
         endpoint = job_data['endpoint']
         method = job_data['method'].upper()
 
-        # Build URL
+        # Build URL and client
         base_url = self._get_bot_url(target_bot)
-        url = f"{base_url}{endpoint}"
+        client = BotHttpClient(base_url, timeout=60)
 
-        # Prepare headers
-        headers = {'Content-Type': 'application/json'}
-        if self._bot_api_key:
-            headers['X-API-Key'] = self._bot_api_key
-
-        logger.info(f"Executing job {job_id}: {method} {url}")
+        logger.info(f"Executing job {job_id}: {method} {base_url}{endpoint}")
 
         try:
             # Make request
             if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=60)
+                response = client.get(endpoint)
             elif method == 'POST':
-                response = requests.post(url, headers=headers, json={}, timeout=60)
+                response = client.post(endpoint, json={})
             elif method == 'PUT':
-                response = requests.put(url, headers=headers, json={}, timeout=60)
+                response = client.put(endpoint, json={})
             elif method == 'DELETE':
-                response = requests.delete(url, headers=headers, timeout=60)
+                response = client.delete(endpoint)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 

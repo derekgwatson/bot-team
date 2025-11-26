@@ -1,6 +1,5 @@
 """Authentication service for Chester."""
 import os
-import requests
 from flask import session
 from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
@@ -10,6 +9,7 @@ from config import config
 from shared.auth import User
 from shared.auth.decorators import login_required
 from shared.auth.email_check import is_email_allowed_by_domain
+from shared.http_client import BotHttpClient
 
 # Initialize OAuth
 oauth = OAuth()
@@ -74,11 +74,8 @@ def is_email_allowed(email):
 
     # 2. Check if approved in Peter's database (external staff)
     try:
-        response = requests.get(
-            f'{config.peter_api_url}/api/is-approved',
-            params={'email': email},
-            timeout=3
-        )
+        peter = BotHttpClient(config.peter_api_url, timeout=3)
+        response = peter.get('/api/is-approved', params={'email': email})
         if response.status_code == 200:
             data = response.json()
             if data.get('approved'):

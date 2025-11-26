@@ -7,6 +7,7 @@ import requests
 import logging
 from typing import List, Dict, Optional
 from config import config
+from shared.http_client import BotHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +18,9 @@ class MavisService:
     def __init__(self):
         self.timeout = 30
 
-    def _get_headers(self) -> Dict[str, str]:
-        """Get headers for Mavis API requests"""
-        return {
-            'X-API-Key': config.bot_api_key,
-            'Content-Type': 'application/json'
-        }
-
-    def _get_url(self) -> str:
-        """Get Mavis base URL"""
-        return config.get_mavis_url()
+    def _get_client(self, timeout: int = None) -> BotHttpClient:
+        """Get a BotHttpClient for Mavis"""
+        return BotHttpClient(config.get_mavis_url(), timeout=timeout or self.timeout)
 
     def get_product(self, code: str) -> Optional[Dict]:
         """
@@ -35,13 +29,8 @@ class MavisService:
         Returns None if not found or on error.
         """
         try:
-            url = f"{self._get_url()}/api/products"
-            response = requests.get(
-                url,
-                params={'code': code},
-                headers=self._get_headers(),
-                timeout=self.timeout
-            )
+            client = self._get_client()
+            response = client.get('/api/products', params={'code': code})
 
             if response.status_code == 200:
                 return response.json()
@@ -66,13 +55,8 @@ class MavisService:
             }
         """
         try:
-            url = f"{self._get_url()}/api/products/bulk"
-            response = requests.post(
-                url,
-                json={'codes': codes},
-                headers=self._get_headers(),
-                timeout=self.timeout
-            )
+            client = self._get_client()
+            response = client.post('/api/products/bulk', json={'codes': codes})
 
             if response.status_code == 200:
                 return response.json()
@@ -97,13 +81,8 @@ class MavisService:
             {'codes': [...], 'count': int} or {'error': str}
         """
         try:
-            url = f"{self._get_url()}/api/products/fabrics"
-            response = requests.get(
-                url,
-                params={'codes_only': 'true'},
-                headers=self._get_headers(),
-                timeout=self.timeout
-            )
+            client = self._get_client()
+            response = client.get('/api/products/fabrics', params={'codes_only': 'true'})
 
             if response.status_code == 200:
                 return response.json()
@@ -123,12 +102,8 @@ class MavisService:
             {'products': [...], 'count': int} or {'error': str}
         """
         try:
-            url = f"{self._get_url()}/api/products/fabrics"
-            response = requests.get(
-                url,
-                headers=self._get_headers(),
-                timeout=self.timeout
-            )
+            client = self._get_client()
+            response = client.get('/api/products/fabrics')
 
             if response.status_code == 200:
                 return response.json()
@@ -152,32 +127,29 @@ class MavisService:
                 'error': str (if not connected)
             }
         """
+        mavis_url = config.get_mavis_url()
         try:
-            url = f"{self._get_url()}/api/products/stats"
-            response = requests.get(
-                url,
-                headers=self._get_headers(),
-                timeout=5
-            )
+            client = self._get_client(timeout=5)
+            response = client.get('/api/products/stats')
 
             if response.status_code == 200:
                 stats = response.json()
                 return {
                     'connected': True,
-                    'url': self._get_url(),
+                    'url': mavis_url,
                     'product_count': stats.get('total_products', 0)
                 }
             else:
                 return {
                     'connected': False,
-                    'url': self._get_url(),
+                    'url': mavis_url,
                     'error': f"Status {response.status_code}"
                 }
 
         except requests.RequestException as e:
             return {
                 'connected': False,
-                'url': self._get_url(),
+                'url': mavis_url,
                 'error': str(e)
             }
 

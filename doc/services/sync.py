@@ -11,6 +11,7 @@ from typing import Optional
 
 from config import config
 from database.db import db
+from shared.http_client import BotHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -37,15 +38,8 @@ class SyncService:
 
         try:
             # Call Chester's /api/bots endpoint
-            headers = {}
-            if config.bot_api_key:
-                headers['X-API-Key'] = config.bot_api_key
-
-            response = requests.get(
-                f"{chester_url}/api/bots",
-                headers=headers,
-                timeout=self.timeout
-            )
+            chester = BotHttpClient(chester_url, timeout=self.timeout)
+            response = chester.get('/api/bots')
             response.raise_for_status()
 
             data = response.json()

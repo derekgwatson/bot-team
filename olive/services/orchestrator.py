@@ -3,10 +3,10 @@ Olive's Orchestration Service
 Coordinates offboarding workflow across multiple bots
 """
 
-import requests
 from typing import Dict, List, Any, Optional
 from config import config
 from database.db import db
+from shared.http_client import BotHttpClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,10 @@ class OffboardingOrchestrator:
 
         # Default to config.yaml (localhost for dev)
         return config.bots.get(bot_name, {}).get('url', f'http://localhost:800{ord(bot_name[0]) % 10}')
+
+    def _get_bot_client(self, bot_name: str, timeout: int = 30) -> BotHttpClient:
+        """Get a BotHttpClient for the specified bot."""
+        return BotHttpClient(self._get_bot_url(bot_name), timeout=timeout)
 
     def start_offboarding(self, request_id: int) -> Dict[str, Any]:
         """
@@ -239,11 +243,8 @@ class OffboardingOrchestrator:
         """Check Peter for staff information and system access"""
         try:
             # Search for staff member by name
-            response = requests.get(
-                f"{self._get_bot_url('peter')}/api/staff",
-                params={'name': request_data['full_name']},
-                timeout=30
-            )
+            peter = self._get_bot_client('peter')
+            response = peter.get('/api/staff', params={'name': request_data['full_name']})
 
             if response.status_code == 200:
                 result = response.json()
@@ -290,11 +291,8 @@ class OffboardingOrchestrator:
                 return {'success': False, 'error': 'No Google email found for user'}
 
             # Call Fred's API to suspend user
-            response = requests.patch(
-                f"{self._get_bot_url('fred')}/api/users/{email}",
-                json={'suspended': True},
-                timeout=30
-            )
+            fred = self._get_bot_client('fred')
+            response = fred.patch(f'/api/users/{email}', json={'suspended': True})
 
             if response.status_code in [200, 204]:
                 return {
@@ -325,11 +323,8 @@ class OffboardingOrchestrator:
                 return {'success': False, 'error': 'No Zendesk user ID found'}
 
             # Call Zac's API to downgrade user to end-user (don't suspend, just remove agent access)
-            response = requests.patch(
-                f"{self._get_bot_url('zac')}/api/users/{user_id}",
-                json={'role': 'end-user'},
-                timeout=30
-            )
+            zac = self._get_bot_client('zac')
+            response = zac.patch(f'/api/users/{user_id}', json={'role': 'end-user'})
 
             if response.status_code in [200, 204]:
                 return {
@@ -382,14 +377,11 @@ class OffboardingOrchestrator:
                 return {'success': False, 'error': 'No Peter staff ID found'}
 
             # Call Peter's API to update staff with finish date
-            response = requests.patch(
-                f"{self._get_bot_url('peter')}/api/staff/{staff_id}",
-                json={
-                    'status': 'finished',
-                    'finish_date': request_data['last_day']
-                },
-                timeout=30
-            )
+            peter = self._get_bot_client('peter')
+            response = peter.patch(f'/api/staff/{staff_id}', json={
+                'status': 'finished',
+                'finish_date': request_data['last_day']
+            })
 
             if response.status_code in [200, 204]:
                 return {

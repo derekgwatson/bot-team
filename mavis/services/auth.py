@@ -10,6 +10,7 @@ from flask import session
 from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from config import config
+from shared.http_client import BotHttpClient
 
 # Import from shared auth module
 from shared.auth import User
@@ -36,13 +37,8 @@ def is_staff_member(email):
         dict with 'approved' (bool), 'name' (str if approved), 'email' (str)
     """
     try:
-        peter_url = get_peter_url()
-        response = requests.get(
-            f'{peter_url}/api/is-approved',
-            params={'email': email},
-            headers={'X-API-Key': config.bot_api_key},
-            timeout=10
-        )
+        peter = BotHttpClient(get_peter_url(), timeout=10)
+        response = peter.get('/api/is-approved', params={'email': email})
 
         if response.status_code == 200:
             return response.json()
