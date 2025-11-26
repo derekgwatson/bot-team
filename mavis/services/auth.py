@@ -5,22 +5,17 @@ Uses Google OAuth and verifies staff membership via Peter
 
 import os
 import requests
-from functools import wraps
-from flask import session, redirect, url_for, request
-from flask_login import LoginManager, UserMixin, current_user
+import logging
+from flask import session
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from config import config
-import logging
+
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required
 
 logger = logging.getLogger(__name__)
-
-# User model for Flask-Login
-class User(UserMixin):
-    def __init__(self, email, name):
-        self.id = email
-        self.email = email
-        self.name = name
-
 
 # Initialize OAuth
 oauth = OAuth()
@@ -28,10 +23,8 @@ oauth = OAuth()
 
 def get_peter_url():
     """Get Peter's URL based on environment"""
-    # In dev mode, use localhost
     if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
         return 'http://localhost:8003'
-    # In production, use the production URL
     return 'https://peter.watsonblinds.com.au'
 
 
@@ -59,7 +52,6 @@ def is_staff_member(email):
 
     except requests.RequestException as e:
         logger.error(f"Failed to check staff status with Peter: {e}")
-        # In case of error, deny access for security
         return {'approved': False, 'email': email, 'error': str(e)}
 
 
@@ -76,7 +68,10 @@ def init_auth(app):
         # Load user from session
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            return User(
+                email=user_data['email'],
+                name=user_data['name']
+            )
         return None
 
     # Get OAuth credentials
@@ -97,19 +92,7 @@ def init_auth(app):
         client_id=client_id,
         client_secret=client_secret,
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
+        client_kwargs={'scope': 'openid email profile'}
     )
 
     return login_manager
-
-
-def login_required(f):
-    """Decorator to require login for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function

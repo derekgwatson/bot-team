@@ -6,24 +6,18 @@ Supports admin-only access for editing features
 
 import os
 import requests
-from functools import wraps
-from flask import session, redirect, url_for, request, render_template_string
-from flask_login import LoginManager, UserMixin, current_user
+import logging
+from flask import session, render_template_string
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from config import config
-import logging
+
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required, admin_required
+from shared.auth.email_check import is_admin_user
 
 logger = logging.getLogger(__name__)
-
-
-# User model for Flask-Login
-class User(UserMixin):
-    def __init__(self, email, name, is_admin=False):
-        self.id = email
-        self.email = email
-        self.name = name
-        self.is_admin = is_admin
-
 
 # Initialize OAuth
 oauth = OAuth()
@@ -31,10 +25,8 @@ oauth = OAuth()
 
 def get_peter_url():
     """Get Peter's URL based on environment"""
-    # In dev mode, use localhost
     if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
         return 'http://localhost:8003'
-    # In production, use the production URL
     return 'https://peter.watsonblinds.com.au'
 
 
@@ -62,14 +54,12 @@ def is_staff_member(email):
 
     except requests.RequestException as e:
         logger.error(f"Failed to check staff status with Peter: {e}")
-        # In case of error, deny access for security
         return {'approved': False, 'email': email, 'error': str(e)}
 
 
 def is_admin(email: str) -> bool:
     """Check if email is in the admin list"""
-    admin_emails = config.admin_emails or []
-    return email.lower() in [e.lower() for e in admin_emails]
+    return is_admin_user(email, config.admin_emails or [])
 
 
 def init_auth(app):
@@ -85,8 +75,11 @@ def init_auth(app):
         # Load user from session
         if 'user' in session:
             user_data = session['user']
-            user_is_admin = is_admin(user_data['email'])
-            return User(user_data['email'], user_data['name'], user_is_admin)
+            return User(
+                email=user_data['email'],
+                name=user_data['name'],
+                admin_emails=config.admin_emails
+            )
         return None
 
     # Get OAuth credentials
@@ -107,42 +100,7 @@ def init_auth(app):
         client_id=client_id,
         client_secret=client_secret,
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
+        client_kwargs={'scope': 'openid email profile'}
     )
 
     return login_manager
-
-
-def login_required(f):
-    """Decorator to require login for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def admin_required(f):
-    """Decorator to require admin access for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        if not current_user.is_admin:
-            return render_template_string('''
-                <html>
-                <head><title>Access Denied</title></head>
-                <body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
-                    <h1 style="color: #e74c3c;">Access Denied</h1>
-                    <p>This feature is only available to administrators.</p>
-                    <p style="margin-top: 30px;">
-                        <a href="{{ url_for('web.index') }}" style="color: #16a085;">Return to Fabric Directory</a>
-                    </p>
-                </body>
-                </html>
-            ''')
-        return f(*args, **kwargs)
-    return decorated_function

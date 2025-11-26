@@ -7,35 +7,19 @@ Based on shared authentication patterns.
 
 import os
 import logging
-from functools import wraps
 from flask import Flask, session, redirect, url_for, request
-from flask_login import LoginManager, UserMixin, current_user
+from flask_login import LoginManager, current_user
 from authlib.integrations.flask_client import OAuth
+
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required
+from shared.auth.email_check import is_email_allowed_by_domain
 
 logger = logging.getLogger(__name__)
 
 login_manager = LoginManager()
 oauth = OAuth()
-
-
-class User(UserMixin):
-    """User model for Flask-Login"""
-
-    def __init__(self, user_id: str, email: str, name: str = None, picture: str = None):
-        self.id = user_id
-        self.email = email
-        self.name = name or email
-        self.picture = picture
-
-    @staticmethod
-    def from_google_info(user_info: dict) -> 'User':
-        """Create a User from Google OAuth user info"""
-        return User(
-            user_id=user_info.get('sub'),
-            email=user_info.get('email'),
-            name=user_info.get('name'),
-            picture=user_info.get('picture')
-        )
 
 
 @login_manager.user_loader
@@ -44,7 +28,6 @@ def load_user(user_id: str) -> User:
     if 'user' in session:
         user_data = session['user']
         return User(
-            user_id=user_data['id'],
             email=user_data['email'],
             name=user_data.get('name'),
             picture=user_data.get('picture')
@@ -71,8 +54,7 @@ def is_email_allowed(email: str) -> bool:
         # No domain restrictions
         return True
 
-    domain = email.split('@')[-1].lower()
-    return domain in allowed_domains
+    return is_email_allowed_by_domain(email, allowed_domains)
 
 
 def init_auth(app: Flask):
@@ -93,24 +75,8 @@ def init_auth(app: Flask):
             client_id=google_client_id,
             client_secret=google_client_secret,
             server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-            client_kwargs={
-                'scope': 'openid email profile'
-            }
+            client_kwargs={'scope': 'openid email profile'}
         )
         logger.info("Google OAuth configured")
     else:
         logger.warning("Google OAuth not configured - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET required")
-
-
-def login_required(f):
-    """
-    Decorator that requires login for a route.
-    Saves the requested URL for redirect after login.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            session['next'] = request.url
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    return decorated_function

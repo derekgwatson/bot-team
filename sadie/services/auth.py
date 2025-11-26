@@ -1,19 +1,17 @@
-import os
-from functools import wraps
-from flask import session, redirect, url_for, request, jsonify
-from flask_login import LoginManager, UserMixin, current_user
+"""Authentication service for Sadie."""
+from flask import session
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from config import config
 
-# User model for Flask-Login
-class User(UserMixin):
-    def __init__(self, email, name):
-        self.id = email
-        self.email = email
-        self.name = name
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required
+from shared.auth.email_check import is_email_allowed_by_domain
 
 # Initialize OAuth
 oauth = OAuth()
+
 
 def init_auth(app):
     """Initialize authentication for the Flask app"""
@@ -28,7 +26,10 @@ def init_auth(app):
         # Load user from session
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            return User(
+                email=user_data['email'],
+                name=user_data['name']
+            )
         return None
 
     # Configure OAuth
@@ -38,34 +39,12 @@ def init_auth(app):
         client_id=config.google_client_id,
         client_secret=config.google_client_secret,
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
+        client_kwargs={'scope': 'openid email profile'}
     )
 
     return login_manager
 
+
 def is_email_allowed(email):
-    """Check if email is from an allowed domain (all-staff access)"""
-    if not config.allowed_domains:
-        # If no allowed domains configured, deny all access
-        return False
-
-    # Extract domain from email
-    if '@' not in email:
-        return False
-
-    email_domain = email.split('@')[1].lower()
-
-    # Check if email domain is in allowed domains
-    return email_domain in [domain.lower() for domain in config.allowed_domains]
-
-def login_required(f):
-    """Decorator to require login for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
+    """Check if email is from an allowed domain (all-staff access)."""
+    return is_email_allowed_by_domain(email, config.allowed_domains)

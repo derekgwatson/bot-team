@@ -1,23 +1,18 @@
+"""Authentication service for Oscar."""
 import os
-from functools import wraps
-from flask import session, redirect, url_for, request
-from flask_login import LoginManager, UserMixin, current_user
+from flask import session
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from config import config
 
-# User model for Flask-Login
-class User(UserMixin):
-    def __init__(self, email, name):
-        self.id = email
-        self.email = email
-        self.name = name
-
-    def is_admin(self):
-        """Check if user is an admin"""
-        return self.email in config.admin_emails
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required, admin_required
+from shared.auth.email_check import is_admin_user as _is_admin_user
 
 # Initialize OAuth
 oauth = OAuth()
+
 
 def init_auth(app):
     """Initialize authentication for the Flask app"""
@@ -32,7 +27,11 @@ def init_auth(app):
         # Load user from session
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            return User(
+                email=user_data['email'],
+                name=user_data['name'],
+                admin_emails=config.admin_emails
+            )
         return None
 
     # Get OAuth credentials
@@ -53,35 +52,14 @@ def init_auth(app):
         client_id=client_id,
         client_secret=client_secret,
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
+        client_kwargs={'scope': 'openid email profile'}
     )
 
     return login_manager
+
 
 def is_admin_user(user):
     """Check if user is an admin"""
     if not user or not hasattr(user, 'email'):
         return False
-    return user.email in config.admin_emails
-
-def login_required(f):
-    """Decorator to require login for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    """Decorator to require admin access for a route"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        if not is_admin_user(current_user):
-            return "Access denied. Admin privileges required.", 403
-        return f(*args, **kwargs)
-    return decorated_function
+    return _is_admin_user(user.email, config.admin_emails)
