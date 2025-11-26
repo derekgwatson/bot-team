@@ -75,37 +75,3 @@ def login_required(f):
             return redirect(url_for('auth.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
-
-
-def api_or_session_auth(f):
-    """
-    Decorator that allows either API key auth OR session auth.
-
-    Use this for endpoints that should be accessible both:
-    - By other bots via API key (X-API-Key header)
-    - By the web UI via session auth (logged in user)
-    """
-    from flask import jsonify
-    BOT_API_KEY = os.getenv("BOT_API_KEY", "")
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check for API key first
-        header_key = request.headers.get("X-API-Key")
-
-        if header_key:
-            # API key provided - validate it
-            if not BOT_API_KEY:
-                return jsonify({"error": "BOT_API_KEY not configured"}), 500
-            if header_key != BOT_API_KEY:
-                return jsonify({"error": "Invalid API key"}), 403
-            return f(*args, **kwargs)
-
-        # No API key - check for session auth
-        if current_user.is_authenticated:
-            return f(*args, **kwargs)
-
-        # Neither auth method worked
-        return jsonify({"error": "Authentication required"}), 401
-
-    return decorated_function
