@@ -328,7 +328,7 @@
                 {% if user %}
                     <div><strong>{{ user.name }}</strong></div>
                     <div>{{ user.email }}</div>
-                    <a href="{{ url_for('auth.logout') }}" style="color: #00b894; text-decoration: none; margin-top: 5px; display: inline-block;">Logout</a>
+                    <a href="{{ url_for('gateway_auth.logout') }}" style="color: #00b894; text-decoration: none; margin-top: 5px; display: inline-block;">Logout</a>
                 {% endif %}
             </div>
         </div>

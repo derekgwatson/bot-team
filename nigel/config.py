@@ -37,6 +37,9 @@ class Config:
             db_path = self.base_dir / db_path
         self.db_path = str(db_path)
 
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
+
         # Bots registry (from YAML)
         self.bots = data.get("bots", {}) or {}
 

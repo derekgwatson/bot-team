@@ -11,6 +11,21 @@ server:
 database:
   path: "database/nigel.db"
 
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  # Mode options:
+  #   - admin_only: Only users in admin_emails can access
+  #   - domain: Any user from allowed_domains can access
+  #   - tiered: Domain users can access, admins get extra features
+  mode: admin_only
+  # IT admin emails who can access Nigel
+  admin_emails:
+    - derek.watson@watsonblinds.com.au
+    - robert.watson@watsonblinds.com.au
+  # Chester URL (defaults to localhost if not set)
+  # chester_url: http://localhost:8008
+
 # Configuration for calling other bots
 bots:
   banji:

@@ -9,21 +9,29 @@ if str(ROOT_DIR) not in sys.path:
 import os
 from flask import Flask, jsonify
 from config import config
-from api.routes import api_bp
-from web.routes import web_bp
-from web.auth_routes import auth_bp
-from services.auth import init_auth
+from shared.auth import GatewayAuth
 
 app = Flask(__name__)
 
-# Configure Flask for sessions and OAuth
+# Configure Flask for sessions
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Initialize authentication
-init_auth(app)
+# Initialize authentication via Chester's gateway
+# This registers /login, /auth/callback, /logout routes automatically
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints after auth is set up
+from api.routes import api_bp
+from web.routes import web_bp
 
 # Register blueprints
-app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 
@@ -79,8 +87,8 @@ def info():
                 'GET /api/stats': 'Get monitoring statistics'
             },
             'auth': {
-                '/login': 'Google OAuth login',
-                '/auth/callback': 'OAuth callback handler',
+                '/login': 'Login (via Chester gateway)',
+                '/auth/callback': 'Auth callback from Chester',
                 '/logout': 'Logout current user'
             },
             'system': {
