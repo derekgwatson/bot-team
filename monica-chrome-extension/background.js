@@ -167,6 +167,12 @@ async function sendWakeHeartbeat() {
       body: JSON.stringify(payload)
     });
 
+    // Check if device was deleted from server (401 = invalid token)
+    if (response.status === 401) {
+      await handleDeviceDeleted();
+      return;
+    }
+
     const data = await response.json();
 
     if (data.success) {
@@ -186,6 +192,38 @@ async function sendWakeHeartbeat() {
     console.error('[Monica] Wake heartbeat failed:', error);
     state.lastError = `Wake heartbeat failed: ${error.message}`;
   }
+}
+
+// Handle when device has been deleted from the server
+async function handleDeviceDeleted() {
+  console.log('[Monica] Device was deleted from server, resetting configuration');
+
+  // Keep the server URL so user can easily reconfigure
+  const serverUrl = state.monicaUrl;
+
+  // Clear registration state
+  state.registered = false;
+  state.agentToken = null;
+  state.deviceId = null;
+  state.storeCode = null;
+  state.deviceLabel = null;
+  state.heartbeatCount = 0;
+  state.lastLatency = null;
+  state.lastSpeed = null;
+  state.lastHeartbeat = null;
+  state.lastError = 'Device was removed from the Monica server. Please reconfigure with a new registration code.';
+
+  // Update storage - keep monicaUrl but clear device-specific data
+  await chrome.storage.local.set({
+    monicaUrl: serverUrl,
+    storeCode: null,
+    deviceLabel: null,
+    agentToken: null,
+    deviceId: null,
+    heartbeatCount: 0
+  });
+
+  console.log('[Monica] Configuration cleared - device needs to be reconfigured');
 }
 
 // Load state from chrome.storage
@@ -395,6 +433,12 @@ async function sendHeartbeat() {
       },
       body: JSON.stringify(payload)
     });
+
+    // Check if device was deleted from server (401 = invalid token)
+    if (response.status === 401) {
+      await handleDeviceDeleted();
+      return;
+    }
 
     const data = await response.json();
 

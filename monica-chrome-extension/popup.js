@@ -71,11 +71,39 @@ function updateUI() {
   const cancelButton = document.getElementById('cancel-config');
   const saveButton = document.getElementById('save-config');
 
+  // Device deleted from server - show config form with error message
+  const deviceDeleted = currentState.configured && !currentState.registered && currentState.lastError;
+
   if (currentState.configured && currentState.registered) {
     // Show status
     configSection.style.display = 'none';
     statusSection.style.display = 'block';
     updateStatusDisplay();
+  } else if (deviceDeleted) {
+    // Device was deleted - show config form with error
+    configSection.style.display = 'block';
+    statusSection.style.display = 'none';
+
+    // Show the error message in the config section
+    document.getElementById('config-error').innerHTML =
+      `<div class="error-message">${currentState.lastError}</div>`;
+
+    // Pre-fill the server URL since we kept it
+    if (currentState.monicaUrl) {
+      document.getElementById('monica-url').value = currentState.monicaUrl;
+    }
+
+    // Clear registration code field
+    document.getElementById('registration-code').value = '';
+
+    // Hide cancel button since there's no valid config to go back to
+    cancelButton.style.display = 'none';
+    saveButton.textContent = 'Save & Start Monitoring';
+
+    // Auto-focus registration code since URL is pre-filled
+    setTimeout(() => {
+      document.getElementById('registration-code').focus();
+    }, 100);
   } else {
     // Show configuration
     configSection.style.display = 'block';
@@ -161,9 +189,16 @@ function updateStatusDisplay() {
       indicatorClass = 'green';
     }
   } else if (currentState.configured) {
-    statusClass = 'disconnected';
-    statusText = 'Registering...';
-    indicatorClass = 'blue';
+    // Check if there's an error (e.g., device was deleted from server)
+    if (currentState.lastError) {
+      statusClass = 'disconnected';
+      statusText = currentState.lastError;
+      indicatorClass = 'red';
+    } else {
+      statusClass = 'disconnected';
+      statusText = 'Registering...';
+      indicatorClass = 'blue';
+    }
   }
 
   statusIndicator.innerHTML = `
