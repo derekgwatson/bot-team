@@ -6,7 +6,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
@@ -66,47 +66,54 @@ def health():
     Health check endpoint.
 
     Returns 200 if the app is running.
-    Includes bot connectivity status for monitoring.
+    Fast by default - use ?detailed=true to include bot connectivity status.
     """
     try:
-        # Get issue stats
-        issue_stats = db.get_issue_stats()
-
-        # Get last check run
-        last_run = db.get_last_check_run()
-
-        # Check bot connectivity
-        try:
-            bot_status = checker.get_bot_status()
-            all_connected = all(s.get('connected', False) for s in bot_status.values())
-        except Exception:
-            bot_status = {}
-            all_connected = False
-
-        # Determine overall health status
-        status = 'healthy'
-        if not all_connected:
-            status = 'degraded'  # Still functional, but some bots unreachable
-        if last_run and last_run.get('status') == 'failed':
-            status = 'degraded'
-
-        return jsonify({
-            'status': status,
+        # Basic health - fast response
+        response = {
+            'status': 'healthy',
             'bot': config.name,
-            'version': config.version,
-            'issues': {
+            'version': config.version
+        }
+
+        # Only do expensive checks if requested
+        include_detailed = request.args.get('detailed', 'false').lower() == 'true'
+
+        if include_detailed:
+            # Get issue stats
+            issue_stats = db.get_issue_stats()
+
+            # Get last check run
+            last_run = db.get_last_check_run()
+
+            # Check bot connectivity (this is slow - pings all bots)
+            try:
+                bot_status = checker.get_bot_status()
+                all_connected = all(s.get('connected', False) for s in bot_status.values())
+            except Exception:
+                bot_status = {}
+                all_connected = False
+
+            # Determine overall health status
+            if not all_connected:
+                response['status'] = 'degraded'
+            if last_run and last_run.get('status') == 'failed':
+                response['status'] = 'degraded'
+
+            response['issues'] = {
                 'open': issue_stats.get('open', 0),
                 'total': issue_stats.get('total', 0)
-            },
-            'last_check': {
+            }
+            response['last_check'] = {
                 'status': last_run.get('status') if last_run else None,
                 'started_at': last_run.get('started_at') if last_run else None
-            },
-            'bots': {
+            }
+            response['bots'] = {
                 name: {'connected': s.get('connected', False)}
                 for name, s in bot_status.items()
             }
-        })
+
+        return jsonify(response)
     except Exception as e:
         logger.exception("Health check error")
         return jsonify({
