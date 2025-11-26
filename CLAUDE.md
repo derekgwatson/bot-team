@@ -6,11 +6,14 @@ Quick reference for working on this codebase. Read this first!
 
 Bot-team is a collection of Flask-based microservices ("bots") that handle various business functions for Watson Blinds. Each bot runs on its own port and communicates via REST APIs.
 
-## Bot Registry (Chester's config.yaml)
+## Bot Registry (Chester's config.yaml) - SINGLE SOURCE OF TRUTH
 
-The single source of truth for all bots is `/chester/config.yaml`. When adding a new bot:
-1. Add entry to `bot_team:` section with name, port, description, capabilities
-2. Port range: 8001-8030 (check for next available)
+**CRITICAL**: `/chester/config.yaml` is the ONE AND ONLY place where bot ports are defined!
+
+- NEVER hardcode ports anywhere else in the codebase
+- Bots discover ports dynamically via Chester's API or `shared/config/ports.py`
+- When adding a new bot: add entry to `bot_team:` section with name, port, description, capabilities
+- Port range: 8001-8030 (check config.yaml for next available)
 
 ## Standard Bot Structure
 
@@ -130,6 +133,8 @@ These are already in `/bot-team/.env` and loaded automatically. Just add a comme
 
 6. **Don't duplicate shared env vars** - Bot `.env.example` should NOT include `BOT_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc. These are in the root `.env`.
 
+7. **Never hardcode ports** - Ports are ONLY defined in Chester's `config.yaml`. Use `shared/config/ports.py` or query Chester's API to get ports dynamically.
+
 ## Testing
 
 - Tests in `/tests/unit/` and `/tests/integration/`
@@ -143,34 +148,47 @@ Bots discover each other via Chester:
 - Each bot exposes `/health` and `/info` endpoints
 - Use `shared/http_client.py` `BotHttpClient` for inter-bot calls
 
-## Current Bots (Port Assignment)
+## Bot-Specific Notes
 
-| Port | Bot | Purpose |
-|------|-----|---------|
-| 8001 | Fred | Google Workspace User Management |
-| 8002 | Iris | Google Workspace Reporting |
-| 8003 | Peter | Staff Directory (HR Database) |
-| 8004 | Sally | SSH Command Executor |
-| 8005 | Dorothy | Deployment Orchestrator |
-| 8006 | Quinn | External Staff Access |
-| 8007 | Zac | Zendesk User Management |
-| 8008 | Chester | Bot Team Concierge |
-| 8009 | Pam | Phone Directory Web UI |
-| 8010 | Sadie | Zendesk Ticket Manager |
-| 8011 | Oscar | Staff Onboarding |
-| 8012 | Olive | Staff Offboarding |
-| 8013 | Rita | Staff Access Requests |
-| 8014 | Banji | Buz Browser Automation |
-| 8015 | Monica | ChromeOS Monitoring |
-| 8016 | Mabel | Email Service |
-| 8017 | Mavis | Unleashed Data Integration |
-| 8018 | Fiona | Fabric Descriptions |
-| 8019 | Scout | System Monitoring |
-| 8020 | Skye | Task Scheduler |
-| 8021 | Travis | Field Staff Location |
-| 8022 | Juno | Customer Tracking |
-| 8023 | Nigel | (Reserved) |
-| 8024 | Doc | Bot Health Checker |
+For the full list of bots and their ports, see `/chester/config.yaml`. Here are important notes for key bots:
+
+### Chester - The Concierge
+- **Single source of truth** for all bot metadata (ports, descriptions, capabilities)
+- All bots discover each other through Chester's `/api/bots` endpoint
+- `config.yaml` contains the `bot_team:` registry - this is where ports live
+- If you need a bot's port, query Chester or use `shared/config/ports.py`
+
+### Skye - Task Scheduler
+- Runs scheduled jobs for the entire bot team
+- Has a sync job that updates Doc's local bot registry from Chester
+- Good template for new bots with web UI and auth
+
+### Doc - Bot Health Checker
+- **Designed to be standalone** - must work even when other bots are down
+- Has its own SQLite database with a local copy of the bot registry
+- Skye runs a sync job to keep Doc's registry updated from Chester
+- Does NOT hardcode ports - uses its local DB (synced from Chester)
+- Admin-only access (uses `DOC_ADMIN_EMAILS` env var)
+- Runs health checks and test suites against other bots
+
+### Peter - Staff Directory
+- Central HR database for staff information
+- Other bots query Peter for employee data
+
+### Fred & Iris - Google Workspace
+- Fred: User provisioning and management
+- Iris: Reporting and analytics
+- Both require Google Workspace API credentials
+
+### Oscar & Olive - Staff Lifecycle
+- Oscar: Onboarding new staff
+- Olive: Offboarding departing staff
+- Orchestrate actions across multiple bots
+
+### Zac & Sadie - Zendesk
+- Zac: User management in Zendesk
+- Sadie: Ticket management
+- Both require Zendesk API credentials
 
 ## Quick Start for New Bot
 
