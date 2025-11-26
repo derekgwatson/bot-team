@@ -206,11 +206,14 @@ class QuotePage:
 
                     # Look for common error indicators
                     # Buz typically shows errors in .alert or .error-message divs
+                    # Note: Avoid broad selectors like [class*="error"] which match
+                    # styling classes like "text-error" on buttons
                     error_selectors = [
                         '.alert-danger',
+                        '.alert-error',
                         '.error-message',
-                        '[class*="error"]',
-                        '.alert.alert-error'
+                        '.validation-error',
+                        '.dx-invalid-message',  # DevExpress validation message
                     ]
 
                     for selector in error_selectors:
