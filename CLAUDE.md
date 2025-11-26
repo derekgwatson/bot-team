@@ -78,9 +78,22 @@ Auth pattern (follow Skye as template):
 4. Load allowed_domains from `shared/config/organization.yaml`
 
 ### Environment variables:
-- Shared vars in `/bot-team/.env` (loaded by all bots)
+- Shared vars in `/bot-team/.env` (loaded by all bots via `shared/config/env_loader.py`)
 - Bot-specific vars in `/bot-name/.env`
 - Always provide `.env.example`
+
+**IMPORTANT**: Bot `.env.example` files should only contain bot-specific variables!
+Do NOT include shared variables like:
+- `BOT_API_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `CHESTER_API_URL`
+
+These are already in `/bot-team/.env` and loaded automatically. Just add a comment pointing to the root .env:
+```
+# Bot-specific environment variables
+# Shared variables (BOT_API_KEY, GOOGLE_CLIENT_ID, etc.) are in /bot-team/.env
+```
 
 ## Database Patterns
 
@@ -114,6 +127,8 @@ Auth pattern (follow Skye as template):
    ```
 
 5. **New bots need**: Entry in Chester's config.yaml, proper port assignment
+
+6. **Don't duplicate shared env vars** - Bot `.env.example` should NOT include `BOT_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc. These are in the root `.env`.
 
 ## Testing
 
