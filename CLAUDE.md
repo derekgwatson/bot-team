@@ -122,9 +122,13 @@ When creating a new bot:
 
 **How shared OAuth works:**
 
-Google Cloud Console only has **2 authorized redirect URIs**:
-- `http://localhost:8008/auth/callback` (development - Chester's port)
-- `https://chester.watsonblinds.com.au/auth/callback` (production)
+Google Cloud Console needs **2 authorized redirect URIs per bot**:
+- `http://localhost:<port>/auth/callback` (development)
+- `https://<bot>.watsonblinds.com.au/auth/callback` (production)
+
+For example, Doc (port 8023) needs:
+- `http://localhost:8023/auth/callback`
+- `https://doc.watsonblinds.com.au/auth/callback`
 
 All bots share the same OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` from root `.env`).
 

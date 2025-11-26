@@ -105,3 +105,37 @@ def admin_required(f):
             return "Access denied. Admin privileges required.", 403
         return f(*args, **kwargs)
     return decorated_function
+
+
+def api_or_admin_required(f):
+    """
+    Decorator that allows either:
+    - Valid X-API-Key header (for bot-to-bot calls)
+    - Authenticated admin session (for dashboard calls)
+
+    Returns JSON errors for API-style requests.
+    """
+    from flask import jsonify
+    BOT_API_KEY = os.getenv("BOT_API_KEY", "")
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check for API key first
+        header_key = request.headers.get("X-API-Key")
+
+        if header_key:
+            # API key provided - validate it
+            if not BOT_API_KEY:
+                return jsonify({"error": "BOT_API_KEY not configured"}), 500
+            if header_key != BOT_API_KEY:
+                return jsonify({"error": "Invalid API key"}), 403
+            return f(*args, **kwargs)
+
+        # No API key - check for authenticated admin session
+        if current_user.is_authenticated and current_user.is_admin:
+            return f(*args, **kwargs)
+
+        # Neither valid API key nor admin session
+        return jsonify({"error": "Authentication required"}), 401
+
+    return decorated_function

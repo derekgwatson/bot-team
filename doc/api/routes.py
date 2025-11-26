@@ -2,6 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 from shared.auth.bot_api import api_key_required
+from services.auth import api_or_admin_required
 
 from services.sync import sync_service
 from services.checkup import checkup_service
@@ -71,9 +72,9 @@ def get_bot(bot_name):
 
 
 @api_bp.route('/bots/sync', methods=['POST'])
-@api_key_required
+@api_or_admin_required
 def sync_bots():
-    """Sync bot registry from Chester"""
+    """Sync bot registry from Chester (callable from dashboard or other bots)"""
     result = sync_service.sync_from_chester()
     return jsonify(result)
 
@@ -94,13 +95,13 @@ def sync_status():
 # ─────────────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/checkup', methods=['GET', 'POST'])
-@api_key_required
+@api_or_admin_required
 def checkup_all():
     """
     Run health checkup on all bots.
 
     GET: Just run the checkup
-    POST: Run checkup (same behavior, for Skye compatibility)
+    POST: Run checkup (same behavior, for Skye/dashboard compatibility)
     """
     result = checkup_service.check_all_bots()
     return jsonify(result)
@@ -183,10 +184,10 @@ def get_bot_vitals(bot_name):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @api_bp.route('/tests/run', methods=['POST'])
-@api_key_required
+@api_or_admin_required
 def run_tests():
     """
-    Run pytest tests.
+    Run pytest tests (callable from dashboard or other bots).
 
     Optional JSON body:
     {
