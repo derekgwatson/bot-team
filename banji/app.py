@@ -85,7 +85,8 @@ def info():
                 'POST /api/sessions/{session_id}/bulk-edit/save': 'Save bulk edit (triggers price recalc)',
                 'GET /api/sessions/active': 'List all active sessions',
                 'GET /api/sessions/health': 'Session endpoint health check',
-                'POST /api/quotes/refresh-pricing': 'Refresh pricing for quote (legacy endpoint)',
+                'POST /api/quotes/refresh-pricing': 'Refresh pricing for a single quote',
+                'POST /api/quotes/batch-refresh-pricing': 'Refresh pricing for multiple quotes in one session',
                 'GET /api/quotes/health': 'Quotes endpoint health check'
             },
             'system': {
