@@ -42,6 +42,50 @@ bot-name/
     └── 001_*.py        # Database migrations
 ```
 
+### app.py Initialization Pattern
+
+Every bot's app.py MUST start with sys.path setup to access shared modules:
+
+```python
+import sys
+from pathlib import Path
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+# Now safe to import from shared/
+from flask import Flask
+from config import config
+```
+
+### Required Endpoints (/health and /info)
+
+Every bot MUST expose these endpoints at the root level:
+
+```python
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'bot': config.name,
+        'version': config.version
+    })
+
+@app.route('/info')
+def info():
+    return jsonify({
+        'name': config.name,
+        'description': config.description,
+        'version': config.version,
+        'emoji': '🩺',  # Each bot has a unique emoji
+        'endpoints': {
+            'web': {'GET /': 'Dashboard'},
+            'api': {'GET /api/bots': 'List bots'},
+            'system': {'GET /health': 'Health check'}
+        }
+    })
+```
+
 ## Authentication Patterns
 
 ### API Authentication (bot-to-bot)
@@ -166,12 +210,81 @@ def down(conn):
 - Run with `pytest tests/` or `pytest -m botname`
 - Markers defined in `pytest.ini`
 
+### Test Setup (conftest.py)
+
+Environment variables MUST be set BEFORE importing bot modules:
+
+```python
+import os
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'  # Skip .env validation
+os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
+
+# NOW safe to import bot modules
+from mybot.services.database import Database
+```
+
+Use `tmp_path` fixture for isolated test databases:
+
+```python
+def test_something(tmp_path):
+    db_path = tmp_path / "test.db"
+    db = Database(str(db_path))
+    # Test with isolated DB
+```
+
 ## Bot Communication
 
 Bots discover each other via Chester:
 - `GET /api/bots` - List all bots
 - Each bot exposes `/health` and `/info` endpoints
-- Use `shared/http_client.py` `BotHttpClient` for inter-bot calls
+
+### BotHttpClient (for inter-bot calls)
+
+Use `shared/http_client.py` for bot-to-bot communication. It automatically adds the `X-API-Key` header:
+
+```python
+from shared.http_client import BotHttpClient
+
+# Create client for a specific bot
+client = BotHttpClient("http://localhost:8008")  # Chester
+
+# Make requests (X-API-Key added automatically)
+response = client.get("/api/bots")
+response = client.post("/api/sync", json={"force": True})
+```
+
+## Service Layer Pattern
+
+Services should use consistent logging and error handling:
+
+```python
+import logging
+logger = logging.getLogger(__name__)
+
+class SyncService:
+    def sync_bots(self) -> dict:
+        logger.info("Starting sync...")
+
+        try:
+            # Do work
+            logger.info(f"Synced {count} bots")
+            return {'success': True, 'bots_synced': count}
+
+        except requests.exceptions.ConnectionError:
+            error = "Could not connect to Chester"
+            logger.warning(error)
+            return {'success': False, 'error': error}
+
+        except Exception as e:
+            logger.exception(f"Sync failed: {e}")
+            return {'success': False, 'error': str(e)}
+```
+
+Key patterns:
+- Return dicts with `success` boolean and `error` message on failure
+- Use `logger.warning()` for recoverable issues (connection failures)
+- Use `logger.exception()` for unexpected errors (includes traceback)
 
 ## Bot-Specific Notes
 
