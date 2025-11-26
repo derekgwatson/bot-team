@@ -122,5 +122,13 @@ class BrowserManager:
         if exc_type and self.config.browser_screenshot_on_failure:
             self.screenshot("error")
 
+        # In headed mode, pause for debugging before closing
+        if not self.headless and self.page:
+            logger.info("Headed mode: pausing for inspection. Press 'Resume' in Playwright Inspector to continue.")
+            try:
+                self.page.pause()
+            except Exception as e:
+                logger.warning(f"Could not pause: {e}")
+
         self.close()
         return False  # Don't suppress exceptions
