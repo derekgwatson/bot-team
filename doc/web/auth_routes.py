@@ -14,10 +14,10 @@ def login():
 
     # Get the callback URL
     redirect_uri = url_for('auth.callback', _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    return oauth.google.authorize_redirect(redirect_uri, prompt='select_account')
 
 
-@auth_bp.route('/callback')
+@auth_bp.route('/auth/callback')
 def callback():
     """Handle Google OAuth callback."""
     try:
