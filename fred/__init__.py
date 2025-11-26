@@ -1,0 +1,1 @@
+"""fred bot package."""
