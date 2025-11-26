@@ -261,11 +261,25 @@ async function saveConfiguration() {
   const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
 
   saveButton.disabled = true;
-  saveButton.textContent = 'Requesting permission...';
-  showLoadingOverlay('Requesting permission...');
+  showLoadingOverlay('Checking permission...');
 
   // Request permission for the specific origin
   const origin = `${urlObj.protocol}//${urlObj.host}/*`;
+
+  // Check if permission already exists (e.g., from auto-continue after permission dialog)
+  const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+
+  if (hasPermission) {
+    // Permission already granted, skip straight to connection test
+    console.log('[Monica Popup] Permission already granted, skipping request');
+    await chrome.storage.local.remove(['temp_awaiting_permission']);
+    proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+    return;
+  }
+
+  // Need to request permission
+  saveButton.textContent = 'Requesting permission...';
+  showLoadingOverlay('Requesting permission...');
 
   // Set flag before requesting permission (popup may close during permission dialog)
   chrome.storage.local.set({ temp_awaiting_permission: true });
@@ -279,18 +293,27 @@ async function saveConfiguration() {
       hideLoadingOverlay();
       errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
       saveButton.disabled = false;
-      saveButton.textContent = defaultButtonText;
+      saveButton.textContent = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
       return;
     }
 
-    // Permission granted, now test connection
-    saveButton.textContent = 'Testing connection...';
-    showLoadingOverlay('Testing connection...');
+    // Permission granted, proceed with configuration
+    proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+  });
+}
 
-    chrome.runtime.sendMessage({
-      action: 'testConnection',
-      monicaUrl: monicaUrl
-    }, (response) => {
+// Proceed with connection test and registration after permission is confirmed
+function proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig) {
+  const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
+
+  // Test connection
+  saveButton.textContent = 'Testing connection...';
+  showLoadingOverlay('Testing connection...');
+
+  chrome.runtime.sendMessage({
+    action: 'testConnection',
+    monicaUrl: monicaUrl
+  }, (response) => {
     if (!response.success) {
       hideLoadingOverlay();
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
@@ -321,7 +344,6 @@ async function saveConfiguration() {
         saveButton.disabled = false;
         saveButton.textContent = defaultButtonText;
       }
-    });
     });
   });
 }
