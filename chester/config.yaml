@@ -384,7 +384,7 @@ bot_team:
 
   doc:
     name: Doc
-    port: 8023
+    port: 8024
     description: Bot Team Health Checker
     capabilities:
       - Health checkups on all bots

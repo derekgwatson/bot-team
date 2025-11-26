@@ -5,7 +5,7 @@ personality: Caring and thorough, like a team physician doing regular checkups
 
 server:
   host: 0.0.0.0
-  port: 8023
+  port: 8024
 
 database:
   path: database/doc.db
