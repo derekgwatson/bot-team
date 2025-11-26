@@ -1,92 +1,87 @@
-"""
-Authentication routes for Doc
-
-Google OAuth login/logout routes.
-Admin-only access.
-"""
-
-from flask import Blueprint, redirect, url_for, flash, session
+"""Authentication routes for Doc."""
+from flask import Blueprint, redirect, url_for, session, request
 from flask_login import login_user, logout_user, current_user
-import logging
-
-from services.auth import oauth, User, store_user, is_email_allowed, is_admin_email
-
-logger = logging.getLogger(__name__)
+from services.auth import oauth, User, is_email_allowed, is_admin
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/login')
 def login():
-    """Redirect to Google OAuth login"""
+    """Initiate Google OAuth login."""
     if current_user.is_authenticated:
         return redirect(url_for('web.dashboard'))
 
-    # Check if OAuth is configured
-    google = oauth.create_client('google')
-    if not google:
-        flash('Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.', 'error')
-        return "OAuth not configured", 500
-
-    redirect_uri = url_for('auth.auth_callback', _external=True)
-    return google.authorize_redirect(redirect_uri)
+    # Get the callback URL
+    redirect_uri = url_for('auth.callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
 
 
-@auth_bp.route('/auth/callback')
-def auth_callback():
-    """Handle Google OAuth callback"""
+@auth_bp.route('/callback')
+def callback():
+    """Handle Google OAuth callback."""
     try:
-        google = oauth.create_client('google')
-        if not google:
-            flash('Google OAuth is not configured.', 'error')
-            return redirect(url_for('auth.login'))
-
-        token = google.authorize_access_token()
+        token = oauth.google.authorize_access_token()
         user_info = token.get('userinfo')
 
         if not user_info:
-            # Fetch user info if not in token
-            user_info = google.get('https://www.googleapis.com/oauth2/v3/userinfo').json()
+            return '''
+                <h1>Authentication Failed</h1>
+                <p>Could not get user information from Google.</p>
+                <a href="/">Try Again</a>
+            ''', 401
 
-        email = user_info.get('email')
+        email = user_info.get('email', '').lower()
+        name = user_info.get('name', email)
 
-        # Check if email domain is allowed
+        # Check if email is from allowed domain
         if not is_email_allowed(email):
-            logger.warning(f"Login denied for email not in allowed domains: {email}")
-            flash('Access denied. Your email domain is not authorized.', 'error')
-            return redirect(url_for('auth.login'))
+            return f'''
+                <html>
+                <head><title>Access Denied - Doc</title></head>
+                <body style="font-family: sans-serif; padding: 40px; text-align: center;">
+                    <h1>Access Denied</h1>
+                    <p>Sorry, <strong>{email}</strong> is not authorized to access Doc.</p>
+                    <p>Only Watson Blinds staff can access the health checker.</p>
+                    <a href="{url_for('auth.login')}" style="color: #16a085;">Try with a different account</a>
+                </body>
+                </html>
+            ''', 403
 
         # Check if user is an admin
-        if not is_admin_email(email):
-            logger.warning(f"Admin access denied for: {email}")
-            flash('Access denied. Doc is restricted to administrators only.', 'error')
-            return redirect(url_for('auth.login'))
+        if not is_admin(email):
+            return f'''
+                <html>
+                <head><title>Access Denied - Doc</title></head>
+                <body style="font-family: sans-serif; padding: 40px; text-align: center;">
+                    <h1>Admin Access Required</h1>
+                    <p>Sorry, <strong>{email}</strong> does not have admin privileges for Doc.</p>
+                    <p>Contact an administrator if you need access.</p>
+                    <a href="{url_for('auth.login')}" style="color: #16a085;">Try with a different account</a>
+                </body>
+                </html>
+            ''', 403
 
-        # Create and store user
-        user = User.from_google_info(user_info)
-        store_user(user)
+        # Create user and log in
+        user = User(email, name)
+        session['user'] = {'email': email, 'name': name}
         login_user(user)
 
-        logger.info(f"Admin logged in: {email}")
-        flash(f'Welcome, {user.name}!', 'success')
-
-        # Redirect to originally requested page or dashboard
-        next_page = session.pop('next', None)
-        return redirect(next_page or url_for('web.dashboard'))
+        # Redirect to original destination or dashboard
+        next_url = request.args.get('next') or url_for('web.dashboard')
+        return redirect(next_url)
 
     except Exception as e:
-        logger.exception("Error during OAuth callback")
-        flash(f'Authentication error: {str(e)}', 'error')
-        return redirect(url_for('auth.login'))
+        return f'''
+            <h1>Authentication Error</h1>
+            <p>An error occurred during authentication: {str(e)}</p>
+            <a href="/">Try Again</a>
+        ''', 500
 
 
 @auth_bp.route('/logout')
 def logout():
-    """Log out the current user"""
-    if current_user.is_authenticated:
-        logger.info(f"Admin logged out: {current_user.email}")
-    logout_user()
-    # Clear user data from session
+    """Log out the current user."""
     session.pop('user', None)
-    flash('You have been logged out.', 'info')
+    logout_user()
     return redirect(url_for('auth.login'))

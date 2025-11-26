@@ -58,6 +58,22 @@ class Config:
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")
 
+        # ── Admin emails (env override or config.yaml) ────────
+        admin_cfg = data.get("admin", {}) or {}
+        admin_emails_env = os.environ.get("DOC_ADMIN_EMAILS", "")
+        if admin_emails_env:
+            self.admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
+        else:
+            self.admin_emails = admin_cfg.get("emails", []) or []
+
+        # ── Load shared organization config for allowed domains ──
+        shared_config_path = self.base_dir.parent / "shared" / "config" / "organization.yaml"
+        with open(shared_config_path, "r") as f:
+            shared_data = yaml.safe_load(f) or {}
+
+        organization = shared_data.get("organization", {}) or {}
+        self.allowed_domains = organization.get("domains", [])
+
     def get_chester_url(self) -> str:
         """Get Chester URL based on environment"""
         if os.environ.get("CHESTER_URL"):
