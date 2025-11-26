@@ -47,9 +47,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 
-# Clean up expired registration codes on startup
-with app.app_context():
-    db.cleanup_expired_codes()
+# Note: Registration code cleanup removed - pending devices are now shown on
+# the dashboard and users delete them directly if not needed
 
 
 @app.route('/health')
