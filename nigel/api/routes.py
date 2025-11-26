@@ -297,6 +297,8 @@ def check_all_quotes():
     """
     Check prices for all active monitored quotes.
 
+    Uses Banji's batch endpoint for efficiency - one browser session per org.
+
     Returns summary of results.
     """
     quotes = db.get_all_quotes(active_only=True)
@@ -313,7 +315,15 @@ def check_all_quotes():
             }
         })
 
+    # Build a lookup map for quick access to quote data
+    quotes_map = {q['quote_id']: q for q in quotes}
+
+    # Use batch checking - groups by org automatically
     checker = PriceChecker()
+    batch_results = checker.check_prices_multi_org([
+        {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
+    ])
+
     results = {
         'total': len(quotes),
         'checked': 0,
@@ -322,18 +332,18 @@ def check_all_quotes():
         'details': []
     }
 
-    for quote in quotes:
-        quote_id = quote['quote_id']
-        org = quote['org']
-
-        result = checker.check_price(quote_id, org)
+    # Process each result
+    for result in batch_results:
+        quote_id = result['quote_id']
+        org = result['org']
+        quote = quotes_map.get(quote_id)
 
         if result['success']:
             current_price = result['price_after']
             has_discrepancy = False
             discrepancy_amount = None
 
-            if quote['last_known_price']:
+            if quote and quote['last_known_price']:
                 has_discrepancy, discrepancy_amount = compare_prices(
                     quote['last_known_price'],
                     current_price
@@ -385,7 +395,7 @@ def check_all_quotes():
             })
 
     logger.info(
-        f"Bulk price check complete: {results['checked']}/{results['total']} successful, "
+        f"Batch price check complete: {results['checked']}/{results['total']} successful, "
         f"{results['discrepancies']} discrepancies, {results['errors']} errors"
     )
 

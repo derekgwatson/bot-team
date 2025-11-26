@@ -1,8 +1,9 @@
 """Price checking service - calls Banji to check quote prices."""
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from decimal import Decimal, InvalidOperation
+from collections import defaultdict
 from shared.http_client import BotHttpClient
 from config import config
 
@@ -14,7 +15,8 @@ class PriceChecker:
 
     def __init__(self, banji_url: str = None):
         self.banji_url = banji_url or config.banji_url
-        self.banji = BotHttpClient(self.banji_url, timeout=120)  # Browser ops can be slow
+        # Batch operations can take a long time with many quotes
+        self.banji = BotHttpClient(self.banji_url, timeout=600)
 
     def check_price(self, quote_id: str, org: str) -> Dict:
         """
@@ -86,6 +88,119 @@ class PriceChecker:
                 'error': error_msg,
                 'raw_response': None
             }
+
+    def check_prices_batch(self, quote_ids: List[str], org: str) -> List[Dict]:
+        """
+        Check prices for multiple quotes in a single browser session.
+
+        This is much more efficient than calling check_price() multiple times
+        because Banji keeps the browser open between quotes.
+
+        Args:
+            quote_ids: List of quote IDs to check
+            org: The organization (all quotes must be from the same org)
+
+        Returns:
+            List of result dicts, one per quote (same format as check_price)
+        """
+        if not quote_ids:
+            return []
+
+        logger.info(f"Batch checking {len(quote_ids)} quotes for org {org}")
+
+        try:
+            response = self.banji.post('/api/quotes/batch-refresh-pricing', json={
+                'quote_ids': quote_ids,
+                'org': org
+            })
+
+            data = response.json()
+
+            if response.status_code == 200 and data.get('success'):
+                # Convert Banji's batch results to our standard format
+                results = []
+                for item in data.get('results', []):
+                    if item.get('success'):
+                        results.append({
+                            'success': True,
+                            'quote_id': item['quote_id'],
+                            'org': org,
+                            'price_before': str(item.get('price_before')) if item.get('price_before') is not None else None,
+                            'price_after': str(item.get('price_after')) if item.get('price_after') is not None else None,
+                            'price_changed': item.get('price_changed', False),
+                            'error': None,
+                            'raw_response': item
+                        })
+                    else:
+                        results.append({
+                            'success': False,
+                            'quote_id': item['quote_id'],
+                            'org': org,
+                            'price_before': None,
+                            'price_after': None,
+                            'price_changed': False,
+                            'error': item.get('error', 'Unknown error'),
+                            'raw_response': item
+                        })
+
+                logger.info(f"Batch check complete: {data.get('successful', 0)}/{data.get('total_quotes', 0)} successful")
+                return results
+            else:
+                # Entire batch failed
+                error_msg = data.get('error', f'HTTP {response.status_code}')
+                logger.error(f"Batch check failed for org {org}: {error_msg}")
+                return [{
+                    'success': False,
+                    'quote_id': qid,
+                    'org': org,
+                    'price_before': None,
+                    'price_after': None,
+                    'price_changed': False,
+                    'error': error_msg,
+                    'raw_response': data
+                } for qid in quote_ids]
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Batch check error for org {org}: {error_msg}")
+            return [{
+                'success': False,
+                'quote_id': qid,
+                'org': org,
+                'price_before': None,
+                'price_after': None,
+                'price_changed': False,
+                'error': error_msg,
+                'raw_response': None
+            } for qid in quote_ids]
+
+    def check_prices_multi_org(self, quotes: List[Dict]) -> List[Dict]:
+        """
+        Check prices for quotes across multiple organizations.
+
+        Groups quotes by org and makes one batch call per org.
+
+        Args:
+            quotes: List of dicts with 'quote_id' and 'org' keys
+
+        Returns:
+            List of result dicts, one per quote
+        """
+        if not quotes:
+            return []
+
+        # Group quotes by org
+        by_org = defaultdict(list)
+        for q in quotes:
+            by_org[q['org']].append(q['quote_id'])
+
+        # Process each org as a batch
+        all_results = []
+        for org, quote_ids in by_org.items():
+            results = self.check_prices_batch(quote_ids, org)
+            all_results.extend(results)
+
+        return all_results
 
 
 def compare_prices(expected: str, actual: str) -> Tuple[bool, Optional[str]]:

@@ -316,7 +316,7 @@ def resolve_discrepancy(discrepancy_id: int):
 @web_bp.route('/check-all', methods=['POST'])
 @login_required
 def check_all():
-    """Check prices for all active quotes"""
+    """Check prices for all active quotes using batch endpoint"""
     try:
         quotes = db.get_all_quotes(active_only=True)
 
@@ -324,21 +324,28 @@ def check_all():
             flash('No active quotes to check', 'warning')
             return redirect(url_for('web.index'))
 
+        # Build a lookup map for quick access to quote data
+        quotes_map = {q['quote_id']: q for q in quotes}
+
+        # Use batch checking - groups by org automatically for efficiency
         checker = PriceChecker()
+        batch_results = checker.check_prices_multi_org([
+            {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
+        ])
+
         results = {'checked': 0, 'discrepancies': 0, 'errors': 0}
 
-        for quote in quotes:
-            quote_id = quote['quote_id']
-            org = quote['org']
-
-            result = checker.check_price(quote_id, org)
+        for result in batch_results:
+            quote_id = result['quote_id']
+            org = result['org']
+            quote = quotes_map.get(quote_id)
 
             if result['success']:
                 current_price = result['price_after']
                 has_discrepancy = False
                 discrepancy_amount = None
 
-                if quote['last_known_price']:
+                if quote and quote['last_known_price']:
                     has_discrepancy, discrepancy_amount = compare_prices(
                         quote['last_known_price'],
                         current_price
@@ -376,7 +383,7 @@ def check_all():
                 db.update_quote_checked(quote_id)
                 results['errors'] += 1
 
-        logger.info(f"Bulk price check by {current_user.email}: {results}")
+        logger.info(f"Batch price check by {current_user.email}: {results}")
 
         if results['discrepancies'] > 0:
             flash(f'Checked {results["checked"]} quotes. Found {results["discrepancies"]} discrepancies!', 'warning')
