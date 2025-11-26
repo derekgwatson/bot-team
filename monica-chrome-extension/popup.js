@@ -152,11 +152,17 @@ async function restoreTemporaryFormValues() {
       const hasPermission = await chrome.permissions.contains({ origins: [origin] });
 
       if (hasPermission) {
-        // Clear the flag and auto-continue with registration
+        // Clear the flag
         await chrome.storage.local.remove(['temp_awaiting_permission']);
         console.log('[Monica Popup] Permission was granted, auto-continuing...');
-        // Small delay to let the UI render
-        setTimeout(() => saveConfiguration(), 100);
+
+        // Wake up the service worker and wait for it to be ready
+        // by sending a getState message first
+        chrome.runtime.sendMessage({ action: 'getState' }, () => {
+          // Service worker is now awake, give it a moment to initialize
+          // then auto-continue with registration
+          setTimeout(() => saveConfiguration(), 500);
+        });
       }
     } catch (e) {
       console.log('[Monica Popup] Error checking permission:', e);
