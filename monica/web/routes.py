@@ -646,9 +646,6 @@ def dashboard():
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
 
-        // Track if a code was generated (to refresh immediately on modal close)
-        let codeWasGenerated = false;
-
         // Track when tab becomes hidden to detect stale data
         let tabBecameHiddenAt = null;
 
@@ -747,27 +744,19 @@ def dashboard():
         function showAddDeviceModal() {
             // Pause auto-refresh while modal is open
             clearTimeout(autoRefreshTimer);
-            codeWasGenerated = false; // Reset flag
             document.getElementById('add-device-modal').classList.add('active');
-            document.getElementById('modal-form').style.display = 'block';
-            document.getElementById('modal-result').style.display = 'none';
         }
 
-        // Hide modal
+        // Hide modal (cancel button)
         function hideModal() {
             document.getElementById('add-device-modal').classList.remove('active');
             document.getElementById('store-code-input').value = '';
             document.getElementById('device-label-input').value = '';
 
-            // If a device was added, refresh immediately to show it
-            // Otherwise resume normal auto-refresh schedule
-            if (codeWasGenerated) {
-                setTimeout(() => location.reload(), 500); // Brief delay for modal close animation
-            } else {
-                autoRefreshTimer = setTimeout(function() {
-                    location.reload();
-                }, {{ config.auto_refresh * 1000 }});
-            }
+            // Resume auto-refresh
+            autoRefreshTimer = setTimeout(function() {
+                location.reload();
+            }, {{ config.auto_refresh * 1000 }});
         }
 
         // Add device
@@ -793,12 +782,10 @@ def dashboard():
                 const data = await response.json();
 
                 if (data.success) {
-                    // Show success message
-                    codeWasGenerated = true; // Mark that we generated a code
-                    document.getElementById('modal-form').style.display = 'none';
-                    document.getElementById('modal-result').style.display = 'block';
-                    document.getElementById('code-store').textContent = data.store_code;
-                    document.getElementById('code-device').textContent = data.device_label;
+                    // Close modal and refresh to show new device
+                    showToast(`Device added: ${data.store_code} / ${data.device_label}`, 'success');
+                    document.getElementById('add-device-modal').classList.remove('active');
+                    setTimeout(() => location.reload(), 500);
                 } else {
                     showToast(`Failed to generate code: ${data.error}`, 'error');
                 }
@@ -983,20 +970,6 @@ def dashboard():
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="hideModal()">Cancel</button>
                     <button class="btn-primary" onclick="addDevice()">Add</button>
-                </div>
-            </div>
-
-            <!-- Result display after adding -->
-            <div id="modal-result" style="display: none;">
-                <div class="modal-header">✓ Device Added</div>
-                <p style="color: #374151; margin-bottom: 16px;">
-                    <strong><span id="code-store"></span> / <span id="code-device"></span></strong> is now on the dashboard.
-                </p>
-                <p style="color: #6b7280; margin-bottom: 16px;">
-                    Copy the code from the device card to set up the extension.
-                </p>
-                <div class="modal-actions">
-                    <button class="btn-primary" onclick="hideModal()">Go</button>
                 </div>
             </div>
         </div>
