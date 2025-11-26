@@ -17,6 +17,9 @@ class Config:
         self.name = data['name']
         self.description = data['description']
         self.version = data['version']
+
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
         self.emoji = data.get('emoji', '👥')
 
         # Server config

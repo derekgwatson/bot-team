@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Price Check History - Nigel{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Price Check History</h2>
+
+<!-- Filters -->
+<div style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+    <form action="{{ url_for('web.history') }}" method="get" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="quote_id">Quote ID</label>
+            <input type="text" id="quote_id" name="quote_id" value="{{ quote_id or '' }}" placeholder="Filter by quote">
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label>
+                <input type="checkbox" name="discrepancies_only" value="true" {% if discrepancies_only %}checked{% endif %}>
+                Discrepancies only
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        {% if quote_id or discrepancies_only %}
+        <a href="{{ url_for('web.history') }}" class="btn btn-secondary">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if checks %}
+<table>
+    <thead>
+        <tr>
+            <th>Checked At</th>
+            <th>Quote ID</th>
+            <th>Organization</th>
+            <th>Status</th>
+            <th>Price Before</th>
+            <th>Price After</th>
+            <th>Discrepancy</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for check in checks %}
+        <tr>
+            <td>{{ check.checked_at[:16] }}</td>
+            <td><a href="{{ url_for('web.view_quote', quote_id=check.quote_id) }}">{{ check.quote_id }}</a></td>
+            <td>{{ check.org }}</td>
+            <td>
+                {% if check.status == 'success' %}
+                <span class="badge badge-success">Success</span>
+                {% elif check.status == 'error' %}
+                <span class="badge badge-error">Error</span>
+                {% else %}
+                <span class="badge badge-warning">{{ check.status }}</span>
+                {% endif %}
+            </td>
+            <td>{% if check.price_before %}${{ check.price_before }}{% else %}-{% endif %}</td>
+            <td>{% if check.price_after %}${{ check.price_after }}{% else %}-{% endif %}</td>
+            <td>
+                {% if check.has_discrepancy %}
+                <span class="badge badge-warning">
+                    {% if check.discrepancy_amount.startswith('-') %}
+                    ${{ check.discrepancy_amount }}
+                    {% else %}
+                    +${{ check.discrepancy_amount }}
+                    {% endif %}
+                </span>
+                {% elif check.status == 'error' %}
+                <span style="color: #999; font-size: 12px;">{{ check.error_message[:50] }}...</span>
+                {% else %}
+                -
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p style="margin-top: 10px; color: #666;">Showing {{ checks|length }} results</p>
+{% else %}
+<p style="color: #666; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+    No price checks found{% if quote_id %} for quote {{ quote_id }}{% endif %}{% if discrepancies_only %} with discrepancies{% endif %}.
+</p>
+{% endif %}
+{% endblock %}

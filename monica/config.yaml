@@ -36,3 +36,13 @@ dashboard:
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR
   log_heartbeats: false  # Log each heartbeat request in production (can be noisy)
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au
+

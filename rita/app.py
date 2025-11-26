@@ -8,10 +8,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from flask import Flask, jsonify
 from config import config
-from services.auth import init_auth
-from web.routes import web_bp
-from api.access import api_bp
-from web.auth_routes import auth_bp
+from shared.auth import GatewayAuth
 import os
 
 app = Flask(__name__)
@@ -19,11 +16,24 @@ app = Flask(__name__)
 # Sessions / OAuth
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from web.routes import web_bp
+from api.access import api_bp
+
+
 # Auth (Google OAuth + Flask-Login)
-init_auth(app)
 
 # Register blueprints
-app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 

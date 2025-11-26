@@ -579,8 +579,18 @@
                     <span class="endpoint-path">/api/quotes/refresh-pricing</span>
                 </div>
                 <div class="endpoint-desc">
-                    Trigger pricing recalculation for a quote by opening bulk edit and saving.
+                    Trigger pricing recalculation for a single quote by opening bulk edit and saving.
                     Returns before/after pricing comparison.
+                </div>
+            </div>
+            <div class="endpoint">
+                <div>
+                    <span class="endpoint-method">POST</span>
+                    <span class="endpoint-path">/api/quotes/batch-refresh-pricing</span>
+                </div>
+                <div class="endpoint-desc">
+                    Refresh pricing for multiple quotes in a single browser session.
+                    More efficient than multiple single calls - browser stays open between quotes.
                 </div>
             </div>
             <div class="endpoint">

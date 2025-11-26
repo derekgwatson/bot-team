@@ -10,7 +10,7 @@ from typing import Optional
 
 from config import config
 from database.db import db
-from services.bot_clients import mavis_client, fiona_client, sadie_client, peter_client, fred_client
+from services.bot_clients import mavis_client, fiona_client, sadie_client, peter_client, fred_client, nigel_client
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ class CheckerService:
     ISSUE_SYNC_STALE = 'sync_stale'
     ISSUE_SYNC_FAILED = 'sync_failed'
     ISSUE_USER_SYNC_MISMATCH = 'user_sync_mismatch'
+    ISSUE_PRICE_DISCREPANCY = 'price_discrepancy'
 
     def run_all_checks(self) -> dict:
         """
@@ -98,6 +99,17 @@ class CheckerService:
                 except Exception as e:
                     logger.exception("Error in user sync check")
                     results['errors'].append(f"user_sync: {str(e)}")
+
+            # Check for price discrepancies in Nigel
+            if config.check_price_discrepancies.get('enabled', True):
+                try:
+                    price_result = self._check_price_discrepancies()
+                    results['checks']['price_discrepancies'] = price_result
+                    results['issues_found'] += price_result.get('issues_found', 0)
+                    results['tickets_created'] += price_result.get('tickets_created', 0)
+                except Exception as e:
+                    logger.exception("Error in price discrepancies check")
+                    results['errors'].append(f"price_discrepancies: {str(e)}")
 
             # Complete check run
             error_msg = '; '.join(results['errors']) if results['errors'] else None
@@ -661,6 +673,79 @@ class CheckerService:
 
         return result
 
+    def _check_price_discrepancies(self) -> dict:
+        """Check Nigel for unresolved price discrepancies"""
+        logger.info("Running price discrepancies check")
+        result = {
+            'issues_found': 0,
+            'tickets_created': 0,
+            'details': {
+                'discrepancy_count': 0,
+                'discrepancies': []
+            }
+        }
+
+        try:
+            # Get unresolved discrepancies from Nigel
+            nigel_data = nigel_client.get_discrepancies(resolved=False)
+            discrepancies = nigel_data.get('discrepancies', [])
+            result['details']['discrepancy_count'] = len(discrepancies)
+            result['details']['discrepancies'] = discrepancies[:10]  # Limit for response size
+
+            if discrepancies:
+                issue_key = 'batch'
+                existing = db.get_issue(self.ISSUE_PRICE_DISCREPANCY, issue_key)
+
+                if not existing or existing['status'] != 'open':
+                    result['issues_found'] = len(discrepancies)
+
+                    # Format ticket description
+                    lines = []
+                    for d in discrepancies[:10]:
+                        diff = d.get('difference', '?')
+                        lines.append(
+                            f"  - Quote {d.get('quote_id')} ({d.get('org')}): "
+                            f"expected ${d.get('expected_price')}, got ${d.get('actual_price')} "
+                            f"(diff: ${diff})"
+                        )
+                    discrepancy_list = '\n'.join(lines)
+                    more_count = len(discrepancies) - 10 if len(discrepancies) > 10 else 0
+
+                    ticket = self._create_ticket_for_issue(
+                        self.ISSUE_PRICE_DISCREPANCY,
+                        issue_key,
+                        subject=f"[Nigel] {len(discrepancies)} Quote Price Discrepancies Detected",
+                        description=(
+                            f"Nigel detected {len(discrepancies)} quote price discrepancy(ies) "
+                            f"that require attention.\n\n"
+                            f"Discrepancies:\n{discrepancy_list}"
+                            f"{f' ... and {more_count} more' if more_count else ''}\n\n"
+                            f"Please review these quotes in Nigel and resolve the discrepancies."
+                        ),
+                        priority=config.check_price_discrepancies.get('priority', 'high'),
+                        ticket_type=config.check_price_discrepancies.get('ticket_type', 'incident'),
+                        details={'discrepancies': discrepancies}
+                    )
+                    if ticket:
+                        result['tickets_created'] += 1
+                else:
+                    # Update the issue with current discrepancies
+                    db.record_issue(
+                        self.ISSUE_PRICE_DISCREPANCY,
+                        issue_key,
+                        {'discrepancies': discrepancies, 'count': len(discrepancies)}
+                    )
+                    result['issues_found'] = len(discrepancies)
+            else:
+                # Resolve if no discrepancies
+                db.resolve_issue(self.ISSUE_PRICE_DISCREPANCY, 'batch')
+
+        except Exception as e:
+            logger.error(f"Error checking price discrepancies: {e}")
+            result['details']['error'] = str(e)
+
+        return result
+
     def get_bot_status(self) -> dict:
         """Get connection status for all dependent bots"""
         return {
@@ -668,7 +753,8 @@ class CheckerService:
             'fiona': fiona_client.check_connection(),
             'sadie': sadie_client.check_connection(),
             'peter': peter_client.check_connection(),
-            'fred': fred_client.check_connection()
+            'fred': fred_client.check_connection(),
+            'nigel': nigel_client.check_connection()
         }
 
 

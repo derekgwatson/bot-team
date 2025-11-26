@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Discrepancies - Nigel{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Price Discrepancies</h2>
+
+<div style="margin-bottom: 20px;">
+    {% if show_resolved %}
+    <a href="{{ url_for('web.discrepancies') }}">Hide resolved</a>
+    {% else %}
+    <a href="{{ url_for('web.discrepancies', show_resolved='true') }}">Show resolved</a>
+    {% endif %}
+</div>
+
+{% if discrepancies %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Quote ID</th>
+            <th>Organization</th>
+            <th>Expected</th>
+            <th>Actual</th>
+            <th>Difference</th>
+            <th>Detected</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in discrepancies %}
+        <tr>
+            <td>#{{ d.id }}</td>
+            <td><a href="{{ url_for('web.view_quote', quote_id=d.quote_id) }}">{{ d.quote_id }}</a></td>
+            <td>{{ d.org }}</td>
+            <td>${{ d.expected_price }}</td>
+            <td>${{ d.actual_price }}</td>
+            <td>
+                {% if d.difference.startswith('-') %}
+                <span style="color: #00b894; font-weight: bold;">${{ d.difference }}</span>
+                {% else %}
+                <span style="color: #d63031; font-weight: bold;">+${{ d.difference }}</span>
+                {% endif %}
+            </td>
+            <td>{{ d.detected_at[:16] }}</td>
+            <td>
+                {% if d.resolved %}
+                <span class="badge badge-success">Resolved</span>
+                {% if d.resolved_by %}
+                <br><small style="color: #666;">by {{ d.resolved_by }}</small>
+                {% endif %}
+                {% else %}
+                <span class="badge badge-warning">Open</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if not d.resolved %}
+                <form action="{{ url_for('web.resolve_discrepancy', discrepancy_id=d.id) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p style="margin-top: 10px; color: #666;">Showing {{ discrepancies|length }} discrepancies</p>
+{% else %}
+<p style="color: #666; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+    {% if show_resolved %}
+    No discrepancies found.
+    {% else %}
+    No unresolved discrepancies.
+    {% endif %}
+</p>
+{% endif %}
+{% endblock %}

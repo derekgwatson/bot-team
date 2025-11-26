@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
 from database.db import access_db
 from services.peter_client import lookup_staff_by_details  # we'll sketch this
-from services.auth import login_required, is_email_allowed
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 

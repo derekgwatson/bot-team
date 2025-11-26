@@ -1,0 +1,33 @@
+name: Nigel
+description: Quote Price Monitor - watches quote prices and detects changes
+version: 1.0.0
+emoji: "🔍"
+personality: Vigilant and detail-oriented, keeps a watchful eye on quote prices
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+database:
+  path: "database/nigel.db"
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  # Mode options:
+  #   - admin_only: Only users in ADMIN_EMAILS env var can access
+  #   - domain: Any user from allowed_domains can access
+  #   - tiered: Domain users can access, admins get extra features
+  mode: admin_only
+  # For admin_only mode, set ADMIN_EMAILS in .env file
+  # For domain/tiered modes, uncomment allowed_domains below:
+  # allowed_domains:
+  #   - watsonblinds.com.au
+  #   - watsoncommercial.com.au
+  #   - designerdrapes.com.au
+
+# Configuration for calling other bots
+bots:
+  banji:
+    # Banji provides the refresh-pricing endpoint
+    base_url: "http://localhost:8014"

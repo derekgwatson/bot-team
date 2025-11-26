@@ -31,6 +31,9 @@ class Config:
         self.name = data.get("name", "iris")
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
+
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
         self.emoji = data.get("emoji", "👥")
 
         # ── Server config ─────────────────────────────────────

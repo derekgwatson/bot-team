@@ -22,3 +22,13 @@ buz:
   login_timeout: 60000       # 1 minute - catches hung login page
   navigation_timeout: 30000  # 30 seconds - catches navigation failures
   save_timeout: 300000       # 5 minutes - catches Buz crashes (normal saves complete via network idle in seconds)
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au
+

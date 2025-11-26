@@ -375,9 +375,77 @@ class FredClient:
             }
 
 
+class NigelClient:
+    """Client for communicating with Nigel (Quote Price Monitor)"""
+
+    def __init__(self):
+        self._client = None
+
+    @property
+    def client(self) -> BotHttpClient:
+        if self._client is None:
+            self._client = BotHttpClient(config.get_nigel_url(), timeout=30)
+        return self._client
+
+    def get_discrepancies(self, resolved: bool = False) -> dict:
+        """
+        Get price discrepancies from Nigel.
+
+        Args:
+            resolved: If False, only return unresolved discrepancies
+
+        Returns:
+            dict with 'discrepancies' list and 'count'
+        """
+        try:
+            response = self.client.get(f"/api/discrepancies?resolved={str(resolved).lower()}")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting discrepancies from Nigel: {e}")
+            raise
+
+    def get_stats(self) -> dict:
+        """Get monitoring statistics from Nigel"""
+        try:
+            response = self.client.get("/api/stats")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting stats from Nigel: {e}")
+            raise
+
+    def get_health(self) -> dict:
+        """Get Nigel health status"""
+        try:
+            response = self.client.get("/health", timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error getting health from Nigel: {e}")
+            raise
+
+    def check_connection(self) -> dict:
+        """Check if Nigel is reachable"""
+        try:
+            health = self.get_health()
+            return {
+                'connected': True,
+                'status': health.get('status'),
+                'url': config.get_nigel_url()
+            }
+        except Exception as e:
+            return {
+                'connected': False,
+                'error': str(e),
+                'url': config.get_nigel_url()
+            }
+
+
 # Singleton instances
 mavis_client = MavisClient()
 fiona_client = FionaClient()
 sadie_client = SadieClient()
 peter_client = PeterClient()
 fred_client = FredClient()
+nigel_client = NigelClient()

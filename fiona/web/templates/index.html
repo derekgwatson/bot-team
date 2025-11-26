@@ -236,7 +236,7 @@
                 <div class="email">{{ current_user.email }}</div>
                 <a href="{{ url_for('web.rebadged_page') }}">Rebadged</a>
                 <a href="{{ url_for('web.choose_view') }}">Change View</a>
-                <a href="{{ url_for('auth.logout') }}">Logout</a>
+                <a href="{{ url_for('gateway_auth.logout') }}">Logout</a>
                 {% if current_user.is_admin %}
                 <a href="{{ url_for('web.admin_index') }}">Admin</a>
                 {% endif %}

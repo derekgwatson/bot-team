@@ -26,6 +26,9 @@ class Config:
         self.version = data.get("version", "1.0.0")
         self.personality = data.get("personality", "")
 
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
+
         # Server config
         server_cfg = data.get("server", {}) or {}
         self.server_host = server_cfg.get("host", "0.0.0.0")

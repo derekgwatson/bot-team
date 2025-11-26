@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ quote.quote_id }} - Nigel{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>{{ quote.quote_id }}</h2>
+    <div class="actions">
+        <form action="{{ url_for('web.check_quote', quote_id=quote.quote_id) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-primary">Check Price Now</button>
+        </form>
+        {% if quote.is_active %}
+        <form action="{{ url_for('web.deactivate_quote', quote_id=quote.quote_id) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-warning">Pause Monitoring</button>
+        </form>
+        {% else %}
+        <form action="{{ url_for('web.activate_quote', quote_id=quote.quote_id) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-secondary">Resume Monitoring</button>
+        </form>
+        {% endif %}
+        <form action="{{ url_for('web.delete_quote', quote_id=quote.quote_id) }}" method="post" style="display: inline;"
+              onsubmit="return confirm('Are you sure you want to delete this quote from monitoring?');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+    </div>
+</div>
+
+<!-- Quote Details -->
+<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div>
+            <strong>Organization:</strong><br>
+            {{ quote.org }}
+        </div>
+        <div>
+            <strong>Status:</strong><br>
+            {% if quote.is_active %}
+            <span class="badge badge-success">Active</span>
+            {% else %}
+            <span class="badge badge-warning">Inactive</span>
+            {% endif %}
+        </div>
+        <div>
+            <strong>Last Known Price:</strong><br>
+            {% if quote.last_known_price %}
+            <span style="font-size: 24px; font-weight: bold; color: #00b894;">${{ quote.last_known_price }}</span>
+            {% else %}
+            <span style="color: #999;">Not checked yet</span>
+            {% endif %}
+        </div>
+        <div>
+            <strong>Last Checked:</strong><br>
+            {% if quote.last_checked_at %}{{ quote.last_checked_at }}{% else %}<span style="color: #999;">Never</span>{% endif %}
+        </div>
+        <div>
+            <strong>First Seen:</strong><br>
+            {{ quote.first_seen_at }}
+        </div>
+        <div>
+            <strong>Price Updated:</strong><br>
+            {% if quote.price_updated_at %}{{ quote.price_updated_at }}{% else %}<span style="color: #999;">-</span>{% endif %}
+        </div>
+    </div>
+    {% if quote.notes %}
+    <div style="margin-top: 15px;">
+        <strong>Notes:</strong><br>
+        {{ quote.notes }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Discrepancies for this quote -->
+{% if discrepancies %}
+<div style="margin-bottom: 30px;">
+    <h3 style="margin-bottom: 15px;">Discrepancies</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Expected</th>
+                <th>Actual</th>
+                <th>Difference</th>
+                <th>Detected</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in discrepancies %}
+            <tr>
+                <td>${{ d.expected_price }}</td>
+                <td>${{ d.actual_price }}</td>
+                <td>
+                    {% if d.difference.startswith('-') %}
+                    <span style="color: #00b894;">${{ d.difference }}</span>
+                    {% else %}
+                    <span style="color: #d63031;">+${{ d.difference }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ d.detected_at[:16] }}</td>
+                <td>
+                    {% if d.resolved %}
+                    <span class="badge badge-success">Resolved</span>
+                    {% else %}
+                    <span class="badge badge-warning">Open</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not d.resolved %}
+                    <form action="{{ url_for('web.resolve_discrepancy', discrepancy_id=d.id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Price Check History -->
+<div>
+    <h3 style="margin-bottom: 15px;">Price Check History</h3>
+    {% if history %}
+    <table>
+        <thead>
+            <tr>
+                <th>Checked At</th>
+                <th>Status</th>
+                <th>Price Before</th>
+                <th>Price After</th>
+                <th>Discrepancy</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in history %}
+            <tr>
+                <td>{{ h.checked_at[:16] }}</td>
+                <td>
+                    {% if h.status == 'success' %}
+                    <span class="badge badge-success">Success</span>
+                    {% else %}
+                    <span class="badge badge-error">Error</span>
+                    {% endif %}
+                </td>
+                <td>{% if h.price_before %}${{ h.price_before }}{% else %}-{% endif %}</td>
+                <td>{% if h.price_after %}${{ h.price_after }}{% else %}-{% endif %}</td>
+                <td>
+                    {% if h.has_discrepancy %}
+                    <span class="badge badge-warning">{{ h.discrepancy_amount }}</span>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #666; padding: 20px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+        No price checks yet.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

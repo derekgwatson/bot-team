@@ -22,6 +22,9 @@ class Config:
         self.description = data['description']
         self.version = data['version']
 
+        # Authentication config
+        self.auth = data.get("auth", {}) or {}
+
         # Server config
         self.server_host = data['server']['host']
         self.server_port = get_port("pam")

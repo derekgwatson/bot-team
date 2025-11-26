@@ -67,7 +67,7 @@
         <div class="error-icon">🚫</div>
         <h1>Access Denied</h1>
         <p>{{ message }}</p>
-        <a href="/auth/logout" class="btn">Try Different Account</a>
+        <a href="{{ url_for('gateway_auth.logout') }}" class="btn">Try Different Account</a>
     </div>
 </body>
 </html>

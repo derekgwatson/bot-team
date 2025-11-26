@@ -127,7 +127,7 @@
             <div class="user-info">
                 {% if user and user.is_authenticated %}
                     <strong>{{ user.name }}</strong><br>
-                    <a href="{{ url_for('auth.logout') }}" style="color: #d9534f;">Logout</a>
+                    <a href="{{ url_for('gateway_auth.logout') }}" style="color: #d9534f;">Logout</a>
                 {% endif %}
             </div>
         </div>

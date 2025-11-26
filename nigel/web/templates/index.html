@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Nigel{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Dashboard</h2>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="label">Active Quotes</div>
+        <div class="value">{{ stats.active_quotes }}</div>
+    </div>
+    <div class="stat-card {% if (stats.unresolved_discrepancies or 0) > 0 %}danger{% endif %}">
+        <div class="label">Unresolved Discrepancies</div>
+        <div class="value">{{ stats.unresolved_discrepancies or 0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Checks (24h)</div>
+        <div class="value">{{ recent_summary.total_checks or 0 }}</div>
+    </div>
+    <div class="stat-card {% if (recent_summary.errors or 0) > 0 %}warning{% endif %}">
+        <div class="label">Errors (24h)</div>
+        <div class="value">{{ recent_summary.errors or 0 }}</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div style="margin-bottom: 30px;">
+    <h3 style="margin-bottom: 15px;">Quick Actions</h3>
+    <form action="{{ url_for('web.check_all') }}" method="post" style="display: inline;">
+        <button type="submit" class="btn btn-primary">Check All Prices</button>
+    </form>
+    <a href="{{ url_for('web.add_quote') }}" class="btn btn-secondary">Add Quote</a>
+</div>
+
+<!-- Recent Discrepancies -->
+{% if recent_discrepancies %}
+<div style="margin-bottom: 30px;">
+    <h3 style="margin-bottom: 15px;">Recent Discrepancies</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Quote ID</th>
+                <th>Expected</th>
+                <th>Actual</th>
+                <th>Difference</th>
+                <th>Detected</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in recent_discrepancies %}
+            <tr>
+                <td><a href="{{ url_for('web.view_quote', quote_id=d.quote_id) }}">{{ d.quote_id }}</a></td>
+                <td>${{ d.expected_price }}</td>
+                <td>${{ d.actual_price }}</td>
+                <td>
+                    {% if d.difference.startswith('-') %}
+                    <span style="color: #00b894;">${{ d.difference }}</span>
+                    {% else %}
+                    <span style="color: #d63031;">+${{ d.difference }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ d.detected_at[:16] }}</td>
+                <td>
+                    <form action="{{ url_for('web.resolve_discrepancy', discrepancy_id=d.id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary">Resolve</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 10px;">
+        <a href="{{ url_for('web.discrepancies') }}">View all discrepancies</a>
+    </p>
+</div>
+{% endif %}
+
+<!-- Active Quotes -->
+<div>
+    <h3 style="margin-bottom: 15px;">Monitored Quotes ({{ quotes|length }})</h3>
+    {% if quotes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Quote ID</th>
+                <th>Organization</th>
+                <th>Last Price</th>
+                <th>Last Checked</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in quotes %}
+            <tr>
+                <td><a href="{{ url_for('web.view_quote', quote_id=q.quote_id) }}">{{ q.quote_id }}</a></td>
+                <td>{{ q.org }}</td>
+                <td>{% if q.last_known_price %}${{ q.last_known_price }}{% else %}<span style="color: #999;">Not checked</span>{% endif %}</td>
+                <td>{% if q.last_checked_at %}{{ q.last_checked_at[:16] }}{% else %}<span style="color: #999;">Never</span>{% endif %}</td>
+                <td class="actions">
+                    <form action="{{ url_for('web.check_quote', quote_id=q.quote_id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-primary">Check</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #666; padding: 20px; text-align: center; background: #f8f9fa; border-radius: 8px;">
+        No quotes being monitored yet. <a href="{{ url_for('web.add_quote') }}">Add your first quote</a>
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

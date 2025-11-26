@@ -1,122 +1,137 @@
-# Bot Team Authentication
+# Shared Auth Module
 
-Shared Google OAuth authentication for all bot-team bots.
+This module provides centralized authentication through Chester's OAuth gateway.
 
-## Features
+## How It Works
 
-- **Google OAuth 2.0** - Secure authentication via Google accounts
-- **Domain-based access** - Auto-grant access to users from specific email domains (for Pam)
-- **Whitelist access** - Restrict access to specific email addresses (for admin tools)
-- **Session management** - Secure Flask sessions
-- **Beautiful login pages** - Customizable per-bot
+1. **Chester** handles all OAuth with Google
+2. **Other bots** redirect users to Chester for authentication
+3. Chester issues a **JWT token** with the authenticated user info
+4. The token is passed back to the requesting bot
+5. Each bot validates the token and handles its own **authorization**
 
-## Setup Google OAuth
+## Benefits
 
-1. **Go to Google Cloud Console**: https://console.cloud.google.com/
+- **Single Google redirect URI**: Only Chester needs to be configured in Google Console
+- **Simpler setup**: New bots don't need OAuth credentials
+- **Centralized auth**: One place to handle Google OAuth
+- **Flexible authorization**: Each bot controls its own access rules
 
-2. **Create a new project** (or select existing):
-   - Project name: "Bot Team" (or similar)
+## Migrating a Bot to Use Gateway Auth
 
-3. **Enable Google+ API**:
-   - Go to "APIs & Services" > "Library"
-   - Search for "Google+ API"
-   - Click "Enable"
-
-4. **Configure OAuth Consent Screen**:
-   - Go to "APIs & Services" > "OAuth consent screen"
-   - Choose "Internal" (for workspace users only) or "External"
-   - Fill in:
-     - App name: "Bot Team"
-     - User support email: your@watsonblinds.com.au
-     - Developer contact: your@watsonblinds.com.au
-   - Save and continue through the scopes/test users screens
-
-5. **Create OAuth 2.0 Credentials**:
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth Client ID"
-   - Application type: "Web application"
-   - Name: "Bot Team Web Client"
-   - Authorized redirect URIs:
-     ```
-     http://localhost:8001/auth/callback  (Fred)
-     http://localhost:8002/auth/callback  (Iris)
-     http://localhost:8003/auth/callback  (Peter)
-     http://localhost:8004/auth/callback  (Pam)
-     https://pam.watsonblinds.com.au/auth/callback
-     https://fred.watsonblinds.com.au/auth/callback
-     https://peter.watsonblinds.com.au/auth/callback
-     https://iris.watsonblinds.com.au/auth/callback
-     ```
-   - Click "Create"
-   - **Save the Client ID and Client Secret**
-
-6. **Add credentials to each bot**:
-
-   Edit each bot's `config.yaml`:
-
-   ```yaml
-   auth:
-     oauth_client_id: "YOUR_GOOGLE_CLIENT_ID_HERE"
-     oauth_client_secret: "YOUR_GOOGLE_CLIENT_SECRET_HERE"
-   ```
-
-## Configuration
-
-### Pam (Domain-based access)
-Anyone with an email from allowed domains can access:
+### 1. Add auth config to config.yaml
 
 ```yaml
 auth:
-  oauth_client_id: "..."
-  oauth_client_secret: "..."
-  allowed_domains:
-    - "watsonblinds.com.au"
-```
+  # Mode options:
+  #   - admin_only: Only users in admin_emails can access
+  #   - domain: Any user from allowed_domains can access
+  #   - tiered: Domain users can access, admins get extra features
+  mode: admin_only  # or 'domain' or 'tiered'
 
-### Admin Tools (Whitelist access)
-Only specific emails can access:
-
-```yaml
-auth:
-  oauth_client_id: "..."
-  oauth_client_secret: "..."
+  # For admin_only and tiered modes:
   admin_emails:
-    - "derek@watsonblinds.com.au"
+    - admin@example.com
+
+  # For domain and tiered modes:
+  allowed_domains:
+    - example.com
 ```
 
-## Usage in Bots
-
-See `pam/app.py` for a complete example.
+### 2. Load auth config in config.py
 
 ```python
-from shared.auth.google_oauth import GoogleAuth
+class Config:
+    def __init__(self):
+        # ... existing config loading ...
 
-app = Flask(__name__)
-auth = GoogleAuth(app, config)
-
-# Add auth routes
-@app.route('/login')
-def login():
-    return render_template('auth/login.html', ...)
-
-@app.route('/auth/login')
-def auth_login():
-    return auth.login_route()
-
-@app.route('/auth/callback')
-def auth_callback():
-    return auth.callback_route()
-
-@app.route('/auth/logout')
-def auth_logout():
-    return auth.logout_route()
-
-# Protect routes with @require_auth decorator
+        # Add this line:
+        self.auth = data.get("auth", {}) or {}
 ```
 
-## Security Notes
+### 3. Update app.py
 
-- OAuth Client Secret should be kept secure
-- Consider using environment variables for production
-- HTTPS is required for production OAuth (works with localhost for dev)
-- Session keys are auto-generated - set `FLASK_SECRET_KEY` env var for production
+Replace the old auth setup:
+
+```python
+# OLD:
+from services.auth import init_auth
+from web.auth_routes import auth_bp
+init_auth(app)
+app.register_blueprint(auth_bp, url_prefix='/')
+
+# NEW:
+from shared.auth import GatewayAuth
+
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance for routes that import from services.auth
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+```
+
+### 4. Update services/auth.py
+
+Replace with a thin compatibility layer:
+
+```python
+"""
+Authentication compatibility layer.
+Values are injected at runtime by app.py
+"""
+auth = None
+login_required = None
+admin_required = None
+get_current_user = None
+```
+
+### 5. Update templates
+
+Change logout links:
+
+```html
+<!-- OLD: -->
+<a href="{{ url_for('auth.logout') }}">Logout</a>
+
+<!-- NEW: -->
+<a href="{{ url_for('gateway_auth.logout') }}">Logout</a>
+```
+
+### 6. Delete old auth_routes.py
+
+The GatewayAuth class registers its own `/login`, `/auth/callback`, and `/logout` routes.
+
+## Using flask_login's current_user
+
+Routes can continue to use `current_user` from flask_login:
+
+```python
+from flask_login import current_user
+
+@web_bp.route('/profile')
+@login_required
+def profile():
+    return f"Hello {current_user.email}"
+```
+
+The User object has these properties:
+- `email` - User's email address
+- `name` - User's display name
+- `picture` - User's profile picture URL
+- `is_admin()` - Whether user is in admin_emails list
+
+## Auth Modes
+
+### admin_only
+Only users whose email is in `admin_emails` can access. Good for IT tools.
+
+### domain
+Any user with an email from `allowed_domains` can access. Good for company-wide tools.
+
+### tiered
+Domain users get basic access, admins (in `admin_emails`) get extra features.
+Use `current_user.is_admin()` to check for admin features.

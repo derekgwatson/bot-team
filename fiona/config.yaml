@@ -35,3 +35,13 @@ admin:
   emails:
     # Add admin email addresses here, or set FIONA_ADMIN_EMAILS env var
     # - admin@watsonblinds.com.au
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: domain  # Any user from allowed_domains can access
+  allowed_domains:
+    - watsonblinds.com.au
+    - watsoncommercial.com.au
+    - designerdrapes.com.au
+
