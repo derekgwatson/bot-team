@@ -11,6 +11,31 @@ logger = logging.getLogger(__name__)
 quotes_bp = Blueprint('quotes', __name__)
 
 
+def get_headless_mode(data):
+    """
+    Determine headless mode for browser.
+
+    API calls (with X-API-Key) always use headless mode.
+    Web UI calls (session auth) can optionally use headed mode for debugging.
+
+    Args:
+        data: Request JSON data
+
+    Returns:
+        bool: True for headless, False for headed
+    """
+    # If API key is present, always use headless
+    if request.headers.get("X-API-Key"):
+        return True
+
+    # For session auth (web UI), allow override
+    # Default to headless, but allow headed=true to show browser
+    if data and data.get('headed'):
+        return False
+
+    return True
+
+
 @quotes_bp.route('/refresh-pricing', methods=['POST'])
 @api_or_session_auth
 def refresh_pricing():
@@ -60,8 +85,9 @@ def refresh_pricing():
 
     quote_id = data['quote_id']
     org = data['org']
+    headless = get_headless_mode(data)
 
-    logger.info(f"Received refresh-pricing request for quote: {quote_id}, org: {org}")
+    logger.info(f"Received refresh-pricing request for quote: {quote_id}, org: {org}, headless: {headless}")
 
     try:
         # Get organization configuration
@@ -69,7 +95,7 @@ def refresh_pricing():
 
         # Use browser manager context to ensure cleanup
         # Pass org_config to load storage state for authentication
-        with BrowserManager(config, org_config) as browser_manager:
+        with BrowserManager(config, org_config, headless=headless) as browser_manager:
             page = browser_manager.page
 
             # Verify authentication (storage state handles actual auth)
@@ -185,8 +211,9 @@ def batch_refresh_pricing():
 
     quote_ids = data['quote_ids']
     org = data['org']
+    headless = get_headless_mode(data)
 
-    logger.info(f"Received batch-refresh-pricing request for {len(quote_ids)} quotes, org: {org}")
+    logger.info(f"Received batch-refresh-pricing request for {len(quote_ids)} quotes, org: {org}, headless: {headless}")
 
     try:
         # Get organization configuration
@@ -194,7 +221,7 @@ def batch_refresh_pricing():
 
         # Use browser manager context to ensure cleanup
         # Single browser session for all quotes
-        with BrowserManager(config, org_config) as browser_manager:
+        with BrowserManager(config, org_config, headless=headless) as browser_manager:
             page = browser_manager.page
 
             # Verify authentication (storage state handles actual auth)
