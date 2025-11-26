@@ -80,7 +80,8 @@ def require_api_key(f):
     """
     Decorator to require API key authentication.
 
-    Checks for X-Internal-Api-Key header and validates against config.
+    Accepts either X-API-Key (standard) or X-Internal-Api-Key (legacy) header.
+    Validates against BOT_API_KEY environment variable.
 
     Returns:
         401 JSON response if authentication fails
@@ -88,7 +89,8 @@ def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         config = app.config['MABEL_CONFIG']
-        api_key = request.headers.get('X-Internal-Api-Key')
+        # Accept both standard X-API-Key and legacy X-Internal-Api-Key
+        api_key = request.headers.get('X-API-Key') or request.headers.get('X-Internal-Api-Key')
 
         if not api_key or api_key != config.internal_api_key:
             return jsonify({'error': 'unauthorized'}), 401
