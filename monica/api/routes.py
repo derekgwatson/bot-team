@@ -55,7 +55,7 @@ def register():
                 'error': 'No JSON data provided'
             }), 400
 
-        registration_code = data.get('registration_code', '').strip()
+        registration_code = data.get('registration_code', '').strip().upper()
         extension_version = data.get('extension_version', '').strip()
 
         # Registration code is required - it contains store and device info
@@ -182,6 +182,17 @@ def heartbeat():
             except (ValueError, TypeError):
                 download_mbps = None
 
+        # Get optional wake event data
+        is_wake_event = data.get('wake_event', False)
+        sleep_duration_seconds = data.get('sleep_duration_seconds')
+        if sleep_duration_seconds is not None:
+            try:
+                sleep_duration_seconds = int(sleep_duration_seconds)
+            except (ValueError, TypeError):
+                sleep_duration_seconds = None
+
+        network_ok_on_wake = data.get('network_ok_on_wake')
+
         # Get public IP from request
         # Check for X-Forwarded-For header (if behind proxy/nginx)
         public_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -199,8 +210,18 @@ def heartbeat():
             user_agent=user_agent,
             latency_ms=latency_ms,
             download_mbps=download_mbps,
-            timestamp=timestamp
+            timestamp=timestamp,
+            is_wake_event=is_wake_event,
+            sleep_duration_seconds=sleep_duration_seconds,
+            network_ok_on_wake=network_ok_on_wake
         )
+
+        # If this is a wake event, update the device's wake tracking
+        if is_wake_event:
+            db.update_device_wake(
+                device_id=device['id'],
+                sleep_duration_seconds=sleep_duration_seconds
+            )
 
         # Compute status based on thresholds
         status = 'online'
@@ -460,7 +481,7 @@ def create_registration_code():
         {
             "store_code": "FYSHWICK",
             "device_label": "Front Counter",
-            "expires_hours": 24  // optional, default 24
+            "expires_hours": 24  // optional, default null (never expires)
         }
 
     Response JSON:
@@ -483,7 +504,8 @@ def create_registration_code():
 
         store_code = data.get('store_code', '').strip()
         device_label = data.get('device_label', '').strip()
-        expires_hours = data.get('expires_hours', 24)
+        # Default to None (never expires) - can pass expires_hours for temporary codes
+        expires_hours = data.get('expires_hours', None)
 
         if not store_code:
             return jsonify({
