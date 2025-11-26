@@ -12,7 +12,7 @@ from config import config
 from api.routes import api_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
-from shared.auth import init_auth
+from services.auth import init_auth
 
 app = Flask(__name__)
 
