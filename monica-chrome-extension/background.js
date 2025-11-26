@@ -18,7 +18,12 @@ let state = {
   lastLatency: null,
   lastSpeed: null,
   lastError: null,
-  lastHeartbeat: null
+  lastHeartbeat: null,
+  // Sleep/wake tracking
+  lastActiveAt: null,  // Timestamp when system was last known to be active
+  idleState: 'active', // 'active', 'idle', or 'locked'
+  wasSleeping: false,  // Flag to indicate we just woke from sleep
+  sleepDuration: null  // Duration of sleep in seconds (for reporting)
 };
 
 // Initialize on install
@@ -49,11 +54,139 @@ chrome.runtime.onStartup.addListener(async () => {
   console.log('[Monica] Service worker starting...');
   await loadState();
   setupAlarms();
+  setupIdleDetection();
 
   if (state.configured && state.registered) {
     console.log('[Monica] Already configured and registered, resuming monitoring');
   }
 })();
+
+// Idle detection threshold (seconds) - system is considered idle after this
+const IDLE_DETECTION_THRESHOLD = 60;
+
+// Sleep detection threshold (seconds) - if gap between activity exceeds this, assume sleep
+const SLEEP_DETECTION_THRESHOLD = 180; // 3 minutes
+
+// Setup idle state detection
+function setupIdleDetection() {
+  // Set the idle detection interval
+  chrome.idle.setDetectionInterval(IDLE_DETECTION_THRESHOLD);
+
+  // Listen for idle state changes
+  chrome.idle.onStateChanged.addListener(handleIdleStateChange);
+
+  // Get current idle state
+  chrome.idle.queryState(IDLE_DETECTION_THRESHOLD, (idleState) => {
+    state.idleState = idleState;
+    if (idleState === 'active') {
+      state.lastActiveAt = Date.now();
+    }
+    console.log('[Monica] Initial idle state:', idleState);
+  });
+}
+
+// Handle idle state changes
+function handleIdleStateChange(newState) {
+  const previousState = state.idleState;
+  state.idleState = newState;
+
+  console.log('[Monica] Idle state changed:', previousState, '->', newState);
+
+  if (newState === 'active') {
+    // System became active - check if we were sleeping
+    const now = Date.now();
+
+    if (state.lastActiveAt) {
+      const inactiveDuration = (now - state.lastActiveAt) / 1000; // seconds
+
+      if (inactiveDuration > SLEEP_DETECTION_THRESHOLD) {
+        // We were likely sleeping
+        state.wasSleeping = true;
+        state.sleepDuration = Math.round(inactiveDuration);
+        console.log(`[Monica] Detected wake from sleep after ${state.sleepDuration}s`);
+
+        // If registered, send an immediate heartbeat with wake info
+        if (state.configured && state.registered) {
+          sendWakeHeartbeat();
+        }
+      }
+    }
+
+    state.lastActiveAt = now;
+  } else if (newState === 'idle' || newState === 'locked') {
+    // System going idle or locked - record last active time
+    if (previousState === 'active') {
+      state.lastActiveAt = Date.now();
+    }
+  }
+}
+
+// Send a special heartbeat when waking from sleep
+async function sendWakeHeartbeat() {
+  if (!state.registered) {
+    return;
+  }
+
+  console.log('[Monica] Sending wake heartbeat...');
+
+  // First, run a quick network test to check connectivity
+  let networkOk = false;
+  try {
+    const response = await fetch(`${state.monicaUrl}/health`, {
+      cache: 'no-store'
+    });
+    networkOk = response.ok;
+  } catch (error) {
+    console.log('[Monica] Network check on wake failed:', error.message);
+    networkOk = false;
+  }
+
+  try {
+    const payload = {
+      timestamp: new Date().toISOString(),
+      wake_event: true,
+      was_sleeping: true,
+      sleep_duration_seconds: state.sleepDuration,
+      network_ok_on_wake: networkOk
+    };
+
+    // Include network metrics if available
+    if (state.lastLatency !== null) {
+      payload.latency_ms = state.lastLatency;
+    }
+    if (state.lastSpeed !== null) {
+      payload.download_mbps = state.lastSpeed;
+    }
+
+    const response = await fetch(`${state.monicaUrl}/api/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Token': state.agentToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      state.heartbeatCount++;
+      state.lastHeartbeat = new Date().toISOString();
+      state.lastError = null;
+      // Clear sleep flags after successful report
+      state.wasSleeping = false;
+      state.sleepDuration = null;
+
+      await saveState();
+      console.log('[Monica] Wake heartbeat sent successfully');
+    } else {
+      throw new Error(data.error || 'Wake heartbeat failed');
+    }
+  } catch (error) {
+    console.error('[Monica] Wake heartbeat failed:', error);
+    state.lastError = `Wake heartbeat failed: ${error.message}`;
+  }
+}
 
 // Load state from chrome.storage
 async function loadState() {
@@ -63,7 +196,8 @@ async function loadState() {
     'deviceLabel',
     'agentToken',
     'deviceId',
-    'heartbeatCount'
+    'heartbeatCount',
+    'lastActiveAt'
   ]);
 
   if (stored.monicaUrl) {
@@ -98,6 +232,7 @@ async function loadState() {
     state.agentToken = stored.agentToken || null;
     state.deviceId = stored.deviceId || null;
     state.heartbeatCount = stored.heartbeatCount || 0;
+    state.lastActiveAt = stored.lastActiveAt || Date.now();
     state.registered = !!(state.agentToken && state.deviceId);
 
     console.log('[Monica] State loaded:', {
@@ -106,7 +241,8 @@ async function loadState() {
       deviceId: state.deviceId,
       storeCode: state.storeCode,
       deviceLabel: state.deviceLabel,
-      hasPermission: true
+      hasPermission: true,
+      lastActiveAt: state.lastActiveAt
     });
   } else {
     console.log('[Monica] Not yet configured');
@@ -121,7 +257,8 @@ async function saveState() {
     deviceLabel: state.deviceLabel,
     agentToken: state.agentToken,
     deviceId: state.deviceId,
-    heartbeatCount: state.heartbeatCount
+    heartbeatCount: state.heartbeatCount,
+    lastActiveAt: state.lastActiveAt
   });
 }
 

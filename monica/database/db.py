@@ -222,7 +222,17 @@ class Database:
         try:
             cursor = conn.execute("""
                 SELECT
-                    d.*,
+                    d.id,
+                    d.store_id,
+                    d.device_label,
+                    d.agent_token,
+                    d.last_heartbeat_at,
+                    d.last_status,
+                    d.last_public_ip,
+                    d.created_at,
+                    d.updated_at,
+                    d.last_wake_at,
+                    d.last_sleep_duration_seconds,
                     s.store_code,
                     s.display_name as store_display_name,
                     latest_metrics.latency_ms as last_latency_ms,
@@ -351,7 +361,10 @@ class Database:
         user_agent: Optional[str] = None,
         latency_ms: Optional[float] = None,
         download_mbps: Optional[float] = None,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
+        is_wake_event: bool = False,
+        sleep_duration_seconds: Optional[int] = None,
+        network_ok_on_wake: Optional[bool] = None
     ) -> int:
         """
         Record a heartbeat from a device
@@ -363,28 +376,61 @@ class Database:
             latency_ms: Latency in milliseconds
             download_mbps: Download speed in Mbps
             timestamp: Optional timestamp (uses current time if None)
+            is_wake_event: Whether this heartbeat is a wake event
+            sleep_duration_seconds: How long device was sleeping (if wake event)
+            network_ok_on_wake: Whether network was available on wake
 
         Returns:
             Heartbeat ID
         """
         conn = self.get_connection()
         try:
+            # Convert boolean to int for SQLite
+            wake_flag = 1 if is_wake_event else 0
+            network_ok_flag = 1 if network_ok_on_wake else (0 if network_ok_on_wake is False else None)
+
             if timestamp:
                 cursor = conn.execute(
                     """INSERT INTO heartbeats
-                       (device_id, timestamp, public_ip, user_agent, latency_ms, download_mbps)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (device_id, timestamp, public_ip, user_agent, latency_ms, download_mbps)
+                       (device_id, timestamp, public_ip, user_agent, latency_ms, download_mbps,
+                        is_wake_event, sleep_duration_seconds, network_ok_on_wake)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (device_id, timestamp, public_ip, user_agent, latency_ms, download_mbps,
+                     wake_flag, sleep_duration_seconds, network_ok_flag)
                 )
             else:
                 cursor = conn.execute(
                     """INSERT INTO heartbeats
-                       (device_id, public_ip, user_agent, latency_ms, download_mbps)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (device_id, public_ip, user_agent, latency_ms, download_mbps)
+                       (device_id, public_ip, user_agent, latency_ms, download_mbps,
+                        is_wake_event, sleep_duration_seconds, network_ok_on_wake)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (device_id, public_ip, user_agent, latency_ms, download_mbps,
+                     wake_flag, sleep_duration_seconds, network_ok_flag)
                 )
             conn.commit()
             return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def update_device_wake(self, device_id: int, sleep_duration_seconds: Optional[int] = None):
+        """
+        Update device's last wake time and sleep duration
+
+        Args:
+            device_id: Device ID
+            sleep_duration_seconds: How long device was sleeping
+        """
+        conn = self.get_connection()
+        try:
+            conn.execute(
+                """UPDATE devices
+                   SET last_wake_at = CURRENT_TIMESTAMP,
+                       last_sleep_duration_seconds = ?
+                   WHERE id = ?""",
+                (sleep_duration_seconds, device_id)
+            )
+            conn.commit()
+            logger.info(f"Device {device_id} woke from sleep ({sleep_duration_seconds}s)")
         finally:
             conn.close()
 
@@ -434,7 +480,8 @@ class Database:
         conn = self.get_connection()
         try:
             cursor = conn.execute(
-                """SELECT id, timestamp, latency_ms, download_mbps
+                """SELECT id, timestamp, latency_ms, download_mbps,
+                          is_wake_event, sleep_duration_seconds
                    FROM heartbeats
                    WHERE device_id = ?
                      AND latency_ms IS NOT NULL

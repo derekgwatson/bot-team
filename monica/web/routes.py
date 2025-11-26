@@ -273,6 +273,10 @@ def dashboard():
         .device-card.online { border-left: 4px solid #10b981; }
         .device-card.degraded { border-left: 4px solid #f59e0b; }
         .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-card.sleeping {
+            border-left: 4px solid #6366f1;
+            background: #f5f3ff;
+        }
         .device-card.pending {
             border-left: 4px solid #6b7280;
             background: #f9fafb;
@@ -383,6 +387,10 @@ def dashboard():
         .status-badge.offline {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .status-badge.sleeping {
+            background: #ede9fe;
+            color: #5b21b6;
         }
         .status-badge.pending {
             background: #e5e7eb;
@@ -888,6 +896,9 @@ def dashboard():
                 <span>🟡</span> <strong>Degraded:</strong> Last seen {{ config.online_threshold }}-{{ config.degraded_threshold }} min
             </div>
             <div class="legend-item">
+                <span>😴</span> <strong>Sleeping:</strong> Device is asleep (no network issue)
+            </div>
+            <div class="legend-item">
                 <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
             </div>
             <div class="legend-item">
@@ -922,6 +933,9 @@ def dashboard():
                         <strong>Last seen:</strong> {{ device.last_seen_text }}
                         {% else %}
                         <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
+                        {% if device.wake_info and device.recently_woke %}
+                        <strong>Woke from:</strong> {{ device.wake_info.sleep_duration_text }} sleep<br>
+                        {% endif %}
                         {% if device.last_latency_ms is not none %}
                         <strong>Latency:</strong> {{ device.last_latency_ms | round | int }} ms<br>
                         {% endif %}
@@ -1173,6 +1187,10 @@ def device_detail(device_id):
             background: #fee2e2;
             color: #991b1b;
         }
+        .status-badge.sleeping {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
         .stats-row {
             display: flex;
             gap: 24px;
@@ -1392,39 +1410,65 @@ def device_detail(device_id):
                 y: d.latency_ms
             }));
 
-            // Detect gaps in data (> 10 minutes between readings indicates probable offline)
+            // Detect gaps in data (> 10 minutes between readings indicates probable offline/sleeping)
             const GAP_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-            const offlineGaps = [];
+            const gaps = [];
             for (let i = 1; i < data.length; i++) {
                 const prevTime = new Date(data[i-1].timestamp).getTime();
                 const currTime = new Date(data[i].timestamp).getTime();
                 const gap = currTime - prevTime;
                 if (gap > GAP_THRESHOLD_MS) {
-                    offlineGaps.push({
+                    // Check if the gap ended with a wake event - if so, it was sleeping
+                    const isSleepGap = data[i].is_wake_event === 1;
+                    gaps.push({
                         xMin: new Date(data[i-1].timestamp),
-                        xMax: new Date(data[i].timestamp)
+                        xMax: new Date(data[i].timestamp),
+                        isSleep: isSleepGap,
+                        sleepDuration: data[i].sleep_duration_seconds
                     });
                 }
             }
 
-            // Create annotation boxes for offline periods
+            // Create annotation boxes for offline/sleeping periods
             const annotations = {};
-            offlineGaps.forEach((gap, index) => {
-                annotations[`offline${index}`] = {
-                    type: 'box',
-                    xMin: gap.xMin,
-                    xMax: gap.xMax,
-                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                    borderColor: 'rgba(239, 68, 68, 0.3)',
-                    borderWidth: 1,
-                    label: {
-                        display: true,
-                        content: 'Offline',
-                        color: '#991b1b',
-                        font: { size: 10, weight: 'bold' },
-                        position: 'center'
-                    }
-                };
+            gaps.forEach((gap, index) => {
+                if (gap.isSleep) {
+                    // Sleeping - show in indigo/purple
+                    const durationMins = gap.sleepDuration ? Math.round(gap.sleepDuration / 60) : null;
+                    const label = durationMins ? `Sleeping (${durationMins}m)` : 'Sleeping';
+                    annotations[`sleep${index}`] = {
+                        type: 'box',
+                        xMin: gap.xMin,
+                        xMax: gap.xMax,
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        borderColor: 'rgba(99, 102, 241, 0.3)',
+                        borderWidth: 1,
+                        label: {
+                            display: true,
+                            content: label,
+                            color: '#5b21b6',
+                            font: { size: 10, weight: 'bold' },
+                            position: 'center'
+                        }
+                    };
+                } else {
+                    // Offline - show in red
+                    annotations[`offline${index}`] = {
+                        type: 'box',
+                        xMin: gap.xMin,
+                        xMax: gap.xMax,
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        borderWidth: 1,
+                        label: {
+                            display: true,
+                            content: 'Offline',
+                            color: '#991b1b',
+                            font: { size: 10, weight: 'bold' },
+                            position: 'center'
+                        }
+                    };
+                }
             });
 
             if (chart) {

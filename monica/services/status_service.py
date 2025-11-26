@@ -4,10 +4,10 @@ Business logic for determining device status from heartbeat data
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, Any, Literal
+from typing import Dict, Any, Literal, Optional
 from monica.config import config
 
-StatusType = Literal['online', 'degraded', 'offline', 'pending']
+StatusType = Literal['online', 'degraded', 'offline', 'pending', 'sleeping']
 
 
 class StatusService:
@@ -75,6 +75,11 @@ class StatusService:
                 'emoji': '🔴',
                 'label': 'Offline'
             },
+            'sleeping': {
+                'color': '#6366f1',  # Indigo
+                'emoji': '😴',
+                'label': 'Sleeping'
+            },
             'pending': {
                 'color': '#6b7280',  # Gray
                 'emoji': '⏳',
@@ -115,6 +120,27 @@ class StatusService:
         except (ValueError, AttributeError):
             return "Unknown"
 
+    def format_sleep_duration(self, seconds: Optional[int]) -> str:
+        """
+        Format sleep duration as human-readable text
+
+        Args:
+            seconds: Sleep duration in seconds
+
+        Returns:
+            Formatted string like "2h 30m" or "45m"
+        """
+        if not seconds:
+            return ""
+
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+
     def enrich_device(self, device: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enrich device data with computed status and display properties
@@ -139,6 +165,62 @@ class StatusService:
 
         display = self.get_status_display(status)
 
+        # Process sleep/wake info
+        last_wake_at = device.get('last_wake_at')
+        last_sleep_duration = device.get('last_sleep_duration_seconds')
+        wake_info = None
+        recently_woke = False
+
+        if last_wake_at:
+            try:
+                wake_time = datetime.fromisoformat(last_wake_at.replace('Z', '+00:00'))
+                now = datetime.utcnow()
+                minutes_since_wake = (now - wake_time).total_seconds() / 60
+
+                # Consider "recently woke" if within the last 10 minutes
+                if minutes_since_wake <= 10:
+                    recently_woke = True
+
+                sleep_duration_text = self.format_sleep_duration(last_sleep_duration)
+                wake_info = {
+                    'last_wake_at': last_wake_at,
+                    'sleep_duration_seconds': last_sleep_duration,
+                    'sleep_duration_text': sleep_duration_text,
+                    'minutes_since_wake': int(minutes_since_wake),
+                    'recently_woke': recently_woke
+                }
+            except (ValueError, AttributeError):
+                pass
+
+        # Determine if device is likely sleeping vs truly offline
+        # A device is "sleeping" if it's offline but was recently active
+        # and we have wake tracking enabled (last_wake_at exists)
+        is_sleeping = False
+        if status == 'offline' and not is_pending:
+            # Check if the device has wake tracking and the last heartbeat gap
+            # is consistent with sleep rather than network outage
+            last_heartbeat_at = device.get('last_heartbeat_at')
+            if last_heartbeat_at and last_wake_at:
+                try:
+                    last_hb = datetime.fromisoformat(last_heartbeat_at.replace('Z', '+00:00'))
+                    last_wake = datetime.fromisoformat(last_wake_at.replace('Z', '+00:00'))
+                    now = datetime.utcnow()
+
+                    # If last wake was after last heartbeat, device woke up properly after sleeping
+                    # If last heartbeat is recent enough (within 24h) and we have wake history,
+                    # the current offline might be sleep
+                    hours_since_heartbeat = (now - last_hb).total_seconds() / 3600
+                    hours_since_wake = (now - last_wake).total_seconds() / 3600
+
+                    # Heuristic: if device has woken before and offline for less than 12h,
+                    # it's probably sleeping rather than having network issues
+                    if hours_since_wake < 12 and hours_since_heartbeat < 12:
+                        is_sleeping = True
+                        status = 'sleeping'
+                        display = self.get_status_display(status)
+                except (ValueError, AttributeError):
+                    pass
+
         return {
             **device,
             'computed_status': status,
@@ -147,7 +229,10 @@ class StatusService:
             'status_label': display['label'],
             'last_seen_text': last_seen,
             'is_pending': is_pending,
-            'registration_code': registration_code
+            'registration_code': registration_code,
+            'wake_info': wake_info,
+            'recently_woke': recently_woke,
+            'is_sleeping': is_sleeping
         }
 
 
