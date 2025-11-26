@@ -6,6 +6,17 @@ Quick reference for working on this codebase. Read this first!
 
 Bot-team is a collection of Flask-based microservices ("bots") that handle various business functions for Watson Blinds. Each bot runs on its own port and communicates via REST APIs.
 
+### Design Philosophy: Do One Thing Well
+
+**CRITICAL**: Each bot follows the Unix philosophy - do one thing and do it well.
+
+When adding new functionality, ALWAYS ask:
+- Does this belong in this bot's core purpose?
+- Is this causing scope creep?
+- Would a new bot be better suited for this?
+
+If a bot starts doing too much, **nip it in the bud immediately**. Split functionality into a new bot rather than letting one bot become a monolith. It's better to have 20 focused bots than 5 bloated ones.
+
 ## Bot Registry (Chester's config.yaml) - SINGLE SOURCE OF TRUTH
 
 **CRITICAL**: `/chester/config.yaml` is the ONE AND ONLY place where bot ports are defined!
