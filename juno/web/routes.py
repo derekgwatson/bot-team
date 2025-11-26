@@ -12,10 +12,12 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from flask import Blueprint, render_template, redirect, request, url_for
+from flask_login import current_user
 import logging
 
 from juno.config import config
 from juno.database.db import db
+from juno.services.auth import login_required
 
 logger = logging.getLogger(__name__)
 
@@ -132,24 +134,27 @@ def track(code: str):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Admin routes
+# Admin routes (require login)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @web_bp.route('/admin/')
+@login_required
 def admin_index():
     """Admin dashboard"""
-    return render_template('admin_index.html', config=config)
+    return render_template('admin_index.html', config=config, current_user=current_user)
 
 
 @web_bp.route('/admin/links')
+@login_required
 def admin_links():
     """Active tracking links admin page"""
     active_links = db.get_all_active_links()
-    return render_template('links.html', config=config, links=active_links)
+    return render_template('links.html', config=config, links=active_links, current_user=current_user)
 
 
 # Keep old /links route as redirect for backwards compatibility
 @web_bp.route('/links')
+@login_required
 def links_redirect():
     """Redirect old /links to /admin/links"""
     return redirect(url_for('web.admin_links'))

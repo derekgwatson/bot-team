@@ -1,10 +1,13 @@
 from flask import Blueprint, render_template_string, request, jsonify
+from flask_login import current_user
 from config import config
 from services.ssh_executor import ssh_executor
+from services.auth import login_required
 
 web_bp = Blueprint('web', __name__)
 
 @web_bp.route('/')
+@login_required
 def index():
     """Sally's home page"""
     servers = config.servers

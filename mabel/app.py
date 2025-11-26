@@ -15,6 +15,8 @@ from flask import Flask, jsonify, request, g
 
 from config import Config, ConfigError
 from services.email_sender import EmailSender
+from services.auth import init_auth
+from web.auth_routes import auth_bp
 
 
 # Initialize Flask app
@@ -54,11 +56,15 @@ def init_app() -> Flask:
     email_sender = EmailSender(config)
     app.config['EMAIL_SENDER'] = email_sender
 
+    # Initialize authentication
+    init_auth(app)
+
     # Register blueprints
     from api.health import health_bp
     from api.email import email_bp
     from web.routes import web_bp
 
+    app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
     app.register_blueprint(web_bp)

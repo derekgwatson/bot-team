@@ -85,6 +85,20 @@ class Config:
         # Google Maps API key (optional - for ETA calculation)
         self.google_maps_api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
 
+        # ── Authentication settings ────────────────────────────────
+        # Load allowed domains from shared organization config
+        shared_config_path = self.base_dir.parent / "shared" / "config" / "organization.yaml"
+        if shared_config_path.exists():
+            with open(shared_config_path, "r", encoding="utf-8") as f:
+                shared_data = yaml.safe_load(f) or {}
+            organization = shared_data.get("organization", {}) or {}
+            self.allowed_domains = organization.get("domains", [])
+        else:
+            self.allowed_domains = []
+
+        # Admin emails (optional - for future admin-only features)
+        self.admin_emails = []
+
 
 # Global config instance
 config = Config()

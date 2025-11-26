@@ -18,6 +18,8 @@ from flask import Flask, jsonify
 from travis.config import config
 from travis.api.routes import api_bp
 from travis.web.routes import web_bp
+from travis.web.auth_routes import auth_bp
+from travis.services.auth import init_auth
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -38,7 +40,11 @@ app = Flask(__name__,
             static_folder='web/static')
 app.secret_key = config.secret_key
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 

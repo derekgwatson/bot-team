@@ -97,5 +97,22 @@ class Config:
         """Get configured servers"""
         return self._config.get('servers') or {}
 
+    # Authentication settings
+    @property
+    def allowed_domains(self):
+        """Allowed email domains for OAuth login."""
+        shared_config_path = self.base_dir.parent / "shared" / "config" / "organization.yaml"
+        if shared_config_path.exists():
+            with open(shared_config_path, "r", encoding="utf-8") as f:
+                shared_data = yaml.safe_load(f) or {}
+            organization = shared_data.get("organization", {}) or {}
+            return organization.get("domains", [])
+        return []
+
+    @property
+    def admin_emails(self):
+        """Admin email addresses (empty for Sally - any allowed domain user is fine)."""
+        return []
+
 
 config = Config()

@@ -15,13 +15,19 @@ from flask import Flask, jsonify
 from config import config
 from api.execute import api_bp
 from web.routes import web_bp
+from web.auth_routes import auth_bp
+from services.auth import init_auth
 import os
 
 app = Flask(__name__)
 
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
 

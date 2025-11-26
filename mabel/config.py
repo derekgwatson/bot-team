@@ -169,3 +169,21 @@ class Config:
     def flask_secret_key(self) -> str:
         """Flask secret key from environment."""
         return os.getenv('FLASK_SECRET_KEY', '')
+
+    # Authentication settings
+    @property
+    def allowed_domains(self) -> list:
+        """Allowed email domains for OAuth login."""
+        # Load from shared organization config
+        shared_config_path = Path(__file__).parent.parent / "shared" / "config" / "organization.yaml"
+        if shared_config_path.exists():
+            with open(shared_config_path, "r", encoding="utf-8") as f:
+                shared_data = yaml.safe_load(f) or {}
+            organization = shared_data.get("organization", {}) or {}
+            return organization.get("domains", [])
+        return []
+
+    @property
+    def admin_emails(self) -> list:
+        """Admin email addresses (empty for Mabel - any allowed domain user is fine)."""
+        return []

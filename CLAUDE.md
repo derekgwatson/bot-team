@@ -99,6 +99,20 @@ def info():
 
 ## Authentication Patterns
 
+### IMPORTANT: All Bots Require OAuth
+
+**POLICY**: Every bot MUST require Google OAuth login for ALL web routes. No bot should be accessible to people outside the organization.
+
+- **Customer-facing routes** (like Juno's `/track/<code>`) are the ONLY exception
+- All admin/dashboard/management routes MUST use `@login_required`
+- Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
+
+When creating a new bot:
+1. Add `services/auth.py` (copy from any existing bot)
+2. Add `web/auth_routes.py` with `/login`, `/auth/callback`, `/logout`
+3. Apply `@login_required` to ALL web routes
+4. Add `allowed_domains` property to config.py (loads from organization.yaml)
+
 ### API Authentication (bot-to-bot)
 - Use `@api_key_required` decorator from `shared.auth.bot_api`
 - Bots call each other with `X-API-Key` header
@@ -350,7 +364,8 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 1. **Pick a human name** - All bots are named like team members (Fred, Iris, Chester, Skye, Doc, etc.). No generic names like "tracker" or "journey".
 2. Copy structure from similar bot (Skye is a good template)
 3. Add to Chester's config.yaml with next available port
-4. Create config.py loading shared patterns
-5. Set up auth following the `/auth/callback` pattern
-6. Create database with migrations
-7. Add `.env.example`
+4. Create config.py loading shared patterns (include `allowed_domains` from organization.yaml)
+5. **Set up OAuth** - REQUIRED! Copy `services/auth.py` and `web/auth_routes.py` from any existing bot
+6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
+7. Create database with migrations
+8. Add `.env.example`
