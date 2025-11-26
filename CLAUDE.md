@@ -107,9 +107,23 @@ These are already in `/bot-team/.env` and loaded automatically. Just add a comme
 
 ## Database Patterns
 
+**CRITICAL**: All bots MUST use the shared migration framework!
+
 - SQLite databases in `database/bot.db`
 - Use `shared.migrations.MigrationRunner` for schema management
 - Migrations in `migrations/001_name.py` with `up(conn)` and `down(conn)` functions
+- **Migrations run automatically on bot startup** - just restart the bot in prod to apply DB changes
+- Never manually modify database schema - always create a migration file
+
+Example migration file (`migrations/002_add_status_column.py`):
+```python
+def up(conn):
+    conn.execute("ALTER TABLE bots ADD COLUMN status TEXT DEFAULT 'unknown'")
+
+def down(conn):
+    # SQLite doesn't support DROP COLUMN easily, so often left empty
+    pass
+```
 
 ## Key Shared Modules
 
@@ -143,6 +157,8 @@ These are already in `/bot-team/.env` and loaded automatically. Just add a comme
 7. **Never hardcode ports** - Ports are ONLY defined in Chester's `config.yaml`. Use `shared/config/ports.py` or query Chester's API to get ports dynamically.
 
 8. **Gunicorn: 1 worker only** - In production, all bots run with a single Gunicorn worker (`--workers 1`). This avoids concurrency issues with SQLite and shared state. The bot team doesn't have enough traffic to need multiple workers.
+
+9. **Always use migrations** - Never create database tables manually or outside the migration framework. Use `shared.migrations.MigrationRunner`. Migrations run automatically on startup, so prod DB changes just need a bot restart.
 
 ## Testing
 
