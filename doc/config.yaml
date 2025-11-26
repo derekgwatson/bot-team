@@ -1,0 +1,31 @@
+name: Doc
+description: Bot Team Health Checker - Monitors bot health and runs test suites
+version: 1.0.0
+personality: Caring and thorough, like a team physician doing regular checkups
+
+server:
+  host: 0.0.0.0
+  port: 8023
+
+database:
+  path: database/doc.db
+
+# Chester sync settings
+chester:
+  dev_url: http://localhost:8008
+  prod_url: https://chester.watsonblinds.com.au
+
+# Health check settings
+checkup:
+  timeout: 5  # seconds - timeout for individual bot health checks
+  batch_size: 10  # max concurrent health checks
+
+# Test runner settings
+tests:
+  project_root: /home/user/bot-team
+  default_timeout: 300  # 5 minutes default test timeout
+  max_timeout: 600  # 10 minutes max
+
+# Dependencies - Doc is designed to be standalone
+# These are optional integrations that gracefully degrade
+dependencies: []

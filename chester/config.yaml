@@ -382,6 +382,25 @@ bot_team:
       track: /track
     personality: Warm and reassuring, keeps customers informed about their upcoming visit
 
+  doc:
+    name: Doc
+    port: 8023
+    description: Bot Team Health Checker
+    capabilities:
+      - Health checkups on all bots
+      - Run pytest test suites
+      - Track health metrics over time
+      - Sync bot registry from Chester
+      - Standalone operation (no dependencies)
+    api_endpoints:
+      info: /info
+      health: /health
+      checkup: /api/checkup
+      tests_run: /api/tests/run
+      vitals: /api/vitals
+      bots_sync: /api/bots/sync
+    personality: Caring and thorough, like a team physician doing regular checkups
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).

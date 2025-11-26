@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doc - Bot Team Health</title>
+    <style>
+        :root {
+            --healthy: #22c55e;
+            --unhealthy: #ef4444;
+            --warning: #f59e0b;
+            --unknown: #6b7280;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .stat.healthy { color: var(--healthy); }
+        .stat.unhealthy { color: var(--unhealthy); }
+        .stat.warning { color: var(--warning); }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .bot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .bot-card {
+            background: var(--card-bg);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--unknown);
+        }
+
+        .bot-card.healthy { border-left-color: var(--healthy); }
+        .bot-card.unhealthy { border-left-color: var(--unhealthy); }
+        .bot-card.unreachable { border-left-color: var(--unhealthy); }
+        .bot-card.timeout { border-left-color: var(--warning); }
+
+        .bot-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .bot-status {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .bot-response {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-dot.healthy { background: var(--healthy); }
+        .status-dot.unhealthy { background: var(--unhealthy); }
+        .status-dot.unreachable { background: var(--unhealthy); }
+        .status-dot.timeout { background: var(--warning); }
+        .status-dot.unknown { background: var(--unknown); }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .test-result {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .test-result.passed { background: #dcfce7; color: #166534; }
+        .test-result.failed { background: #fee2e2; color: #991b1b; }
+        .test-result.running { background: #dbeafe; color: #1e40af; }
+
+        .meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 1rem; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🩺 Doc</h1>
+            <p class="subtitle">Bot Team Health Dashboard</p>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="grid">
+            <div class="card">
+                <h2>Team Health</h2>
+                {% set healthy_count = statuses|selectattr('status', 'equalto', 'healthy')|list|length %}
+                {% set total_count = statuses|length %}
+                <div class="stat {% if healthy_count == total_count %}healthy{% elif healthy_count > 0 %}warning{% else %}unhealthy{% endif %}">
+                    {{ healthy_count }}/{{ total_count }}
+                </div>
+                <div class="stat-label">bots healthy</div>
+            </div>
+
+            <div class="card">
+                <h2>Uptime (24h)</h2>
+                {% if vitals and vitals.overall_uptime_percent is not none %}
+                <div class="stat {% if vitals.overall_uptime_percent >= 99 %}healthy{% elif vitals.overall_uptime_percent >= 90 %}warning{% else %}unhealthy{% endif %}">
+                    {{ vitals.overall_uptime_percent }}%
+                </div>
+                {% else %}
+                <div class="stat unknown">--</div>
+                {% endif %}
+                <div class="stat-label">average uptime</div>
+            </div>
+
+            <div class="card">
+                <h2>Latest Tests</h2>
+                {% if latest_test %}
+                <div class="test-result {{ latest_test.status }}">
+                    {{ latest_test.status|upper }}
+                    {% if latest_test.marker %} ({{ latest_test.marker }}){% endif %}
+                </div>
+                <div class="meta">
+                    {{ latest_test.passed }}/{{ latest_test.total_tests }} passed
+                    {% if latest_test.completed_at %}
+                    <br>{{ latest_test.completed_at[:16] }}
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="stat unknown">--</div>
+                <div class="stat-label">no tests run yet</div>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>Registry</h2>
+                <div class="stat">{{ sync_status.bot_count }}</div>
+                <div class="stat-label">bots registered</div>
+                {% if sync_status.last_sync %}
+                <div class="meta">Last sync: {{ sync_status.last_sync[:16] }}</div>
+                {% else %}
+                <div class="meta">Not synced yet</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <h2>Actions</h2>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="runCheckup()">Run Checkup</button>
+                <button class="btn btn-secondary" onclick="syncBots()">Sync Registry</button>
+                <button class="btn btn-secondary" onclick="runTests()">Run Tests</button>
+            </div>
+        </div>
+
+        <!-- Bot Status Grid -->
+        <div class="card">
+            <h2>Bot Status</h2>
+            {% if statuses %}
+            <div class="bot-grid">
+                {% for bot in statuses|sort(attribute='bot_name') %}
+                <div class="bot-card {{ bot.status }}">
+                    <div class="bot-name">
+                        <span class="status-dot {{ bot.status }}"></span>
+                        {{ bot.bot_name|title }}
+                    </div>
+                    <div class="bot-status">{{ bot.status }}</div>
+                    {% if bot.response_time_ms %}
+                    <div class="bot-response">{{ bot.response_time_ms }}ms</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No bots in registry yet.</p>
+                <p>Click "Sync Registry" to pull the bot list from Chester.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = ''; // Set if needed
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': API_KEY
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`/api${endpoint}`, options);
+            return response.json();
+        }
+
+        async function runCheckup() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+
+            try {
+                await apiCall('/checkup', 'POST');
+                location.reload();
+            } catch (e) {
+                alert('Checkup failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Checkup';
+            }
+        }
+
+        async function syncBots() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+
+            try {
+                const result = await apiCall('/bots/sync', 'POST');
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Sync failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sync Registry';
+            }
+        }
+
+        async function runTests() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+
+            try {
+                const result = await apiCall('/tests/run', 'POST');
+                if (result.success) {
+                    alert(`Tests ${result.status}: ${result.stats.passed}/${result.stats.total} passed`);
+                    location.reload();
+                } else {
+                    alert('Tests failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Test run failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Tests';
+            }
+        }
+    </script>
+</body>
+</html>
