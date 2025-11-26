@@ -16,7 +16,7 @@ class Config:
         self.base_dir = Path(__file__).parent
         config_file = self.base_dir / "config.yaml"
 
-        with open(config_file, "r") as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         # Bot info (from YAML)
