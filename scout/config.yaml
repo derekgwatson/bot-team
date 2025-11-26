@@ -10,6 +10,7 @@ dependencies:
   - peter   # Staff directory
   - fred    # Google Workspace manager
   - sadie   # Zendesk ticket creation
+  - nigel   # Quote price monitoring
 
 server:
   host: 0.0.0.0
@@ -54,6 +55,12 @@ checks:
     enabled: true
     priority: normal
     ticket_type: task
+
+  # Quote price discrepancies detected by Nigel
+  price_discrepancies:
+    enabled: true
+    priority: high
+    ticket_type: incident
 
 # Authentication configuration
 # Uses Chester's auth gateway for Google OAuth

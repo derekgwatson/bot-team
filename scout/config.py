@@ -64,6 +64,11 @@ class Config:
         self.fred_dev_url = fred_config.get("dev_url", "http://localhost:8012")
         self.fred_prod_url = fred_config.get("prod_url", "https://fred.watsonblinds.com.au")
 
+        # Nigel
+        nigel_config = bots_config.get("nigel", {}) or {}
+        self.nigel_dev_url = nigel_config.get("dev_url", "http://localhost:8020")
+        self.nigel_prod_url = nigel_config.get("prod_url", "https://nigel.watsonblinds.com.au")
+
         # ── Check configuration ─────────────────────────────────
         checks_config = data.get("checks", {}) or {}
 
@@ -72,6 +77,7 @@ class Config:
         self.check_incomplete_descriptions = checks_config.get("incomplete_descriptions", {})
         self.check_sync_health = checks_config.get("sync_health", {})
         self.check_user_sync = checks_config.get("user_sync", {})
+        self.check_price_discrepancies = checks_config.get("price_discrepancies", {})
 
         # ── Secrets / env-specific settings ────────────────────
 
@@ -131,6 +137,14 @@ class Config:
         if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
             return self.fred_dev_url
         return self.fred_prod_url
+
+    def get_nigel_url(self) -> str:
+        """Get Nigel URL based on environment"""
+        if os.environ.get("NIGEL_URL"):
+            return os.environ.get("NIGEL_URL")
+        if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+            return self.nigel_dev_url
+        return self.nigel_prod_url
 
 
 config = Config()
