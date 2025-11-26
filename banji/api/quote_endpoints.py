@@ -1,6 +1,6 @@
 """Quote-related API endpoints for Banji."""
 from flask import Blueprint, request, jsonify
-from services.auth import api_or_session_auth
+from shared.auth.bot_api import api_or_session_auth
 from services.browser import BrowserManager
 from services.quotes import LoginPage, QuotePage
 from config import config
