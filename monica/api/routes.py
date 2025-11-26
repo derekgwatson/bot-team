@@ -481,7 +481,7 @@ def create_registration_code():
         {
             "store_code": "FYSHWICK",
             "device_label": "Front Counter",
-            "expires_hours": 24  // optional, default 24
+            "expires_hours": 24  // optional, default null (never expires)
         }
 
     Response JSON:
@@ -504,7 +504,8 @@ def create_registration_code():
 
         store_code = data.get('store_code', '').strip()
         device_label = data.get('device_label', '').strip()
-        expires_hours = data.get('expires_hours', 24)
+        # Default to None (never expires) - can pass expires_hours for temporary codes
+        expires_hours = data.get('expires_hours', None)
 
         if not store_code:
             return jsonify({

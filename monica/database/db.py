@@ -545,7 +545,7 @@ class Database:
         store_code: str,
         device_label: str,
         code: Optional[str] = None,
-        expires_hours: int = 24
+        expires_hours: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Create a one-time registration code and a pending device
@@ -554,7 +554,7 @@ class Database:
             store_code: Store code for this device
             device_label: Device label for this device
             code: Optional custom code (auto-generated if None)
-            expires_hours: Hours until expiration (default 24)
+            expires_hours: Hours until expiration (None = never expires)
 
         Returns:
             Registration code dictionary with device_id
@@ -597,13 +597,21 @@ class Database:
                 )
                 device_id = cursor.lastrowid
 
-            # Create the registration code
-            cursor = conn.execute(
-                """INSERT INTO registration_codes
-                   (code, store_code, device_label, expires_at)
-                   VALUES (?, ?, ?, datetime('now', '+' || ? || ' hours'))""",
-                (code, store_code, device_label, expires_hours)
-            )
+            # Create the registration code (expires_at is NULL if no expiration)
+            if expires_hours is not None:
+                cursor = conn.execute(
+                    """INSERT INTO registration_codes
+                       (code, store_code, device_label, expires_at)
+                       VALUES (?, ?, ?, datetime('now', '+' || ? || ' hours'))""",
+                    (code, store_code, device_label, expires_hours)
+                )
+            else:
+                cursor = conn.execute(
+                    """INSERT INTO registration_codes
+                       (code, store_code, device_label, expires_at)
+                       VALUES (?, ?, ?, NULL)""",
+                    (code, store_code, device_label)
+                )
             conn.commit()
 
             # Fetch the created code
