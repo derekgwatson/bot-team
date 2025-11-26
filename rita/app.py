@@ -9,8 +9,6 @@ if str(ROOT_DIR) not in sys.path:
 from flask import Flask, jsonify
 from config import config
 from shared.auth import GatewayAuth
-from web.routes import web_bp
-from api.access import api_bp
 import os
 
 app = Flask(__name__)
@@ -27,6 +25,10 @@ auth_module.auth = auth
 auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from web.routes import web_bp
+from api.access import api_bp
 
 
 # Auth (Google OAuth + Flask-Login)

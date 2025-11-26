@@ -9,8 +9,6 @@ if str(ROOT_DIR) not in sys.path:
 from flask import Flask, jsonify
 from config import config
 from shared.auth import GatewayAuth
-from api.routes import api_bp
-from web.simple_routes import simple_web_bp
 import os
 
 app = Flask(__name__)
@@ -19,6 +17,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Initialize authentication via Chester's gateway
+# MUST happen before importing blueprints that use @login_required
 auth = GatewayAuth(app, config)
 
 # Store auth instance in services.auth for backward compatibility with routes
@@ -27,6 +26,10 @@ auth_module.auth = auth
 auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from api.routes import api_bp
+from web.simple_routes import simple_web_bp
 
 
 # Note: Sync scheduling is now handled by Skye's scheduler service

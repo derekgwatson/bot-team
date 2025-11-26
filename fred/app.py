@@ -10,9 +10,6 @@ import os
 from flask import Flask, jsonify
 from config import config
 from shared.auth import GatewayAuth
-from api.users import api_bp
-from api.operations import operations_bp
-from web.routes import web_bp
 
 app = Flask(__name__)
 
@@ -28,6 +25,11 @@ auth_module.auth = auth
 auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from api.users import api_bp
+from api.operations import operations_bp
+from web.routes import web_bp
 
 
 

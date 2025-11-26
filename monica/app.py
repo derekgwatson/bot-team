@@ -16,11 +16,8 @@ import logging
 from flask import Flask, jsonify
 
 from monica.config import config
-from monica.api.routes import api_bp
-from monica.web.routes import web_bp
-from monica.web.auth_routes import auth_bp
 from monica.database.db import db
-from monica.services.auth import init_auth
+from shared.auth import GatewayAuth
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -40,16 +37,19 @@ app = Flask(__name__)
 app.secret_key = config.secret_key
 
 # Initialize authentication via Chester's gateway
+# MUST happen before importing blueprints that use @login_required
 auth = GatewayAuth(app, config)
 
-# Store auth instance in services.auth for backward compatibility with routes
-import services.auth as auth_module
+# Store auth instance in monica.services.auth for backward compatibility with routes
+import monica.services.auth as auth_module
 auth_module.auth = auth
 auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
 
-
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from monica.api.routes import api_bp
+from monica.web.routes import web_bp
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')

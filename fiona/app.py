@@ -10,8 +10,6 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
-from api.routes import api_bp
-from web.routes import web_bp
 from services.mavis_service import mavis_service
 from database.db import db
 import os
@@ -42,6 +40,10 @@ auth_module.auth = auth
 auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from api.routes import api_bp
+from web.routes import web_bp
 
 
 

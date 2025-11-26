@@ -12,9 +12,6 @@ import atexit
 from flask import Flask, jsonify
 from config import config
 from shared.auth import GatewayAuth
-from api.quote_endpoints import quotes_bp
-from api.session_endpoints import sessions_bp
-from web.routes import web_bp
 from services.session_manager import init_session_manager, get_session_manager
 
 # Create Flask app with template folder
@@ -27,6 +24,7 @@ app = Flask(
 app.secret_key = config.secret_key
 
 # Initialize authentication via Chester's gateway
+# MUST happen before importing blueprints that use @login_required
 auth = GatewayAuth(app, config)
 
 # Store auth instance in services.auth for backward compatibility with routes
@@ -36,7 +34,10 @@ auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
 
-
+# Import blueprints AFTER auth is initialized (they use @login_required decorator)
+from api.quote_endpoints import quotes_bp
+from api.session_endpoints import sessions_bp
+from web.routes import web_bp
 
 # Initialize session manager
 session_manager = init_session_manager(config, session_timeout_minutes=30)
