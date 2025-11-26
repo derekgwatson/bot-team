@@ -10,16 +10,19 @@ logger = logging.getLogger(__name__)
 class BrowserManager:
     """Manages Playwright browser lifecycle with storage state authentication."""
 
-    def __init__(self, config, org_config=None):
+    def __init__(self, config, org_config=None, headless=None):
         """
         Initialize browser manager.
 
         Args:
             config: Banji config object with browser settings
             org_config: Optional org-specific config with storage_state_path
+            headless: Override headless setting (None uses config default)
         """
         self.config = config
         self.org_config = org_config
+        # Allow per-request override of headless mode
+        self.headless = headless if headless is not None else config.browser_headless
         self.playwright = None
         self.browser = None
         self.context = None
@@ -27,11 +30,11 @@ class BrowserManager:
 
     def start(self):
         """Start browser and create new page with storage state if provided."""
-        logger.info(f"Starting browser (headless={self.config.browser_headless})")
+        logger.info(f"Starting browser (headless={self.headless})")
 
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(
-            headless=self.config.browser_headless
+            headless=self.headless
         )
 
         # Create context with storage state if provided (for authentication)
@@ -118,6 +121,14 @@ class BrowserManager:
         # Take screenshot on exception if configured
         if exc_type and self.config.browser_screenshot_on_failure:
             self.screenshot("error")
+
+        # In headed mode, pause for debugging before closing
+        if not self.headless and self.page:
+            logger.info("Headed mode: pausing for inspection. Press 'Resume' in Playwright Inspector to continue.")
+            try:
+                self.page.pause()
+            except Exception as e:
+                logger.warning(f"Could not pause: {e}")
 
         self.close()
         return False  # Don't suppress exceptions

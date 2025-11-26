@@ -10,10 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Show loading overlay
-function showLoadingOverlay(message) {
+function showLoadingOverlay(message, submessage = 'Please wait...') {
   const overlay = document.getElementById('loading-overlay');
   const messageEl = document.getElementById('loading-message');
+  const submessageEl = document.getElementById('loading-submessage');
   messageEl.textContent = message;
+  submessageEl.textContent = submessage;
   overlay.classList.add('active');
 }
 
@@ -21,6 +23,8 @@ function showLoadingOverlay(message) {
 function hideLoadingOverlay() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.remove('active');
+  // Reset submessage to default
+  document.getElementById('loading-submessage').textContent = 'Please wait...';
 }
 
 // Load current state from background worker
@@ -71,11 +75,39 @@ function updateUI() {
   const cancelButton = document.getElementById('cancel-config');
   const saveButton = document.getElementById('save-config');
 
+  // Device deleted from server - show config form with error message
+  const deviceDeleted = currentState.configured && !currentState.registered && currentState.lastError;
+
   if (currentState.configured && currentState.registered) {
     // Show status
     configSection.style.display = 'none';
     statusSection.style.display = 'block';
     updateStatusDisplay();
+  } else if (deviceDeleted) {
+    // Device was deleted - show config form with error
+    configSection.style.display = 'block';
+    statusSection.style.display = 'none';
+
+    // Show the error message in the config section
+    document.getElementById('config-error').innerHTML =
+      `<div class="error-message">${currentState.lastError}</div>`;
+
+    // Pre-fill the server URL since we kept it
+    if (currentState.monicaUrl) {
+      document.getElementById('monica-url').value = currentState.monicaUrl;
+    }
+
+    // Clear registration code field
+    document.getElementById('registration-code').value = '';
+
+    // Hide cancel button since there's no valid config to go back to
+    cancelButton.style.display = 'none';
+    saveButton.textContent = 'Save & Start Monitoring';
+
+    // Auto-focus registration code since URL is pre-filled
+    setTimeout(() => {
+      document.getElementById('registration-code').focus();
+    }, 100);
   } else {
     // Show configuration
     configSection.style.display = 'block';
@@ -106,7 +138,8 @@ function updateUI() {
 
 // Restore temporary form values from storage
 async function restoreTemporaryFormValues() {
-  const { temp_monica_url, temp_registration_code } = await chrome.storage.local.get(['temp_monica_url', 'temp_registration_code']);
+  const { temp_monica_url, temp_registration_code, temp_awaiting_permission } =
+    await chrome.storage.local.get(['temp_monica_url', 'temp_registration_code', 'temp_awaiting_permission']);
 
   if (temp_monica_url) {
     document.getElementById('monica-url').value = temp_monica_url;
@@ -114,11 +147,44 @@ async function restoreTemporaryFormValues() {
   if (temp_registration_code) {
     document.getElementById('registration-code').value = temp_registration_code;
   }
+
+  // If we were waiting for permission and it's now granted, auto-continue
+  if (temp_awaiting_permission && temp_monica_url) {
+    try {
+      // Normalize URL (add http:// if missing) - same logic as saveConfiguration
+      let normalizedUrl = temp_monica_url;
+      if (!normalizedUrl.match(/^https?:\/\//i)) {
+        normalizedUrl = 'http://' + normalizedUrl;
+      }
+
+      const urlObj = new URL(normalizedUrl);
+      const origin = `${urlObj.protocol}//${urlObj.host}/*`;
+
+      // Check permission using callback pattern for compatibility
+      const hasPermission = await new Promise(resolve => {
+        chrome.permissions.contains({ origins: [origin] }, resolve);
+      });
+
+      if (hasPermission) {
+        // Clear the flag
+        await chrome.storage.local.remove(['temp_awaiting_permission']);
+        console.log('[Monica Popup] Permission was granted, auto-continuing...');
+
+        // Wake up the service worker and wait for it to be ready
+        chrome.runtime.sendMessage({ action: 'getState' }, () => {
+          // Service worker is now awake, give it a moment to initialize
+          setTimeout(() => saveConfiguration(), 500);
+        });
+      }
+    } catch (e) {
+      console.log('[Monica Popup] Error checking permission:', e);
+    }
+  }
 }
 
 // Clear temporary form values from storage
 function clearTemporaryFormValues() {
-  chrome.storage.local.remove(['temp_monica_url', 'temp_registration_code']);
+  chrome.storage.local.remove(['temp_monica_url', 'temp_registration_code', 'temp_awaiting_permission']);
 }
 
 // Update status display
@@ -141,9 +207,16 @@ function updateStatusDisplay() {
       indicatorClass = 'green';
     }
   } else if (currentState.configured) {
-    statusClass = 'disconnected';
-    statusText = 'Registering...';
-    indicatorClass = 'blue';
+    // Check if there's an error (e.g., device was deleted from server)
+    if (currentState.lastError) {
+      statusClass = 'disconnected';
+      statusText = currentState.lastError;
+      indicatorClass = 'red';
+    } else {
+      statusClass = 'disconnected';
+      statusText = 'Registering...';
+      indicatorClass = 'blue';
+    }
   }
 
   statusIndicator.innerHTML = `
@@ -179,7 +252,7 @@ function updateStatusDisplay() {
 
 // Save configuration
 async function saveConfiguration() {
-  const monicaUrl = document.getElementById('monica-url').value.trim();
+  let monicaUrl = document.getElementById('monica-url').value.trim();
   const registrationCode = document.getElementById('registration-code').value.trim().toUpperCase();
 
   const errorDiv = document.getElementById('config-error');
@@ -189,6 +262,11 @@ async function saveConfiguration() {
   if (!monicaUrl || !registrationCode) {
     errorDiv.innerHTML = '<div class="error-message">All fields are required</div>';
     return;
+  }
+
+  // Add http:// if no protocol specified
+  if (!monicaUrl.match(/^https?:\/\//i)) {
+    monicaUrl = 'http://' + monicaUrl;
   }
 
   // Validate URL format
@@ -206,32 +284,114 @@ async function saveConfiguration() {
   const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
 
   saveButton.disabled = true;
-  saveButton.textContent = 'Requesting permission...';
-  showLoadingOverlay('Requesting permission...');
+  showLoadingOverlay('Checking permission...');
 
   // Request permission for the specific origin
   const origin = `${urlObj.protocol}//${urlObj.host}/*`;
 
-  chrome.permissions.request({
-    origins: [origin]
-  }, (granted) => {
-    if (!granted) {
-      hideLoadingOverlay();
-      errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
-      saveButton.disabled = false;
-      saveButton.textContent = defaultButtonText;
-      return;
-    }
+  // Check if permission already exists (wrap in Promise for compatibility)
+  const hasPermission = await new Promise(resolve => {
+    chrome.permissions.contains({ origins: [origin] }, resolve);
+  });
 
-    // Permission granted, now test connection
-    saveButton.textContent = 'Testing connection...';
-    showLoadingOverlay('Testing connection...');
+  if (hasPermission) {
+    // Permission already granted, skip straight to connection test
+    console.log('[Monica Popup] Permission already granted, skipping request');
+    await chrome.storage.local.remove(['temp_awaiting_permission']);
+    proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+    return;
+  }
 
-    chrome.runtime.sendMessage({
-      action: 'testConnection',
-      monicaUrl: monicaUrl
-    }, (response) => {
+  // Need to request permission - show message with button for user to acknowledge
+  hideLoadingOverlay();
+  saveButton.style.display = 'none';
+
+  errorDiv.innerHTML = `
+    <div style="background: #dbeafe; color: #1e40af; padding: 12px; border-radius: 6px; margin-top: 12px;">
+      <p style="margin: 0 0 8px 0; font-weight: 600;">Permission Required</p>
+      <p style="margin: 0 0 12px 0; font-size: 0.85em;">
+        A permission dialog will appear. Click <strong>Allow</strong>, then <strong>reopen this extension</strong> to finish setup.
+      </p>
+      <button id="request-permission-btn" class="button" style="margin: 0;">
+        I understand, request permission
+      </button>
+    </div>
+  `;
+
+  // Add click handler for the permission button
+  document.getElementById('request-permission-btn').addEventListener('click', async () => {
+    // Set flag before requesting permission (popup may close during permission dialog)
+    await chrome.storage.local.set({ temp_awaiting_permission: true });
+
+    chrome.permissions.request({
+      origins: [origin]
+    }, async (granted) => {
+      // Clear the awaiting flag since we're continuing in this session
+      await chrome.storage.local.remove(['temp_awaiting_permission']);
+      if (!granted) {
+        errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
+        saveButton.style.display = 'block';
+        saveButton.disabled = false;
+        saveButton.textContent = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
+        return;
+      }
+
+      // Permission granted, proceed with configuration
+      errorDiv.innerHTML = '';
+      saveButton.style.display = 'block';
+      proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+    });
+  });
+}
+
+// Try alternate protocol (http <-> https) for a URL
+function getAlternateProtocolUrl(url) {
+  if (url.startsWith('https://')) {
+    return url.replace('https://', 'http://');
+  } else if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return null;
+}
+
+// Proceed with connection test and registration after permission is confirmed
+function proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig) {
+  const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
+
+  // Test connection
+  saveButton.textContent = 'Testing connection...';
+  showLoadingOverlay('Testing connection...');
+
+  chrome.runtime.sendMessage({
+    action: 'testConnection',
+    monicaUrl: monicaUrl
+  }, (response) => {
     if (!response.success) {
+      // Try alternate protocol before giving up
+      const alternateUrl = getAlternateProtocolUrl(monicaUrl);
+      if (alternateUrl) {
+        console.log(`[Monica Popup] Connection failed, trying alternate protocol: ${alternateUrl}`);
+        showLoadingOverlay('Trying alternate protocol...');
+
+        chrome.runtime.sendMessage({
+          action: 'testConnection',
+          monicaUrl: alternateUrl
+        }, (altResponse) => {
+          if (altResponse.success) {
+            // Alternate protocol worked, use it instead
+            console.log(`[Monica Popup] Alternate protocol succeeded`);
+            continueWithRegistration(alternateUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText);
+          } else {
+            // Both protocols failed
+            hideLoadingOverlay();
+            errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
+            saveButton.disabled = false;
+            saveButton.textContent = defaultButtonText;
+          }
+        });
+        return;
+      }
+
       hideLoadingOverlay();
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
       saveButton.disabled = false;
@@ -239,15 +399,21 @@ async function saveConfiguration() {
       return;
     }
 
-    // Connection successful, save configuration
-    saveButton.textContent = hasExistingConfig ? 'Updating...' : 'Registering...';
-    showLoadingOverlay(hasExistingConfig ? 'Updating configuration...' : 'Registering device...');
+    // Connection successful with original URL
+    continueWithRegistration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText);
+  });
+}
 
-    chrome.runtime.sendMessage({
-      action: 'configure',
-      monicaUrl: monicaUrl,
-      registrationCode: registrationCode
-    }, (response) => {
+// Continue with registration after connection test succeeds
+function continueWithRegistration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText) {
+  saveButton.textContent = hasExistingConfig ? 'Updating...' : 'Registering...';
+  showLoadingOverlay(hasExistingConfig ? 'Updating configuration...' : 'Registering device...');
+
+  chrome.runtime.sendMessage({
+    action: 'configure',
+    monicaUrl: monicaUrl,
+    registrationCode: registrationCode
+  }, (response) => {
       hideLoadingOverlay();
       if (response.success) {
         isReconfiguring = false; // Reset flag so UI can update
@@ -261,8 +427,6 @@ async function saveConfiguration() {
         saveButton.disabled = false;
         saveButton.textContent = defaultButtonText;
       }
-    });
-    });
   });
 }
 

@@ -232,6 +232,282 @@
             font-size: 13px;
             color: #d63384;
         }
+
+        /* Price Check Tools */
+        .tools-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .tools-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: #dee2e6;
+        }
+
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group small {
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .submit-btn:hover {
+            background: #5a6fd6;
+            transform: translateY(-1px);
+        }
+
+        .submit-btn:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .submit-btn.loading .spinner {
+            display: block;
+        }
+
+        .submit-btn.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results.visible {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .results-header h4 {
+            color: #333;
+            font-size: 16px;
+        }
+
+        .results-summary {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .results-content {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-item.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .result-item.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .result-quote-id {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .result-prices {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .result-price {
+            color: #555;
+        }
+
+        .result-price span {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .result-change {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .result-change.up {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .result-change.down {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .result-change.none {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        .result-error {
+            color: #dc3545;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .checkbox-group small {
+            color: #888;
+            font-size: 12px;
+            margin-left: 4px;
+        }
     </style>
 </head>
 <body>
@@ -326,6 +602,228 @@
                 </div>
             </div>
         </div>
+
+        {% if is_fully_configured %}
+        <div class="tools-section">
+            <h3>Price Check Tools</h3>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="single">Single Quote</button>
+                <button class="tab-btn" data-tab="batch">Batch Quotes</button>
+            </div>
+
+            <!-- Single Quote Tab -->
+            <div id="single-tab" class="tab-content active">
+                <form id="single-form">
+                    <div class="form-group">
+                        <label for="single-org">Organization</label>
+                        <select id="single-org" name="org" required>
+                            {% for org in available_orgs %}
+                            <option value="{{ org }}">{{ org }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="single-quote">Quote ID</label>
+                        <input type="text" id="single-quote" name="quote_id" placeholder="e.g., 12345" required>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="single-headed" name="headed">
+                        <label for="single-headed">Show browser</label>
+                        <small>(for debugging)</small>
+                    </div>
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Refresh Pricing</span>
+                        <span class="spinner"></span>
+                    </button>
+                </form>
+                <div id="single-results" class="results"></div>
+            </div>
+
+            <!-- Batch Quotes Tab -->
+            <div id="batch-tab" class="tab-content">
+                <form id="batch-form">
+                    <div class="form-group">
+                        <label for="batch-org">Organization</label>
+                        <select id="batch-org" name="org" required>
+                            {% for org in available_orgs %}
+                            <option value="{{ org }}">{{ org }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batch-quotes">Quote IDs</label>
+                        <textarea id="batch-quotes" name="quote_ids" placeholder="Enter one quote ID per line, e.g.:&#10;12345&#10;12346&#10;12347" required></textarea>
+                        <small>Enter one quote ID per line</small>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="batch-headed" name="headed">
+                        <label for="batch-headed">Show browser</label>
+                        <small>(for debugging)</small>
+                    </div>
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Refresh All Pricing</span>
+                        <span class="spinner"></span>
+                    </button>
+                </form>
+                <div id="batch-results" class="results"></div>
+            </div>
+        </div>
+        {% endif %}
     </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+            });
+        });
+
+        // Format currency
+        function formatCurrency(amount) {
+            return '$' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        // Render a single result item
+        function renderResultItem(result) {
+            if (result.success) {
+                const changeClass = result.change_amount > 0 ? 'up' : result.change_amount < 0 ? 'down' : 'none';
+                const changeText = result.price_changed
+                    ? (result.change_amount > 0 ? '+' : '') + formatCurrency(result.change_amount) + ' (' + result.change_percent.toFixed(1) + '%)'
+                    : 'No change';
+                return `
+                    <div class="result-item success">
+                        <div class="result-quote-id">Quote ${result.quote_id}</div>
+                        <div class="result-prices">
+                            <div class="result-price">Before: <span>${formatCurrency(result.price_before)}</span></div>
+                            <div class="result-price">After: <span>${formatCurrency(result.price_after)}</span></div>
+                            <div class="result-change ${changeClass}">${changeText}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="result-item error">
+                        <div class="result-quote-id">Quote ${result.quote_id}</div>
+                        <div class="result-error">${result.error}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Single quote form
+        document.getElementById('single-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('.submit-btn');
+            const resultsDiv = document.getElementById('single-results');
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            resultsDiv.classList.remove('visible');
+
+            try {
+                const response = await fetch('/api/quotes/refresh-pricing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        org: form.org.value,
+                        quote_id: form.quote_id.value.trim(),
+                        headed: form.headed.checked
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="results-header">
+                            <h4>Result</h4>
+                        </div>
+                        <div class="results-content">
+                            ${renderResultItem(data)}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error-message">${data.error}</div>
+                    `;
+                }
+                resultsDiv.classList.add('visible');
+
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class="error-message">Request failed: ${err.message}</div>`;
+                resultsDiv.classList.add('visible');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
+        // Batch quotes form
+        document.getElementById('batch-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('.submit-btn');
+            const resultsDiv = document.getElementById('batch-results');
+
+            const quoteIds = form.quote_ids.value
+                .split('\n')
+                .map(id => id.trim())
+                .filter(id => id.length > 0);
+
+            if (quoteIds.length === 0) {
+                alert('Please enter at least one quote ID');
+                return;
+            }
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            resultsDiv.classList.remove('visible');
+
+            try {
+                const response = await fetch('/api/quotes/batch-refresh-pricing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        org: form.org.value,
+                        quote_ids: quoteIds,
+                        headed: form.headed.checked
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const resultsHtml = data.results.map(renderResultItem).join('');
+                    resultsDiv.innerHTML = `
+                        <div class="results-header">
+                            <h4>Results</h4>
+                            <span class="results-summary">${data.successful} of ${data.total_quotes} successful</span>
+                        </div>
+                        <div class="results-content">
+                            ${resultsHtml}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error-message">${data.error}</div>
+                    `;
+                }
+                resultsDiv.classList.add('visible');
+
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class="error-message">Request failed: ${err.message}</div>`;
+                resultsDiv.classList.add('visible');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>

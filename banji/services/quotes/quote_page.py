@@ -206,11 +206,14 @@ class QuotePage:
 
                     # Look for common error indicators
                     # Buz typically shows errors in .alert or .error-message divs
+                    # Note: Avoid broad selectors like [class*="error"] which match
+                    # styling classes like "text-error" on buttons
                     error_selectors = [
                         '.alert-danger',
+                        '.alert-error',
                         '.error-message',
-                        '[class*="error"]',
-                        '.alert.alert-error'
+                        '.validation-error',
+                        '.dx-invalid-message',  # DevExpress validation message
                     ]
 
                     for selector in error_selectors:
@@ -322,3 +325,73 @@ class QuotePage:
 
         logger.info(f"Price refresh complete: {result}")
         return result
+
+    def refresh_pricing_batch(self, quote_ids: list) -> dict:
+        """
+        Refresh pricing for multiple quotes in a single browser session.
+
+        This is more efficient than calling refresh_pricing multiple times
+        because the browser stays open between quotes.
+
+        Args:
+            quote_ids: List of quote numbers (e.g., ['12345', '12346', '12347'])
+
+        Returns:
+            dict with summary and individual results:
+            {
+                'total_quotes': 3,
+                'successful': 2,
+                'failed': 1,
+                'results': [
+                    {
+                        'quote_id': '12345',
+                        'success': True,
+                        'price_before': 1000.00,
+                        'price_after': 1200.00,
+                        'price_changed': True,
+                        'change_amount': 200.00,
+                        'change_percent': 20.0
+                    },
+                    {
+                        'quote_id': '12346',
+                        'success': False,
+                        'error': 'Could not navigate to quote 12346 - timeout'
+                    },
+                    ...
+                ]
+            }
+        """
+        logger.info(f"Starting batch price refresh for {len(quote_ids)} quotes")
+
+        results = []
+        successful = 0
+        failed = 0
+
+        for i, quote_id in enumerate(quote_ids):
+            logger.info(f"Processing quote {i + 1}/{len(quote_ids)}: {quote_id}")
+
+            try:
+                result = self.refresh_pricing(quote_id)
+                result['success'] = True
+                results.append(result)
+                successful += 1
+                logger.info(f"Quote {quote_id} processed successfully")
+
+            except Exception as e:
+                logger.error(f"Failed to process quote {quote_id}: {e}")
+                results.append({
+                    'quote_id': quote_id,
+                    'success': False,
+                    'error': str(e)
+                })
+                failed += 1
+
+        summary = {
+            'total_quotes': len(quote_ids),
+            'successful': successful,
+            'failed': failed,
+            'results': results
+        }
+
+        logger.info(f"Batch refresh complete: {successful}/{len(quote_ids)} successful")
+        return summary
