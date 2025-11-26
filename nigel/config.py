@@ -37,8 +37,13 @@ class Config:
             db_path = self.base_dir / db_path
         self.db_path = str(db_path)
 
-        # Authentication config
+        # Authentication config - merge env var with YAML config
         self.auth = data.get("auth", {}) or {}
+
+        # ADMIN_EMAILS from .env takes precedence over config.yaml
+        env_emails = os.environ.get('ADMIN_EMAILS', '')
+        if env_emails:
+            self.auth['admin_emails'] = [e.strip() for e in env_emails.split(',') if e.strip()]
 
         # Bots registry (from YAML)
         self.bots = data.get("bots", {}) or {}
