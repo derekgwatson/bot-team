@@ -11,6 +11,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from api.routes import api_bp
 from web.routes import web_bp
+from web.auth_routes import auth_bp
+from services.auth import init_auth
 from database.db import db
 from services.checkup import checkup_service
 from services.sync import sync_service
@@ -32,7 +34,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Configure Flask
 app.secret_key = config.flask_secret_key
 
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 

@@ -5,11 +5,13 @@ from database.db import db
 from services.checkup import checkup_service
 from services.sync import sync_service
 from services.test_runner import test_runner
+from services.auth import admin_required
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 
 @web_bp.route('/')
+@admin_required
 def dashboard():
     """Main dashboard showing team health"""
     # Get bot statuses
