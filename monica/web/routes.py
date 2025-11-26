@@ -158,30 +158,28 @@ def help_page():
         <p class="subtitle">{{ config.description }}</p>
 
         <div class="section device">
-            <h2>📡 For Staff Devices: Install Monitoring Agent</h2>
-            <p>Monitor your stores using the Monica Chrome extension. Secure registration with one-time codes.</p>
+            <h2>📡 Setting Up a Device</h2>
+            <p>Monitor your devices using the Monica Chrome extension.</p>
 
             <div class="instructions">
-                <h3>Step 1: Generate Registration Code</h3>
+                <h3>Step 1: Add Device on Dashboard</h3>
                 <p><strong>1.</strong> Go to the <a href="/" style="color: #667eea; text-decoration: underline;">Dashboard</a></p>
-                <p><strong>2.</strong> Click "Generate Registration Code" button</p>
-                <p><strong>3.</strong> Enter store code and device name</p>
-                <p><strong>4.</strong> Copy the generated code (valid for 24 hours)</p>
+                <p><strong>2.</strong> Click "Add Device"</p>
+                <p><strong>3.</strong> Enter store code (e.g. FYSHWICK) and device name (e.g. Front Counter)</p>
+                <p><strong>4.</strong> The device appears on the dashboard with a registration code</p>
             </div>
 
             <div class="instructions" style="margin-top: 16px;">
-                <h3>Step 2: Install Chrome Extension</h3>
+                <h3>Step 2: Set Up Chrome Extension</h3>
                 <p><strong>1.</strong> Install Monica Store Monitor from Chrome Web Store</p>
                 <p><strong>2.</strong> Click the extension icon in your browser toolbar</p>
-                <p><strong>3.</strong> Enter the configuration:</p>
+                <p><strong>3.</strong> Enter:</p>
                 <p>&nbsp;&nbsp;&nbsp;• Monica URL: <code>{{ request.url_root }}</code></p>
-                <p>&nbsp;&nbsp;&nbsp;• Registration Code: <code>(from Step 1)</code></p>
-                <p>&nbsp;&nbsp;&nbsp;• Store Code: <code>FYSHWICK</code></p>
-                <p>&nbsp;&nbsp;&nbsp;• Device Name: <code>Front Counter</code></p>
+                <p>&nbsp;&nbsp;&nbsp;• Registration Code: <code>(copy from device card)</code></p>
                 <p><strong>4.</strong> Click "Save & Start Monitoring"</p>
                 <p><strong>5.</strong> Grant permission when prompted</p>
-                <p style="margin-top: 12px; color: #059669;"><strong>✓ Runs in background even when tabs are closed</strong></p>
-                <p style="color: #059669;"><strong>✓ Secure one-time codes prevent unauthorized access</strong></p>
+                <p style="margin-top: 12px; color: #059669;"><strong>✓ Device will show as Online on the dashboard</strong></p>
+                <p style="color: #059669;"><strong>✓ Runs in background even when tabs are closed</strong></p>
                 <p style="color: #059669;"><strong>✓ Automatic heartbeats every 60 seconds</strong></p>
             </div>
         </div>
