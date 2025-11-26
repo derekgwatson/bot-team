@@ -151,9 +151,19 @@ async function restoreTemporaryFormValues() {
   // If we were waiting for permission and it's now granted, auto-continue
   if (temp_awaiting_permission && temp_monica_url) {
     try {
-      const urlObj = new URL(temp_monica_url);
+      // Normalize URL (add http:// if missing) - same logic as saveConfiguration
+      let normalizedUrl = temp_monica_url;
+      if (!normalizedUrl.match(/^https?:\/\//i)) {
+        normalizedUrl = 'http://' + normalizedUrl;
+      }
+
+      const urlObj = new URL(normalizedUrl);
       const origin = `${urlObj.protocol}//${urlObj.host}/*`;
-      const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+
+      // Check permission using callback pattern for compatibility
+      const hasPermission = await new Promise(resolve => {
+        chrome.permissions.contains({ origins: [origin] }, resolve);
+      });
 
       if (hasPermission) {
         // Clear the flag
@@ -161,10 +171,8 @@ async function restoreTemporaryFormValues() {
         console.log('[Monica Popup] Permission was granted, auto-continuing...');
 
         // Wake up the service worker and wait for it to be ready
-        // by sending a getState message first
         chrome.runtime.sendMessage({ action: 'getState' }, () => {
           // Service worker is now awake, give it a moment to initialize
-          // then auto-continue with registration
           setTimeout(() => saveConfiguration(), 500);
         });
       }
@@ -294,34 +302,45 @@ async function saveConfiguration() {
     return;
   }
 
-  // Need to request permission - show instructions first with delay so user can read
-  saveButton.textContent = 'Requesting permission...';
-  showLoadingOverlay(
-    'Permission Required',
-    'A dialog will appear. Click "Allow", then REOPEN this extension to finish setup.'
-  );
+  // Need to request permission - show message with button for user to acknowledge
+  hideLoadingOverlay();
+  saveButton.style.display = 'none';
 
-  // Set flag before requesting permission (popup may close during permission dialog)
-  await chrome.storage.local.set({ temp_awaiting_permission: true });
+  errorDiv.innerHTML = `
+    <div style="background: #dbeafe; color: #1e40af; padding: 12px; border-radius: 6px; margin-top: 12px;">
+      <p style="margin: 0 0 8px 0; font-weight: 600;">Permission Required</p>
+      <p style="margin: 0 0 12px 0; font-size: 0.85em;">
+        A permission dialog will appear. Click <strong>Allow</strong>, then <strong>reopen this extension</strong> to finish setup.
+      </p>
+      <button id="request-permission-btn" class="button" style="margin: 0;">
+        I understand, request permission
+      </button>
+    </div>
+  `;
 
-  // Wait 2 seconds so user can read the instruction before dialog appears
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Add click handler for the permission button
+  document.getElementById('request-permission-btn').addEventListener('click', async () => {
+    // Set flag before requesting permission (popup may close during permission dialog)
+    await chrome.storage.local.set({ temp_awaiting_permission: true });
 
-  chrome.permissions.request({
-    origins: [origin]
-  }, async (granted) => {
-    // Clear the awaiting flag since we're continuing in this session
-    await chrome.storage.local.remove(['temp_awaiting_permission']);
-    if (!granted) {
-      hideLoadingOverlay();
-      errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
-      saveButton.disabled = false;
-      saveButton.textContent = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
-      return;
-    }
+    chrome.permissions.request({
+      origins: [origin]
+    }, async (granted) => {
+      // Clear the awaiting flag since we're continuing in this session
+      await chrome.storage.local.remove(['temp_awaiting_permission']);
+      if (!granted) {
+        errorDiv.innerHTML = '<div class="error-message">Permission denied. Extension needs access to your Monica server to work.</div>';
+        saveButton.style.display = 'block';
+        saveButton.disabled = false;
+        saveButton.textContent = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
+        return;
+      }
 
-    // Permission granted, proceed with configuration
-    proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+      // Permission granted, proceed with configuration
+      errorDiv.innerHTML = '';
+      saveButton.style.display = 'block';
+      proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig);
+    });
   });
 }
 
