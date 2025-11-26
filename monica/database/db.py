@@ -303,7 +303,8 @@ class Database:
 
     def delete_device(self, device_id: int) -> bool:
         """
-        Delete a device and all its associated heartbeats
+        Delete a device and all its associated heartbeats.
+        If it's a pending device, also deletes the associated registration code.
 
         Args:
             device_id: Device ID to delete
@@ -313,6 +314,22 @@ class Database:
         """
         conn = self.get_connection()
         try:
+            # First check if this is a pending device with a registration code
+            cursor = conn.execute(
+                "SELECT agent_token FROM devices WHERE id = ?",
+                (device_id,)
+            )
+            row = cursor.fetchone()
+            if row and row['agent_token'] and row['agent_token'].startswith('PENDING_'):
+                # Extract and delete the registration code
+                reg_code = row['agent_token'][8:]  # Remove 'PENDING_' prefix
+                conn.execute(
+                    "DELETE FROM registration_codes WHERE code = ?",
+                    (reg_code,)
+                )
+                logger.info(f"Deleted registration code {reg_code} for pending device {device_id}")
+
+            # Delete the device
             cursor = conn.execute(
                 "DELETE FROM devices WHERE id = ?",
                 (device_id,)

@@ -638,39 +638,6 @@ def dashboard():
         .btn-secondary:hover {
             background: #d1d5db;
         }
-        .code-display {
-            background: #f3f4f6;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .code-value {
-            font-size: 2em;
-            font-weight: 700;
-            color: #667eea;
-            font-family: monospace;
-            letter-spacing: 2px;
-        }
-        .code-info {
-            margin-top: 12px;
-            color: #6b7280;
-            font-size: 0.9em;
-        }
-        .copy-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 12px;
-            transition: all 0.2s;
-        }
-        .copy-btn:hover {
-            background: #059669;
-        }
     </style>
     <script>
         // Auto-refresh every {{ config.auto_refresh }} seconds
@@ -825,11 +792,10 @@ def dashboard():
                 const data = await response.json();
 
                 if (data.success) {
-                    // Show the generated code
+                    // Show success message
                     codeWasGenerated = true; // Mark that we generated a code
                     document.getElementById('modal-form').style.display = 'none';
                     document.getElementById('modal-result').style.display = 'block';
-                    document.getElementById('generated-code').textContent = data.code;
                     document.getElementById('code-store').textContent = data.store_code;
                     document.getElementById('code-device').textContent = data.device_label;
                 } else {
@@ -838,18 +804,6 @@ def dashboard():
             } catch (error) {
                 showToast(`Error generating code: ${error.message}`, 'error');
             }
-        }
-
-        // Copy code to clipboard
-        function copyCode(btn) {
-            const code = document.getElementById('generated-code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 2000);
-            });
         }
 
         // Copy registration code from device card
@@ -1026,17 +980,12 @@ def dashboard():
 
             <!-- Result display after generation -->
             <div id="modal-result" style="display: none;">
-                <div class="modal-header">✓ Registration Code Generated</div>
-                <div class="code-display">
-                    <div class="code-value" id="generated-code">ABC12345</div>
-                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy Code</button>
-                    <div class="code-info">
-                        For: <strong><span id="code-store"></span> / <span id="code-device"></span></strong><br>
-                        Expires in 24 hours
-                    </div>
-                </div>
+                <div class="modal-header">✓ Device Created</div>
+                <p style="color: #374151; margin-bottom: 16px;">
+                    <strong><span id="code-store"></span> / <span id="code-device"></span></strong> is now on the dashboard awaiting connection.
+                </p>
                 <p style="color: #6b7280; margin-bottom: 16px;">
-                    This code can only be used once. Give it to the staff member who will configure the extension.
+                    You can copy the registration code from the device card.
                 </p>
                 <div class="modal-actions">
                     <button class="btn-primary" onclick="hideModal()">Done</button>
