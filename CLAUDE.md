@@ -50,12 +50,24 @@ bot-name/
 - Key stored in `BOT_API_KEY` env var
 
 ### Web UI Authentication (Google OAuth)
-**IMPORTANT**: Only Chester's callback URL is registered in Google Cloud Console!
 
-All bots must use the same OAuth callback path: `/auth/callback`
+**How shared OAuth works:**
+
+Google Cloud Console only has **2 authorized redirect URIs**:
+- `http://localhost:8008/auth/callback` (development - Chester's port)
+- `https://chester.watsonblinds.com.au/auth/callback` (production)
+
+All bots share the same OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` from root `.env`).
+
+In production, nginx routes all bot subdomains through Chester for OAuth:
+- User visits `doc.watsonblinds.com.au` → clicks login
+- OAuth redirects through `chester.watsonblinds.com.au/auth/callback`
+- After auth, user is redirected back to the original bot
+
+**CRITICAL**: Every bot must use the path `/auth/callback` (not `/callback`):
 
 ```python
-# In auth_routes.py - THIS IS CRITICAL
+# In auth_routes.py - THIS PATH IS CRITICAL
 @auth_bp.route('/auth/callback')  # NOT just '/callback'!
 def callback():
     ...
