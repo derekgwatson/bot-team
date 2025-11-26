@@ -7,6 +7,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from api.contacts import api_bp
 from web.routes import web_bp
@@ -18,6 +19,9 @@ app = Flask(__name__)
 
 # Configure Flask for sessions and OAuth
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Initialize authentication
 init_auth(app)

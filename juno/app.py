@@ -14,6 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 import os
 import logging
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from juno.config import config
 from juno.api.routes import api_bp
@@ -39,6 +40,9 @@ app = Flask(__name__,
             template_folder='web/templates',
             static_folder='web/static')
 app.secret_key = config.secret_key
+
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Initialize authentication
 init_auth(app)

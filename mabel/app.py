@@ -12,6 +12,7 @@ import time
 from functools import wraps
 
 from flask import Flask, jsonify, request, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, ConfigError
 from services.email_sender import EmailSender
@@ -45,6 +46,9 @@ def init_app() -> Flask:
 
     # Set Flask secret key
     app.secret_key = config.flask_secret_key
+
+    # Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # Configure logging
     logging.basicConfig(
