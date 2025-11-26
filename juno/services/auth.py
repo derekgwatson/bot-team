@@ -1,28 +1,14 @@
 """Authentication service for Juno."""
 import os
-from functools import wraps
-from flask import session, redirect, url_for, request
-from flask_login import LoginManager, UserMixin, current_user
+from flask import session
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 from juno.config import config
 
-
-class User(UserMixin):
-    """User model for Flask-Login."""
-
-    def __init__(self, email, name):
-        self.id = email
-        self.email = email
-        self.name = name
-        self._is_admin = None
-
-    @property
-    def is_admin(self):
-        """Check if user is an admin."""
-        if self._is_admin is None:
-            self._is_admin = self.email.lower() in [e.lower() for e in config.admin_emails]
-        return self._is_admin
-
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required, admin_required
+from shared.auth.email_check import is_email_allowed_by_domain
 
 # Initialize OAuth
 oauth = OAuth()
@@ -40,7 +26,11 @@ def init_auth(app):
     def load_user(user_id):
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            return User(
+                email=user_data['email'],
+                name=user_data['name'],
+                admin_emails=config.admin_emails
+            )
         return None
 
     # Get OAuth credentials
@@ -68,34 +58,5 @@ def init_auth(app):
 
 
 def is_email_allowed(email):
-    """Check if email is allowed to access Juno admin."""
-    email = email.lower().strip()
-
-    # Check if from company domain
-    for domain in config.allowed_domains:
-        if email.endswith(f'@{domain}'):
-            return True
-
-    return False
-
-
-def login_required(f):
-    """Decorator to require login for a route."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def admin_required(f):
-    """Decorator to require admin login for a route."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        if not current_user.is_admin:
-            return redirect(url_for('web.index'))
-        return f(*args, **kwargs)
-    return decorated_function
+    """Check if email is allowed to access Juno (company domain only)."""
+    return is_email_allowed_by_domain(email, config.allowed_domains)

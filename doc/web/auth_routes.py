@@ -1,6 +1,7 @@
 """Authentication routes for Doc."""
 from flask import Blueprint, redirect, url_for, session, request
 from flask_login import login_user, logout_user, current_user
+from config import config
 from services.auth import oauth, User, is_email_allowed, is_admin
 
 auth_bp = Blueprint('auth', __name__)
@@ -63,7 +64,7 @@ def callback():
             ''', 403
 
         # Create user and log in
-        user = User(email, name)
+        user = User(email=email, name=name, admin_emails=config.admin_emails)
         session['user'] = {'email': email, 'name': name}
         login_user(user)
 

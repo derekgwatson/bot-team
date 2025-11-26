@@ -1,19 +1,13 @@
 """Authentication service for Mabel."""
 import os
-from functools import wraps
-from flask import session, redirect, url_for, request, current_app
-from flask_login import LoginManager, UserMixin, current_user
+from flask import session, current_app
+from flask_login import LoginManager
 from authlib.integrations.flask_client import OAuth
 
-
-class User(UserMixin):
-    """User model for Flask-Login."""
-
-    def __init__(self, email, name):
-        self.id = email
-        self.email = email
-        self.name = name
-
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required
+from shared.auth.email_check import is_email_allowed_by_domain
 
 # Initialize OAuth
 oauth = OAuth()
@@ -31,7 +25,10 @@ def init_auth(app):
     def load_user(user_id):
         if 'user' in session:
             user_data = session['user']
-            return User(user_data['email'], user_data['name'])
+            return User(
+                email=user_data['email'],
+                name=user_data['name']
+            )
         return None
 
     # Get OAuth credentials
@@ -59,22 +56,6 @@ def init_auth(app):
 
 
 def is_email_allowed(email):
-    """Check if email is allowed to access Mabel."""
-    email = email.lower().strip()
+    """Check if email is allowed to access Mabel (company domain only)."""
     config = current_app.config['MABEL_CONFIG']
-
-    for domain in config.allowed_domains:
-        if email.endswith(f'@{domain}'):
-            return True
-
-    return False
-
-
-def login_required(f):
-    """Decorator to require login for a route."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
+    return is_email_allowed_by_domain(email, config.allowed_domains)
