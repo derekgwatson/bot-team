@@ -1,6 +1,6 @@
 """Quote-related API endpoints for Banji."""
 from flask import Blueprint, request, jsonify
-from shared.auth.bot_api import api_key_required
+from services.auth import api_or_session_auth
 from services.browser import BrowserManager
 from services.quotes import LoginPage, QuotePage
 from config import config
@@ -12,7 +12,7 @@ quotes_bp = Blueprint('quotes', __name__)
 
 
 @quotes_bp.route('/refresh-pricing', methods=['POST'])
-@api_key_required
+@api_or_session_auth
 def refresh_pricing():
     """
     Refresh pricing for a quote by triggering bulk edit save.
@@ -109,7 +109,7 @@ def refresh_pricing():
 
 
 @quotes_bp.route('/batch-refresh-pricing', methods=['POST'])
-@api_key_required
+@api_or_session_auth
 def batch_refresh_pricing():
     """
     Refresh pricing for multiple quotes in a single browser session.
