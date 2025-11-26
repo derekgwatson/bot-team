@@ -55,7 +55,7 @@ def register():
                 'error': 'No JSON data provided'
             }), 400
 
-        registration_code = data.get('registration_code', '').strip()
+        registration_code = data.get('registration_code', '').strip().upper()
         extension_version = data.get('extension_version', '').strip()
 
         # Registration code is required - it contains store and device info
