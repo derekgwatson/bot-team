@@ -6,7 +6,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
@@ -66,28 +66,31 @@ def health():
     Health check endpoint.
 
     Returns 200 if the app is running.
-    Includes database and Mavis connection status for monitoring.
+    Fast by default - use ?detailed=true to include Mavis connection status.
     """
     try:
-        fabric_count = db.get_fabric_count()
-        mavis_status = mavis_service.check_connection()
-
-        # Determine overall health status
-        status = 'healthy'
-        if not mavis_status.get('connected'):
-            status = 'degraded'  # Still functional, but Mavis is down
-
-        return jsonify({
-            'status': status,
+        response = {
+            'status': 'healthy',
             'bot': config.name,
-            'version': config.version,
-            'fabric_count': fabric_count,
-            'mavis': {
+            'version': config.version
+        }
+
+        # Only do expensive checks if requested
+        if request.args.get('detailed', 'false').lower() == 'true':
+            fabric_count = db.get_fabric_count()
+            mavis_status = mavis_service.check_connection()
+
+            if not mavis_status.get('connected'):
+                response['status'] = 'degraded'
+
+            response['fabric_count'] = fabric_count
+            response['mavis'] = {
                 'connected': mavis_status.get('connected', False),
                 'url': mavis_status.get('url'),
                 'product_count': mavis_status.get('product_count')
             }
-        })
+
+        return jsonify(response)
     except Exception as e:
         logger.exception("Health check error")
         return jsonify({
