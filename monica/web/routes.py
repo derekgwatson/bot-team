@@ -338,37 +338,24 @@ def dashboard():
         }
         .card-actions {
             display: flex;
-            gap: 8px;
+            gap: 2px;
         }
-        .edit-btn {
-            background: #6b7280;
-            color: white;
+        .icon-btn {
+            background: transparent;
             border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
+            padding: 4px 6px;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
-            font-weight: 600;
+            font-size: 0.9em;
+            opacity: 0.35;
         }
-        .edit-btn:hover {
-            background: #4b5563;
-            transform: scale(1.05);
+        .icon-btn:hover {
+            opacity: 1;
+            background: rgba(0,0,0,0.08);
         }
-        .delete-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 600;
-        }
-        .delete-btn:hover {
-            background: #dc2626;
-            transform: scale(1.05);
+        .icon-btn.delete:hover {
+            background: rgba(239, 68, 68, 0.15);
         }
         .device-info {
             font-size: 0.9em;
@@ -920,8 +907,8 @@ def dashboard():
                             <div class="device-name">{{ device.store_code }}</div>
                         </div>
                         <div class="card-actions" onclick="event.stopPropagation();">
-                            <button class="edit-btn" onclick="showEditModal({{ device.id }}, '{{ device.store_code }}', '{{ device.device_label }}')">Edit</button>
-                            <button class="delete-btn" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')">Delete</button>
+                            <button class="icon-btn" onclick="showEditModal({{ device.id }}, '{{ device.store_code }}', '{{ device.device_label }}')" title="Edit">✏️</button>
+                            <button class="icon-btn delete" onclick="deleteDevice({{ device.id }}, '{{ device.device_label }}')" title="Delete">🗑️</button>
                         </div>
                     </div>
                     <div class="device-store">{{ device.device_label }}</div>
