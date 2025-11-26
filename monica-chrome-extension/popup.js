@@ -408,7 +408,6 @@ function continueWithRegistration(monicaUrl, registrationCode, saveButton, error
         saveButton.disabled = false;
         saveButton.textContent = defaultButtonText;
       }
-    });
   });
 }
 
