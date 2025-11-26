@@ -273,6 +273,10 @@ def dashboard():
         .device-card.online { border-left: 4px solid #10b981; }
         .device-card.degraded { border-left: 4px solid #f59e0b; }
         .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-card.sleeping {
+            border-left: 4px solid #6366f1;
+            background: #f5f3ff;
+        }
         .device-card.pending {
             border-left: 4px solid #6b7280;
             background: #f9fafb;
@@ -383,6 +387,10 @@ def dashboard():
         .status-badge.offline {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .status-badge.sleeping {
+            background: #ede9fe;
+            color: #5b21b6;
         }
         .status-badge.pending {
             background: #e5e7eb;
@@ -638,9 +646,6 @@ def dashboard():
             location.reload();
         }, {{ config.auto_refresh * 1000 }});
 
-        // Track if a code was generated (to refresh immediately on modal close)
-        let codeWasGenerated = false;
-
         // Track when tab becomes hidden to detect stale data
         let tabBecameHiddenAt = null;
 
@@ -739,27 +744,19 @@ def dashboard():
         function showAddDeviceModal() {
             // Pause auto-refresh while modal is open
             clearTimeout(autoRefreshTimer);
-            codeWasGenerated = false; // Reset flag
             document.getElementById('add-device-modal').classList.add('active');
-            document.getElementById('modal-form').style.display = 'block';
-            document.getElementById('modal-result').style.display = 'none';
         }
 
-        // Hide modal
+        // Hide modal (cancel button)
         function hideModal() {
             document.getElementById('add-device-modal').classList.remove('active');
             document.getElementById('store-code-input').value = '';
             document.getElementById('device-label-input').value = '';
 
-            // If a device was added, refresh immediately to show it
-            // Otherwise resume normal auto-refresh schedule
-            if (codeWasGenerated) {
-                setTimeout(() => location.reload(), 500); // Brief delay for modal close animation
-            } else {
-                autoRefreshTimer = setTimeout(function() {
-                    location.reload();
-                }, {{ config.auto_refresh * 1000 }});
-            }
+            // Resume auto-refresh
+            autoRefreshTimer = setTimeout(function() {
+                location.reload();
+            }, {{ config.auto_refresh * 1000 }});
         }
 
         // Add device
@@ -785,12 +782,10 @@ def dashboard():
                 const data = await response.json();
 
                 if (data.success) {
-                    // Show success message
-                    codeWasGenerated = true; // Mark that we generated a code
-                    document.getElementById('modal-form').style.display = 'none';
-                    document.getElementById('modal-result').style.display = 'block';
-                    document.getElementById('code-store').textContent = data.store_code;
-                    document.getElementById('code-device').textContent = data.device_label;
+                    // Close modal and refresh to show new device
+                    showToast(`Device added: ${data.store_code} / ${data.device_label}`, 'success');
+                    document.getElementById('add-device-modal').classList.remove('active');
+                    setTimeout(() => location.reload(), 500);
                 } else {
                     showToast(`Failed to generate code: ${data.error}`, 'error');
                 }
@@ -888,6 +883,9 @@ def dashboard():
                 <span>🟡</span> <strong>Degraded:</strong> Last seen {{ config.online_threshold }}-{{ config.degraded_threshold }} min
             </div>
             <div class="legend-item">
+                <span>😴</span> <strong>Sleeping:</strong> Device is asleep (no network issue)
+            </div>
+            <div class="legend-item">
                 <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
             </div>
             <div class="legend-item">
@@ -922,6 +920,9 @@ def dashboard():
                         <strong>Last seen:</strong> {{ device.last_seen_text }}
                         {% else %}
                         <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
+                        {% if device.wake_info and device.recently_woke %}
+                        <strong>Woke from:</strong> {{ device.wake_info.sleep_duration_text }} sleep<br>
+                        {% endif %}
                         {% if device.last_latency_ms is not none %}
                         <strong>Latency:</strong> {{ device.last_latency_ms | round | int }} ms<br>
                         {% endif %}
@@ -969,20 +970,6 @@ def dashboard():
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="hideModal()">Cancel</button>
                     <button class="btn-primary" onclick="addDevice()">Add</button>
-                </div>
-            </div>
-
-            <!-- Result display after adding -->
-            <div id="modal-result" style="display: none;">
-                <div class="modal-header">✓ Device Added</div>
-                <p style="color: #374151; margin-bottom: 16px;">
-                    <strong><span id="code-store"></span> / <span id="code-device"></span></strong> is now on the dashboard.
-                </p>
-                <p style="color: #6b7280; margin-bottom: 16px;">
-                    Copy the code from the device card to set up the extension.
-                </p>
-                <div class="modal-actions">
-                    <button class="btn-primary" onclick="hideModal()">Go</button>
                 </div>
             </div>
         </div>
@@ -1172,6 +1159,10 @@ def device_detail(device_id):
         .status-badge.offline {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .status-badge.sleeping {
+            background: #ede9fe;
+            color: #5b21b6;
         }
         .stats-row {
             display: flex;
@@ -1392,39 +1383,65 @@ def device_detail(device_id):
                 y: d.latency_ms
             }));
 
-            // Detect gaps in data (> 10 minutes between readings indicates probable offline)
+            // Detect gaps in data (> 10 minutes between readings indicates probable offline/sleeping)
             const GAP_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-            const offlineGaps = [];
+            const gaps = [];
             for (let i = 1; i < data.length; i++) {
                 const prevTime = new Date(data[i-1].timestamp).getTime();
                 const currTime = new Date(data[i].timestamp).getTime();
                 const gap = currTime - prevTime;
                 if (gap > GAP_THRESHOLD_MS) {
-                    offlineGaps.push({
+                    // Check if the gap ended with a wake event - if so, it was sleeping
+                    const isSleepGap = data[i].is_wake_event === 1;
+                    gaps.push({
                         xMin: new Date(data[i-1].timestamp),
-                        xMax: new Date(data[i].timestamp)
+                        xMax: new Date(data[i].timestamp),
+                        isSleep: isSleepGap,
+                        sleepDuration: data[i].sleep_duration_seconds
                     });
                 }
             }
 
-            // Create annotation boxes for offline periods
+            // Create annotation boxes for offline/sleeping periods
             const annotations = {};
-            offlineGaps.forEach((gap, index) => {
-                annotations[`offline${index}`] = {
-                    type: 'box',
-                    xMin: gap.xMin,
-                    xMax: gap.xMax,
-                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                    borderColor: 'rgba(239, 68, 68, 0.3)',
-                    borderWidth: 1,
-                    label: {
-                        display: true,
-                        content: 'Offline',
-                        color: '#991b1b',
-                        font: { size: 10, weight: 'bold' },
-                        position: 'center'
-                    }
-                };
+            gaps.forEach((gap, index) => {
+                if (gap.isSleep) {
+                    // Sleeping - show in indigo/purple
+                    const durationMins = gap.sleepDuration ? Math.round(gap.sleepDuration / 60) : null;
+                    const label = durationMins ? `Sleeping (${durationMins}m)` : 'Sleeping';
+                    annotations[`sleep${index}`] = {
+                        type: 'box',
+                        xMin: gap.xMin,
+                        xMax: gap.xMax,
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        borderColor: 'rgba(99, 102, 241, 0.3)',
+                        borderWidth: 1,
+                        label: {
+                            display: true,
+                            content: label,
+                            color: '#5b21b6',
+                            font: { size: 10, weight: 'bold' },
+                            position: 'center'
+                        }
+                    };
+                } else {
+                    // Offline - show in red
+                    annotations[`offline${index}`] = {
+                        type: 'box',
+                        xMin: gap.xMin,
+                        xMax: gap.xMax,
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        borderWidth: 1,
+                        label: {
+                            display: true,
+                            content: 'Offline',
+                            color: '#991b1b',
+                            font: { size: 10, weight: 'bold' },
+                            position: 'center'
+                        }
+                    };
+                }
             });
 
             if (chart) {
