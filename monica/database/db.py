@@ -484,7 +484,7 @@ class Database:
         expires_hours: int = 24
     ) -> Dict[str, Any]:
         """
-        Create a one-time registration code
+        Create a one-time registration code and a pending device
 
         Args:
             store_code: Store code for this device
@@ -493,7 +493,7 @@ class Database:
             expires_hours: Hours until expiration (default 24)
 
         Returns:
-            Registration code dictionary
+            Registration code dictionary with device_id
         """
         import secrets
 
@@ -503,6 +503,37 @@ class Database:
 
         conn = self.get_connection()
         try:
+            # Get or create the store first
+            store_id = self.get_or_create_store(store_code)
+
+            # Create a pending device with placeholder token
+            # This token will be replaced when the device actually registers
+            pending_token = f"PENDING_{code}"
+
+            # Check if device already exists (same store + label)
+            cursor = conn.execute(
+                "SELECT id FROM devices WHERE store_id = ? AND device_label = ?",
+                (store_id, device_label)
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                device_id = existing['id']
+                # Update to pending state if it was a real device
+                conn.execute(
+                    "UPDATE devices SET agent_token = ?, last_status = 'pending' WHERE id = ?",
+                    (pending_token, device_id)
+                )
+            else:
+                # Create new pending device
+                cursor = conn.execute(
+                    """INSERT INTO devices (store_id, device_label, agent_token, last_status)
+                       VALUES (?, ?, ?, 'pending')""",
+                    (store_id, device_label, pending_token)
+                )
+                device_id = cursor.lastrowid
+
+            # Create the registration code
             cursor = conn.execute(
                 """INSERT INTO registration_codes
                    (code, store_code, device_label, expires_at)
@@ -517,7 +548,8 @@ class Database:
                 (cursor.lastrowid,)
             )
             result = dict(cursor.fetchone())
-            logger.info(f"Created registration code {code} for {store_code}/{device_label}")
+            result['device_id'] = device_id
+            logger.info(f"Created registration code {code} for {store_code}/{device_label} (device_id={device_id})")
             return result
         finally:
             conn.close()

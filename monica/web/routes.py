@@ -275,6 +275,37 @@ def dashboard():
         .device-card.online { border-left: 4px solid #10b981; }
         .device-card.degraded { border-left: 4px solid #f59e0b; }
         .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-card.pending {
+            border-left: 4px solid #6b7280;
+            background: #f9fafb;
+        }
+        .registration-code-display {
+            background: #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 1.1em;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .copy-code-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .copy-code-btn:hover {
+            background: #5a67d8;
+        }
         .device-card.sortable-ghost {
             opacity: 0.4;
         }
@@ -359,6 +390,10 @@ def dashboard():
         .status-badge.offline {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .status-badge.pending {
+            background: #e5e7eb;
+            color: #374151;
         }
         .empty-state {
             text-align: center;
@@ -817,6 +852,17 @@ def dashboard():
             });
         }
 
+        // Copy registration code from device card
+        function copyRegCode(code, btn) {
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
         // Show edit device modal
         function showEditModal(deviceId, storeCode, deviceLabel) {
             clearTimeout(autoRefreshTimer);
@@ -897,6 +943,9 @@ def dashboard():
             <div class="legend-item">
                 <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
             </div>
+            <div class="legend-item">
+                <span>⏳</span> <strong>Pending:</strong> Awaiting first connection
+            </div>
         </div>
     </div>
 
@@ -922,6 +971,9 @@ def dashboard():
                             {{ device.status_label }}
                         </span>
                         <br>
+                        {% if device.is_pending %}
+                        <strong>Last seen:</strong> {{ device.last_seen_text }}
+                        {% else %}
                         <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
                         {% if device.last_latency_ms is not none %}
                         <strong>Latency:</strong> {{ device.last_latency_ms | round | int }} ms<br>
@@ -929,7 +981,14 @@ def dashboard():
                         {% if device.last_public_ip %}
                         <strong>IP:</strong> {{ device.last_public_ip }}<br>
                         {% endif %}
+                        {% endif %}
                     </div>
+                    {% if device.is_pending and device.registration_code %}
+                    <div class="registration-code-display" onclick="event.stopPropagation();">
+                        <span>{{ device.registration_code }}</span>
+                        <button class="copy-code-btn" onclick="copyRegCode('{{ device.registration_code }}', this)">Copy</button>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
