@@ -325,6 +325,16 @@ async function saveConfiguration() {
   });
 }
 
+// Try alternate protocol (http <-> https) for a URL
+function getAlternateProtocolUrl(url) {
+  if (url.startsWith('https://')) {
+    return url.replace('https://', 'http://');
+  } else if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return null;
+}
+
 // Proceed with connection test and registration after permission is confirmed
 function proceedWithConfiguration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig) {
   const defaultButtonText = hasExistingConfig ? 'Update Configuration' : 'Save & Start Monitoring';
@@ -338,6 +348,31 @@ function proceedWithConfiguration(monicaUrl, registrationCode, saveButton, error
     monicaUrl: monicaUrl
   }, (response) => {
     if (!response.success) {
+      // Try alternate protocol before giving up
+      const alternateUrl = getAlternateProtocolUrl(monicaUrl);
+      if (alternateUrl) {
+        console.log(`[Monica Popup] Connection failed, trying alternate protocol: ${alternateUrl}`);
+        showLoadingOverlay('Trying alternate protocol...');
+
+        chrome.runtime.sendMessage({
+          action: 'testConnection',
+          monicaUrl: alternateUrl
+        }, (altResponse) => {
+          if (altResponse.success) {
+            // Alternate protocol worked, use it instead
+            console.log(`[Monica Popup] Alternate protocol succeeded`);
+            continueWithRegistration(alternateUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText);
+          } else {
+            // Both protocols failed
+            hideLoadingOverlay();
+            errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
+            saveButton.disabled = false;
+            saveButton.textContent = defaultButtonText;
+          }
+        });
+        return;
+      }
+
       hideLoadingOverlay();
       errorDiv.innerHTML = `<div class="error-message">Cannot connect to Monica server: ${response.error}</div>`;
       saveButton.disabled = false;
@@ -345,15 +380,21 @@ function proceedWithConfiguration(monicaUrl, registrationCode, saveButton, error
       return;
     }
 
-    // Connection successful, save configuration
-    saveButton.textContent = hasExistingConfig ? 'Updating...' : 'Registering...';
-    showLoadingOverlay(hasExistingConfig ? 'Updating configuration...' : 'Registering device...');
+    // Connection successful with original URL
+    continueWithRegistration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText);
+  });
+}
 
-    chrome.runtime.sendMessage({
-      action: 'configure',
-      monicaUrl: monicaUrl,
-      registrationCode: registrationCode
-    }, (response) => {
+// Continue with registration after connection test succeeds
+function continueWithRegistration(monicaUrl, registrationCode, saveButton, errorDiv, hasExistingConfig, defaultButtonText) {
+  saveButton.textContent = hasExistingConfig ? 'Updating...' : 'Registering...';
+  showLoadingOverlay(hasExistingConfig ? 'Updating configuration...' : 'Registering device...');
+
+  chrome.runtime.sendMessage({
+    action: 'configure',
+    monicaUrl: monicaUrl,
+    registrationCode: registrationCode
+  }, (response) => {
       hideLoadingOverlay();
       if (response.success) {
         isReconfiguring = false; // Reset flag so UI can update
