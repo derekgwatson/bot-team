@@ -10,10 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Show loading overlay
-function showLoadingOverlay(message) {
+function showLoadingOverlay(message, submessage = 'Please wait...') {
   const overlay = document.getElementById('loading-overlay');
   const messageEl = document.getElementById('loading-message');
+  const submessageEl = document.getElementById('loading-submessage');
   messageEl.textContent = message;
+  submessageEl.textContent = submessage;
   overlay.classList.add('active');
 }
 
@@ -21,6 +23,8 @@ function showLoadingOverlay(message) {
 function hideLoadingOverlay() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.remove('active');
+  // Reset submessage to default
+  document.getElementById('loading-submessage').textContent = 'Please wait...';
 }
 
 // Load current state from background worker
@@ -285,7 +289,10 @@ async function saveConfiguration() {
 
   // Need to request permission
   saveButton.textContent = 'Requesting permission...';
-  showLoadingOverlay('Requesting permission...');
+  showLoadingOverlay(
+    'Permission Required',
+    'A dialog will appear. Click "Allow", then reopen this extension to continue.'
+  );
 
   // Set flag before requesting permission (popup may close during permission dialog)
   chrome.storage.local.set({ temp_awaiting_permission: true });
