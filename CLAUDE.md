@@ -147,6 +147,8 @@ These are already in `/bot-team/.env` and loaded automatically. Just add a comme
 
 7. **Never hardcode ports** - Ports are ONLY defined in Chester's `config.yaml`. Use `shared/config/ports.py` or query Chester's API to get ports dynamically.
 
+8. **Gunicorn: 1 worker only** - In production, all bots run with a single Gunicorn worker (`--workers 1`). This avoids concurrency issues with SQLite and shared state. The bot team doesn't have enough traffic to need multiple workers.
+
 ## Testing
 
 - Tests in `/tests/unit/` and `/tests/integration/`
