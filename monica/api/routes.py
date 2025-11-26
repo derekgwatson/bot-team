@@ -58,8 +58,6 @@ def register():
         registration_code = data.get('registration_code', '').strip().upper()
         extension_version = data.get('extension_version', '').strip()
 
-        logger.info(f"Registration attempt with code: {registration_code}")
-
         # Registration code is required - it contains store and device info
         if not registration_code:
             return jsonify({
@@ -69,7 +67,6 @@ def register():
 
         # Validate registration code and get store/device info from it
         code_data = db.get_registration_code(registration_code)
-        logger.info(f"Code lookup result: {code_data}")
         if not code_data:
             return jsonify({
                 'success': False,

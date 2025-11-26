@@ -287,15 +287,18 @@ async function saveConfiguration() {
     return;
   }
 
-  // Need to request permission
+  // Need to request permission - show instructions first with delay so user can read
   saveButton.textContent = 'Requesting permission...';
   showLoadingOverlay(
     'Permission Required',
-    'A dialog will appear. Click "Allow", then reopen this extension to continue.'
+    'A dialog will appear. Click "Allow", then REOPEN this extension to finish setup.'
   );
 
   // Set flag before requesting permission (popup may close during permission dialog)
-  chrome.storage.local.set({ temp_awaiting_permission: true });
+  await chrome.storage.local.set({ temp_awaiting_permission: true });
+
+  // Wait 2 seconds so user can read the instruction before dialog appears
+  await new Promise(resolve => setTimeout(resolve, 2000));
 
   chrome.permissions.request({
     origins: [origin]

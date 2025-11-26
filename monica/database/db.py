@@ -638,17 +638,6 @@ class Database:
         """
         conn = self.get_connection()
         try:
-            # Debug: check if code exists at all
-            debug_cursor = conn.execute(
-                "SELECT code, used_at, expires_at FROM registration_codes WHERE code = ?",
-                (code,)
-            )
-            debug_row = debug_cursor.fetchone()
-            if debug_row:
-                logger.info(f"Found code {code}: used_at={debug_row['used_at']}, expires_at={debug_row['expires_at']}")
-            else:
-                logger.info(f"Code {code} not found in database")
-
             cursor = conn.execute(
                 """SELECT * FROM registration_codes
                    WHERE code = ?
