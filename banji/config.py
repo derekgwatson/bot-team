@@ -55,16 +55,9 @@ class Config:
         # Bot API key for bot-to-bot communication (env)
         self.bot_api_key = os.environ.get("BOT_API_KEY")
 
-        # Browser headless mode (env var overrides)
-        # Default to headless in production (when FLASK_DEBUG is False/unset)
-        # Set BUZ_HEADLESS=false explicitly for headed mode
-        headless_env = os.environ.get("BUZ_HEADLESS", "").lower()
-        if headless_env in ["true", "false"]:
-            self.browser_headless = headless_env == "true"
-        else:
-            # Auto-detect: headless if not in debug mode
-            is_debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-            self.browser_headless = not is_debug
+        # Browser headless mode - always default to headless
+        # Can be overridden per-request from web UI for debugging
+        self.browser_headless = True
 
         # Load Buz organizations (multi-tenant support)
         # Each org has its own credentials and base URL
