@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Literal
 from monica.config import config
 
-StatusType = Literal['online', 'degraded', 'offline']
+StatusType = Literal['online', 'degraded', 'offline', 'pending']
 
 
 class StatusService:
@@ -74,6 +74,11 @@ class StatusService:
                 'color': '#ef4444',  # Red
                 'emoji': '🔴',
                 'label': 'Offline'
+            },
+            'pending': {
+                'color': '#6b7280',  # Gray
+                'emoji': '⏳',
+                'label': 'Awaiting Connection'
             }
         }
         return status_map.get(status, status_map['offline'])
@@ -120,9 +125,19 @@ class StatusService:
         Returns:
             Enriched device dictionary
         """
-        status = self.compute_status(device.get('last_heartbeat_at'))
+        # Check if this is a pending device (waiting for registration)
+        agent_token = device.get('agent_token', '')
+        is_pending = agent_token.startswith('PENDING_')
+        registration_code = agent_token[8:] if is_pending else None
+
+        if is_pending:
+            status = 'pending'
+            last_seen = 'Never connected'
+        else:
+            status = self.compute_status(device.get('last_heartbeat_at'))
+            last_seen = self.format_last_seen(device.get('last_heartbeat_at'))
+
         display = self.get_status_display(status)
-        last_seen = self.format_last_seen(device.get('last_heartbeat_at'))
 
         return {
             **device,
@@ -130,7 +145,9 @@ class StatusService:
             'status_color': display['color'],
             'status_emoji': display['emoji'],
             'status_label': display['label'],
-            'last_seen_text': last_seen
+            'last_seen_text': last_seen,
+            'is_pending': is_pending,
+            'registration_code': registration_code
         }
 
 

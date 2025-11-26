@@ -275,6 +275,37 @@ def dashboard():
         .device-card.online { border-left: 4px solid #10b981; }
         .device-card.degraded { border-left: 4px solid #f59e0b; }
         .device-card.offline { border-left: 4px solid #ef4444; }
+        .device-card.pending {
+            border-left: 4px solid #6b7280;
+            background: #f9fafb;
+        }
+        .registration-code-display {
+            background: #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 1.1em;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .copy-code-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .copy-code-btn:hover {
+            background: #5a67d8;
+        }
         .device-card.sortable-ghost {
             opacity: 0.4;
         }
@@ -359,6 +390,10 @@ def dashboard():
         .status-badge.offline {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .status-badge.pending {
+            background: #e5e7eb;
+            color: #374151;
         }
         .empty-state {
             text-align: center;
@@ -817,6 +852,17 @@ def dashboard():
             });
         }
 
+        // Copy registration code from device card
+        function copyRegCode(code, btn) {
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
         // Show edit device modal
         function showEditModal(deviceId, storeCode, deviceLabel) {
             clearTimeout(autoRefreshTimer);
@@ -897,6 +943,9 @@ def dashboard():
             <div class="legend-item">
                 <span>🔴</span> <strong>Offline:</strong> Last seen > {{ config.degraded_threshold }} min
             </div>
+            <div class="legend-item">
+                <span>⏳</span> <strong>Pending:</strong> Awaiting first connection
+            </div>
         </div>
     </div>
 
@@ -922,6 +971,9 @@ def dashboard():
                             {{ device.status_label }}
                         </span>
                         <br>
+                        {% if device.is_pending %}
+                        <strong>Last seen:</strong> {{ device.last_seen_text }}
+                        {% else %}
                         <strong>Last seen:</strong> {{ device.last_seen_text }}<br>
                         {% if device.last_latency_ms is not none %}
                         <strong>Latency:</strong> {{ device.last_latency_ms | round | int }} ms<br>
@@ -929,7 +981,14 @@ def dashboard():
                         {% if device.last_public_ip %}
                         <strong>IP:</strong> {{ device.last_public_ip }}<br>
                         {% endif %}
+                        {% endif %}
                     </div>
+                    {% if device.is_pending and device.registration_code %}
+                    <div class="registration-code-display" onclick="event.stopPropagation();">
+                        <span>{{ device.registration_code }}</span>
+                        <button class="copy-code-btn" onclick="copyRegCode('{{ device.registration_code }}', this)">Copy</button>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -1104,6 +1163,7 @@ def device_detail(device_id):
     <title>{{ device.store_code }} - {{ device.device_label }} - {{ config.name }}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1389,6 +1449,41 @@ def device_detail(device_id):
                 y: d.latency_ms
             }));
 
+            // Detect gaps in data (> 10 minutes between readings indicates probable offline)
+            const GAP_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+            const offlineGaps = [];
+            for (let i = 1; i < data.length; i++) {
+                const prevTime = new Date(data[i-1].timestamp).getTime();
+                const currTime = new Date(data[i].timestamp).getTime();
+                const gap = currTime - prevTime;
+                if (gap > GAP_THRESHOLD_MS) {
+                    offlineGaps.push({
+                        xMin: new Date(data[i-1].timestamp),
+                        xMax: new Date(data[i].timestamp)
+                    });
+                }
+            }
+
+            // Create annotation boxes for offline periods
+            const annotations = {};
+            offlineGaps.forEach((gap, index) => {
+                annotations[`offline${index}`] = {
+                    type: 'box',
+                    xMin: gap.xMin,
+                    xMax: gap.xMax,
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                    borderWidth: 1,
+                    label: {
+                        display: true,
+                        content: 'Offline',
+                        color: '#991b1b',
+                        font: { size: 10, weight: 'bold' },
+                        position: 'center'
+                    }
+                };
+            });
+
             if (chart) {
                 chart.destroy();
             }
@@ -1427,6 +1522,9 @@ def device_detail(device_id):
                                     return `Latency: ${context.parsed.y.toFixed(0)} ms`;
                                 }
                             }
+                        },
+                        annotation: {
+                            annotations: annotations
                         }
                     },
                     scales: {
