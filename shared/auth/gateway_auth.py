@@ -116,10 +116,10 @@ class GatewayAuth:
         # Admin emails (for admin_only and tiered modes)
         self.admin_emails = [e.lower() for e in auth_config.get('admin_emails', [])]
 
-        # Chester URL for auth gateway
+        # Chester URL for auth gateway (uses CHESTER_API_URL for consistency with other bots)
         chester_port = get_port('chester')
         default_chester_url = f"http://localhost:{chester_port}"
-        self.chester_url = auth_config.get('chester_url', os.environ.get('CHESTER_URL', default_chester_url))
+        self.chester_url = auth_config.get('chester_url', os.environ.get('CHESTER_API_URL', default_chester_url))
 
         # Set up Flask session
         if not self.app.config.get('SECRET_KEY'):
