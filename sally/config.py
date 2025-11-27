@@ -17,8 +17,10 @@ class Config:
         self.config_file = self.base_dir / 'config.yaml'
         self._config = self._load_config()
 
-        # Flask secret key
-        self.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+        # Flask secret key (required)
+        self.secret_key = os.environ.get('FLASK_SECRET_KEY')
+        if not self.secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
     def _load_config(self):
         """
@@ -116,9 +118,10 @@ class Config:
 
     @property
     def auth(self):
-        """Auth config for GatewayAuth."""
+        """Auth config for GatewayAuth - reads mode from config.yaml."""
+        auth_yaml = self._config.get("auth", {}) or {}
         return {
-            'mode': 'domain',
+            **auth_yaml,
             'allowed_domains': self.allowed_domains,
             'admin_emails': self.admin_emails,
         }

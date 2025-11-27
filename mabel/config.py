@@ -190,9 +190,10 @@ class Config:
 
     @property
     def auth(self) -> dict:
-        """Auth config for GatewayAuth."""
+        """Auth config for GatewayAuth - reads mode from config.yaml."""
+        auth_yaml = self._config.get("auth", {}) or {}
         return {
-            'mode': 'domain',
+            **auth_yaml,
             'allowed_domains': self.allowed_domains,
             'admin_emails': self.admin_emails,
         }

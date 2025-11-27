@@ -41,6 +41,9 @@ class Config:
         self.emoji = data.get("emoji", "🚗")
         self.personality = data.get("personality", "Friendly road companion")
 
+        # Auth config from yaml (mode comes from config.yaml)
+        self._auth_yaml = data.get("auth", {}) or {}
+
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
@@ -72,11 +75,10 @@ class Config:
 
         # ── Secrets / env-specific settings ────────────────────
 
-        # Flask secret key
-        self.secret_key = (
-            os.environ.get("FLASK_SECRET_KEY")
-            or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-        )
+        # Flask secret key (required)
+        self.secret_key = os.environ.get("FLASK_SECRET_KEY")
+        if not self.secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")
@@ -95,9 +97,9 @@ class Config:
 
     @property
     def auth(self):
-        """Auth config for GatewayAuth."""
+        """Auth config for GatewayAuth - reads mode from config.yaml."""
         return {
-            'mode': 'domain',
+            **self._auth_yaml,
             'allowed_domains': self.allowed_domains,
             'admin_emails': self.admin_emails,
         }
