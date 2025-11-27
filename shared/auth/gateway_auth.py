@@ -30,18 +30,35 @@ Usage:
 
 Config options (in config.yaml):
     auth:
-      mode: domain           # 'domain', 'admin_only', or 'tiered'
+      mode: domain           # 'domain', 'admin_only', 'tiered', or 'grant'
       allowed_domains:       # Optional - defaults to shared/config/organization.yaml
         - example.com
       admin_emails:          # Optional for 'domain', required for 'admin_only'
         - admin@example.com
       chester_url: http://localhost:8008  # Chester's URL for auth gateway
 
+Auth modes:
+    - domain: Anyone from allowed_domains can access
+    - admin_only: Only emails in admin_emails can access
+    - tiered: Domain users get access, admin_emails get extra admin features
+    - grant: Use Grant bot for centralized authorization (recommended)
+
 If allowed_domains is not specified, domains are loaded from shared/config/organization.yaml
 (the organization-wide domain list). Most bots should NOT specify allowed_domains and just
 use the shared organization config.
+
+Grant mode:
+    When mode is 'grant', authorization is delegated to the Grant bot. This provides
+    centralized access control across all bots. Grant mode still falls back to
+    domain-based auth if Grant is unavailable, ensuring bots remain accessible.
+
+    To use Grant mode:
+    1. Set auth.mode: grant in your bot's config.yaml
+    2. Ensure GRANT_URL is set in environment (defaults to http://localhost:8026)
+    3. Grant permissions via Grant's UI or API
 """
 import os
+import logging
 from functools import wraps
 from pathlib import Path
 import yaml
@@ -49,6 +66,8 @@ from flask import session, redirect, url_for, request, Blueprint, render_templat
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 from shared.auth.tokens import verify_auth_token
 from shared.config.ports import get_port
+
+logger = logging.getLogger(__name__)
 
 
 def _load_organization_domains() -> list:
@@ -120,6 +139,18 @@ class GatewayAuth:
         chester_port = get_port('chester')
         default_chester_url = f"http://localhost:{chester_port}"
         self.chester_url = auth_config.get('chester_url', os.environ.get('CHESTER_API_URL', default_chester_url))
+
+        # Grant URL for centralized authorization (only used when mode is 'grant')
+        grant_port = get_port('grant')
+        default_grant_url = f"http://localhost:{grant_port}"
+        self.grant_url = auth_config.get('grant_url', os.environ.get('GRANT_URL', default_grant_url))
+
+        # Bot name for Grant queries (lowercase)
+        self.bot_name = getattr(config, 'name', 'unknown').lower()
+
+        # Cache for Grant responses (email -> {allowed, is_admin, timestamp})
+        self._grant_cache = {}
+        self._grant_cache_ttl = 300  # 5 minutes
 
         # Set up Flask session
         if not self.app.config.get('SECRET_KEY'):
@@ -255,6 +286,52 @@ class GatewayAuth:
 
         self.app.register_blueprint(auth_bp)
 
+    def _query_grant(self, email: str) -> dict:
+        """
+        Query Grant for authorization.
+
+        Args:
+            email: User's email address
+
+        Returns:
+            {allowed: bool, is_admin: bool} or None if Grant is unavailable
+        """
+        import time
+        email = email.lower()
+
+        # Check cache first
+        cache_key = f"{email}:{self.bot_name}"
+        if cache_key in self._grant_cache:
+            cached = self._grant_cache[cache_key]
+            if time.time() - cached['timestamp'] < self._grant_cache_ttl:
+                return {'allowed': cached['allowed'], 'is_admin': cached['is_admin']}
+
+        # Query Grant
+        try:
+            from shared.http_client import BotHttpClient
+            client = BotHttpClient(self.grant_url, timeout=5)
+            response = client.get('/api/access', params={'email': email, 'bot': self.bot_name})
+
+            if response.status_code == 200:
+                data = response.json()
+                result = {
+                    'allowed': data.get('allowed', False),
+                    'is_admin': data.get('is_admin', False)
+                }
+                # Cache the result
+                self._grant_cache[cache_key] = {
+                    **result,
+                    'timestamp': time.time()
+                }
+                return result
+            else:
+                logger.warning(f"Grant returned status {response.status_code} for {email}")
+                return None
+
+        except Exception as e:
+            logger.warning(f"Failed to query Grant for {email}: {e}")
+            return None
+
     def _is_authorized(self, email: str) -> bool:
         """
         Check if email is authorized based on config mode.
@@ -267,25 +344,38 @@ class GatewayAuth:
         """
         email = email.lower()
 
-        if self.mode == 'admin_only':
+        if self.mode == 'grant':
+            # Use Grant for authorization
+            grant_result = self._query_grant(email)
+            if grant_result is not None:
+                return grant_result['allowed']
+            # Fall back to domain check if Grant is unavailable
+            logger.warning(f"Grant unavailable, falling back to domain check for {email}")
+            return self._is_domain_allowed(email)
+
+        elif self.mode == 'admin_only':
             # Only admin emails allowed
             return email in self.admin_emails
 
         elif self.mode == 'domain':
             # Anyone from allowed domains
-            for domain in self.allowed_domains:
-                if email.endswith(f'@{domain.lower()}'):
-                    return True
-            return False
+            return self._is_domain_allowed(email)
 
         elif self.mode == 'tiered':
             # Domain users get access, admins get extra features
-            for domain in self.allowed_domains:
-                if email.endswith(f'@{domain.lower()}'):
-                    return True
+            if self._is_domain_allowed(email):
+                return True
             # Also allow admin emails even if not from allowed domain
             return email in self.admin_emails
 
+        return False
+
+    def _is_domain_allowed(self, email: str) -> bool:
+        """Check if email is from an allowed domain."""
+        email = email.lower()
+        for domain in self.allowed_domains:
+            if email.endswith(f'@{domain.lower()}'):
+                return True
         return False
 
     def _is_admin(self, email: str) -> bool:
@@ -298,7 +388,17 @@ class GatewayAuth:
         Returns:
             True if admin
         """
-        return email.lower() in self.admin_emails
+        email = email.lower()
+
+        if self.mode == 'grant':
+            # Use Grant for admin check
+            grant_result = self._query_grant(email)
+            if grant_result is not None:
+                return grant_result['is_admin']
+            # Fall back to local admin_emails if Grant is unavailable
+            return email in self.admin_emails
+
+        return email in self.admin_emails
 
     def get_current_user(self):
         """Get the currently logged in user (flask_login's current_user)"""

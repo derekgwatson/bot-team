@@ -115,12 +115,11 @@ def info():
 - All admin/dashboard/management routes MUST use `@login_required`
 - Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
 
-<<<<<<< HEAD
 When creating a new bot with a web UI:
 1. Add `services/auth.py` compatibility layer (copy from any existing bot)
 2. Initialize `GatewayAuth` in `app.py` (handles /login, /auth/callback, /logout automatically)
 3. Apply `@login_required` to ALL web routes
-4. Add `auth: mode: domain` to config.yaml (allowed_domains loaded automatically from organization.yaml)
+4. Add `auth: mode: grant` to config.yaml (or `domain` for standalone auth)
 5. Add `allowed_domains` property to config.py (loads from organization.yaml)
 
 ### API Authentication (bot-to-bot)
@@ -188,15 +187,15 @@ All bots use Chester as a centralized OAuth gateway. When a user tries to access
 def auth(self):
     """Auth config for GatewayAuth."""
     return {
-        'mode': 'domain',  # Options: 'domain', 'admin_only', or 'tiered'
+        'mode': 'grant',  # Options: 'grant', 'domain', 'admin_only', or 'tiered'
         'allowed_domains': self.allowed_domains,
         'admin_emails': self.admin_emails,
     }
 ```
 
-<<<<<<< HEAD
 **Auth modes:**
-- `'domain'` - Anyone from allowed_domains can access
+- `'grant'` - **Recommended** - Use Grant bot for centralized authorization (falls back to domain check if Grant unavailable)
+- `'domain'` - Anyone from allowed_domains can access (standalone auth)
 - `'admin_only'` - Only emails in admin_emails can access
 - `'tiered'` - Domain users get access, admin_emails get extra admin features
 
@@ -245,22 +244,6 @@ def index():
     return render_template('index.html')
 ```
 
-### Key auth files to copy from:
-- `skye/app.py` - GatewayAuth initialization pattern
-- `skye/services/auth.py` - Stub pattern
-- `skye/config.py` - Config with `auth` property
-- `skye/web/auth_routes.py` - OAuth routes (handles Chester callbacks)
-
-### Chester's Direct OAuth (Exception)
-
-Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
-=======
-Auth pattern (follow Skye as template):
-1. `services/auth.py` - Compatibility layer (decorators injected at runtime by app.py)
-2. `app.py` - Initialize `GatewayAuth(app, config)` which registers all OAuth routes automatically
-3. `config.yaml` - Add `auth: mode: domain` (allowed_domains auto-loaded from organization.yaml)
-4. Config loads `admin_emails` from `{BOT}_ADMIN_EMAILS` env var or `admin.emails` in config.yaml
-
 ### Allowed Domains
 
 **IMPORTANT**: Allowed domains are centralized in `shared/config/organization.yaml`.
@@ -270,9 +253,13 @@ Auth pattern (follow Skye as template):
 - Only override `allowed_domains` in a bot's config if it has special requirements (rare)
 
 ### Key auth files to copy from:
-- `skye/services/auth.py` - Auth compatibility layer
 - `skye/app.py` - GatewayAuth initialization pattern
-- `skye/config.yaml` - Auth config section
+- `skye/services/auth.py` - Stub pattern
+- `skye/config.py` - Config with `auth` property
+
+### Chester's Direct OAuth (Exception)
+
+Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
 
 ## Configuration Patterns
 
@@ -581,6 +568,21 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Zac: User management in Zendesk
 - Sadie: Ticket management
 - Both require Zendesk API credentials
+
+### Grant - Centralized Authorization Manager
+- **Single source of truth** for bot access permissions
+- Replaces per-bot `{BOT}_ADMIN_EMAILS` environment variables
+- Stores who can access which bots and with what role (user/admin)
+- Web UI for managing permissions across all bots
+- API for bots to check permissions at login via `auth: mode: grant`
+- Audit trail of all permission changes
+- **Superadmins** (set via `GRANT_SUPERADMINS` env var) always have admin access
+- Falls back to domain-based auth if Grant is unavailable
+
+**Using Grant mode:**
+1. Set `auth: mode: grant` in your bot's config.yaml
+2. Grant checks permissions via `/api/access?email=x&bot=y`
+3. Permissions are cached for 5 minutes to reduce API calls
 
 ## Quick Start for New Bot
 

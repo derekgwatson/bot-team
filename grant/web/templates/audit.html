@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Audit Log</h2>
+        <div>
+            {% if email_filter or bot_filter %}
+            <a href="{{ url_for('web.audit') }}" class="btn btn-sm" style="background: #eee; color: #333;">Clear Filters</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if email_filter or bot_filter %}
+        <div style="margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+            Filtering by:
+            {% if email_filter %}<strong>User:</strong> {{ email_filter }}{% endif %}
+            {% if email_filter and bot_filter %} | {% endif %}
+            {% if bot_filter %}<strong>Bot:</strong> {{ bot_filter }}{% endif %}
+        </div>
+        {% endif %}
+
+        {% if audit %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Bot</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>Changed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in audit %}
+                <tr>
+                    <td>{{ entry.changed_at }}</td>
+                    <td>
+                        <a href="{{ url_for('web.audit', email=entry.email) }}">{{ entry.email }}</a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('web.audit', bot=entry.bot_name) }}">{{ entry.bot_name }}</a>
+                    </td>
+                    <td>
+                        {% if entry.action == 'grant' %}
+                        <span style="color: #27ae60;">Grant</span>
+                        {% elif entry.action == 'revoke' %}
+                        <span style="color: #e74c3c;">Revoke</span>
+                        {% elif entry.action == 'modify' %}
+                        <span style="color: #f39c12;">Modify</span>
+                        {% else %}
+                        {{ entry.action }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.action == 'grant' %}
+                        Role: <span class="badge {{ entry.new_role }}">{{ entry.new_role }}</span>
+                        {% elif entry.action == 'revoke' %}
+                        Was: <span class="badge {{ entry.old_role }}">{{ entry.old_role }}</span>
+                        {% elif entry.action == 'modify' %}
+                        <span class="badge {{ entry.old_role }}">{{ entry.old_role }}</span>
+                        &rarr;
+                        <span class="badge {{ entry.new_role }}">{{ entry.new_role }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.changed_by }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No audit entries{% if email_filter or bot_filter %} matching filters{% endif %}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

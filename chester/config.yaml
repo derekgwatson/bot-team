@@ -434,6 +434,24 @@ bot_team:
       process: /api/process
     personality: Meticulous and precise, handles spreadsheets with care
 
+  grant:
+    name: Grant
+    port: 8026
+    description: Centralized Authorization Manager
+    capabilities:
+      - Central source of truth for bot access permissions
+      - Manage user access to all bots (user/admin roles)
+      - API for bots to check permissions at login
+      - Web UI for managing access across all bots
+      - Audit trail of permission changes
+    api_endpoints:
+      info: /info
+      health: /health
+      access: /api/access
+      permissions: /api/permissions
+      users: /api/users
+    personality: Fair and security-conscious, ensures the right people have the right access
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
