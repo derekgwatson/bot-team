@@ -534,8 +534,33 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 
 ### Skye - Task Scheduler
 - Runs scheduled jobs for the entire bot team
-- Has a sync job that updates Doc's local bot registry from Chester
 - Good template for new bots with web UI and auth
+
+**How Skye jobs work:**
+
+Jobs are stored in Skye's SQLite database and managed via its web UI or API. However, you can define **job templates** in `skye/config.yaml` under `job_templates:` - these are automatically seeded to the database on first startup.
+
+```yaml
+# skye/config.yaml
+job_templates:
+  hugo_sync:
+    name: "Hugo Buz User Sync"
+    description: "Sync user data from Buz to Hugo's cache"
+    target_bot: "hugo"
+    endpoint: "/api/users/sync"
+    method: "POST"
+    schedule:
+      type: "cron"
+      hour: "6"
+      minute: "0"
+```
+
+**Key points:**
+- Templates are seeded on Skye startup (idempotent - skips if job already exists)
+- After seeding, jobs are managed in the database (edits via UI persist)
+- To add a new scheduled job: add it to `job_templates` in config.yaml, restart Skye
+- Jobs call bot APIs using `BotHttpClient` with automatic `X-API-Key` auth
+- Target bot endpoints should use `@api_or_session_auth` to allow both Skye calls and dashboard buttons
 
 ### Doc - Bot Health Checker
 - **Designed to be standalone** - must work even when other bots are down
