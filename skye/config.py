@@ -26,8 +26,8 @@ class Config:
         self.version = data.get("version", "1.0.0")
         self.personality = data.get("personality", "")
 
-        # Authentication config
-        self.auth = data.get("auth", {}) or {}
+        # Authentication config from yaml (will be augmented with admin_emails below)
+        self._auth_yaml = data.get("auth", {}) or {}
 
         # Server config
         server_cfg = data.get("server", {}) or {}
@@ -48,11 +48,10 @@ class Config:
         # Job templates
         self.job_templates = data.get("job_templates", {}) or {}
 
-        # Flask secret key (env)
-        self.secret_key = os.environ.get(
-            "FLASK_SECRET_KEY",
-            "dev-secret-key-change-in-production",
-        )
+        # Flask secret key (required)
+        self.secret_key = os.environ.get("FLASK_SECRET_KEY")
+        if not self.secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
         # Bot API key for bot-to-bot communication (env)
         self.bot_api_key = os.environ.get("BOT_API_KEY")
@@ -73,6 +72,13 @@ class Config:
         # Organization config - allowed domains for authentication
         organization = shared_data.get("organization", {}) or {}
         self.allowed_domains = organization.get("domains", [])
+
+        # Build auth config for GatewayAuth (inject admin_emails and allowed_domains)
+        self.auth = {
+            **self._auth_yaml,
+            'admin_emails': self.admin_emails,
+            'allowed_domains': self.allowed_domains,
+        }
 
 
 # Global config instance
