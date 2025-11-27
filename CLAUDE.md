@@ -266,8 +266,9 @@ Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), becau
 ### config.py must:
 1. Import shared env loader: `from shared.config.env_loader import SHARED_ENV  # noqa: F401`
 2. Load bot's config.yaml
-3. Load admin_emails from `{BOT}_ADMIN_EMAILS` env var OR `admin.emails` in config.yaml
+3. Load admin_emails from `{BOT}_ADMIN_EMAILS` env var OR `admin.emails` in config.yaml (optional when using Grant mode)
 4. Load allowed_domains from `shared/config/organization.yaml`
+5. Ensure admin_emails defaults to `[]` not `None` (use `or []` since YAML returns None for empty/commented lists)
 
 ### Environment variables:
 - Shared vars in `/bot-team/.env` (loaded by all bots via `shared/config/env_loader.py`)
@@ -541,7 +542,7 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Has its own SQLite database with a local copy of the bot registry
 - Skye runs a sync job to keep Doc's registry updated from Chester
 - Does NOT hardcode ports - uses its local DB (synced from Chester)
-- Admin-only access (uses `DOC_ADMIN_EMAILS` env var)
+- Uses Grant mode for authorization (access managed via Grant's UI)
 - Runs health checks and test suites against other bots
 
 ### Dorothy - Deployment Orchestrator
@@ -576,13 +577,16 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Web UI for managing permissions across all bots
 - API for bots to check permissions at login via `auth: mode: grant`
 - Audit trail of all permission changes
-- **Superadmins** (set via `GRANT_SUPERADMINS` env var) always have admin access
+- **Superadmins** (set via `GRANT_SUPERADMINS` env var) always have admin access to all bots
 - Falls back to domain-based auth if Grant is unavailable
 
 **Using Grant mode:**
 1. Set `auth: mode: grant` in your bot's config.yaml
-2. Grant checks permissions via `/api/access?email=x&bot=y`
-3. Permissions are cached for 5 minutes to reduce API calls
+2. Mark `{BOT}_ADMIN_EMAILS` as optional in `.env.example` (comment it out, add "optional" to description)
+3. Grant checks permissions via `/api/access?email=x&bot=y`
+4. Permissions are cached for 5 minutes to reduce API calls
+
+**Important:** When using Grant mode, the `{BOT}_ADMIN_EMAILS` env var becomes optional because Grant handles authorization centrally. The env validator reads `.env.example` and requires any uncommented variable unless "optional" appears in its description.
 
 ## Quick Start for New Bot
 
@@ -593,10 +597,10 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 5. **Set up OAuth** - REQUIRED!
    - Copy `services/auth.py` compatibility layer from any existing bot
    - Initialize `GatewayAuth(app, config)` in app.py
-   - Add `auth: mode: domain` to config.yaml (domains auto-loaded from organization.yaml)
+   - Add `auth: mode: grant` to config.yaml (preferred - uses centralized authorization via Grant)
 6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)
-9. Add `.env.example`
+9. Add `.env.example` - mark `{BOT}_ADMIN_EMAILS` as optional if using Grant mode
 
 **Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.
