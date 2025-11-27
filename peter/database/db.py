@@ -305,7 +305,7 @@ class StaffDatabase:
         valid_fields = [
             'name', 'position', 'section', 'extension', 'phone_fixed', 'phone_mobile',
             'work_email', 'personal_email', 'google_primary_email',
-            'zendesk_access', 'buz_access', 'google_access', 'wiki_access', 'voip_access',
+            'zendesk_access', 'buz_access', 'buz_orgs', 'google_access', 'wiki_access', 'voip_access',
             'show_on_phone_list', 'include_in_allstaff', 'status', 'notes', 'finish_date'
         ]
 

@@ -1,0 +1,24 @@
+name: Hugo
+description: Buz User Management - manages who has access to Buz across all stores
+version: 1.0.0
+personality: Knows exactly who has access to what in Buz, manages user lifecycle with precision
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+# Browser configuration (for Playwright)
+browser:
+  default_timeout: 30000  # milliseconds
+  screenshot_on_failure: true
+  screenshot_dir: screenshots
+
+# Buz timeouts
+buz:
+  navigation_timeout: 30000   # 30 seconds
+  save_timeout: 300000        # 5 minutes for slow operations
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: grant  # Use Grant for centralized authorization

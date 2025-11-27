@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Log - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Activity Log</h2>
+
+<div class="filters">
+    <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <input type="text" name="email" placeholder="Filter by email" value="{{ filters.email or '' }}">
+        <input type="text" name="org" placeholder="Filter by org" value="{{ filters.org or '' }}">
+        <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+        <a href="{{ url_for('web.activity') }}" class="btn btn-secondary btn-sm">Clear</a>
+    </form>
+</div>
+
+<div class="card">
+    {% if activity %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Email</th>
+                <th>Organization</th>
+                <th>Change</th>
+                <th>By</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in activity %}
+            <tr>
+                <td class="text-muted">{{ entry.performed_at[:16] }}</td>
+                <td><strong>{{ entry.action }}</strong></td>
+                <td><a href="{{ url_for('web.user_detail', email=entry.email) }}">{{ entry.email }}</a></td>
+                <td>{{ entry.org_key }}</td>
+                <td>{{ entry.old_value }} -> {{ entry.new_value }}</td>
+                <td>{{ entry.performed_by }}</td>
+                <td>
+                    {% if entry.success %}
+                    <span class="badge badge-success">Success</span>
+                    {% else %}
+                    <span class="badge badge-error">Failed</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No activity recorded yet.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

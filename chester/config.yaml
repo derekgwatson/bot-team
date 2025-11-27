@@ -452,6 +452,26 @@ bot_team:
       users: /api/users
     personality: Fair and security-conscious, ensures the right people have the right access
 
+  hugo:
+    name: Hugo
+    port: 8027
+    description: Buz User Management
+    capabilities:
+      - Cache Buz users locally for fast lookups
+      - Sync users from Buz across multiple organizations
+      - Activate/deactivate users in Buz via Playwright
+      - Track access changes with activity log
+      - Sync access changes to Peter (staff database)
+      - Web UI for user management
+    api_endpoints:
+      info: /info
+      health: /health
+      users: /api/users
+      users_sync: /api/users/sync
+      orgs: /api/orgs
+      stats: /api/stats
+    personality: Knows exactly who has access to what in Buz, manages user lifecycle with precision
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
