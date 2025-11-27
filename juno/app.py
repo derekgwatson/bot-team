@@ -20,7 +20,7 @@ from juno.config import config
 from juno.api.routes import api_bp
 from juno.web.routes import web_bp
 from juno.web.auth_routes import auth_bp
-from juno.services.auth import init_auth
+from shared.auth import GatewayAuth
 from shared.error_handlers import register_error_handlers
 
 # Configure logging based on config
@@ -45,8 +45,15 @@ app.secret_key = config.secret_key
 # Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# Initialize authentication
-init_auth(app)
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import juno.services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
 
 # Register blueprints
 app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)

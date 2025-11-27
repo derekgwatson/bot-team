@@ -15,30 +15,24 @@ import importlib.util
 project_root = Path(__file__).parent.parent.parent
 iris_path = project_root / 'iris'
 
-if str(iris_path) not in sys.path:
-    sys.path.insert(0, str(iris_path))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Set test environment
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
 
-# Import the service module and class
-try:
-    from services import google_reports
-    from services.google_reports import GoogleReportsService
-except ImportError as e:
-    # Fallback for Windows: use importlib to load module directly
-    spec = importlib.util.spec_from_file_location(
-        "services.google_reports",
-        iris_path / "services" / "google_reports.py"
-    )
-    if spec and spec.loader:
-        google_reports = importlib.util.module_from_spec(spec)
-        sys.modules['services.google_reports'] = google_reports
-        sys.modules['services'] = type(sys)('services')
-        sys.modules['services'].google_reports = google_reports
-        spec.loader.exec_module(google_reports)
-        GoogleReportsService = google_reports.GoogleReportsService
-    else:
-        raise ImportError(f"Could not import GoogleReportsService: {e}")
+# Clear any cached config and set up iris's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(iris_path))
+sys.path.insert(0, str(project_root))
+
+# Load the service using importlib
+spec = importlib.util.spec_from_file_location(
+    "iris_google_reports",
+    iris_path / "services" / "google_reports.py"
+)
+google_reports = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(google_reports)
+GoogleReportsService = google_reports.GoogleReportsService
 
 
 # ==============================================================================

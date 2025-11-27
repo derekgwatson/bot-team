@@ -9,10 +9,7 @@ if str(ROOT_DIR) not in sys.path:
 from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
-from api.routes import api_bp
-from web.routes import web_bp
-from web.auth_routes import auth_bp
-from services.auth import init_auth
+from shared.auth import GatewayAuth
 from database.db import db
 from services.checkup import checkup_service
 from services.sync import sync_service
@@ -35,11 +32,22 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Configure Flask
 app.secret_key = config.flask_secret_key
 
-# Initialize authentication
-init_auth(app)
+# Initialize authentication via Chester's gateway
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+
+# Import blueprints AFTER auth is set up (routes use @admin_required decorator)
+from api.routes import api_bp
+from web.routes import web_bp
+# Note: GatewayAuth registers its own 'gateway_auth' blueprint with /login, /auth/callback, /logout
 
 # Register blueprints
-app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 

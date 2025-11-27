@@ -6,6 +6,7 @@ import os
 import sys
 import pytest
 import json
+import importlib.util
 from pathlib import Path
 
 # Add project root to path
@@ -16,16 +17,25 @@ sys.path.insert(0, str(project_root))
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 
+# Add scout to path before importing its modules
+sys.path.insert(0, str(project_root / 'scout'))
+
+# Clear any cached config module to ensure scout's config is loaded
+if 'config' in sys.modules:
+    del sys.modules['config']
+
+# Import ScoutDatabase directly using importlib to avoid sys.modules caching issues
+module_path = project_root / 'scout' / 'database' / 'db.py'
+spec = importlib.util.spec_from_file_location('scout_database_db', module_path)
+scout_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(scout_db_module)
+ScoutDatabase = scout_db_module.ScoutDatabase
+
 
 @pytest.fixture
 def scout_db(tmp_path):
     """Create an isolated Scout database for testing."""
     db_path = tmp_path / "scout_test.db"
-
-    # Import here to avoid circular imports
-    sys.path.insert(0, str(project_root / 'scout'))
-    from database.db import ScoutDatabase
-
     return ScoutDatabase(str(db_path))
 
 

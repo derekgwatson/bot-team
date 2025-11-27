@@ -26,6 +26,14 @@ If a bot starts doing too much, **nip it in the bud immediately**. Split functio
 - When adding a new bot: add entry to `bot_team:` section with name, port, description, capabilities
 - Port range: 8001-8030 (check config.yaml for next available)
 
+## Dependencies
+
+**IMPORTANT**: The bot team uses a **single shared virtual environment** and one root `requirements.txt` file.
+
+- All dependencies go in `/bot-team/requirements.txt`
+- Do NOT create per-bot `requirements.txt` files
+- When adding a new bot that needs a new package, add it to the root file with a comment indicating which bot uses it
+
 ## Standard Bot Structure
 
 ```
@@ -107,11 +115,13 @@ def info():
 - All admin/dashboard/management routes MUST use `@login_required`
 - Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
 
-When creating a new bot:
-1. Add `services/auth.py` (copy from any existing bot)
-2. Add `web/auth_routes.py` with `/login`, `/auth/callback`, `/logout`
+<<<<<<< HEAD
+When creating a new bot with a web UI:
+1. Add `services/auth.py` compatibility layer (copy from any existing bot)
+2. Initialize `GatewayAuth` in `app.py` (handles /login, /auth/callback, /logout automatically)
 3. Apply `@login_required` to ALL web routes
-4. Add `allowed_domains` property to config.py (loads from organization.yaml)
+4. Add `auth: mode: domain` to config.yaml (allowed_domains loaded automatically from organization.yaml)
+5. Add `allowed_domains` property to config.py (loads from organization.yaml)
 
 ### API Authentication (bot-to-bot)
 - Use `@api_key_required` decorator from `shared.auth.bot_api`
@@ -149,39 +159,120 @@ This decorator allows either:
 
 Use this instead of `@api_key_required` when the endpoint will be called from dashboard buttons/AJAX.
 
-### Web UI Authentication (Google OAuth)
+### Web UI Authentication (GatewayAuth - Centralized OAuth)
 
-**How shared OAuth works:**
+**How GatewayAuth works:**
 
-Google Cloud Console needs **2 authorized redirect URIs per bot**:
-- `http://localhost:<port>/auth/callback` (development)
-- `https://<bot>.watsonblinds.com.au/auth/callback` (production)
+All bots use Chester as a centralized OAuth gateway. When a user tries to access a protected route:
+1. Bot redirects user to Chester's `/auth/gateway?return_to=<bot_url>`
+2. Chester handles Google OAuth (login page, callback, etc.)
+3. Chester creates a signed JWT with user info and redirects back to the bot
+4. Bot validates the JWT and creates a session
 
-For example, Doc (port 8023) needs:
-- `http://localhost:8023/auth/callback`
-- `https://doc.watsonblinds.com.au/auth/callback`
+**Benefits:**
+- Only Chester needs Google Cloud Console redirect URIs configured
+- Adding new bots requires NO changes to Google Cloud Console
+- Centralized auth logic - fixes/updates apply to all bots automatically
+- Simpler bot code - just use GatewayAuth, no OAuth complexity per bot
 
-All bots share the same OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` from root `.env`).
+**Google Cloud Console setup (Chester only):**
+- `http://localhost:8008/auth/callback` (development)
+- `https://chester.watsonblinds.com.au/auth/callback` (production)
 
-**CRITICAL**: Every bot must use the path `/auth/callback` (not `/callback`):
+### GatewayAuth Setup for New Bots
+
+**Step 1: Add `auth` property to config.py:**
 
 ```python
-# In auth_routes.py - THIS PATH IS CRITICAL
-@auth_bp.route('/auth/callback')  # NOT just '/callback'!
-def callback():
-    ...
+@property
+def auth(self):
+    """Auth config for GatewayAuth."""
+    return {
+        'mode': 'domain',  # Options: 'domain', 'admin_only', or 'tiered'
+        'allowed_domains': self.allowed_domains,
+        'admin_emails': self.admin_emails,
+    }
 ```
 
-Auth pattern (follow Skye as template):
-1. `services/auth.py` - OAuth setup, User class, decorators
-2. `web/auth_routes.py` - /login, /auth/callback, /logout routes
-3. Config loads `admin_emails` from env or config.yaml
-4. Config loads `allowed_domains` from `shared/config/organization.yaml`
+<<<<<<< HEAD
+**Auth modes:**
+- `'domain'` - Anyone from allowed_domains can access
+- `'admin_only'` - Only emails in admin_emails can access
+- `'tiered'` - Domain users get access, admin_emails get extra admin features
+
+**Step 2: Initialize GatewayAuth in app.py:**
+
+```python
+from shared.auth import GatewayAuth
+
+# After creating Flask app and setting secret_key...
+auth = GatewayAuth(app, config)
+
+# Store auth instance in services.auth for backward compatibility with routes
+import botname.services.auth as auth_module
+auth_module.auth = auth
+auth_module.login_required = auth.login_required
+auth_module.admin_required = auth.admin_required
+auth_module.get_current_user = auth.get_current_user
+```
+
+**Step 3: Create services/auth.py stub:**
+
+```python
+"""
+Authentication compatibility layer for BotName.
+
+Auth is handled by GatewayAuth in app.py, which injects the actual
+decorators into this module at runtime for backward compatibility
+with routes that import from here.
+"""
+
+# These get set at runtime by app.py via GatewayAuth
+auth = None
+login_required = None
+admin_required = None
+get_current_user = None
+```
+
+**Step 4: Use decorators in routes:**
+
+```python
+from services.auth import login_required, admin_required
+
+@web_bp.route('/')
+@login_required
+def index():
+    return render_template('index.html')
+```
 
 ### Key auth files to copy from:
-- `skye/services/auth.py` - Clean auth service pattern
-- `skye/web/auth_routes.py` - OAuth routes
-- `skye/config.py` - Loading admin_emails and allowed_domains
+- `skye/app.py` - GatewayAuth initialization pattern
+- `skye/services/auth.py` - Stub pattern
+- `skye/config.py` - Config with `auth` property
+- `skye/web/auth_routes.py` - OAuth routes (handles Chester callbacks)
+
+### Chester's Direct OAuth (Exception)
+
+Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
+=======
+Auth pattern (follow Skye as template):
+1. `services/auth.py` - Compatibility layer (decorators injected at runtime by app.py)
+2. `app.py` - Initialize `GatewayAuth(app, config)` which registers all OAuth routes automatically
+3. `config.yaml` - Add `auth: mode: domain` (allowed_domains auto-loaded from organization.yaml)
+4. Config loads `admin_emails` from `{BOT}_ADMIN_EMAILS` env var or `admin.emails` in config.yaml
+
+### Allowed Domains
+
+**IMPORTANT**: Allowed domains are centralized in `shared/config/organization.yaml`.
+
+- GatewayAuth automatically loads domains from organization.yaml when `auth.allowed_domains` is not specified
+- Do NOT duplicate domains in each bot's config.yaml
+- Only override `allowed_domains` in a bot's config if it has special requirements (rare)
+
+### Key auth files to copy from:
+- `skye/services/auth.py` - Auth compatibility layer
+- `skye/app.py` - GatewayAuth initialization pattern
+- `skye/config.yaml` - Auth config section
 
 ## Configuration Patterns
 
@@ -292,18 +383,6 @@ from shared.auth import api_key_required, api_or_session_auth
 - `api_key_required` - Decorator for API routes requiring `X-API-Key` header
 - `api_or_session_auth` - Decorator allowing either API key or logged-in session
 
-**Usage in auth.py:**
-
-```python
-from shared.auth import User
-from shared.auth.decorators import login_required, admin_required
-from shared.auth.email_check import is_email_allowed_by_domain
-
-def is_email_allowed(email):
-    """Bot-specific wrapper using shared function"""
-    return is_email_allowed_by_domain(email, config.allowed_domains)
-```
-
 **User class with admin support:**
 
 ```python
@@ -317,7 +396,7 @@ user = User(
 
 ## Common Gotchas
 
-1. **OAuth callback must be `/auth/callback`** - Not `/callback`! All bots share Chester's registered redirect URI.
+1. **GatewayAuth for all bots except Chester** - All bots use GatewayAuth which delegates OAuth to Chester. Only Chester has direct Google OAuth. See "GatewayAuth Setup for New Bots" section.
 
 2. **Always use `prompt='select_account'`** in OAuth redirect to force account selection.
 
@@ -343,6 +422,8 @@ user = User(
 9. **Always use migrations** - Never create database tables manually or outside the migration framework. Use `shared.migrations.MigrationRunner`. Migrations run automatically on startup, so prod DB changes just need a bot restart.
 
 10. **Always use BotHttpClient for bot-to-bot calls** - Never use raw `requests.get/post()` when calling other bots. Use `shared.http_client.BotHttpClient` which automatically adds the `X-API-Key` header. Raw requests will fail authentication.
+
+11. **Always read files before writing** - When using Claude Code to edit files, ALWAYS read the file first before attempting to write or edit it. The Write and Edit tools will fail if the file hasn't been read in the current session. This applies even if you've seen the file contents in a previous message.
 
 ## Testing
 
@@ -506,9 +587,14 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 1. **Pick a human name** - All bots are named like team members (Fred, Iris, Chester, Skye, Doc, etc.). No generic names like "tracker" or "journey".
 2. Copy structure from similar bot (Skye is a good template)
 3. Add to Chester's config.yaml with next available port
-4. Create config.py loading shared patterns (include `allowed_domains` from organization.yaml)
-5. **Set up OAuth** - REQUIRED! Copy `services/auth.py` and `web/auth_routes.py` from any existing bot
+4. Create config.py loading shared patterns
+5. **Set up OAuth** - REQUIRED!
+   - Copy `services/auth.py` compatibility layer from any existing bot
+   - Initialize `GatewayAuth(app, config)` in app.py
+   - Add `auth: mode: domain` to config.yaml (domains auto-loaded from organization.yaml)
 6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)
 9. Add `.env.example`
+
+**Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.

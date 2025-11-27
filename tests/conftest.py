@@ -21,6 +21,7 @@ os.environ['GOOGLE_OAUTH_CLIENT_ID'] = 'test-client-id'
 os.environ['GOOGLE_OAUTH_CLIENT_SECRET'] = 'test-client-secret'
 os.environ['CHESTER_API_URL'] = 'http://localhost:8008'  # For service registry tests
 os.environ['ADMIN_EMAILS'] = 'test@example.com'  # Required by Oscar config
+os.environ['BOT_API_KEY'] = 'test-api-key'  # Standard API key for all bot-to-bot tests
 
 # Add project root to Python path for imports
 project_root = Path(__file__).parent.parent

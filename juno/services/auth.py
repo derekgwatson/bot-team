@@ -1,14 +1,13 @@
 """
-Authentication compatibility layer.
+Authentication compatibility layer for Juno.
 
-The actual auth instance is created in app.py using GatewayAuth,
-and these values are injected at runtime for backward compatibility
+Auth is handled by GatewayAuth in app.py, which injects the actual
+decorators into this module at runtime for backward compatibility
 with routes that import from here.
 """
 
-# These get overwritten at runtime by app.py
+# These get set at runtime by app.py via GatewayAuth
 auth = None
 login_required = None
 admin_required = None
 get_current_user = None
-

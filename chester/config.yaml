@@ -419,6 +419,21 @@ bot_team:
       bots_sync: /api/bots/sync
     personality: Caring and thorough, like a team physician doing regular checkups
 
+  evelyn:
+    name: Evelyn
+    port: 8025
+    description: Excel Expert - Spreadsheet Processing
+    capabilities:
+      - Extract specific sheets from Excel workbooks
+      - Convert formulas to values
+      - Clean workbooks for sharing with suppliers
+      - In-memory processing (no server-side file storage)
+    api_endpoints:
+      info: /info
+      health: /health
+      process: /api/process
+    personality: Meticulous and precise, handles spreadsheets with care
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).

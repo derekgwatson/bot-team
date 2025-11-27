@@ -93,6 +93,15 @@ class Config:
             self.allowed_domains = []
         self.admin_emails = []
 
+    @property
+    def auth(self):
+        """Auth config for GatewayAuth."""
+        return {
+            'mode': 'domain',
+            'allowed_domains': self.allowed_domains,
+            'admin_emails': self.admin_emails,
+        }
+
 
 # Global config instance
 config = Config()

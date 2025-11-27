@@ -187,3 +187,12 @@ class Config:
     def admin_emails(self) -> list:
         """Admin email addresses (empty for Mabel - any allowed domain user is fine)."""
         return []
+
+    @property
+    def auth(self) -> dict:
+        """Auth config for GatewayAuth."""
+        return {
+            'mode': 'domain',
+            'allowed_domains': self.allowed_domains,
+            'admin_emails': self.admin_emails,
+        }

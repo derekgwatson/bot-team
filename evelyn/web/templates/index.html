@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+.drop-zone {
+    border: 3px dashed #ccc;
+    border-radius: 12px;
+    padding: 60px 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: #fafafa;
+    margin-bottom: 30px;
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+    border-color: #667eea;
+    background: #f0f4ff;
+}
+
+.drop-zone.has-file {
+    border-color: #28a745;
+    background: #f0fff4;
+}
+
+.drop-zone-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.drop-zone-text {
+    font-size: 1.2em;
+    color: #666;
+}
+
+.drop-zone-text strong {
+    color: #667eea;
+}
+
+.file-info {
+    margin-top: 15px;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.sheet-list {
+    margin: 20px 0;
+}
+
+.sheet-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: background 0.2s;
+}
+
+.sheet-item:hover {
+    background: #e9ecef;
+}
+
+.sheet-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    cursor: pointer;
+}
+
+.sheet-item label {
+    flex: 1;
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.sheet-item.selected {
+    background: #d4edda;
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-size: 1em;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.step {
+    margin-bottom: 30px;
+}
+
+.step-title {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #1e3c72;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.9em;
+}
+
+.error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.select-actions {
+    margin-bottom: 15px;
+}
+
+.select-actions button {
+    background: none;
+    border: none;
+    color: #667eea;
+    cursor: pointer;
+    font-size: 0.9em;
+    padding: 5px 10px;
+    text-decoration: underline;
+}
+
+.select-actions button:hover {
+    color: #764ba2;
+}
+{% endblock %}
+
+{% block content %}
+<div id="step1" class="step">
+    <div class="step-title">
+        <span class="step-number">1</span>
+        Upload Excel File
+    </div>
+
+    <div id="dropZone" class="drop-zone">
+        <div class="drop-zone-icon">📊</div>
+        <div class="drop-zone-text">
+            Drag & drop your Excel file here<br>
+            or <strong>click to browse</strong>
+        </div>
+        <div id="fileInfo" class="file-info hidden"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm" class="hidden">
+</div>
+
+<div id="step2" class="step hidden">
+    <div class="step-title">
+        <span class="step-number">2</span>
+        Select Sheets to Keep
+    </div>
+
+    <div class="select-actions">
+        <button type="button" id="selectAll">Select All</button>
+        <button type="button" id="selectNone">Select None</button>
+    </div>
+
+    <div id="sheetList" class="sheet-list">
+        <!-- Sheet checkboxes will be inserted here -->
+    </div>
+
+    <div id="errorMessage" class="error-message hidden"></div>
+
+    <div class="actions">
+        <button id="processBtn" class="btn btn-primary" disabled>
+            Download Processed File
+        </button>
+        <button id="resetBtn" class="btn btn-secondary">
+            Start Over
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const sheetList = document.getElementById('sheetList');
+    const processBtn = document.getElementById('processBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    const selectAll = document.getElementById('selectAll');
+    const selectNone = document.getElementById('selectNone');
+
+    let currentFile = null;
+    let sheetNames = [];
+
+    // Drag and drop handlers
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        // Validate file type
+        if (!file.name.match(/\.(xlsx|xlsm)$/i)) {
+            showError('Please upload an Excel file (.xlsx or .xlsm)');
+            return;
+        }
+
+        currentFile = file;
+        dropZone.classList.add('has-file');
+        fileInfo.textContent = file.name;
+        fileInfo.classList.remove('hidden');
+
+        // Get sheet names
+        loadSheets(file);
+    }
+
+    function loadSheets(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Show loading state
+        sheetList.innerHTML = '<div class="loading"></div> Loading sheets...';
+        step2.classList.remove('hidden');
+        errorMessage.classList.add('hidden');
+
+        fetch('/api/sheets', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                sheetNames = data.sheets;
+                renderSheets(sheetNames);
+            } else {
+                showError(data.error || 'Failed to read Excel file');
+            }
+        })
+        .catch(err => {
+            showError('Error reading file: ' + err.message);
+        });
+    }
+
+    function renderSheets(sheets) {
+        sheetList.innerHTML = '';
+
+        sheets.forEach((sheet, index) => {
+            const item = document.createElement('div');
+            item.className = 'sheet-item';
+            item.innerHTML = `
+                <input type="checkbox" id="sheet_${index}" value="${sheet}" checked>
+                <label for="sheet_${index}">${sheet}</label>
+            `;
+
+            const checkbox = item.querySelector('input');
+            checkbox.addEventListener('change', () => {
+                item.classList.toggle('selected', checkbox.checked);
+                updateProcessButton();
+            });
+
+            item.classList.add('selected');
+            sheetList.appendChild(item);
+        });
+
+        updateProcessButton();
+    }
+
+    function getSelectedSheets() {
+        const checkboxes = sheetList.querySelectorAll('input[type="checkbox"]:checked');
+        return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function updateProcessButton() {
+        const selected = getSelectedSheets();
+        processBtn.disabled = selected.length === 0;
+        processBtn.textContent = selected.length === 0
+            ? 'Select at least one sheet'
+            : `Download (${selected.length} sheet${selected.length !== 1 ? 's' : ''})`;
+    }
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.classList.remove('hidden');
+    }
+
+    // Select all/none
+    selectAll.addEventListener('click', () => {
+        sheetList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.sheet-item').classList.add('selected');
+        });
+        updateProcessButton();
+    });
+
+    selectNone.addEventListener('click', () => {
+        sheetList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.sheet-item').classList.remove('selected');
+        });
+        updateProcessButton();
+    });
+
+    // Process button
+    processBtn.addEventListener('click', () => {
+        if (!currentFile || processBtn.disabled) return;
+
+        const selectedSheets = getSelectedSheets();
+        if (selectedSheets.length === 0) return;
+
+        // Show loading
+        const originalText = processBtn.textContent;
+        processBtn.innerHTML = '<span class="loading"></span> Processing...';
+        processBtn.disabled = true;
+        errorMessage.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        formData.append('sheets', JSON.stringify(selectedSheets));
+
+        fetch('/api/process', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Processing failed');
+                });
+            }
+            return response.blob().then(blob => {
+                // Get filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'processed.xlsx';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+                return { blob, filename };
+            });
+        })
+        .then(({ blob, filename }) => {
+            // Download the file
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            processBtn.textContent = originalText;
+            processBtn.disabled = false;
+        })
+        .catch(err => {
+            showError(err.message);
+            processBtn.textContent = originalText;
+            processBtn.disabled = false;
+        });
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        currentFile = null;
+        sheetNames = [];
+        fileInput.value = '';
+        dropZone.classList.remove('has-file');
+        fileInfo.classList.add('hidden');
+        step2.classList.add('hidden');
+        sheetList.innerHTML = '';
+        errorMessage.classList.add('hidden');
+    });
+});
+</script>
+{% endblock %}
