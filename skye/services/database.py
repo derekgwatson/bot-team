@@ -84,6 +84,7 @@ class Database:
             if row:
                 job = dict(row)
                 job['enabled'] = bool(job['enabled'])
+                job['quiet'] = bool(job.get('quiet', 0))
                 return job
             return None
 
@@ -100,6 +101,7 @@ class Database:
             for row in rows:
                 job = dict(row)
                 job['enabled'] = bool(job['enabled'])
+                job['quiet'] = bool(job.get('quiet', 0))
                 jobs.append(job)
             return jobs
 
@@ -110,7 +112,7 @@ class Database:
     def update_job(self, job_id: str, **kwargs) -> bool:
         """Update a job's configuration."""
         valid_fields = ['name', 'description', 'target_bot', 'endpoint', 'method',
-                       'schedule_type', 'schedule_config', 'enabled']
+                       'schedule_type', 'schedule_config', 'enabled', 'quiet']
 
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
@@ -119,6 +121,8 @@ class Database:
         # Convert boolean fields to int
         if 'enabled' in updates:
             updates['enabled'] = 1 if updates['enabled'] else 0
+        if 'quiet' in updates:
+            updates['quiet'] = 1 if updates['quiet'] else 0
 
         set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
         set_clause += ', updated_at = CURRENT_TIMESTAMP'
@@ -187,17 +191,33 @@ class Database:
             ''', (job_id, limit))
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_recent_executions(self, limit: int = 100) -> List[Dict]:
-        """Get recent executions across all jobs."""
+    def get_recent_executions(self, limit: int = 100, include_quiet: bool = True) -> List[Dict]:
+        """Get recent executions across all jobs.
+
+        Args:
+            limit: Maximum number of executions to return
+            include_quiet: If False, exclude successful runs of quiet jobs
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                SELECT e.*, j.name as job_name, j.target_bot
-                FROM job_executions e
-                JOIN jobs j ON e.job_id = j.job_id
-                ORDER BY e.executed_at DESC
-                LIMIT ?
-            ''', (limit,))
+            if include_quiet:
+                cursor.execute('''
+                    SELECT e.*, j.name as job_name, j.target_bot, j.quiet
+                    FROM job_executions e
+                    JOIN jobs j ON e.job_id = j.job_id
+                    ORDER BY e.executed_at DESC
+                    LIMIT ?
+                ''', (limit,))
+            else:
+                # Exclude successful runs of quiet jobs
+                cursor.execute('''
+                    SELECT e.*, j.name as job_name, j.target_bot, j.quiet
+                    FROM job_executions e
+                    JOIN jobs j ON e.job_id = j.job_id
+                    WHERE NOT (j.quiet = 1 AND e.status = 'success')
+                    ORDER BY e.executed_at DESC
+                    LIMIT ?
+                ''', (limit,))
             return [dict(row) for row in cursor.fetchall()]
 
     def get_failed_executions(self, since_hours: int = 24) -> List[Dict]:

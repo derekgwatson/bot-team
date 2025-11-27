@@ -40,6 +40,9 @@
                 {% else %}
                     <span class="badge badge-disabled">Disabled</span>
                 {% endif %}
+                {% if job.quiet %}
+                    <span class="badge" style="background: #6c757d; color: white; margin-left: 5px;">Quiet</span>
+                {% endif %}
             </td>
         </tr>
         <tr>

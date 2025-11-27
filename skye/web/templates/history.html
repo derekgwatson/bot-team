@@ -3,7 +3,17 @@
 {% block title %}Execution History - {{ config.name }}{% endblock %}
 
 {% block content %}
-<h2>Execution History</h2>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="margin: 0;">Execution History</h2>
+    <div>
+        {% if show_all %}
+        <a href="{{ url_for('web.execution_history') }}" class="btn btn-secondary">Hide quiet successes</a>
+        {% else %}
+        <a href="{{ url_for('web.execution_history', show_all=1) }}" class="btn btn-secondary">Show all</a>
+        <span class="text-muted" style="margin-left: 10px; font-size: 0.9em;">Hiding successful runs of quiet jobs</span>
+        {% endif %}
+    </div>
+</div>
 
 {% if executions %}
 <table>
