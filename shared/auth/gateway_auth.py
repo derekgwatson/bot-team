@@ -152,10 +152,13 @@ class GatewayAuth:
         self._grant_cache = {}
         self._grant_cache_ttl = 300  # 5 minutes
 
-        # Set up Flask session
+        # Verify Flask session is configured (bots must set their own secret key)
         if not self.app.config.get('SECRET_KEY'):
-            secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key')
-            self.app.config['SECRET_KEY'] = secret_key
+            raise ValueError(
+                f"Flask SECRET_KEY not configured for {self.bot_name}. "
+                f"Set {self.bot_name.upper()}_SECRET_KEY in your .env file and "
+                f"assign it to app.secret_key before initializing GatewayAuth."
+            )
 
         # Initialize Flask-Login for current_user support
         self.login_manager = LoginManager()
