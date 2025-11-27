@@ -6,11 +6,12 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h2 style="margin: 0;">Execution History</h2>
     <div>
-        {% if show_all %}
-        <a href="{{ url_for('web.execution_history') }}" class="btn btn-secondary">Hide quiet successes</a>
+        {% if view == 'all' %}
+        <a href="{{ url_for('web.execution_history') }}" class="btn btn-secondary">Summary view</a>
+        <span class="text-muted" style="margin-left: 10px; font-size: 0.9em;">Showing all executions</span>
         {% else %}
-        <a href="{{ url_for('web.execution_history', show_all=1) }}" class="btn btn-secondary">Show all</a>
-        <span class="text-muted" style="margin-left: 10px; font-size: 0.9em;">Hiding successful runs of quiet jobs</span>
+        <a href="{{ url_for('web.execution_history', view='all') }}" class="btn btn-secondary">Show all</a>
+        <span class="text-muted" style="margin-left: 10px; font-size: 0.9em;">Latest success/failure per job</span>
         {% endif %}
     </div>
 </div>

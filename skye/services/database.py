@@ -191,33 +191,44 @@ class Database:
             ''', (job_id, limit))
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_recent_executions(self, limit: int = 100, include_quiet: bool = True) -> List[Dict]:
-        """Get recent executions across all jobs.
+    def get_recent_executions(self, limit: int = 100) -> List[Dict]:
+        """Get recent executions across all jobs."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT e.*, j.name as job_name, j.target_bot, j.quiet
+                FROM job_executions e
+                JOIN jobs j ON e.job_id = j.job_id
+                ORDER BY e.executed_at DESC
+                LIMIT ?
+            ''', (limit,))
+            return [dict(row) for row in cursor.fetchall()]
 
-        Args:
-            limit: Maximum number of executions to return
-            include_quiet: If False, exclude successful runs of quiet jobs
+    def get_latest_per_job(self) -> List[Dict]:
+        """Get the latest success and latest failure for each job.
+
+        Returns at most 2 entries per job (most recent success + most recent failure),
+        providing a complete status overview without repetitive entries.
         """
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            if include_quiet:
-                cursor.execute('''
-                    SELECT e.*, j.name as job_name, j.target_bot, j.quiet
-                    FROM job_executions e
-                    JOIN jobs j ON e.job_id = j.job_id
-                    ORDER BY e.executed_at DESC
-                    LIMIT ?
-                ''', (limit,))
-            else:
-                # Exclude successful runs of quiet jobs
-                cursor.execute('''
-                    SELECT e.*, j.name as job_name, j.target_bot, j.quiet
-                    FROM job_executions e
-                    JOIN jobs j ON e.job_id = j.job_id
-                    WHERE NOT (j.quiet = 1 AND e.status = 'success')
-                    ORDER BY e.executed_at DESC
-                    LIMIT ?
-                ''', (limit,))
+            cursor.execute('''
+                SELECT e.*, j.name as job_name, j.target_bot, j.quiet
+                FROM job_executions e
+                JOIN jobs j ON e.job_id = j.job_id
+                WHERE e.id IN (
+                    -- Latest success per job
+                    SELECT MAX(e2.id) FROM job_executions e2
+                    WHERE e2.status = 'success'
+                    GROUP BY e2.job_id
+                    UNION
+                    -- Latest failure per job
+                    SELECT MAX(e2.id) FROM job_executions e2
+                    WHERE e2.status = 'failed'
+                    GROUP BY e2.job_id
+                )
+                ORDER BY e.executed_at DESC
+            ''')
             return [dict(row) for row in cursor.fetchall()]
 
     def get_failed_executions(self, since_hours: int = 24) -> List[Dict]:
