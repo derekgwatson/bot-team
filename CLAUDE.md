@@ -26,6 +26,14 @@ If a bot starts doing too much, **nip it in the bud immediately**. Split functio
 - When adding a new bot: add entry to `bot_team:` section with name, port, description, capabilities
 - Port range: 8001-8030 (check config.yaml for next available)
 
+## Dependencies
+
+**IMPORTANT**: The bot team uses a **single shared virtual environment** and one root `requirements.txt` file.
+
+- All dependencies go in `/bot-team/requirements.txt`
+- Do NOT create per-bot `requirements.txt` files
+- When adding a new bot that needs a new package, add it to the root file with a comment indicating which bot uses it
+
 ## Standard Bot Structure
 
 ```
