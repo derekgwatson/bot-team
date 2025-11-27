@@ -246,7 +246,12 @@ class GatewayAuth:
             """Log out the current user"""
             logout_user()
             session.clear()
-            return redirect('/')
+            # Use url_for with _external=True to get correct host behind proxies
+            # (same mechanism that works for login redirects)
+            callback_url = url_for('gateway_auth.callback', _external=True)
+            # Extract root URL: https://bot.example.com/auth/callback -> https://bot.example.com/
+            root_url = callback_url.rsplit('/auth/callback', 1)[0] + '/'
+            return redirect(root_url)
 
         self.app.register_blueprint(auth_bp)
 
