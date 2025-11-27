@@ -39,5 +39,5 @@ admin:
 # Authentication configuration
 # Uses Chester's auth gateway for Google OAuth
 auth:
-  mode: tiered  # Domain users get access, admins get extra features
+  mode: grant  # Centralized authorization via Grant bot
 

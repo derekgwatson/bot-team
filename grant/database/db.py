@@ -213,7 +213,12 @@ class Database:
     def check_access(self, email: str, bot_name: str) -> Dict:
         """
         Check if a user has access to a bot.
-        Returns {allowed: bool, role: str|None}.
+        Returns {allowed: bool, role: str|None, is_admin: bool, source: str|None}.
+
+        Checks in order:
+        1. Explicit permission for this user+bot
+        2. Wildcard (*) permission for this user
+        3. Bot's default_access policy (if 'domain', check domain)
         """
         permission = self.get_permission(email, bot_name)
 
@@ -225,14 +230,29 @@ class Database:
             return {
                 'allowed': True,
                 'role': permission['role'],
-                'is_admin': permission['role'] == 'admin'
+                'is_admin': permission['role'] == 'admin',
+                'source': 'permission'
             }
-        else:
+
+        # No explicit permission - check bot's default_access policy
+        bot = self.get_bot(bot_name)
+        if bot and bot.get('default_access') == 'domain':
+            # Return that domain check is needed (caller handles domain validation)
             return {
-                'allowed': False,
+                'allowed': None,  # Signals "check domain"
                 'role': None,
-                'is_admin': False
+                'is_admin': False,
+                'source': 'default_access',
+                'default_access': 'domain'
             }
+
+        # No permission and no domain access
+        return {
+            'allowed': False,
+            'role': None,
+            'is_admin': False,
+            'source': None
+        }
 
     # ─────────────────────────────────────────────────────────────
     # Audit Operations
@@ -278,31 +298,64 @@ class Database:
     # ─────────────────────────────────────────────────────────────
 
     def sync_bots(self, bots: List[Dict]) -> Dict:
-        """Sync bot registry from Chester."""
+        """Sync bot registry from Chester, preserving default_access settings."""
         now = utc_now_iso()
         synced = 0
 
         with self.connection() as conn:
             cursor = conn.cursor()
 
+            # Get existing default_access settings before sync
+            cursor.execute("SELECT name, default_access FROM bots")
+            existing_settings = {row['name']: row['default_access'] for row in cursor.fetchall()}
+
             # Clear existing bots
             cursor.execute("DELETE FROM bots")
 
-            # Insert new bots
+            # Insert new bots, preserving default_access if it was set
             for bot in bots:
+                name = bot.get('name', '').lower()
+                # Preserve existing default_access, or use 'explicit' for new bots
+                default_access = existing_settings.get(name, 'explicit')
+
                 cursor.execute(
-                    """INSERT INTO bots (name, description, port, synced_at)
-                       VALUES (?, ?, ?, ?)""",
+                    """INSERT INTO bots (name, description, port, synced_at, default_access)
+                       VALUES (?, ?, ?, ?, ?)""",
                     (
-                        bot.get('name', '').lower(),
+                        name,
                         bot.get('description', ''),
                         bot.get('port'),
-                        now
+                        now,
+                        default_access
                     )
                 )
                 synced += 1
 
         return {'synced': synced, 'synced_at': now}
+
+    def update_bot_access_policy(self, bot_name: str, default_access: str) -> bool:
+        """
+        Update a bot's default access policy.
+
+        Args:
+            bot_name: Bot name (e.g., 'fiona')
+            default_access: 'domain' or 'explicit'
+
+        Returns:
+            True if updated, False if bot not found
+        """
+        if default_access not in ('domain', 'explicit'):
+            raise ValueError(f"Invalid default_access: {default_access}. Must be 'domain' or 'explicit'.")
+
+        bot_name = bot_name.lower().strip()
+
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE bots SET default_access = ? WHERE name = ?",
+                (default_access, bot_name)
+            )
+            return cursor.rowcount > 0
 
     def get_bots(self) -> List[Dict]:
         """Get all registered bots."""

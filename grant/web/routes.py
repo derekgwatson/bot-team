@@ -145,3 +145,25 @@ def sync_bots():
         flash(f"Sync failed: {result['error']}", 'error')
 
     return redirect(request.referrer or url_for('web.index'))
+
+
+@web_bp.route('/bots/<bot_name>/access-policy', methods=['POST'])
+@login_required
+def update_bot_access_policy(bot_name):
+    """Update a bot's default access policy."""
+    default_access = request.form.get('default_access', '').strip()
+
+    if default_access not in ('domain', 'explicit'):
+        flash('Invalid access policy', 'error')
+    else:
+        try:
+            updated = permission_service.update_bot_access_policy(bot_name, default_access)
+            if updated:
+                policy_label = 'Domain (all staff)' if default_access == 'domain' else 'Explicit (invite only)'
+                flash(f"Updated {bot_name} access policy to: {policy_label}", 'success')
+            else:
+                flash(f'Bot {bot_name} not found', 'error')
+        except Exception as e:
+            flash(f'Error: {e}', 'error')
+
+    return redirect(request.referrer or url_for('web.bots'))
