@@ -125,6 +125,42 @@
             color: #666;
         }
 
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-bar label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-bar select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-bar select:focus {
+            outline: none;
+            border-color: #16a085;
+        }
+
+        .fabric-type-badge {
+            font-size: 11px;
+            background: #e8f6f3;
+            color: #16a085;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
         .fabric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -255,7 +291,18 @@
 
         <div class="stats-bar">
             <span id="resultCount">{{ total }} fabrics</span>
-            <span>Mavis: {{ 'Connected' if mavis_status.connected else 'Disconnected' }}</span>
+            <div class="filter-bar">
+                {% if fabric_types %}
+                <label for="typeFilter">Type:</label>
+                <select id="typeFilter" onchange="filterCards()">
+                    <option value="">All types</option>
+                    {% for ft in fabric_types %}
+                    <option value="{{ ft|lower }}">{{ ft }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <span style="margin-left: 10px;">Mavis: {{ 'Connected' if mavis_status.connected else 'Disconnected' }}</span>
+            </div>
         </div>
 
         <div id="noResults" class="empty-state">
@@ -265,12 +312,17 @@
 
         <div id="fabricDirectory" class="fabric-grid">
             {% for fabric in fabrics %}
-            <div class="fabric-card" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.supplier_material_type|lower if fabric.supplier_material_type else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}">
+            <div class="fabric-card" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.supplier_material_type|lower if fabric.supplier_material_type else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}" data-fabric-type="{{ fabric.fabric_type|lower if fabric.fabric_type else '' }}">
                 <div class="fabric-header">
                     <span class="product-code">{{ fabric.product_code }}</span>
-                    {% if fabric.watson_material or fabric.watson_colour %}
-                    <span class="watson-indicator">Watson</span>
-                    {% endif %}
+                    <div>
+                        {% if fabric.fabric_type %}
+                        <span class="fabric-type-badge">{{ fabric.fabric_type }}</span>
+                        {% endif %}
+                        {% if fabric.watson_material or fabric.watson_colour %}
+                        <span class="watson-indicator">Watson</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <dl class="fabric-details">
                     {% if fabric.supplier_material %}
@@ -299,33 +351,28 @@
     </div>
 
     <script>
-        // Instant search functionality (like Pam)
+        // Instant search and filter functionality
         const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
         const noResults = document.getElementById('noResults');
         const directory = document.getElementById('fabricDirectory');
         const resultCount = document.getElementById('resultCount');
+        const totalCount = {{ total }};
 
-        searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
+        function filterCards() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter ? typeFilter.value : '';
             const cards = document.querySelectorAll('.fabric-card');
             let visibleCount = 0;
 
-            if (query === '') {
-                // Show everything if search is empty
-                cards.forEach(card => {
-                    card.style.display = '';
-                    card.classList.remove('hidden');
-                });
-                noResults.style.display = 'none';
-                directory.style.display = 'grid';
-                resultCount.textContent = cards.length + ' fabrics';
-                return;
-            }
-
-            // Filter cards
             cards.forEach(card => {
-                const searchable = card.getAttribute('data-searchable');
-                if (searchable.includes(query)) {
+                const searchable = card.getAttribute('data-searchable') || '';
+                const fabricType = card.getAttribute('data-fabric-type') || '';
+
+                const matchesSearch = query === '' || searchable.includes(query);
+                const matchesType = selectedType === '' || fabricType === selectedType;
+
+                if (matchesSearch && matchesType) {
                     card.style.display = '';
                     card.classList.remove('hidden');
                     visibleCount++;
@@ -335,9 +382,14 @@
                 }
             });
 
-            // Update count and show/hide no results
-            resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
+            // Update count
+            if (query === '' && selectedType === '') {
+                resultCount.textContent = totalCount + ' fabrics';
+            } else {
+                resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
+            }
 
+            // Show/hide no results
             if (visibleCount === 0) {
                 noResults.style.display = 'block';
                 directory.style.display = 'none';
@@ -345,7 +397,9 @@
                 noResults.style.display = 'none';
                 directory.style.display = 'grid';
             }
-        });
+        }
+
+        searchInput.addEventListener('input', filterCards);
 
         // Focus search input on page load
         searchInput.focus();

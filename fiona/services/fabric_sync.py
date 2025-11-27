@@ -209,6 +209,94 @@ class FabricSyncService:
             'errors': errors if errors else None
         }
 
+    @staticmethod
+    def extract_fabric_type(product_group: str) -> str:
+        """
+        Extract the fabric type from a product_group value.
+
+        Examples:
+            'Fabric - Roller' -> 'Roller'
+            'Fabric - Awning' -> 'Awning'
+            'Fabric - Vertical' -> 'Vertical'
+            'Fabric' -> None (no specific type)
+
+        Returns the extracted type or None if no type can be extracted.
+        """
+        if not product_group:
+            return None
+
+        # Product groups for fabrics typically look like "Fabric - Type"
+        if ' - ' in product_group:
+            parts = product_group.split(' - ', 1)
+            if len(parts) == 2:
+                return parts[1].strip()
+
+        # If it's just "Fabric" without a subtype, return None
+        return None
+
+    def sync_fabric_types(self) -> Dict:
+        """
+        Sync fabric types from Mavis (Unleashed product_group) to Fiona.
+
+        Fetches all valid fabric products from Mavis and updates the
+        fabric_type column in Fiona's database based on the product_group.
+
+        Returns:
+            {
+                'success': bool,
+                'updated': int,
+                'not_found': int,
+                'types_found': list of distinct types,
+                'error': str (if failed)
+            }
+        """
+        logger.info("Starting fabric type sync from Mavis")
+
+        # Get all valid fabric products from Mavis
+        mavis_result = mavis_service.get_valid_fabric_products()
+
+        if 'error' in mavis_result:
+            logger.error(f"Failed to get fabric products from Mavis: {mavis_result['error']}")
+            return {
+                'success': False,
+                'error': mavis_result['error']
+            }
+
+        products = mavis_result.get('products', [])
+        logger.info(f"Received {len(products)} fabric products from Mavis")
+
+        # Build mapping of product_code -> fabric_type
+        type_mapping = {}
+        types_found = set()
+
+        for product in products:
+            code = product.get('product_code')
+            product_group = product.get('product_group', '')
+            fabric_type = self.extract_fabric_type(product_group)
+
+            if code and fabric_type:
+                type_mapping[code] = fabric_type
+                types_found.add(fabric_type)
+
+        logger.info(f"Extracted {len(type_mapping)} fabric types, {len(types_found)} distinct types")
+
+        # Bulk update the database
+        result = db.bulk_update_fabric_types(type_mapping)
+
+        logger.info(f"Fabric type sync complete: {result['updated']} updated, {result['not_found']} not in Fiona")
+
+        return {
+            'success': True,
+            'updated': result['updated'],
+            'not_found': result['not_found'],
+            'types_found': sorted(list(types_found)),
+            'errors': result.get('errors')
+        }
+
+    def get_fabric_types(self) -> List[str]:
+        """Get all distinct fabric types currently in the database."""
+        return db.get_distinct_fabric_types()
+
 
 # Global service instance
 fabric_sync_service = FabricSyncService()

@@ -69,6 +69,7 @@ def format_fabric_response(fabric: dict) -> dict:
         'supplier_colour': fabric['supplier_colour'],
         'watson_material': fabric['watson_material'],
         'watson_colour': fabric['watson_colour'],
+        'fabric_type': fabric.get('fabric_type'),
         'updated_at': fabric['updated_at'],
         'updated_by': fabric['updated_by']
     }
@@ -273,18 +274,21 @@ def search_fabrics():
         q (optional): General search term
         supplier_material (optional): Filter by supplier material
         watson_material (optional): Filter by watson material
+        fabric_type (optional): Filter by fabric type (e.g., "Roller", "Awning")
         limit (optional): Max results (default 100, max 500)
     """
     try:
         query = request.args.get('q')
         supplier_material = request.args.get('supplier_material')
         watson_material = request.args.get('watson_material')
+        fabric_type = request.args.get('fabric_type')
         limit = min(request.args.get('limit', 100, type=int), 500)
 
         fabrics = db.search_fabrics(
             query=query,
             supplier_material=supplier_material,
             watson_material=watson_material,
+            fabric_type=fabric_type,
             limit=limit
         )
 
@@ -485,3 +489,59 @@ def sync_status():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_bp.route('/sync/fabric-types', methods=['POST'])
+@api_key_required
+def sync_fabric_types():
+    """
+    Sync fabric types from Mavis (Unleashed product_group) to Fiona.
+
+    This endpoint fetches product data from Mavis and extracts the fabric type
+    from the product_group field (e.g., "Fabric - Roller" -> "Roller").
+
+    Can be called by Skye scheduler or manually triggered.
+    """
+    try:
+        result = fabric_sync_service.sync_fabric_types()
+
+        if not result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to sync fabric types')
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'updated': result.get('updated', 0),
+            'not_found': result.get('not_found', 0),
+            'types_found': result.get('types_found', []),
+            'errors': result.get('errors')
+        })
+
+    except Exception as e:
+        logger.exception("Error syncing fabric types")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/fabrics/types', methods=['GET'])
+@api_key_required
+def get_fabric_types():
+    """
+    Get all distinct fabric types currently in the database.
+
+    Returns a list of fabric types (e.g., ["Awning", "Panel", "Roller", "Vertical"]).
+    """
+    try:
+        fabric_types = fabric_sync_service.get_fabric_types()
+        return jsonify({
+            'fabric_types': fabric_types,
+            'count': len(fabric_types)
+        })
+
+    except Exception as e:
+        logger.exception("Error getting fabric types")
+        return jsonify({'error': str(e)}), 500
