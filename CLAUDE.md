@@ -115,11 +115,12 @@ def info():
 - All admin/dashboard/management routes MUST use `@login_required`
 - Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
 
+<<<<<<< HEAD
 When creating a new bot with a web UI:
-1. Add `auth` property to config.py (see GatewayAuth section below)
-2. Add `web/auth_routes.py` with `/login`, `/auth/callback`, `/logout`
-3. Initialize GatewayAuth in `app.py` (see GatewayAuth section below)
-4. Apply `@login_required` to ALL web routes
+1. Add `services/auth.py` compatibility layer (copy from any existing bot)
+2. Initialize `GatewayAuth` in `app.py` (handles /login, /auth/callback, /logout automatically)
+3. Apply `@login_required` to ALL web routes
+4. Add `auth: mode: domain` to config.yaml (allowed_domains loaded automatically from organization.yaml)
 5. Add `allowed_domains` property to config.py (loads from organization.yaml)
 
 ### API Authentication (bot-to-bot)
@@ -193,6 +194,7 @@ def auth(self):
     }
 ```
 
+<<<<<<< HEAD
 **Auth modes:**
 - `'domain'` - Anyone from allowed_domains can access
 - `'admin_only'` - Only emails in admin_emails can access
@@ -252,6 +254,25 @@ def index():
 ### Chester's Direct OAuth (Exception)
 
 Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
+=======
+Auth pattern (follow Skye as template):
+1. `services/auth.py` - Compatibility layer (decorators injected at runtime by app.py)
+2. `app.py` - Initialize `GatewayAuth(app, config)` which registers all OAuth routes automatically
+3. `config.yaml` - Add `auth: mode: domain` (allowed_domains auto-loaded from organization.yaml)
+4. Config loads `admin_emails` from `{BOT}_ADMIN_EMAILS` env var or `admin.emails` in config.yaml
+
+### Allowed Domains
+
+**IMPORTANT**: Allowed domains are centralized in `shared/config/organization.yaml`.
+
+- GatewayAuth automatically loads domains from organization.yaml when `auth.allowed_domains` is not specified
+- Do NOT duplicate domains in each bot's config.yaml
+- Only override `allowed_domains` in a bot's config if it has special requirements (rare)
+
+### Key auth files to copy from:
+- `skye/services/auth.py` - Auth compatibility layer
+- `skye/app.py` - GatewayAuth initialization pattern
+- `skye/config.yaml` - Auth config section
 
 ## Configuration Patterns
 
@@ -566,11 +587,11 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 1. **Pick a human name** - All bots are named like team members (Fred, Iris, Chester, Skye, Doc, etc.). No generic names like "tracker" or "journey".
 2. Copy structure from similar bot (Skye is a good template)
 3. Add to Chester's config.yaml with next available port
-4. Create config.py loading shared patterns (include `allowed_domains`, `admin_emails`, and `auth` property)
-5. **Set up GatewayAuth** - REQUIRED! See "GatewayAuth Setup for New Bots" section. Copy from Skye:
-   - `app.py` - GatewayAuth initialization
-   - `services/auth.py` - Stub file (decorators injected at runtime)
-   - `web/auth_routes.py` - Handles Chester auth callbacks
+4. Create config.py loading shared patterns
+5. **Set up OAuth** - REQUIRED!
+   - Copy `services/auth.py` compatibility layer from any existing bot
+   - Initialize `GatewayAuth(app, config)` in app.py
+   - Add `auth: mode: domain` to config.yaml (domains auto-loaded from organization.yaml)
 6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)

@@ -10,3 +10,9 @@ server:
 # Admin configuration
 admin:
   emails: []  # Override with EVELYN_ADMIN_EMAILS env var
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+# Allowed domains loaded from shared/config/organization.yaml
+auth:
+  mode: domain  # Any user from allowed_domains can access
