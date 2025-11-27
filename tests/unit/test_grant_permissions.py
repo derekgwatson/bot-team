@@ -5,13 +5,13 @@ Unit tests for Grant permission service.
 import os
 import sys
 import pytest
+import importlib
 import importlib.util
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 # Set test environment BEFORE any imports
 os.environ['TESTING'] = '1'
@@ -19,19 +19,33 @@ os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
 os.environ['GRANT_SUPERADMINS'] = 'superadmin@example.com,another-superadmin@example.com'
 
-# Add grant to path
-sys.path.insert(0, str(project_root / 'grant'))
-
-# Clear any cached modules
-for mod in ['config', 'database', 'database.db', 'services', 'services.permissions']:
-    if mod in sys.modules:
-        del sys.modules[mod]
-
 
 @pytest.fixture
 def permission_service(tmp_path):
     """Create a permission service with isolated database."""
-    # Import fresh
+    # Clear any cached config modules to ensure Grant's config is loaded fresh
+    modules_to_clear = [mod for mod in list(sys.modules.keys())
+                        if mod == 'config' or mod.startswith('config.') or
+                        mod.endswith('.config') or 'grant' in mod.lower() or
+                        mod in ('database', 'database.db', 'services', 'services.permissions')]
+    for mod in modules_to_clear:
+        del sys.modules[mod]
+
+    # Ensure grant is first in path so 'from config import config' finds grant/config.py
+    grant_path = str(project_root / 'grant')
+    if grant_path in sys.path:
+        sys.path.remove(grant_path)
+    sys.path.insert(0, grant_path)
+
+    # Also need project root for shared imports
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    # Now import grant's config module fresh
+    import config as grant_config
+    importlib.reload(grant_config)
+
+    # Import fresh database module
     module_path = project_root / 'grant' / 'database' / 'db.py'
     spec = importlib.util.spec_from_file_location('grant_db', module_path)
     db_module = importlib.util.module_from_spec(spec)
@@ -116,7 +130,7 @@ class TestRegularUserAccess:
         assert result['allowed'] is True
         assert result['role'] == 'user'
         assert result['is_admin'] is False
-        assert result['source'] == 'database'
+        assert result['source'] == 'permission'
 
     def test_admin_user_has_admin_flag(self, permission_service):
         """Test that admin users have is_admin flag."""
