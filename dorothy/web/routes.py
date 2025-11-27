@@ -292,7 +292,7 @@ def index():
         <div class="header">
             <div class="user-info">
                 <div class="user-email">{{ current_user.email }}</div>
-                <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+                <a href="{{ url_for('gateway_auth.logout') }}" class="btn-logout">Logout</a>
             </div>
             <h1>🚀 Dorothy</h1>
             <p>{{ config.description }}</p>
