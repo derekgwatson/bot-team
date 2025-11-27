@@ -84,6 +84,9 @@ class SchedulerService:
             timezone=config.scheduler_timezone
         )
 
+        # Seed jobs from config templates (creates missing jobs)
+        self._seed_jobs_from_templates()
+
         # Load jobs from database
         self._load_jobs_from_db()
 
@@ -113,6 +116,46 @@ class SchedulerService:
                 self._add_job_to_scheduler(job_data)
             except Exception as e:
                 logger.error(f"Failed to load job {job_data['job_id']}: {e}")
+
+    def _seed_jobs_from_templates(self):
+        """Seed jobs from config templates if they don't exist.
+
+        This ensures that job_templates defined in config.yaml are
+        automatically created in the database on first run.
+        """
+        db = self._get_db()
+        templates = config.job_templates
+
+        for job_id, template in templates.items():
+            # Check if job already exists
+            existing = db.get_job(job_id)
+            if existing:
+                logger.debug(f"Job {job_id} already exists, skipping seed")
+                continue
+
+            # Extract schedule config from template
+            schedule = template.get('schedule', {})
+            schedule_type = schedule.get('type', 'cron')
+
+            # Build schedule_config dict (everything except 'type')
+            schedule_config = {k: v for k, v in schedule.items() if k != 'type'}
+
+            try:
+                db.create_job(
+                    job_id=job_id,
+                    name=template.get('name', job_id),
+                    target_bot=template.get('target_bot'),
+                    endpoint=template.get('endpoint'),
+                    method=template.get('method', 'POST'),
+                    schedule_type=schedule_type,
+                    schedule_config=json.dumps(schedule_config),
+                    description=template.get('description'),
+                    enabled=True,
+                    created_by='system'
+                )
+                logger.info(f"Seeded job from template: {job_id}")
+            except Exception as e:
+                logger.error(f"Failed to seed job {job_id}: {e}")
 
     def _add_job_to_scheduler(self, job_data: Dict):
         """Add a job to APScheduler based on database config."""
