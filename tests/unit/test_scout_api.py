@@ -6,6 +6,7 @@ import os
 import sys
 import pytest
 import json
+import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,14 +19,24 @@ os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['BOT_API_KEY'] = 'test-api-key'
 
+# Add scout to path before importing its modules
+sys.path.insert(0, str(project_root / 'scout'))
+
+# Clear any cached config module to ensure scout's config is loaded
+if 'config' in sys.modules:
+    del sys.modules['config']
+
+# Import ScoutDatabase directly using importlib to avoid sys.modules caching issues
+module_path = project_root / 'scout' / 'database' / 'db.py'
+spec = importlib.util.spec_from_file_location('scout_database_db', module_path)
+scout_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(scout_db_module)
+ScoutDatabase = scout_db_module.ScoutDatabase
+
 
 @pytest.fixture
 def scout_app(tmp_path):
     """Create Scout Flask app for testing."""
-    sys.path.insert(0, str(project_root / 'scout'))
-
-    # Patch database before importing app
-    from database.db import ScoutDatabase
     test_db = ScoutDatabase(str(tmp_path / "scout_test.db"))
 
     with patch('database.db.db', test_db), \

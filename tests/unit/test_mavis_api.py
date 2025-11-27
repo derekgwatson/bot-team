@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import pytest
+import importlib.util
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -21,16 +22,21 @@ os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
 os.environ['BOT_API_KEY'] = 'test-bot-api-key'
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
 
-# Import mavis app
+# Import Database directly using importlib to avoid sys.modules caching issues
+module_path = project_root / 'mavis' / 'database' / 'db.py'
+spec = importlib.util.spec_from_file_location('mavis_database_db', module_path)
+mavis_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mavis_db_module)
+MavisDatabase = mavis_db_module.Database
+
+# Add mavis to path for app imports
 sys.path.insert(0, str(project_root / 'mavis'))
 
 
 @pytest.fixture
 def mavis_app(tmp_path):
     """Create Mavis Flask app with test database."""
-    # Patch the database before importing app
-    from database.db import Database
-    test_db = Database(str(tmp_path / 'test_mavis.db'))
+    test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
 
     with patch('database.db.db', test_db), \
          patch('services.sync_service.db', test_db), \

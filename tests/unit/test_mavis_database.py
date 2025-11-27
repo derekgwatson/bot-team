@@ -5,6 +5,7 @@ Unit tests for Mavis database operations.
 import os
 import sys
 import pytest
+import importlib.util
 from pathlib import Path
 
 # Add project root to path
@@ -17,17 +18,20 @@ os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['UNLEASHED_API_ID'] = 'test-api-id'
 os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
 
+# Import Database directly using importlib to avoid sys.modules caching issues
+# that can cause the wrong database.db module to be loaded
+module_path = project_root / 'mavis' / 'database' / 'db.py'
+spec = importlib.util.spec_from_file_location('mavis_database_db', module_path)
+mavis_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mavis_db_module)
+MavisDatabase = mavis_db_module.Database
+
 
 @pytest.fixture
 def mavis_db(tmp_path):
     """Create an isolated Mavis database for testing."""
     db_path = tmp_path / "mavis_test.db"
-
-    # Import here to avoid circular imports
-    sys.path.insert(0, str(project_root / 'mavis'))
-    from database.db import Database
-
-    return Database(str(db_path))
+    return MavisDatabase(str(db_path))
 
 
 @pytest.mark.unit

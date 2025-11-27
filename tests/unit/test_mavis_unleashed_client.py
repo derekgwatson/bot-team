@@ -77,9 +77,10 @@ class TestUnleashedClientProducts:
     @responses.activate
     def test_fetch_all_products_single_page(self, unleashed_client):
         """Test fetching products from a single page."""
+        # Unleashed API uses page number in URL path: /Products/1 for page 1
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/1',
             json={
                 'Items': [
                     {
@@ -111,10 +112,11 @@ class TestUnleashedClientProducts:
     @responses.activate
     def test_fetch_all_products_multiple_pages(self, unleashed_client):
         """Test fetching products across multiple pages."""
+        # Unleashed API uses page number in URL path: /Products/1 for page 1
         # Page 1
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/1',
             json={
                 'Items': [
                     {'ProductCode': 'PROD001', 'ProductDescription': 'Product 1'}
@@ -131,7 +133,7 @@ class TestUnleashedClientProducts:
         # Page 2
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/2',
             json={
                 'Items': [
                     {'ProductCode': 'PROD002', 'ProductDescription': 'Product 2'}
