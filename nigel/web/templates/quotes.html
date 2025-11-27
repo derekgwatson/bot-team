@@ -7,6 +7,7 @@
     <h2>Monitored Quotes</h2>
     <div>
         <a href="{{ url_for('web.add_quote') }}" class="btn btn-primary">Add Quote</a>
+        <a href="{{ url_for('web.bulk_add_quotes') }}" class="btn btn-secondary">Bulk Add</a>
     </div>
 </div>
 
@@ -64,7 +65,7 @@
 </table>
 {% else %}
 <p style="color: #666; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px;">
-    No quotes being monitored. <a href="{{ url_for('web.add_quote') }}">Add your first quote</a>
+    No quotes being monitored. <a href="{{ url_for('web.add_quote') }}">Add a quote</a> or <a href="{{ url_for('web.bulk_add_quotes') }}">bulk add</a>
 </p>
 {% endif %}
 {% endblock %}
