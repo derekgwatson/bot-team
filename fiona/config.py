@@ -61,7 +61,8 @@ class Config:
         if admin_emails_env:
             self.admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
         else:
-            self.admin_emails = admin_config.get("emails", [])
+            # Get from YAML, ensuring it's a list (YAML returns None for empty/commented lists)
+            self.admin_emails = admin_config.get("emails", []) or []
 
         # ── Load shared organization config for allowed domains ──
         shared_config_path = self.base_dir.parent / "shared" / "config" / "organization.yaml"
