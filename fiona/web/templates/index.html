@@ -77,28 +77,36 @@
         }
 
         .info-box {
-            background: #e8f6f3;
+            background: linear-gradient(135deg, #e8f6f3 0%, #d5f4e6 100%);
             border-left: 4px solid #16a085;
-            padding: 18px 22px;
+            padding: 20px 24px;
             margin-bottom: 25px;
-            border-radius: 6px;
+            border-radius: 8px;
+            position: relative;
         }
 
         .info-box p {
             margin: 0;
-            color: #555;
+            color: #2c3e50;
+            font-size: 15px;
         }
 
         .info-box strong {
             color: #16a085;
         }
 
-        .search-bar {
+        .info-box .tip {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .search-filter-container {
             background: white;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
 
         .search-bar input {
@@ -106,7 +114,7 @@
             padding: 14px 18px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
-            border-radius: 6px;
+            border-radius: 8px;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
@@ -114,6 +122,60 @@
             outline: none;
             border-color: #16a085;
             box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.1);
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            min-width: 120px;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #16a085;
+        }
+
+        .clear-filters {
+            background: none;
+            border: none;
+            color: #16a085;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .clear-filters:hover {
+            background: #e8f6f3;
         }
 
         .stats-bar {
@@ -125,6 +187,29 @@
             color: #666;
         }
 
+        .stats-bar .result-count {
+            font-weight: 600;
+            color: #16a085;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+
+        .connection-dot.disconnected {
+            background: #e74c3c;
+        }
+
         .fabric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -134,14 +219,14 @@
         .fabric-card {
             background: white;
             border: 1px solid #e8e8e8;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 18px;
             transition: all 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
         .fabric-card:hover {
-            box-shadow: 0 4px 12px rgba(22, 160, 133, 0.12);
+            box-shadow: 0 4px 16px rgba(22, 160, 133, 0.15);
             border-color: #1abc9c;
             transform: translateY(-2px);
         }
@@ -154,22 +239,49 @@
         }
 
         .product-code {
-            font-family: monospace;
-            font-size: 16px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            font-size: 15px;
             font-weight: 700;
             color: #16a085;
             background: #e8f6f3;
             padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .fabric-type-badge {
+            font-size: 10px;
+            background: #e8f6f3;
+            color: #16a085;
+            padding: 3px 8px;
             border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .price-badge {
+            font-size: 10px;
+            background: #fef3e2;
+            color: #d68910;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
         }
 
         .watson-indicator {
-            font-size: 11px;
-            background: #f39c12;
+            font-size: 10px;
+            background: #9b59b6;
             color: white;
             padding: 3px 8px;
-            border-radius: 3px;
-            font-weight: 500;
+            border-radius: 4px;
+            font-weight: 600;
         }
 
         .fabric-details {
@@ -180,8 +292,11 @@
         }
 
         .fabric-details dt {
-            color: #888;
+            color: #999;
             font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .fabric-details dd {
@@ -189,8 +304,16 @@
         }
 
         .watson-name {
-            color: #f39c12;
-            font-weight: 500;
+            color: #9b59b6;
+            font-weight: 600;
+        }
+
+        .width-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #f0f0f0;
         }
 
         .empty-state {
@@ -208,6 +331,10 @@
             display: none;
         }
 
+        #noResults h3 {
+            color: #16a085;
+        }
+
         @media (max-width: 768px) {
             .fabric-grid {
                 grid-template-columns: 1fr;
@@ -222,6 +349,18 @@
             .user-info {
                 text-align: center;
             }
+
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-group select {
+                flex: 1;
+            }
         }
     </style>
 </head>
@@ -230,7 +369,7 @@
         <div class="header-content">
             <div>
                 <h1>Fiona</h1>
-                <p>Fabric Description Directory</p>
+                <p>Your Friendly Fabric Expert</p>
             </div>
             <div class="user-info">
                 <div class="email">{{ current_user.email }}</div>
@@ -246,31 +385,74 @@
 
     <div class="container">
         <div class="info-box">
-            <p><strong>Hi! I'm Fiona.</strong> I help you find friendly fabric descriptions quickly. Start typing in the search box to filter by product code, material, or colour.</p>
+            <p><strong>Welcome!</strong> I'm Fiona, and I absolutely love keeping track of all our fabrics! Whether you need a roller fabric, an awning material, or something special - I've got the details you need.</p>
+            <p class="tip">Tip: Use the filters below to narrow down by type, price category, or width. I'll find exactly what you're looking for!</p>
         </div>
 
-        <div class="search-bar">
-            <input type="search" id="searchInput" placeholder="Start typing to search by product code, material, or colour..." autocomplete="off">
+        <div class="search-filter-container">
+            <div class="search-bar">
+                <input type="search" id="searchInput" placeholder="Search by product code, material name, or colour..." autocomplete="off">
+            </div>
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="typeFilter">Type</label>
+                    <select id="typeFilter" onchange="onTypeChange()">
+                        <option value="">All types</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="priceFilter">Price Cat</label>
+                    <select id="priceFilter" onchange="onPriceChange()">
+                        <option value="">All prices</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="widthFilter">Width</label>
+                    <select id="widthFilter" onchange="filterCards()">
+                        <option value="">All widths</option>
+                    </select>
+                </div>
+
+                <button class="clear-filters" onclick="clearFilters()">Clear all</button>
+            </div>
         </div>
 
         <div class="stats-bar">
-            <span id="resultCount">{{ total }} fabrics</span>
-            <span>Mavis: {{ 'Connected' if mavis_status.connected else 'Disconnected' }}</span>
+            <span><span class="result-count" id="resultCount">{{ total }}</span> fabrics in my collection</span>
+            <div class="connection-status">
+                <span class="connection-dot {{ '' if mavis_status.connected else 'disconnected' }}"></span>
+                Unleashed {{ 'synced' if mavis_status.connected else 'offline' }}
+            </div>
         </div>
 
         <div id="noResults" class="empty-state">
-            <h3>No fabrics found</h3>
-            <p>Try a different search term.</p>
+            <h3>Hmm, I couldn't find any matches</h3>
+            <p>Try adjusting your search or filters - I'm sure we have what you need!</p>
         </div>
 
         <div id="fabricDirectory" class="fabric-grid">
             {% for fabric in fabrics %}
-            <div class="fabric-card" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.supplier_material_type|lower if fabric.supplier_material_type else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}">
+            <div class="fabric-card"
+                 data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.supplier_material_type|lower if fabric.supplier_material_type else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}"
+                 data-fabric-type="{{ fabric.fabric_type|lower if fabric.fabric_type else '' }}"
+                 data-price-category="{{ fabric.price_category|lower if fabric.price_category else '' }}"
+                 data-width="{{ fabric.width if fabric.width else '' }}">
                 <div class="fabric-header">
                     <span class="product-code">{{ fabric.product_code }}</span>
-                    {% if fabric.watson_material or fabric.watson_colour %}
-                    <span class="watson-indicator">Watson</span>
-                    {% endif %}
+                    <div class="badge-container">
+                        {% if fabric.fabric_type %}
+                        <span class="fabric-type-badge">{{ fabric.fabric_type }}</span>
+                        {% endif %}
+                        {% if fabric.price_category %}
+                        <span class="price-badge">{{ fabric.price_category }}</span>
+                        {% endif %}
+                        {% if fabric.watson_material or fabric.watson_colour %}
+                        <span class="watson-indicator">Watson</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <dl class="fabric-details">
                     {% if fabric.supplier_material %}
@@ -278,7 +460,7 @@
                     <dd>{{ fabric.supplier_material }}{% if fabric.watson_material %} <span class="watson-name">{{ fabric.watson_material }}</span>{% endif %}</dd>
                     {% endif %}
                     {% if fabric.supplier_material_type %}
-                    <dt>Type</dt>
+                    <dt>Style</dt>
                     <dd>{{ fabric.supplier_material_type }}</dd>
                     {% endif %}
                     {% if fabric.supplier_colour %}
@@ -286,58 +468,200 @@
                     <dd>{{ fabric.supplier_colour }}{% if fabric.watson_colour %} <span class="watson-name">{{ fabric.watson_colour }}</span>{% endif %}</dd>
                     {% endif %}
                 </dl>
+                {% if fabric.width %}
+                <div class="width-info">Width: {{ fabric.width }}m</div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
 
         {% if not fabrics %}
         <div class="empty-state">
-            <h3>No fabric descriptions yet</h3>
-            <p>Fabric descriptions will appear here once they're added.</p>
+            <h3>My fabric collection is empty!</h3>
+            <p>Fabric descriptions will appear here once they're added. I can't wait to start cataloguing!</p>
         </div>
         {% endif %}
     </div>
 
     <script>
-        // Instant search functionality (like Pam)
         const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
+        const priceFilter = document.getElementById('priceFilter');
+        const widthFilter = document.getElementById('widthFilter');
         const noResults = document.getElementById('noResults');
         const directory = document.getElementById('fabricDirectory');
         const resultCount = document.getElementById('resultCount');
+        const totalCount = {{ total }};
 
-        searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
+        // Build fabric data from cards for cascading filters
+        let fabricData = [];
+
+        function initFabricData() {
             const cards = document.querySelectorAll('.fabric-card');
-            let visibleCount = 0;
+            fabricData = Array.from(cards).map(card => ({
+                element: card,
+                searchable: card.getAttribute('data-searchable') || '',
+                type: card.getAttribute('data-fabric-type') || '',
+                price: card.getAttribute('data-price-category') || '',
+                width: card.getAttribute('data-width') || ''
+            }));
+        }
 
-            if (query === '') {
-                // Show everything if search is empty
-                cards.forEach(card => {
-                    card.style.display = '';
-                    card.classList.remove('hidden');
-                });
-                noResults.style.display = 'none';
-                directory.style.display = 'grid';
-                resultCount.textContent = cards.length + ' fabrics';
-                return;
-            }
+        function getFilteredFabrics(includeSearch = true) {
+            const query = includeSearch ? searchInput.value.toLowerCase().trim() : '';
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const selectedWidth = widthFilter.value;
 
-            // Filter cards
-            cards.forEach(card => {
-                const searchable = card.getAttribute('data-searchable');
-                if (searchable.includes(query)) {
-                    card.style.display = '';
-                    card.classList.remove('hidden');
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
-                    card.classList.add('hidden');
+            return fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                const matchesWidth = selectedWidth === '' || f.width === selectedWidth;
+                return matchesSearch && matchesType && matchesPrice && matchesWidth;
+            });
+        }
+
+        function populateTypeFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const currentValue = typeFilter.value;
+
+            // Get fabrics matching current search
+            const matchingFabrics = fabricData.filter(f =>
+                query === '' || f.searchable.includes(query)
+            );
+
+            // Count fabrics per type
+            const typeCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.type) {
+                    typeCounts[f.type] = (typeCounts[f.type] || 0) + 1;
                 }
             });
 
-            // Update count and show/hide no results
-            resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
+            // Sort types alphabetically
+            const sortedTypes = Object.keys(typeCounts).sort();
 
+            // Rebuild options
+            typeFilter.innerHTML = `<option value="">All types (${matchingFabrics.length})</option>`;
+            sortedTypes.forEach(type => {
+                const selected = type === currentValue ? ' selected' : '';
+                const displayName = type.charAt(0).toUpperCase() + type.slice(1);
+                typeFilter.innerHTML += `<option value="${type}"${selected}>${displayName} (${typeCounts[type]})</option>`;
+            });
+        }
+
+        function populatePriceFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const currentValue = priceFilter.value;
+
+            // Get fabrics matching search + type
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                return matchesSearch && matchesType;
+            });
+
+            // Count fabrics per price category
+            const priceCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.price) {
+                    priceCounts[f.price] = (priceCounts[f.price] || 0) + 1;
+                }
+            });
+
+            // Sort prices
+            const sortedPrices = Object.keys(priceCounts).sort();
+
+            // Rebuild options
+            priceFilter.innerHTML = `<option value="">All prices (${matchingFabrics.length})</option>`;
+            sortedPrices.forEach(price => {
+                const selected = price === currentValue ? ' selected' : '';
+                const displayName = price.charAt(0).toUpperCase() + price.slice(1);
+                priceFilter.innerHTML += `<option value="${price}"${selected}>${displayName} (${priceCounts[price]})</option>`;
+            });
+
+            // If current value no longer available, reset it
+            if (currentValue && !priceCounts[currentValue]) {
+                priceFilter.value = '';
+            }
+        }
+
+        function populateWidthFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const currentValue = widthFilter.value;
+
+            // Get fabrics matching search + type + price
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                return matchesSearch && matchesType && matchesPrice;
+            });
+
+            // Count fabrics per width
+            const widthCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.width) {
+                    widthCounts[f.width] = (widthCounts[f.width] || 0) + 1;
+                }
+            });
+
+            // Sort widths numerically
+            const sortedWidths = Object.keys(widthCounts).sort((a, b) => parseFloat(a) - parseFloat(b));
+
+            // Rebuild options
+            widthFilter.innerHTML = `<option value="">All widths (${matchingFabrics.length})</option>`;
+            sortedWidths.forEach(width => {
+                const selected = width === currentValue ? ' selected' : '';
+                widthFilter.innerHTML += `<option value="${width}"${selected}>${width}m (${widthCounts[width]})</option>`;
+            });
+
+            // If current value no longer available, reset it
+            if (currentValue && !widthCounts[currentValue]) {
+                widthFilter.value = '';
+            }
+        }
+
+        function onTypeChange() {
+            populatePriceFilter();
+            populateWidthFilter();
+            filterCards();
+        }
+
+        function onPriceChange() {
+            populateWidthFilter();
+            filterCards();
+        }
+
+        function filterCards() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const selectedWidth = widthFilter.value;
+            let visibleCount = 0;
+
+            fabricData.forEach(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                const matchesWidth = selectedWidth === '' || f.width === selectedWidth;
+
+                if (matchesSearch && matchesType && matchesPrice && matchesWidth) {
+                    f.element.style.display = '';
+                    visibleCount++;
+                } else {
+                    f.element.style.display = 'none';
+                }
+            });
+
+            // Update count
+            resultCount.textContent = visibleCount;
+
+            // Show/hide no results
             if (visibleCount === 0) {
                 noResults.style.display = 'block';
                 directory.style.display = 'none';
@@ -345,9 +669,34 @@
                 noResults.style.display = 'none';
                 directory.style.display = 'grid';
             }
-        });
+        }
 
-        // Focus search input on page load
+        function onSearchChange() {
+            populateTypeFilter();
+            populatePriceFilter();
+            populateWidthFilter();
+            filterCards();
+        }
+
+        function clearFilters() {
+            searchInput.value = '';
+            typeFilter.value = '';
+            priceFilter.value = '';
+            widthFilter.value = '';
+            populateTypeFilter();
+            populatePriceFilter();
+            populateWidthFilter();
+            filterCards();
+            searchInput.focus();
+        }
+
+        // Initialize on page load
+        initFabricData();
+        populateTypeFilter();
+        populatePriceFilter();
+        populateWidthFilter();
+
+        searchInput.addEventListener('input', onSearchChange);
         searchInput.focus();
     </script>
 </body>

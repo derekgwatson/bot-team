@@ -13,10 +13,19 @@ class PermissionService:
 
     def __init__(self):
         self.superadmins = config.superadmins
+        self.allowed_domains = [d.lower() for d in config.allowed_domains]
 
     def _get_db(self):
         """Get database instance."""
         return get_db()
+
+    def _is_domain_allowed(self, email: str) -> bool:
+        """Check if email is from an allowed domain."""
+        email = email.lower()
+        for domain in self.allowed_domains:
+            if email.endswith(f'@{domain}'):
+                return True
+        return False
 
     # ─────────────────────────────────────────────────────────────
     # Access Checking
@@ -26,9 +35,12 @@ class PermissionService:
         """
         Check if a user has access to a bot.
 
-        Superadmins always have admin access to everything.
+        Order of checks:
+        1. Superadmins always have admin access
+        2. Explicit permission in database
+        3. Bot's default_access policy (if 'domain', check email domain)
 
-        Returns: {allowed: bool, role: str|None, is_admin: bool}
+        Returns: {allowed: bool, role: str|None, is_admin: bool, source: str|None}
         """
         email = email.lower().strip()
         bot_name = bot_name.lower().strip()
@@ -42,9 +54,26 @@ class PermissionService:
                 'source': 'superadmin'
             }
 
-        # Check database
+        # Check database (returns allowed=None if default_access='domain')
         result = self._get_db().check_access(email, bot_name)
-        result['source'] = 'database' if result['allowed'] else None
+
+        # If database returned allowed=None, it means check domain
+        if result.get('allowed') is None and result.get('default_access') == 'domain':
+            if self._is_domain_allowed(email):
+                return {
+                    'allowed': True,
+                    'role': 'user',  # Domain users get 'user' role
+                    'is_admin': False,
+                    'source': 'domain'
+                }
+            else:
+                return {
+                    'allowed': False,
+                    'role': None,
+                    'is_admin': False,
+                    'source': None
+                }
+
         return result
 
     def is_superadmin(self, email: str) -> bool:
@@ -169,6 +198,20 @@ class PermissionService:
     def get_bot(self, name: str) -> Optional[Dict]:
         """Get a bot by name."""
         return self._get_db().get_bot(name)
+
+    def update_bot_access_policy(self, bot_name: str, default_access: str) -> bool:
+        """
+        Update a bot's default access policy.
+
+        Args:
+            bot_name: Bot name (e.g., 'fiona')
+            default_access: 'domain' or 'explicit'
+
+        Returns:
+            True if updated, False if bot not found
+        """
+        logger.info(f"Updating {bot_name} access policy to {default_access}")
+        return self._get_db().update_bot_access_policy(bot_name, default_access)
 
     # ─────────────────────────────────────────────────────────────
     # Stats

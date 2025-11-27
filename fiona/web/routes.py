@@ -94,12 +94,20 @@ def all_fabrics():
     # Check Mavis connection
     mavis_status = mavis_service.check_connection()
 
+    # Get distinct values for filter dropdowns
+    fabric_types = fabric_sync_service.get_fabric_types()
+    price_categories = fabric_sync_service.get_price_categories()
+    widths = fabric_sync_service.get_widths()
+
     return render_template(
         'index.html',
         config=config,
         fabrics=fabrics,
         total=total,
         mavis_status=mavis_status,
+        fabric_types=fabric_types,
+        price_categories=price_categories,
+        widths=widths,
         current_user=current_user
     )
 
@@ -377,10 +385,16 @@ def rebadged_page():
     """View fabrics with Watson names different from supplier names (staff)"""
     rebadged_fabrics = fabric_sync_service.get_rebadged_fabrics()
 
+    # Get distinct values for filter dropdowns
+    fabric_types = fabric_sync_service.get_fabric_types()
+    price_categories = fabric_sync_service.get_price_categories()
+
     return render_template(
         'rebadged.html',
         config=config,
         fabrics=rebadged_fabrics,
         total=len(rebadged_fabrics),
+        fabric_types=fabric_types,
+        price_categories=price_categories,
         current_user=current_user
     )

@@ -96,6 +96,7 @@ class User(UserMixin):
         self.picture = picture
         self._is_admin = is_admin
 
+    @property
     def is_admin(self):
         """Check if user is an admin"""
         return self._is_admin
@@ -413,7 +414,7 @@ class GatewayAuth:
 
     def is_admin(self) -> bool:
         """Check if current user is an admin"""
-        return current_user.is_authenticated and current_user.is_admin()
+        return current_user.is_authenticated and current_user.is_admin
 
     def login_required(self, f):
         """

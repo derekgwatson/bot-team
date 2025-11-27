@@ -210,6 +210,36 @@ def sync_bots():
     return jsonify(result), status_code
 
 
+@api_bp.route('/bots/<bot_name>/access-policy', methods=['PUT'])
+@api_key_required
+def update_bot_access_policy(bot_name):
+    """
+    Update a bot's default access policy.
+
+    JSON body:
+        default_access: 'domain' or 'explicit' (required)
+
+    Returns:
+        {success: bool, error: str|None}
+    """
+    data = request.get_json() or {}
+    default_access = data.get('default_access')
+
+    if not default_access:
+        return jsonify({'error': 'default_access is required'}), 400
+    if default_access not in ('domain', 'explicit'):
+        return jsonify({'error': "default_access must be 'domain' or 'explicit'"}), 400
+
+    try:
+        updated = permission_service.update_bot_access_policy(bot_name, default_access)
+        if updated:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': f'Bot {bot_name} not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ─────────────────────────────────────────────────────────────
 # Audit
 # ─────────────────────────────────────────────────────────────

@@ -69,6 +69,9 @@ def format_fabric_response(fabric: dict) -> dict:
         'supplier_colour': fabric['supplier_colour'],
         'watson_material': fabric['watson_material'],
         'watson_colour': fabric['watson_colour'],
+        'fabric_type': fabric.get('fabric_type'),
+        'price_category': fabric.get('price_category'),
+        'width': fabric.get('width'),
         'updated_at': fabric['updated_at'],
         'updated_by': fabric['updated_by']
     }
@@ -273,18 +276,24 @@ def search_fabrics():
         q (optional): General search term
         supplier_material (optional): Filter by supplier material
         watson_material (optional): Filter by watson material
+        fabric_type (optional): Filter by fabric type (e.g., "Roller", "Awning")
+        price_category (optional): Filter by price category (e.g., "A", "B")
         limit (optional): Max results (default 100, max 500)
     """
     try:
         query = request.args.get('q')
         supplier_material = request.args.get('supplier_material')
         watson_material = request.args.get('watson_material')
+        fabric_type = request.args.get('fabric_type')
+        price_category = request.args.get('price_category')
         limit = min(request.args.get('limit', 100, type=int), 500)
 
         fabrics = db.search_fabrics(
             query=query,
             supplier_material=supplier_material,
             watson_material=watson_material,
+            fabric_type=fabric_type,
+            price_category=price_category,
             limit=limit
         )
 
@@ -398,10 +407,12 @@ def auto_sync():
     This endpoint:
     1. Compares Fiona's fabrics with Mavis's valid fabrics
     2. Adds missing fabrics as placeholders
-    3. Reports any fabrics flagged for deletion (requires manual review)
+    3. Syncs Unleashed fields (fabric_type, price_category, width) from Mavis
+    4. Reports any fabrics flagged for deletion (requires manual review)
 
     Returns sync results including:
     - fabrics added
+    - Unleashed fields synced
     - fabrics flagged for deletion (not automatically deleted)
     - comparison statistics
     """
@@ -420,6 +431,9 @@ def auto_sync():
         if comparison.get('missing_count', 0) > 0:
             add_result = fabric_sync_service.add_missing_fabrics(updated_by='skye-auto-sync')
 
+        # Sync Unleashed fields (fabric_type, price_category, width)
+        unleashed_sync = fabric_sync_service.sync_unleashed_fields()
+
         return jsonify({
             'success': True,
             'sync_time': request.headers.get('X-Request-Time'),
@@ -432,6 +446,11 @@ def auto_sync():
             'added': {
                 'count': add_result.get('added', 0),
                 'codes': add_result.get('codes', [])[:20]  # Limit to first 20 for response size
+            },
+            'unleashed_fields': {
+                'updated': unleashed_sync.get('updated', 0),
+                'fabric_types': unleashed_sync.get('fabric_types', []),
+                'price_categories': unleashed_sync.get('price_categories', [])
             },
             'flagged_for_deletion': {
                 'count': comparison.get('flagged_count', 0),
@@ -485,3 +504,82 @@ def sync_status():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_bp.route('/sync/fabric-types', methods=['POST'])
+@api_key_required
+def sync_fabric_types():
+    """
+    Sync Unleashed-derived fields from Mavis to Fiona.
+
+    This endpoint fetches product data from Mavis and syncs:
+    - fabric_type: from product_group (e.g., "Fabric - Roller" -> "Roller")
+    - price_category: from product_sub_group (e.g., "A", "B", "Premium")
+    - width: fabric width in meters
+
+    Can be called by Skye scheduler or manually triggered.
+    """
+    try:
+        result = fabric_sync_service.sync_unleashed_fields()
+
+        if not result.get('success'):
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to sync Unleashed fields')
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'updated': result.get('updated', 0),
+            'not_found': result.get('not_found', 0),
+            'fabric_types': result.get('fabric_types', []),
+            'price_categories': result.get('price_categories', []),
+            'errors': result.get('errors')
+        })
+
+    except Exception as e:
+        logger.exception("Error syncing Unleashed fields")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/fabrics/types', methods=['GET'])
+@api_key_required
+def get_fabric_types():
+    """
+    Get all distinct fabric types currently in the database.
+
+    Returns a list of fabric types (e.g., ["Awning", "Panel", "Roller", "Vertical"]).
+    """
+    try:
+        fabric_types = fabric_sync_service.get_fabric_types()
+        return jsonify({
+            'fabric_types': fabric_types,
+            'count': len(fabric_types)
+        })
+
+    except Exception as e:
+        logger.exception("Error getting fabric types")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/fabrics/price-categories', methods=['GET'])
+@api_key_required
+def get_price_categories():
+    """
+    Get all distinct price categories currently in the database.
+
+    Returns a list of price categories (e.g., ["A", "B", "C", "Premium"]).
+    """
+    try:
+        price_categories = fabric_sync_service.get_price_categories()
+        return jsonify({
+            'price_categories': price_categories,
+            'count': len(price_categories)
+        })
+
+    except Exception as e:
+        logger.exception("Error getting price categories")
+        return jsonify({'error': str(e)}), 500

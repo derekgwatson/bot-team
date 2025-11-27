@@ -209,6 +209,132 @@ class FabricSyncService:
             'errors': errors if errors else None
         }
 
+    @staticmethod
+    def extract_fabric_type(product_group: str) -> str:
+        """
+        Extract the fabric type from a product_group value.
+
+        Examples:
+            'Fabric - Roller' -> 'Roller'
+            'Fabric - Awning' -> 'Awning'
+            'Fabric - Vertical' -> 'Vertical'
+            'Fabric' -> None (no specific type)
+
+        Returns the extracted type or None if no type can be extracted.
+        """
+        if not product_group:
+            return None
+
+        # Product groups for fabrics typically look like "Fabric - Type"
+        if ' - ' in product_group:
+            parts = product_group.split(' - ', 1)
+            if len(parts) == 2:
+                return parts[1].strip()
+
+        # If it's just "Fabric" without a subtype, return None
+        return None
+
+    def sync_fabric_types(self) -> Dict:
+        """
+        Sync fabric types from Mavis (Unleashed product_group) to Fiona.
+        Note: For full sync including price_category and width, use sync_unleashed_fields().
+        """
+        return self.sync_unleashed_fields()
+
+    def sync_unleashed_fields(self) -> Dict:
+        """
+        Sync all Unleashed-derived fields from Mavis to Fiona.
+
+        Fetches all valid fabric products from Mavis and updates:
+        - fabric_type: extracted from product_group (e.g., "Fabric - Roller" -> "Roller")
+        - price_category: from product_sub_group (e.g., "A", "B", "Premium")
+        - width: fabric width in meters
+
+        Returns:
+            {
+                'success': bool,
+                'updated': int,
+                'not_found': int,
+                'fabric_types': list of distinct types,
+                'price_categories': list of distinct categories,
+                'error': str (if failed)
+            }
+        """
+        logger.info("Starting Unleashed fields sync from Mavis")
+
+        # Get all valid fabric products from Mavis
+        mavis_result = mavis_service.get_valid_fabric_products()
+
+        if 'error' in mavis_result:
+            logger.error(f"Failed to get fabric products from Mavis: {mavis_result['error']}")
+            return {
+                'success': False,
+                'error': mavis_result['error']
+            }
+
+        products = mavis_result.get('products', [])
+        logger.info(f"Received {len(products)} fabric products from Mavis")
+
+        # Build update list with all fields
+        updates = []
+        fabric_types = set()
+        price_categories = set()
+
+        for product in products:
+            code = product.get('product_code')
+            if not code:
+                continue
+
+            # Extract fabric type from product_group
+            product_group = product.get('product_group', '')
+            fabric_type = self.extract_fabric_type(product_group)
+
+            # Get price category from product_sub_group
+            price_category = product.get('product_sub_group')
+
+            # Get width
+            width = product.get('width')
+
+            updates.append({
+                'product_code': code,
+                'fabric_type': fabric_type,
+                'price_category': price_category,
+                'width': width
+            })
+
+            if fabric_type:
+                fabric_types.add(fabric_type)
+            if price_category:
+                price_categories.add(price_category)
+
+        logger.info(f"Prepared {len(updates)} updates: {len(fabric_types)} types, {len(price_categories)} price categories")
+
+        # Bulk update the database
+        result = db.bulk_update_unleashed_fields(updates)
+
+        logger.info(f"Unleashed fields sync complete: {result['updated']} updated, {result['not_found']} not in Fiona")
+
+        return {
+            'success': True,
+            'updated': result['updated'],
+            'not_found': result['not_found'],
+            'fabric_types': sorted(list(fabric_types)),
+            'price_categories': sorted(list(price_categories)),
+            'errors': result.get('errors')
+        }
+
+    def get_fabric_types(self) -> List[str]:
+        """Get all distinct fabric types currently in the database."""
+        return db.get_distinct_fabric_types()
+
+    def get_price_categories(self) -> List[str]:
+        """Get all distinct price categories currently in the database."""
+        return db.get_distinct_price_categories()
+
+    def get_widths(self) -> List[float]:
+        """Get all distinct widths currently in the database."""
+        return db.get_distinct_widths()
+
 
 # Global service instance
 fabric_sync_service = FabricSyncService()
