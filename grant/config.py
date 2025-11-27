@@ -39,10 +39,10 @@ class Config:
         db_path = db_cfg.get("path", "database/grant.db")
         self.database_path = self.base_dir / db_path
 
-        # Flask secret key (env)
+        # Flask secret key (bot-specific, with fallback to shared)
         self.secret_key = os.environ.get(
-            "FLASK_SECRET_KEY",
-            "dev-secret-key-change-in-production",
+            "GRANT_SECRET_KEY",
+            os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-in-production"),
         )
 
         # Bot API key for bot-to-bot communication (env)
