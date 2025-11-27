@@ -23,8 +23,8 @@ def index():
     stats = db.get_stats()
     stats['scheduler_running'] = scheduler_service.is_running()
 
-    # Hide quiet job successes by default for cleaner dashboard
-    recent_executions = db.get_recent_executions(limit=20, include_quiet=False)
+    # Show latest success/failure per job for cleaner dashboard
+    recent_executions = db.get_latest_per_job()
     failed_executions = db.get_failed_executions(since_hours=24)
 
     return render_template(
@@ -267,15 +267,19 @@ def delete_job(job_id):
 @login_required
 def execution_history():
     """View execution history."""
-    # Default to hiding quiet job successes (show_all=0)
-    show_all = request.args.get('show_all', '0') == '1'
-    executions = db.get_recent_executions(limit=200, include_quiet=show_all)
+    # View modes: 'summary' (latest per job) or 'all' (full history)
+    view = request.args.get('view', 'summary')
+
+    if view == 'all':
+        executions = db.get_recent_executions(limit=200)
+    else:
+        executions = db.get_latest_per_job()
 
     return render_template(
         'history.html',
         config=config,
         executions=executions,
-        show_all=show_all,
+        view=view,
         current_user=current_user
     )
 
