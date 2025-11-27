@@ -395,41 +395,26 @@
             </div>
 
             <div class="filter-row">
-                {% if fabric_types %}
                 <div class="filter-group">
                     <label for="typeFilter">Type</label>
-                    <select id="typeFilter" onchange="filterCards()">
+                    <select id="typeFilter" onchange="onTypeChange()">
                         <option value="">All types</option>
-                        {% for ft in fabric_types %}
-                        <option value="{{ ft|lower }}">{{ ft }}</option>
-                        {% endfor %}
                     </select>
                 </div>
-                {% endif %}
 
-                {% if price_categories %}
                 <div class="filter-group">
                     <label for="priceFilter">Price Cat</label>
-                    <select id="priceFilter" onchange="filterCards()">
+                    <select id="priceFilter" onchange="onPriceChange()">
                         <option value="">All prices</option>
-                        {% for pc in price_categories %}
-                        <option value="{{ pc|lower }}">{{ pc }}</option>
-                        {% endfor %}
                     </select>
                 </div>
-                {% endif %}
 
-                {% if widths %}
                 <div class="filter-group">
                     <label for="widthFilter">Width</label>
                     <select id="widthFilter" onchange="filterCards()">
                         <option value="">All widths</option>
-                        {% for w in widths %}
-                        <option value="{{ w }}">{{ w }}m</option>
-                        {% endfor %}
                     </select>
                 </div>
-                {% endif %}
 
                 <button class="clear-filters" onclick="clearFilters()">Clear all</button>
             </div>
@@ -508,39 +493,173 @@
         const resultCount = document.getElementById('resultCount');
         const totalCount = {{ total }};
 
-        function filterCards() {
-            const query = searchInput.value.toLowerCase().trim();
-            const selectedType = typeFilter ? typeFilter.value : '';
-            const selectedPrice = priceFilter ? priceFilter.value : '';
-            const selectedWidth = widthFilter ? widthFilter.value : '';
+        // Build fabric data from cards for cascading filters
+        let fabricData = [];
+
+        function initFabricData() {
             const cards = document.querySelectorAll('.fabric-card');
-            let visibleCount = 0;
+            fabricData = Array.from(cards).map(card => ({
+                element: card,
+                searchable: card.getAttribute('data-searchable') || '',
+                type: card.getAttribute('data-fabric-type') || '',
+                price: card.getAttribute('data-price-category') || '',
+                width: card.getAttribute('data-width') || ''
+            }));
+        }
 
-            cards.forEach(card => {
-                const searchable = card.getAttribute('data-searchable') || '';
-                const fabricType = card.getAttribute('data-fabric-type') || '';
-                const priceCategory = card.getAttribute('data-price-category') || '';
-                const width = card.getAttribute('data-width') || '';
+        function getFilteredFabrics(includeSearch = true) {
+            const query = includeSearch ? searchInput.value.toLowerCase().trim() : '';
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const selectedWidth = widthFilter.value;
 
-                const matchesSearch = query === '' || searchable.includes(query);
-                const matchesType = selectedType === '' || fabricType === selectedType;
-                const matchesPrice = selectedPrice === '' || priceCategory === selectedPrice;
-                const matchesWidth = selectedWidth === '' || width === selectedWidth;
+            return fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                const matchesWidth = selectedWidth === '' || f.width === selectedWidth;
+                return matchesSearch && matchesType && matchesPrice && matchesWidth;
+            });
+        }
 
-                if (matchesSearch && matchesType && matchesPrice && matchesWidth) {
-                    card.style.display = '';
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none';
+        function populateTypeFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const currentValue = typeFilter.value;
+
+            // Get fabrics matching current search
+            const matchingFabrics = fabricData.filter(f =>
+                query === '' || f.searchable.includes(query)
+            );
+
+            // Count fabrics per type
+            const typeCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.type) {
+                    typeCounts[f.type] = (typeCounts[f.type] || 0) + 1;
                 }
             });
 
-            // Update count with friendly message
-            if (query === '' && selectedType === '' && selectedPrice === '' && selectedWidth === '') {
-                resultCount.textContent = totalCount;
-            } else {
-                resultCount.textContent = visibleCount;
+            // Sort types alphabetically
+            const sortedTypes = Object.keys(typeCounts).sort();
+
+            // Rebuild options
+            typeFilter.innerHTML = `<option value="">All types (${matchingFabrics.length})</option>`;
+            sortedTypes.forEach(type => {
+                const selected = type === currentValue ? ' selected' : '';
+                const displayName = type.charAt(0).toUpperCase() + type.slice(1);
+                typeFilter.innerHTML += `<option value="${type}"${selected}>${displayName} (${typeCounts[type]})</option>`;
+            });
+        }
+
+        function populatePriceFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const currentValue = priceFilter.value;
+
+            // Get fabrics matching search + type
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                return matchesSearch && matchesType;
+            });
+
+            // Count fabrics per price category
+            const priceCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.price) {
+                    priceCounts[f.price] = (priceCounts[f.price] || 0) + 1;
+                }
+            });
+
+            // Sort prices
+            const sortedPrices = Object.keys(priceCounts).sort();
+
+            // Rebuild options
+            priceFilter.innerHTML = `<option value="">All prices (${matchingFabrics.length})</option>`;
+            sortedPrices.forEach(price => {
+                const selected = price === currentValue ? ' selected' : '';
+                const displayName = price.charAt(0).toUpperCase() + price.slice(1);
+                priceFilter.innerHTML += `<option value="${price}"${selected}>${displayName} (${priceCounts[price]})</option>`;
+            });
+
+            // If current value no longer available, reset it
+            if (currentValue && !priceCounts[currentValue]) {
+                priceFilter.value = '';
             }
+        }
+
+        function populateWidthFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const currentValue = widthFilter.value;
+
+            // Get fabrics matching search + type + price
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                return matchesSearch && matchesType && matchesPrice;
+            });
+
+            // Count fabrics per width
+            const widthCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.width) {
+                    widthCounts[f.width] = (widthCounts[f.width] || 0) + 1;
+                }
+            });
+
+            // Sort widths numerically
+            const sortedWidths = Object.keys(widthCounts).sort((a, b) => parseFloat(a) - parseFloat(b));
+
+            // Rebuild options
+            widthFilter.innerHTML = `<option value="">All widths (${matchingFabrics.length})</option>`;
+            sortedWidths.forEach(width => {
+                const selected = width === currentValue ? ' selected' : '';
+                widthFilter.innerHTML += `<option value="${width}"${selected}>${width}m (${widthCounts[width]})</option>`;
+            });
+
+            // If current value no longer available, reset it
+            if (currentValue && !widthCounts[currentValue]) {
+                widthFilter.value = '';
+            }
+        }
+
+        function onTypeChange() {
+            populatePriceFilter();
+            populateWidthFilter();
+            filterCards();
+        }
+
+        function onPriceChange() {
+            populateWidthFilter();
+            filterCards();
+        }
+
+        function filterCards() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
+            const selectedWidth = widthFilter.value;
+            let visibleCount = 0;
+
+            fabricData.forEach(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
+                const matchesWidth = selectedWidth === '' || f.width === selectedWidth;
+
+                if (matchesSearch && matchesType && matchesPrice && matchesWidth) {
+                    f.element.style.display = '';
+                    visibleCount++;
+                } else {
+                    f.element.style.display = 'none';
+                }
+            });
+
+            // Update count
+            resultCount.textContent = visibleCount;
 
             // Show/hide no results
             if (visibleCount === 0) {
@@ -552,16 +671,32 @@
             }
         }
 
+        function onSearchChange() {
+            populateTypeFilter();
+            populatePriceFilter();
+            populateWidthFilter();
+            filterCards();
+        }
+
         function clearFilters() {
             searchInput.value = '';
-            if (typeFilter) typeFilter.value = '';
-            if (priceFilter) priceFilter.value = '';
-            if (widthFilter) widthFilter.value = '';
+            typeFilter.value = '';
+            priceFilter.value = '';
+            widthFilter.value = '';
+            populateTypeFilter();
+            populatePriceFilter();
+            populateWidthFilter();
             filterCards();
             searchInput.focus();
         }
 
-        searchInput.addEventListener('input', filterCards);
+        // Initialize on page load
+        initFabricData();
+        populateTypeFilter();
+        populatePriceFilter();
+        populateWidthFilter();
+
+        searchInput.addEventListener('input', onSearchChange);
         searchInput.focus();
     </script>
 </body>

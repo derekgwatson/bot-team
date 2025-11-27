@@ -81,24 +81,14 @@
         <div class="stats-bar">
             <span id="resultCount">{{ total }} rebadged fabrics</span>
             <div class="filter-bar" style="margin-bottom: 0;">
-                {% if fabric_types %}
                 <label>Type:</label>
-                <select id="typeFilter" onchange="filterTable()">
+                <select id="typeFilter" onchange="onTypeChange()">
                     <option value="">All types</option>
-                    {% for ft in fabric_types %}
-                    <option value="{{ ft|lower }}">{{ ft }}</option>
-                    {% endfor %}
                 </select>
-                {% endif %}
-                {% if price_categories %}
                 <label>Price:</label>
-                <select id="priceFilter" onchange="filterTable()">
+                <select id="priceFilter" onchange="onPriceChange()">
                     <option value="">All prices</option>
-                    {% for pc in price_categories %}
-                    <option value="{{ pc|lower }}">{{ pc }}</option>
-                    {% endfor %}
                 </select>
-                {% endif %}
                 <label>Change:</label>
                 <select id="filterField" onchange="filterTable()">
                     <option value="">All changes</option>
@@ -181,39 +171,118 @@
         const resultCount = document.getElementById('resultCount');
         const totalCount = {{ total }};
 
+        // Build fabric data from rows for cascading filters
+        let fabricData = [];
+
+        function initFabricData() {
+            const rows = document.querySelectorAll('#fabricTable tbody tr');
+            fabricData = Array.from(rows).map(row => ({
+                element: row,
+                searchable: row.dataset.searchable || '',
+                changes: row.dataset.changes || '',
+                type: row.dataset.fabricType || '',
+                price: row.dataset.priceCategory || ''
+            }));
+        }
+
+        function populateTypeFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const changeFilter = filterField.value;
+            const currentValue = typeFilter.value;
+
+            // Get fabrics matching search + change filter
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesChange = changeFilter === '' || f.changes.includes(changeFilter);
+                return matchesSearch && matchesChange;
+            });
+
+            // Count fabrics per type
+            const typeCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.type) {
+                    typeCounts[f.type] = (typeCounts[f.type] || 0) + 1;
+                }
+            });
+
+            const sortedTypes = Object.keys(typeCounts).sort();
+
+            typeFilter.innerHTML = `<option value="">All types (${matchingFabrics.length})</option>`;
+            sortedTypes.forEach(type => {
+                const selected = type === currentValue ? ' selected' : '';
+                const displayName = type.charAt(0).toUpperCase() + type.slice(1);
+                typeFilter.innerHTML += `<option value="${type}"${selected}>${displayName} (${typeCounts[type]})</option>`;
+            });
+        }
+
+        function populatePriceFilter() {
+            const query = searchInput.value.toLowerCase().trim();
+            const changeFilter = filterField.value;
+            const selectedType = typeFilter.value;
+            const currentValue = priceFilter.value;
+
+            // Get fabrics matching search + change + type
+            const matchingFabrics = fabricData.filter(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesChange = changeFilter === '' || f.changes.includes(changeFilter);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                return matchesSearch && matchesChange && matchesType;
+            });
+
+            // Count fabrics per price
+            const priceCounts = {};
+            matchingFabrics.forEach(f => {
+                if (f.price) {
+                    priceCounts[f.price] = (priceCounts[f.price] || 0) + 1;
+                }
+            });
+
+            const sortedPrices = Object.keys(priceCounts).sort();
+
+            priceFilter.innerHTML = `<option value="">All prices (${matchingFabrics.length})</option>`;
+            sortedPrices.forEach(price => {
+                const selected = price === currentValue ? ' selected' : '';
+                const displayName = price.charAt(0).toUpperCase() + price.slice(1);
+                priceFilter.innerHTML += `<option value="${price}"${selected}>${displayName} (${priceCounts[price]})</option>`;
+            });
+
+            if (currentValue && !priceCounts[currentValue]) {
+                priceFilter.value = '';
+            }
+        }
+
+        function onTypeChange() {
+            populatePriceFilter();
+            filterTable();
+        }
+
+        function onPriceChange() {
+            filterTable();
+        }
+
         function filterTable() {
             const query = searchInput.value.toLowerCase().trim();
             const changeFilter = filterField.value;
-            const selectedType = typeFilter ? typeFilter.value : '';
-            const selectedPrice = priceFilter ? priceFilter.value : '';
-            const rows = document.querySelectorAll('#fabricTable tbody tr');
+            const selectedType = typeFilter.value;
+            const selectedPrice = priceFilter.value;
             let visibleCount = 0;
 
-            rows.forEach(row => {
-                const searchable = row.dataset.searchable || '';
-                const changes = row.dataset.changes || '';
-                const fabricType = row.dataset.fabricType || '';
-                const priceCategory = row.dataset.priceCategory || '';
-
-                const matchesSearch = query === '' || searchable.includes(query);
-                const matchesChange = changeFilter === '' || changes.includes(changeFilter);
-                const matchesType = selectedType === '' || fabricType === selectedType;
-                const matchesPrice = selectedPrice === '' || priceCategory === selectedPrice;
+            fabricData.forEach(f => {
+                const matchesSearch = query === '' || f.searchable.includes(query);
+                const matchesChange = changeFilter === '' || f.changes.includes(changeFilter);
+                const matchesType = selectedType === '' || f.type === selectedType;
+                const matchesPrice = selectedPrice === '' || f.price === selectedPrice;
 
                 if (matchesSearch && matchesChange && matchesType && matchesPrice) {
-                    row.style.display = '';
+                    f.element.style.display = '';
                     visibleCount++;
                 } else {
-                    row.style.display = 'none';
+                    f.element.style.display = 'none';
                 }
             });
 
             // Update count
-            if (query === '' && changeFilter === '' && selectedType === '' && selectedPrice === '') {
-                resultCount.textContent = totalCount + ' rebadged fabrics';
-            } else {
-                resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
-            }
+            resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
 
             // Show/hide no results
             if (visibleCount === 0) {
@@ -225,7 +294,19 @@
             }
         }
 
-        searchInput.addEventListener('input', filterTable);
+        function onSearchChange() {
+            populateTypeFilter();
+            populatePriceFilter();
+            filterTable();
+        }
+
+        // Initialize on page load
+        initFabricData();
+        populateTypeFilter();
+        populatePriceFilter();
+
+        searchInput.addEventListener('input', onSearchChange);
+        filterField.addEventListener('change', onSearchChange);
         searchInput.focus();
     </script>
 </body>
