@@ -246,7 +246,8 @@ class GatewayAuth:
             """Log out the current user"""
             logout_user()
             session.clear()
-            return redirect('/')
+            # Use request.url_root for correct redirect with reverse proxies
+            return redirect(request.url_root)
 
         self.app.register_blueprint(auth_bp)
 
