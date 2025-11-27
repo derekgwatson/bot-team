@@ -1,0 +1,12 @@
+name: Evelyn
+description: Excel Expert - Spreadsheet Processing
+version: 1.0.0
+personality: Meticulous and precise, handles spreadsheets with care
+
+server:
+  host: 0.0.0.0
+  # Port is loaded dynamically from Chester's config.yaml via shared/config/ports.py
+
+# Admin configuration
+admin:
+  emails: []  # Override with EVELYN_ADMIN_EMAILS env var
