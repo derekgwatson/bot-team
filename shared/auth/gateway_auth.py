@@ -156,7 +156,7 @@ class GatewayAuth:
         if not self.app.config.get('SECRET_KEY'):
             raise ValueError(
                 f"Flask SECRET_KEY not configured for {self.bot_name}. "
-                f"Set {self.bot_name.upper()}_SECRET_KEY in your .env file and "
+                f"Set FLASK_SECRET_KEY in your .env file and "
                 f"assign it to app.secret_key before initializing GatewayAuth."
             )
 

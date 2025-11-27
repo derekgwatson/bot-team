@@ -39,10 +39,10 @@ class Config:
         db_path = db_cfg.get("path", "database/grant.db")
         self.database_path = self.base_dir / db_path
 
-        # Flask secret key (bot-specific, required)
-        self.secret_key = os.environ.get("GRANT_SECRET_KEY")
+        # Flask secret key (required)
+        self.secret_key = os.environ.get("FLASK_SECRET_KEY")
         if not self.secret_key:
-            raise ValueError("GRANT_SECRET_KEY environment variable is required")
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
         # Bot API key for bot-to-bot communication (env)
         self.bot_api_key = os.environ.get("BOT_API_KEY")
