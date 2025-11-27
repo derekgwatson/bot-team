@@ -15,7 +15,7 @@ browser:
 
 # Buz timeouts
 buz:
-  navigation_timeout: 30000   # 30 seconds
+  navigation_timeout: 60000   # 60 seconds - Buz can be slow
   save_timeout: 300000        # 5 minutes for slow operations
 
 # Authentication configuration

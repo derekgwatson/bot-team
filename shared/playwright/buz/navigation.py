@@ -71,7 +71,7 @@ class BuzNavigation:
             await self.page.goto(self.USER_MANAGEMENT_URL, wait_until='networkidle', timeout=self.timeout)
 
         # Wait for user table
-        await self.page.wait_for_selector('table#userListTable', timeout=15000)
+        await self.page.wait_for_selector('table#userListTable', timeout=self.timeout)
         logger.info("User table found")
 
     async def set_page_size(self, size: int = 500) -> None:
