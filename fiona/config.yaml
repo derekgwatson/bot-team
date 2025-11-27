@@ -39,9 +39,5 @@ admin:
 # Authentication configuration
 # Uses Chester's auth gateway for Google OAuth
 auth:
-  mode: domain  # Any user from allowed_domains can access
-  allowed_domains:
-    - watsonblinds.com.au
-    - watsoncommercial.com.au
-    - designerdrapes.com.au
+  mode: grant  # Use Grant for centralized authorization
 
