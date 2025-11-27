@@ -74,6 +74,11 @@ def gateway():
 @auth_bp.route('/auth/callback')
 def callback():
     """Handle OAuth callback from Google"""
+    # Save gateway flow info BEFORE any operations that might fail
+    # This ensures we can redirect back to the originating bot on error
+    is_gateway = session.get('is_gateway_flow', False)
+    gateway_return_url = session.get('gateway_return_url', None)
+
     try:
         # Get the OAuth token
         token = oauth.google.authorize_access_token()
@@ -82,6 +87,12 @@ def callback():
         user_info = token.get('userinfo')
 
         if not user_info:
+            # Clear gateway session on failure
+            session.pop('is_gateway_flow', None)
+            session.pop('gateway_return_url', None)
+            if is_gateway and gateway_return_url:
+                separator = '&' if '?' in gateway_return_url else '?'
+                return redirect(f"{gateway_return_url}{separator}error=no_user_info")
             return render_template_string('''
                 <html>
                 <head><title>Login Failed</title></head>
@@ -97,10 +108,6 @@ def callback():
         name = user_info.get('name', email)
         picture = user_info.get('picture', '')
 
-        # Check if this is a gateway flow (auth on behalf of another bot)
-        is_gateway = session.pop('is_gateway_flow', False)
-        gateway_return_url = session.pop('gateway_return_url', None)
-
         if is_gateway and gateway_return_url:
             # Gateway flow: don't check Chester's authorization rules,
             # let the receiving bot handle its own authorization.
@@ -111,6 +118,10 @@ def callback():
                 'name': name,
                 'picture': picture,
             })
+
+            # Clear gateway session state on success
+            session.pop('is_gateway_flow', None)
+            session.pop('gateway_return_url', None)
 
             # Redirect back to the requesting bot with the token
             separator = '&' if '?' in gateway_return_url else '?'
@@ -144,14 +155,17 @@ def callback():
         return redirect(next_url or url_for('web.index'))
 
     except Exception as e:
-        # Check if this was a gateway flow to provide better error message
-        is_gateway = session.pop('is_gateway_flow', False)
-        gateway_return_url = session.pop('gateway_return_url', None)
+        # Clear gateway session state on error
+        session.pop('is_gateway_flow', None)
+        session.pop('gateway_return_url', None)
 
+        # Use the saved gateway values to redirect back to originating bot
         if is_gateway and gateway_return_url:
-            # Redirect back to the bot with an error
+            # Redirect back to the bot with an error (URL-encode the message)
+            from urllib.parse import quote
+            error_msg = quote(str(e))
             separator = '&' if '?' in gateway_return_url else '?'
-            return redirect(f"{gateway_return_url}{separator}error=auth_failed")
+            return redirect(f"{gateway_return_url}{separator}error={error_msg}")
 
         return render_template_string('''
             <html>
