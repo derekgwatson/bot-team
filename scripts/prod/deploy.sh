@@ -1,8 +1,9 @@
 #!/bin/bash
 # Deploy latest changes from Claude's feature branch
 # Usage:
-#   /var/www/bot-team/scripts/prod/deploy.sh        # Deploy and restart all bots
-#   /var/www/bot-team/scripts/prod/deploy.sh iris   # Deploy and restart only iris
+#   /var/www/bot-team/scripts/prod/deploy.sh              # Deploy and restart only changed bots
+#   /var/www/bot-team/scripts/prod/deploy.sh iris         # Deploy and restart only iris
+#   /var/www/bot-team/scripts/prod/deploy.sh --force      # Deploy and restart ALL bots (skip change detection)
 
 set -e  # Exit on error
 
@@ -18,7 +19,88 @@ if [ -z "${DEPLOY_REEXEC:-}" ]; then
     DEPLOY_SCRIPT_HASH_BEFORE=$(md5sum "$SCRIPT_PATH" "$SCRIPT_DIR/restart_bots.sh" "$SCRIPT_DIR/merge_latest_git_branch.sh" 2>/dev/null | md5sum | cut -d' ' -f1)
 fi
 
-BOT="${1:-}"
+# Parse arguments
+BOT=""
+FORCE_ALL=0
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f)
+            FORCE_ALL=1
+            ;;
+        *)
+            BOT="$arg"
+            ;;
+    esac
+done
+
+# ==== Change Detection ====
+# Record HEAD before any git operations so we can detect what changed
+HEAD_BEFORE=""
+record_head_before() {
+    HEAD_BEFORE=$(sudo -u www-data git -C "$REPO_PATH" rev-parse HEAD 2>/dev/null || echo "")
+}
+
+# Determine which bots have changes between two commits
+# Returns: space-separated list of bot names, or "ALL" if shared code changed
+get_changed_bots() {
+    local old_head="$1"
+    local new_head="$2"
+
+    if [ -z "$old_head" ] || [ -z "$new_head" ] || [ "$old_head" = "$new_head" ]; then
+        echo ""
+        return
+    fi
+
+    # Get list of changed files
+    local changed_files
+    changed_files=$(sudo -u www-data git -C "$REPO_PATH" diff --name-only "$old_head" "$new_head" 2>/dev/null || echo "")
+
+    if [ -z "$changed_files" ]; then
+        echo ""
+        return
+    fi
+
+    # Check if shared code or requirements changed - if so, ALL bots need restart
+    if echo "$changed_files" | grep -qE '^(shared/|requirements\.txt)'; then
+        echo "ALL"
+        return
+    fi
+
+    # Extract unique bot directories from changed files
+    # Bot directories are top-level folders that aren't special dirs
+    local bots=""
+    local seen=""
+
+    while IFS= read -r file; do
+        # Get the top-level directory
+        local top_dir
+        top_dir=$(echo "$file" | cut -d'/' -f1)
+
+        # Skip non-bot directories
+        case "$top_dir" in
+            shared|scripts|tests|docs|.github|""|.|..)
+                continue
+                ;;
+        esac
+
+        # Skip if we've already seen this bot
+        if echo "$seen" | grep -q " $top_dir "; then
+            continue
+        fi
+        seen="$seen $top_dir "
+
+        # Check if it's actually a bot directory (has app.py)
+        if [ -f "$REPO_PATH/$top_dir/app.py" ]; then
+            if [ -n "$bots" ]; then
+                bots="$bots $top_dir"
+            else
+                bots="$top_dir"
+            fi
+        fi
+    done <<< "$changed_files"
+
+    echo "$bots"
+}
 
 # ==== Colours ====
 RED='\033[0;31m'
@@ -46,6 +128,9 @@ REMOTE="origin"
 MAIN_BRANCH="main"
 
 header "Deploying Latest Git Branch (default: claude/*)"
+
+# Record HEAD before any changes (for change detection)
+record_head_before
 
 # Step 1: Preview and confirm branch merge
 header "Step 1: Checking for feature branches to merge"
@@ -131,14 +216,39 @@ fi
 
 # Step 2: Update bot(s) - pip install + restart services
 echo ""
+
+# If a specific bot was requested, just restart that one
 if [ -n "$BOT" ]; then
     header "Step 2: Updating bot '$BOT'"
     info "Running restart_bots.sh for $BOT as www-data..."
     sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh" "$BOT"
-else
-    header "Step 2: Updating ALL bots"
-    info "Running restart_bots.sh for all bots as www-data..."
+elif [ "$FORCE_ALL" = "1" ]; then
+    header "Step 2: Updating ALL bots (--force)"
+    info "Force flag set. Restarting all bots..."
     sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh"
+else
+    # Detect which bots have changes
+    HEAD_AFTER=$(sudo -u www-data git -C "$REPO_PATH" rev-parse HEAD 2>/dev/null || echo "")
+    CHANGED_BOTS=$(get_changed_bots "$HEAD_BEFORE" "$HEAD_AFTER")
+
+    if [ -z "$CHANGED_BOTS" ]; then
+        header "Step 2: No code changes detected"
+        info "HEAD before: ${HEAD_BEFORE:0:8}"
+        info "HEAD after:  ${HEAD_AFTER:0:8}"
+        warning "No bot code changes detected. Skipping restart."
+        info "To force restart all bots, run: $PROD_SCRIPTS_DIR/restart_bots.sh"
+    elif [ "$CHANGED_BOTS" = "ALL" ]; then
+        header "Step 2: Updating ALL bots (shared code changed)"
+        info "Shared code or requirements.txt was modified."
+        info "Running restart_bots.sh for all bots as www-data..."
+        sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh"
+    else
+        header "Step 2: Updating changed bots only"
+        info "Changed bots: ${WHITE}$CHANGED_BOTS${NC}"
+        info "Running restart_bots.sh for changed bots..."
+        # shellcheck disable=SC2086
+        sudo -u www-data "$PROD_SCRIPTS_DIR/restart_bots.sh" $CHANGED_BOTS
+    fi
 fi
 
 echo ""
