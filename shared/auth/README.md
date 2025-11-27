@@ -122,7 +122,7 @@ The User object has these properties:
 - `email` - User's email address
 - `name` - User's display name
 - `picture` - User's profile picture URL
-- `is_admin()` - Whether user is in admin_emails list
+- `is_admin` - Whether user is in admin_emails list (property)
 
 ## Auth Modes
 
@@ -134,4 +134,4 @@ Any user with an email from `allowed_domains` can access. Good for company-wide 
 
 ### tiered
 Domain users get basic access, admins (in `admin_emails`) get extra features.
-Use `current_user.is_admin()` to check for admin features.
+Use `current_user.is_admin` to check for admin features.

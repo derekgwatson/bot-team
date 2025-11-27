@@ -442,7 +442,7 @@ class GatewayAuth:
             if not current_user.is_authenticated:
                 session['next_url'] = request.url
                 return redirect(url_for('gateway_auth.login'))
-            if not current_user.is_admin():
+            if not current_user.is_admin:
                 return render_template_string('''
                     <html>
                     <head><title>Access Denied</title></head>
