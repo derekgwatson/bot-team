@@ -118,6 +118,16 @@ When creating a new bot:
 - Bots call each other with `X-API-Key` header
 - Key stored in `BOT_API_KEY` env var
 
+**Current limitation**: All bots share a single `BOT_API_KEY`. This works well for internal bot-to-bot communication, but if an external service needs API access, they would receive the same key that grants access to all bots.
+
+**Future enhancement**: Support per-service API keys via `EXTERNAL_API_KEYS` environment variable. This would allow:
+- Issuing unique keys to external services
+- Revoking individual keys without affecting other services
+- Tracking which service made each request
+- Format: `EXTERNAL_API_KEYS=service1:key1,service2:key2`
+
+Until this is implemented, be cautious about sharing `BOT_API_KEY` with external services.
+
 ### Dashboard Calling API Endpoints
 
 When a bot's web UI needs to call its own API endpoints (e.g., a "Sync" button that calls `/api/sync`), use `@api_or_session_auth` from `shared.auth.bot_api`:
