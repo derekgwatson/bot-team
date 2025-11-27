@@ -150,6 +150,49 @@ class Database:
         conn.commit()
         conn.close()
 
+    def add_quotes_bulk(self, quote_ids: List[str], org: str, notes: str = '') -> Dict:
+        """
+        Add multiple quotes to monitoring.
+        Returns dict with 'added' count and 'skipped' list (already existed).
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        added = 0
+        skipped = []
+
+        for quote_id in quote_ids:
+            # Check if quote already exists and is active
+            cursor.execute(
+                "SELECT quote_id, is_active FROM monitored_quotes WHERE quote_id = ?",
+                (quote_id,)
+            )
+            existing = cursor.fetchone()
+
+            if existing and existing['is_active']:
+                skipped.append(quote_id)
+                continue
+
+            # Insert or reactivate
+            cursor.execute("""
+                INSERT INTO monitored_quotes (quote_id, org, notes)
+                VALUES (?, ?, ?)
+                ON CONFLICT(quote_id) DO UPDATE SET
+                    org = excluded.org,
+                    is_active = 1,
+                    notes = CASE WHEN excluded.notes != '' THEN excluded.notes ELSE notes END
+            """, (quote_id, org, notes))
+            added += 1
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'added': added,
+            'skipped': skipped,
+            'skipped_count': len(skipped)
+        }
+
     # ─── Price Checks ───────────────────────────────────────────────
 
     def log_price_check(

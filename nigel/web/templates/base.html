@@ -367,7 +367,7 @@
 
         <div class="nav">
             <a href="{{ url_for('web.index') }}" {% if request.endpoint == 'web.index' %}class="active"{% endif %}>Dashboard</a>
-            <a href="{{ url_for('web.list_quotes') }}" {% if request.endpoint in ['web.list_quotes', 'web.view_quote', 'web.add_quote'] %}class="active"{% endif %}>Quotes</a>
+            <a href="{{ url_for('web.list_quotes') }}" {% if request.endpoint in ['web.list_quotes', 'web.view_quote', 'web.add_quote', 'web.bulk_add_quotes'] %}class="active"{% endif %}>Quotes</a>
             <a href="{{ url_for('web.history') }}" {% if request.endpoint == 'web.history' %}class="active"{% endif %}>History</a>
             <a href="{{ url_for('web.discrepancies') }}" {% if request.endpoint == 'web.discrepancies' %}class="active"{% endif %}>Discrepancies</a>
         </div>

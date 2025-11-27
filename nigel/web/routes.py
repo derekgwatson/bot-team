@@ -129,6 +129,72 @@ def add_quote():
     return render_template('add_quote.html', user=current_user, available_orgs=get_available_orgs())
 
 
+@web_bp.route('/quotes/bulk-add', methods=['GET', 'POST'])
+@login_required
+def bulk_add_quotes():
+    """Bulk add quotes to monitor"""
+    if request.method == 'POST':
+        try:
+            raw_input = request.form.get('quote_ids', '').strip()
+            org = request.form.get('org', '').strip()
+            notes = request.form.get('notes', '').strip()
+
+            if not raw_input:
+                flash('Please enter at least one quote ID', 'error')
+                return redirect(url_for('web.bulk_add_quotes'))
+
+            if not org:
+                flash('Organization is required', 'error')
+                return redirect(url_for('web.bulk_add_quotes'))
+
+            # Parse quote IDs: one per line, strip whitespace, remove empties
+            quote_ids = []
+            seen = set()
+            for line in raw_input.split('\n'):
+                qid = line.strip()
+                if qid and qid not in seen:
+                    quote_ids.append(qid)
+                    seen.add(qid)
+
+            if not quote_ids:
+                flash('No valid quote IDs found', 'error')
+                return redirect(url_for('web.bulk_add_quotes'))
+
+            # Bulk add
+            result = db.add_quotes_bulk(quote_ids, org, notes)
+            logger.info(
+                f"Bulk add by {current_user.email}: "
+                f"{result['added']} added, {result['skipped_count']} skipped"
+            )
+
+            if result['added'] > 0 and result['skipped_count'] == 0:
+                flash(f"Added {result['added']} quotes to monitoring", 'success')
+            elif result['added'] > 0:
+                flash(
+                    f"Added {result['added']} quotes. "
+                    f"Skipped {result['skipped_count']} (already monitored).",
+                    'success'
+                )
+            else:
+                flash(
+                    f"All {result['skipped_count']} quotes were already being monitored",
+                    'warning'
+                )
+
+            return redirect(url_for('web.list_quotes'))
+
+        except Exception as e:
+            logger.exception("Error in bulk add")
+            flash(f'Error: {str(e)}', 'error')
+            return redirect(url_for('web.bulk_add_quotes'))
+
+    return render_template(
+        'bulk_add_quotes.html',
+        user=current_user,
+        available_orgs=get_available_orgs()
+    )
+
+
 @web_bp.route('/quotes/<quote_id>')
 @login_required
 def view_quote(quote_id: str):
