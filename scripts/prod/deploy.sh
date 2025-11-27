@@ -232,10 +232,20 @@ else
     CHANGED_BOTS=$(get_changed_bots "$HEAD_BEFORE" "$HEAD_AFTER")
 
     if [ -z "$CHANGED_BOTS" ]; then
-        header "Step 2: No code changes detected"
+        header "Step 2: No bot restarts needed"
         info "HEAD before: ${HEAD_BEFORE:0:8}"
         info "HEAD after:  ${HEAD_AFTER:0:8}"
-        warning "No bot code changes detected. Skipping restart."
+
+        # Show what changed (if anything) for clarity
+        if [ "$HEAD_BEFORE" != "$HEAD_AFTER" ]; then
+            CHANGED_FILES=$(sudo -u www-data git -C "$REPO_PATH" diff --name-only "$HEAD_BEFORE" "$HEAD_AFTER" 2>/dev/null | head -5)
+            if [ -n "$CHANGED_FILES" ]; then
+                info "Changed files (non-bot code):"
+                echo "$CHANGED_FILES" | while read -r f; do echo "    $f"; done
+            fi
+        fi
+
+        success "No bot code changed. Skipping restart."
         info "To force restart all bots, run: $PROD_SCRIPTS_DIR/restart_bots.sh"
     elif [ "$CHANGED_BOTS" = "ALL" ]; then
         header "Step 2: Updating ALL bots (shared code changed)"
