@@ -507,17 +507,60 @@ class Database:
 
         return [dict(row) for row in rows]
 
-    def is_sync_running(self, sync_type: str) -> bool:
-        """Check if a sync of the given type is currently running"""
+    def is_sync_running(self, sync_type: str, stale_timeout_minutes: int = 30) -> bool:
+        """
+        Check if a sync of the given type is currently running.
+
+        If a sync has been 'running' for longer than stale_timeout_minutes,
+        it's considered stale (crashed/timed out) and will be auto-marked
+        as failed to prevent blocking future syncs.
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
+
+        # Find any running syncs
         cursor.execute("""
-            SELECT COUNT(*) FROM sync_metadata
+            SELECT id, started_at FROM sync_metadata
             WHERE sync_type = ? AND status = 'running'
         """, (sync_type,))
-        count = cursor.fetchone()[0]
+        running_syncs = cursor.fetchall()
+
+        if not running_syncs:
+            conn.close()
+            return False
+
+        # Check each running sync for staleness
+        now = datetime.now(timezone.utc)
+        active_count = 0
+
+        for sync in running_syncs:
+            started_at = sync['started_at']
+            if started_at:
+                started = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                running_minutes = (now - started).total_seconds() / 60
+
+                if running_minutes > stale_timeout_minutes:
+                    # Stale lock - auto-mark as failed
+                    cursor.execute("""
+                        UPDATE sync_metadata
+                        SET status = 'failed',
+                            finished_at = ?,
+                            error_message = ?
+                        WHERE id = ?
+                    """, (
+                        utc_now_iso(),
+                        f'Sync timed out after {running_minutes:.1f} minutes (stale lock cleared)',
+                        sync['id']
+                    ))
+                    conn.commit()
+                else:
+                    active_count += 1
+            else:
+                # No started_at - shouldn't happen, but count as active
+                active_count += 1
+
         conn.close()
-        return count > 0
+        return active_count > 0
 
 
 # Global database instance
