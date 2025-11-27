@@ -133,6 +133,7 @@ def format_product_response(product: dict) -> dict:
         'product_code': product['product_code'],
         'product_description': product['product_description'],
         'product_group': product['product_group'],
+        'product_sub_group': product.get('product_sub_group'),
         'default_sell_price': product['default_sell_price'],
         'sell_price_tier_9': product['sell_price_tier_9'],
         'unit_of_measure': product['unit_of_measure'],

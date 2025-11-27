@@ -202,6 +202,7 @@ class Database:
         supplier_material: str = None,
         watson_material: str = None,
         fabric_type: str = None,
+        price_category: str = None,
         limit: int = 100
     ) -> List[Dict]:
         """
@@ -212,6 +213,7 @@ class Database:
             supplier_material: Filter by supplier material
             watson_material: Filter by watson material
             fabric_type: Filter by fabric type (exact match)
+            price_category: Filter by price category (exact match)
             limit: Max results to return
         """
         conn = self.get_connection()
@@ -243,6 +245,10 @@ class Database:
         if fabric_type:
             conditions.append("fabric_type = ?")
             params.append(fabric_type)
+
+        if price_category:
+            conditions.append("price_category = ?")
+            params.append(price_category)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
@@ -319,9 +325,43 @@ class Database:
         conn.close()
         return [row['fabric_type'] for row in rows]
 
-    def update_fabric_type(self, code: str, fabric_type: str) -> bool:
+    def get_distinct_price_categories(self) -> List[str]:
+        """Get all distinct price categories (non-null) for filter dropdowns."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT price_category
+            FROM fabric_descriptions
+            WHERE price_category IS NOT NULL AND price_category != ''
+            ORDER BY price_category
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        return [row['price_category'] for row in rows]
+
+    def get_distinct_widths(self) -> List[float]:
+        """Get all distinct widths (non-null) for filter dropdowns."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT width
+            FROM fabric_descriptions
+            WHERE width IS NOT NULL
+            ORDER BY width
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        return [row['width'] for row in rows]
+
+    def update_unleashed_fields(
+        self,
+        code: str,
+        fabric_type: str = None,
+        price_category: str = None,
+        width: float = None
+    ) -> bool:
         """
-        Update just the fabric_type for an existing fabric.
+        Update Unleashed-derived fields for an existing fabric.
         Returns True if updated, False if not found.
         """
         code = self.normalize_product_code(code)
@@ -334,17 +374,17 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE fabric_descriptions
-                SET fabric_type = ?, updated_at = ?
+                SET fabric_type = ?, price_category = ?, width = ?, updated_at = ?
                 WHERE product_code = ?
-            """, (fabric_type, now, code))
+            """, (fabric_type, price_category, width, now, code))
             return cursor.rowcount > 0
 
-    def bulk_update_fabric_types(self, type_mapping: Dict[str, str]) -> Dict:
+    def bulk_update_unleashed_fields(self, updates: List[Dict]) -> Dict:
         """
-        Bulk update fabric types for multiple product codes.
+        Bulk update Unleashed-derived fields for multiple product codes.
 
         Args:
-            type_mapping: Dict of {product_code: fabric_type}
+            updates: List of dicts with keys: product_code, fabric_type, price_category, width
 
         Returns:
             {'updated': int, 'not_found': int, 'errors': [...]}
@@ -353,20 +393,36 @@ class Database:
         not_found = 0
         errors = []
 
-        for code, fabric_type in type_mapping.items():
+        for item in updates:
             try:
-                if self.update_fabric_type(code, fabric_type):
+                code = item.get('product_code')
+                if self.update_unleashed_fields(
+                    code,
+                    fabric_type=item.get('fabric_type'),
+                    price_category=item.get('price_category'),
+                    width=item.get('width')
+                ):
                     updated += 1
                 else:
                     not_found += 1
             except Exception as e:
-                errors.append({'code': code, 'error': str(e)})
+                errors.append({'code': item.get('product_code'), 'error': str(e)})
 
         return {
             'updated': updated,
             'not_found': not_found,
             'errors': errors if errors else None
         }
+
+    # Legacy method for backward compatibility
+    def update_fabric_type(self, code: str, fabric_type: str) -> bool:
+        """Update just the fabric_type for an existing fabric."""
+        return self.update_unleashed_fields(code, fabric_type=fabric_type)
+
+    def bulk_update_fabric_types(self, type_mapping: Dict[str, str]) -> Dict:
+        """Bulk update fabric types (legacy - use bulk_update_unleashed_fields)."""
+        updates = [{'product_code': code, 'fabric_type': ft} for code, ft in type_mapping.items()]
+        return self.bulk_update_unleashed_fields(updates)
 
     def get_fabrics_by_type(self, fabric_type: str, limit: int = 10000) -> List[Dict]:
         """Get all fabrics of a specific type."""

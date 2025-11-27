@@ -39,9 +39,11 @@
         .empty-state { text-align: center; padding: 60px 20px; color: #666; }
         .empty-state h3 { color: #9b59b6; margin-bottom: 10px; }
         .filter-bar { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .filter-bar select { padding: 10px 15px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; }
+        .filter-bar label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; }
+        .filter-bar select { padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; min-width: 110px; }
         .filter-bar select:focus { outline: none; border-color: #9b59b6; }
         .fabric-type-badge { font-size: 10px; background: #e8daef; color: #6c3483; padding: 2px 6px; border-radius: 3px; font-weight: 500; margin-left: 6px; }
+        .price-badge { font-size: 10px; background: #fef3e2; color: #d68910; padding: 2px 6px; border-radius: 3px; font-weight: 500; margin-left: 4px; }
         .search-bar { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .search-bar input { width: 100%; padding: 12px 16px; font-size: 15px; border: 2px solid #e0e0e0; border-radius: 6px; transition: border-color 0.2s, box-shadow 0.2s; }
         .search-bar input:focus { outline: none; border-color: #9b59b6; box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.1); }
@@ -67,8 +69,8 @@
         <div class="breadcrumb"><a href="{{ url_for('web.all_fabrics') }}">All Fabrics</a> / Rebadged</div>
 
         <div class="alert alert-info">
-            <strong>Rebadged fabrics</strong> have a Watson name that differs from the supplier name.
-            These are fabrics where we've customised the material or colour name for Watson branding.
+            <strong>These are my special ones!</strong> Rebadged fabrics have Watson names that differ from the supplier names.
+            I keep careful track of where we've customised the material or colour name for our own branding.
         </div>
 
         {% if fabrics %}
@@ -85,6 +87,15 @@
                     <option value="">All types</option>
                     {% for ft in fabric_types %}
                     <option value="{{ ft|lower }}">{{ ft }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                {% if price_categories %}
+                <label>Price:</label>
+                <select id="priceFilter" onchange="filterTable()">
+                    <option value="">All prices</option>
+                    {% for pc in price_categories %}
+                    <option value="{{ pc|lower }}">{{ pc }}</option>
                     {% endfor %}
                 </select>
                 {% endif %}
@@ -114,8 +125,8 @@
                 </thead>
                 <tbody>
                     {% for fabric in fabrics %}
-                    <tr data-changes="{{ fabric.rebadged_changes | map(attribute='field') | join(',') }}" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}" data-fabric-type="{{ fabric.fabric_type|lower if fabric.fabric_type else '' }}">
-                        <td class="product-code">{{ fabric.product_code }}{% if fabric.fabric_type %}<span class="fabric-type-badge">{{ fabric.fabric_type }}</span>{% endif %}</td>
+                    <tr data-changes="{{ fabric.rebadged_changes | map(attribute='field') | join(',') }}" data-searchable="{{ fabric.product_code|lower }} {{ fabric.supplier_material|lower if fabric.supplier_material else '' }} {{ fabric.watson_material|lower if fabric.watson_material else '' }} {{ fabric.supplier_colour|lower if fabric.supplier_colour else '' }} {{ fabric.watson_colour|lower if fabric.watson_colour else '' }}" data-fabric-type="{{ fabric.fabric_type|lower if fabric.fabric_type else '' }}" data-price-category="{{ fabric.price_category|lower if fabric.price_category else '' }}">
+                        <td class="product-code">{{ fabric.product_code }}{% if fabric.fabric_type %}<span class="fabric-type-badge">{{ fabric.fabric_type }}</span>{% endif %}{% if fabric.price_category %}<span class="price-badge">{{ fabric.price_category }}</span>{% endif %}</td>
                         <td>
                             {% set material_change = fabric.rebadged_changes | selectattr('field', 'eq', 'material') | first %}
                             {% if material_change %}
@@ -164,6 +175,7 @@
         const searchInput = document.getElementById('searchInput');
         const filterField = document.getElementById('filterField');
         const typeFilter = document.getElementById('typeFilter');
+        const priceFilter = document.getElementById('priceFilter');
         const noResults = document.getElementById('noResults');
         const tableContainer = document.querySelector('.table-container');
         const resultCount = document.getElementById('resultCount');
@@ -173,6 +185,7 @@
             const query = searchInput.value.toLowerCase().trim();
             const changeFilter = filterField.value;
             const selectedType = typeFilter ? typeFilter.value : '';
+            const selectedPrice = priceFilter ? priceFilter.value : '';
             const rows = document.querySelectorAll('#fabricTable tbody tr');
             let visibleCount = 0;
 
@@ -180,12 +193,14 @@
                 const searchable = row.dataset.searchable || '';
                 const changes = row.dataset.changes || '';
                 const fabricType = row.dataset.fabricType || '';
+                const priceCategory = row.dataset.priceCategory || '';
 
                 const matchesSearch = query === '' || searchable.includes(query);
                 const matchesChange = changeFilter === '' || changes.includes(changeFilter);
                 const matchesType = selectedType === '' || fabricType === selectedType;
+                const matchesPrice = selectedPrice === '' || priceCategory === selectedPrice;
 
-                if (matchesSearch && matchesChange && matchesType) {
+                if (matchesSearch && matchesChange && matchesType && matchesPrice) {
                     row.style.display = '';
                     visibleCount++;
                 } else {
@@ -194,7 +209,7 @@
             });
 
             // Update count
-            if (query === '' && changeFilter === '' && selectedType === '') {
+            if (query === '' && changeFilter === '' && selectedType === '' && selectedPrice === '') {
                 resultCount.textContent = totalCount + ' rebadged fabrics';
             } else {
                 resultCount.textContent = visibleCount + ' fabric' + (visibleCount !== 1 ? 's' : '') + ' found';
