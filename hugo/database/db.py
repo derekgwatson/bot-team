@@ -667,6 +667,105 @@ class UserDatabase:
         conn.close()
         return deleted
 
+    # Auth health operations
+
+    def update_auth_health(
+        self,
+        org_key: str,
+        status: str,
+        error_message: str = ''
+    ) -> None:
+        """
+        Update auth health status for an org.
+
+        Args:
+            org_key: Organization key
+            status: 'healthy', 'failed', or 'expired'
+            error_message: Error message if failed
+        """
+        conn = self.get_connection()
+
+        # Check if record exists
+        cursor = conn.execute(
+            'SELECT id, consecutive_failures FROM auth_health WHERE org_key = ?',
+            (org_key,)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            if status == 'healthy':
+                conn.execute('''
+                    UPDATE auth_health SET
+                        last_check = CURRENT_TIMESTAMP,
+                        status = ?,
+                        error_message = '',
+                        last_healthy = CURRENT_TIMESTAMP,
+                        consecutive_failures = 0
+                    WHERE org_key = ?
+                ''', (status, org_key))
+            else:
+                conn.execute('''
+                    UPDATE auth_health SET
+                        last_check = CURRENT_TIMESTAMP,
+                        status = ?,
+                        error_message = ?,
+                        consecutive_failures = consecutive_failures + 1
+                    WHERE org_key = ?
+                ''', (status, error_message, org_key))
+        else:
+            # Insert new record
+            last_healthy = 'CURRENT_TIMESTAMP' if status == 'healthy' else 'NULL'
+            failures = 0 if status == 'healthy' else 1
+            conn.execute('''
+                INSERT INTO auth_health (org_key, status, error_message, last_healthy, consecutive_failures)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                org_key, status, error_message,
+                datetime.now().isoformat() if status == 'healthy' else None,
+                failures
+            ))
+
+        conn.commit()
+        conn.close()
+
+    def get_auth_health(self, org_key: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get auth health status for one or all orgs.
+
+        Args:
+            org_key: Optional org filter
+
+        Returns:
+            Dict of org_key -> health info, or single health info if org specified
+        """
+        conn = self.get_connection()
+
+        if org_key:
+            cursor = conn.execute(
+                'SELECT * FROM auth_health WHERE org_key = ?',
+                (org_key,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        else:
+            cursor = conn.execute('SELECT * FROM auth_health')
+            health = {row['org_key']: dict(row) for row in cursor.fetchall()}
+            conn.close()
+            return health
+
+    def get_unhealthy_orgs(self) -> List[Dict[str, Any]]:
+        """Get orgs with auth issues."""
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            SELECT * FROM auth_health
+            WHERE status != 'healthy'
+            ORDER BY consecutive_failures DESC
+        ''')
+        orgs = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return orgs
+
 
 # Singleton instance
 user_db = UserDatabase()

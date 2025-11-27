@@ -417,6 +417,92 @@ class BuzUserService:
 
         return results
 
+    async def check_auth_health(self, org_key: str) -> Dict[str, Any]:
+        """
+        Check if auth is still valid for an org.
+
+        Tries to load the user management page and checks if we get
+        redirected to a login page.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            Dict with status ('healthy', 'expired', 'failed') and details
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'org_key': org_key,
+            'status': 'failed',
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=True,  # Always headless for health checks
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=False  # Don't screenshot for health checks
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                # Try to load the user management page
+                await page.goto(
+                    BuzNavigation.USER_MANAGEMENT_URL,
+                    wait_until='networkidle',
+                    timeout=30000
+                )
+
+                current_url = page.url.lower()
+
+                # Check if we're on a login page
+                if 'login' in current_url or 'signin' in current_url or 'auth' in current_url:
+                    result['status'] = 'expired'
+                    result['message'] = 'Session expired - redirected to login page'
+                elif 'mybuz/organizations' in current_url:
+                    # On org selector - that's fine, auth is still valid
+                    result['status'] = 'healthy'
+                    result['message'] = 'Auth valid (on org selector)'
+                elif 'settings/users' in current_url:
+                    # Made it to user management
+                    result['status'] = 'healthy'
+                    result['message'] = 'Auth valid'
+                else:
+                    # Unknown page - check for common auth failure indicators
+                    content = await page.content()
+                    if 'sign in' in content.lower() or 'log in' in content.lower():
+                        result['status'] = 'expired'
+                        result['message'] = f'Session expired - login form detected on {current_url}'
+                    else:
+                        result['status'] = 'healthy'
+                        result['message'] = f'Auth valid (landed on {current_url})'
+
+        except FileNotFoundError as e:
+            result['status'] = 'failed'
+            result['message'] = f'Storage state file not found: {str(e)}'
+        except Exception as e:
+            result['status'] = 'failed'
+            result['message'] = f'Check failed: {str(e)}'
+            logger.exception(f"Auth health check failed for {org_key}")
+
+        return result
+
+    async def check_all_auth_health(self) -> List[Dict[str, Any]]:
+        """
+        Check auth health for all configured orgs.
+
+        Returns:
+            List of health check results
+        """
+        results = []
+        for org_key in self.config.available_orgs:
+            result = await self.check_auth_health(org_key)
+            results.append(result)
+        return results
+
 
 # Helper function to run async code from sync context
 def run_async(coro):

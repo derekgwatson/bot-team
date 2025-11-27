@@ -694,3 +694,162 @@ def clear_queue():
         'success': True,
         'deleted': deleted
     })
+
+
+# Auth health endpoints
+
+@api_bp.route('/auth/health', methods=['GET'])
+@api_or_session_auth
+def get_auth_health():
+    """
+    GET /api/auth/health
+
+    Get auth health status for all orgs.
+    """
+    db = get_db()
+    health = db.get_auth_health()
+    unhealthy = db.get_unhealthy_orgs()
+
+    return jsonify({
+        'health': health,
+        'unhealthy_count': len(unhealthy),
+        'unhealthy': unhealthy
+    })
+
+
+@api_bp.route('/auth/check', methods=['POST'])
+@api_or_session_auth
+def check_auth():
+    """
+    POST /api/auth/check
+
+    Run auth health check for one or all orgs.
+
+    Body (JSON):
+        org: Optional org_key (if not specified, checks all orgs)
+
+    This endpoint is called by Skye on a schedule.
+    """
+    data = request.get_json() or {}
+    org_key = data.get('org')
+
+    try:
+        service, run_async = get_user_service()
+        db = get_db()
+
+        if org_key:
+            # Check single org
+            result = run_async(service.check_auth_health(org_key))
+            db.update_auth_health(
+                org_key=result['org_key'],
+                status=result['status'],
+                error_message=result['message'] if result['status'] != 'healthy' else ''
+            )
+            results = [result]
+        else:
+            # Check all orgs
+            results = run_async(service.check_all_auth_health())
+            for result in results:
+                db.update_auth_health(
+                    org_key=result['org_key'],
+                    status=result['status'],
+                    error_message=result['message'] if result['status'] != 'healthy' else ''
+                )
+
+        healthy_count = sum(1 for r in results if r['status'] == 'healthy')
+        unhealthy_count = len(results) - healthy_count
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'healthy': healthy_count,
+            'unhealthy': unhealthy_count
+        })
+
+    except Exception as e:
+        logger.exception("Error checking auth health")
+        return jsonify({'error': str(e)}), 500
+
+
+# Screenshot endpoints
+
+@api_bp.route('/screenshots', methods=['GET'])
+@api_or_session_auth
+def list_screenshots():
+    """
+    GET /api/screenshots
+
+    List available error screenshots.
+    """
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    if not screenshot_dir.exists():
+        return jsonify({'screenshots': [], 'count': 0})
+
+    screenshots = []
+    for f in sorted(screenshot_dir.glob('*.png'), key=lambda x: x.stat().st_mtime, reverse=True):
+        stat = f.stat()
+        screenshots.append({
+            'name': f.name,
+            'size': stat.st_size,
+            'modified': stat.st_mtime,
+            'url': f'/api/screenshots/{f.name}'
+        })
+
+    return jsonify({
+        'screenshots': screenshots[:50],  # Limit to 50 most recent
+        'count': len(screenshots)
+    })
+
+
+@api_bp.route('/screenshots/<filename>', methods=['GET'])
+@api_or_session_auth
+def get_screenshot(filename):
+    """
+    GET /api/screenshots/<filename>
+
+    Serve a screenshot file.
+    """
+    from flask import send_from_directory
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    # Security: ensure filename doesn't contain path traversal
+    if '..' in filename or '/' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    filepath = screenshot_dir / filename
+    if not filepath.exists():
+        return jsonify({'error': 'Screenshot not found'}), 404
+
+    return send_from_directory(str(screenshot_dir), filename, mimetype='image/png')
+
+
+@api_bp.route('/screenshots/<filename>', methods=['DELETE'])
+@api_or_session_auth
+def delete_screenshot(filename):
+    """
+    DELETE /api/screenshots/<filename>
+
+    Delete a screenshot file.
+    """
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    # Security: ensure filename doesn't contain path traversal
+    if '..' in filename or '/' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    filepath = screenshot_dir / filename
+    if not filepath.exists():
+        return jsonify({'error': 'Screenshot not found'}), 404
+
+    filepath.unlink()
+    return jsonify({'success': True, 'deleted': filename})

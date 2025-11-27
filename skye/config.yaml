@@ -96,6 +96,18 @@ job_templates:
       hour: "4"
       minute: "0"
 
+  hugo_auth_check:
+    name: "Hugo Auth Health Check"
+    description: "Check Buz auth sessions are still valid"
+    target_bot: "hugo"
+    endpoint: "/api/auth/check"
+    method: "POST"
+    # Default: every 6 hours
+    schedule:
+      type: "cron"
+      hour: "*/6"
+      minute: "30"
+
 # Admin access configuration
 admin:
   emails:

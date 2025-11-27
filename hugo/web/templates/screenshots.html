@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Screenshots - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+.screenshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.screenshot-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.screenshot-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.screenshot-card img:hover {
+    opacity: 0.8;
+}
+
+.screenshot-info {
+    padding: 15px;
+}
+
+.screenshot-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+    word-break: break-all;
+}
+
+.screenshot-meta {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+.screenshot-actions {
+    margin-top: 10px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+}
+
+.modal-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 30px;
+    cursor: pointer;
+}
+{% endblock %}
+
+{% block content %}
+<h2>Error Screenshots</h2>
+
+<p class="text-muted">Screenshots captured when Playwright operations fail. Click to enlarge.</p>
+
+{% if screenshots %}
+<div class="screenshot-grid">
+    {% for screenshot in screenshots %}
+    <div class="screenshot-card" data-name="{{ screenshot.name }}">
+        <img src="{{ screenshot.url }}" alt="{{ screenshot.name }}" onclick="openModal('{{ screenshot.url }}')">
+        <div class="screenshot-info">
+            <div class="screenshot-name">{{ screenshot.name }}</div>
+            <div class="screenshot-meta">
+                {{ screenshot.modified }}<br>
+                {{ (screenshot.size / 1024)|round(1) }} KB
+            </div>
+            <div class="screenshot-actions">
+                <a href="{{ screenshot.url }}" download class="btn btn-secondary btn-sm">Download</a>
+                <button class="btn btn-danger btn-sm" onclick="deleteScreenshot('{{ screenshot.name }}', this)">Delete</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p>No screenshots available. Screenshots are captured when Playwright operations fail.</p>
+</div>
+{% endif %}
+
+<div id="modal" class="modal" onclick="closeModal()">
+    <span class="modal-close">&times;</span>
+    <img id="modal-img" src="" alt="Screenshot">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openModal(url) {
+        document.getElementById('modal-img').src = url;
+        document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    async function deleteScreenshot(filename, button) {
+        if (!confirm('Delete this screenshot?')) return;
+
+        button.disabled = true;
+        button.textContent = 'Deleting...';
+
+        try {
+            const result = await apiCall(`/api/screenshots/${encodeURIComponent(filename)}`, 'DELETE');
+            if (result.success) {
+                // Remove the card from DOM
+                button.closest('.screenshot-card').remove();
+                showMessage('Screenshot deleted', 'success');
+            }
+        } catch (e) {
+            showMessage('Delete failed: ' + e.message, 'error');
+            button.disabled = false;
+            button.textContent = 'Delete';
+        }
+    }
+</script>
+{% endblock %}
