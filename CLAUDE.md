@@ -108,10 +108,11 @@ def info():
 - Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
 
 When creating a new bot:
-1. Add `services/auth.py` (copy from any existing bot)
+1. Add `services/auth.py` (copy from `travis/services/auth.py` - see complete template below)
 2. Add `web/auth_routes.py` with `/login`, `/auth/callback`, `/logout`
-3. Apply `@login_required` to ALL web routes
-4. Add `allowed_domains` property to config.py (loads from organization.yaml)
+3. Call `init_auth(app)` in `app.py` after creating the Flask app
+4. Apply `@login_required` to ALL web routes
+5. Add `allowed_domains` property to config.py (loads from organization.yaml)
 
 ### API Authentication (bot-to-bot)
 - Use `@api_key_required` decorator from `shared.auth.bot_api`
@@ -172,16 +173,94 @@ def callback():
     ...
 ```
 
-Auth pattern (follow Skye as template):
-1. `services/auth.py` - OAuth setup, User class, decorators
+Auth pattern (follow Travis as template):
+1. `services/auth.py` - OAuth setup with `init_auth()` function
 2. `web/auth_routes.py` - /login, /auth/callback, /logout routes
 3. Config loads `admin_emails` from env or config.yaml
 4. Config loads `allowed_domains` from `shared/config/organization.yaml`
 
 ### Key auth files to copy from:
-- `skye/services/auth.py` - Clean auth service pattern
-- `skye/web/auth_routes.py` - OAuth routes
-- `skye/config.py` - Loading admin_emails and allowed_domains
+- `travis/services/auth.py` - Clean auth service pattern
+- `travis/web/auth_routes.py` - OAuth routes
+- `travis/config.py` - Loading admin_emails and allowed_domains
+
+### Complete services/auth.py Template
+
+Every bot with a web UI needs a `services/auth.py` with this structure:
+
+```python
+"""Authentication service for BotName."""
+import os
+from flask import session
+from flask_login import LoginManager
+from authlib.integrations.flask_client import OAuth
+from botname.config import config  # Use your bot's name here
+
+# Import from shared auth module
+from shared.auth import User
+from shared.auth.decorators import login_required, admin_required
+from shared.auth.email_check import is_email_allowed_by_domain
+
+# Initialize OAuth
+oauth = OAuth()
+
+
+def init_auth(app):
+    """Initialize authentication for the Flask app."""
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        if 'user' in session:
+            user_data = session['user']
+            return User(
+                email=user_data['email'],
+                name=user_data['name']
+            )
+        return None
+
+    # Get OAuth credentials
+    client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+    client_secret = os.getenv('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+
+    if not client_id or not client_secret:
+        raise ValueError(
+            "Missing Google OAuth credentials. Please set:\n"
+            "  GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET\n"
+            "in your .env file"
+        )
+
+    # Configure OAuth
+    oauth.init_app(app)
+    oauth.register(
+        name='google',
+        client_id=client_id,
+        client_secret=client_secret,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+
+    return login_manager
+
+
+def is_email_allowed(email):
+    """Check if email is allowed to access this bot (company domain only)."""
+    return is_email_allowed_by_domain(email, config.allowed_domains)
+```
+
+**CRITICAL**: The `init_auth()` function MUST be called from `app.py`:
+```python
+from services.auth import init_auth
+# ... create Flask app ...
+init_auth(app)
+```
+
+Routes can then import decorators directly:
+```python
+from services.auth import login_required, admin_required
+```
 
 ## Configuration Patterns
 
@@ -292,18 +371,6 @@ from shared.auth import api_key_required, api_or_session_auth
 - `api_key_required` - Decorator for API routes requiring `X-API-Key` header
 - `api_or_session_auth` - Decorator allowing either API key or logged-in session
 
-**Usage in auth.py:**
-
-```python
-from shared.auth import User
-from shared.auth.decorators import login_required, admin_required
-from shared.auth.email_check import is_email_allowed_by_domain
-
-def is_email_allowed(email):
-    """Bot-specific wrapper using shared function"""
-    return is_email_allowed_by_domain(email, config.allowed_domains)
-```
-
 **User class with admin support:**
 
 ```python
@@ -343,6 +410,8 @@ user = User(
 9. **Always use migrations** - Never create database tables manually or outside the migration framework. Use `shared.migrations.MigrationRunner`. Migrations run automatically on startup, so prod DB changes just need a bot restart.
 
 10. **Always use BotHttpClient for bot-to-bot calls** - Never use raw `requests.get/post()` when calling other bots. Use `shared.http_client.BotHttpClient` which automatically adds the `X-API-Key` header. Raw requests will fail authentication.
+
+11. **Always read files before writing** - When using Claude Code to edit files, ALWAYS read the file first before attempting to write or edit it. The Write and Edit tools will fail if the file hasn't been read in the current session. This applies even if you've seen the file contents in a previous message.
 
 ## Testing
 
