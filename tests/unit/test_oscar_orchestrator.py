@@ -16,6 +16,12 @@ import importlib.util
 # Add Oscar to path
 project_root = Path(__file__).parent.parent.parent
 oscar_path = project_root / 'oscar'
+
+# Clear any cached config from other tests BEFORE adding to path
+# This ensures we get Oscar's config, not another bot's
+if 'config' in sys.modules:
+    del sys.modules['config']
+
 if str(oscar_path) not in sys.path:
     sys.path.insert(0, str(oscar_path))
 if str(project_root) not in sys.path:
@@ -101,6 +107,16 @@ def oscar_db(tmp_path):
         import sqlite3
         conn = sqlite3.connect(self.db_path)
         conn.executescript(schema_dst.read_text())
+        # Also create the settings table (from migration 003)
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                description TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_by TEXT DEFAULT 'system'
+            )
+        ''')
         conn.commit()
         conn.close()
 
@@ -401,9 +417,15 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
         status=201
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
+    # Mock db.get_setting for VOIP ticket group settings
+    mock_db = Mock()
+    mock_db.get_setting.side_effect = lambda key, default=None: {
+        'voip_ticket_group_id': '12345',
+        'voip_ticket_group_name': 'IT Support'
+    }.get(key, default)
 
+    with patch('oscar_orchestrator.config', mock_config), \
+         patch('oscar_orchestrator.db', mock_db):
         orchestrator = OnboardingOrchestrator()
         result = orchestrator._create_voip_ticket(sample_onboarding_request)
 

@@ -292,9 +292,13 @@ class TestCheckerSyncHealth:
         self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that sync failure is detected."""
+        # Use a recent last_successful_sync_at to avoid triggering stale sync as well
+        from datetime import datetime, timezone, timedelta
+        recent_time = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+
         mock_mavis_client.get_sync_status.return_value = {
             'status': 'failed',
-            'last_successful_sync_at': '2025-01-15T10:00:00Z',
+            'last_successful_sync_at': recent_time,
             'last_error': 'Connection timeout to Unleashed API'
         }
 

@@ -3,7 +3,10 @@ from functools import wraps
 from flask import request, jsonify
 from flask_login import current_user
 
-BOT_API_KEY = os.getenv("BOT_API_KEY", "")
+
+def _get_bot_api_key():
+    """Get the BOT_API_KEY dynamically (supports testing with different values)."""
+    return os.getenv("BOT_API_KEY", "")
 
 
 def api_key_required(view_func):
@@ -17,15 +20,16 @@ def api_key_required(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         header_key = request.headers.get("X-API-Key")
+        bot_api_key = _get_bot_api_key()
 
-        if not BOT_API_KEY:
+        if not bot_api_key:
             # Misconfigured service – fail closed so you notice
             return jsonify({"error": "BOT_API_KEY not configured"}), 500
 
         if not header_key:
             return jsonify({"error": "Missing API key"}), 401
 
-        if header_key != BOT_API_KEY:
+        if header_key != bot_api_key:
             return jsonify({"error": "Invalid API key"}), 403
 
         return view_func(*args, **kwargs)
@@ -53,12 +57,13 @@ def api_or_session_auth(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         header_key = request.headers.get("X-API-Key")
+        bot_api_key = _get_bot_api_key()
 
         if header_key:
             # API key provided - validate it
-            if not BOT_API_KEY:
+            if not bot_api_key:
                 return jsonify({"error": "BOT_API_KEY not configured"}), 500
-            if header_key != BOT_API_KEY:
+            if header_key != bot_api_key:
                 return jsonify({"error": "Invalid API key"}), 403
             return view_func(*args, **kwargs)
 

@@ -10,12 +10,19 @@ from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 from flask import Flask, session
 from urllib.parse import urlparse
+import importlib.util
 
-# Add shared directory to path
+# Load GoogleAuth using importlib to avoid sys.path pollution
+# This prevents contaminating other tests that run after this module
 shared_path = Path(__file__).parent.parent.parent / 'shared'
-sys.path.insert(0, str(shared_path))
-
-from auth.google_oauth import GoogleAuth
+_spec = importlib.util.spec_from_file_location(
+    "shared_google_oauth",
+    shared_path / "auth" / "google_oauth.py"
+)
+_google_oauth_module = importlib.util.module_from_spec(_spec)
+sys.modules['shared_google_oauth'] = _google_oauth_module
+_spec.loader.exec_module(_google_oauth_module)
+GoogleAuth = _google_oauth_module.GoogleAuth
 
 
 # ==============================================================================

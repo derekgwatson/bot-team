@@ -10,8 +10,9 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, Mock
+import importlib.util
 
-# Add quinn directory to path
+# Add paths
 project_root = Path(__file__).parent.parent.parent
 quinn_path = project_root / 'quinn'
 
@@ -19,27 +20,16 @@ quinn_path = project_root / 'quinn'
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 
-# Clear any cached config and set up quinn's path BEFORE loading the module
-if 'config' in sys.modules:
-    del sys.modules['config']
-sys.path.insert(0, str(quinn_path))
-sys.path.insert(0, str(project_root))
-
-# Need to handle module-level database instantiation
-# Import config first and mock it before database module loads
-import config as quinn_config
-
-# Create a temporary mock config to prevent errors during module import
-original_config = quinn_config.config
-temp_mock = Mock()
-temp_mock.database_path = ':memory:'
-quinn_config.config = temp_mock
-
-# Now safe to import database module
-from database.db import ExternalStaffDB
-
-# Restore original (will be mocked properly in fixtures)
-quinn_config.config = original_config
+# Load ExternalStaffDB using importlib to avoid sys.modules conflicts
+# This ensures we get Quinn's database.db regardless of what other tests loaded
+_db_spec = importlib.util.spec_from_file_location(
+    "quinn_database_db",
+    quinn_path / "database" / "db.py"
+)
+_db_module = importlib.util.module_from_spec(_db_spec)
+sys.modules['quinn_database_db'] = _db_module
+_db_spec.loader.exec_module(_db_module)
+ExternalStaffDB = _db_module.ExternalStaffDB
 
 
 @pytest.fixture

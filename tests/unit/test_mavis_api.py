@@ -15,11 +15,11 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Set test environment before importing app
+# Note: BOT_API_KEY is set in conftest.py to 'test-api-key' for all tests
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['UNLEASHED_API_ID'] = 'test-api-id'
 os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
-os.environ['BOT_API_KEY'] = 'test-bot-api-key'
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
 
 # Import Database directly using importlib to avoid sys.modules caching issues
@@ -49,17 +49,19 @@ def mavis_app(tmp_path):
         test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
 
         # Import mavis's modules fresh
-        # Note: Use sys.modules to get the actual submodule, since database/__init__.py
-        # exports 'db' which shadows the submodule when accessed via attribute
+        # Note: Use sys.modules to get the actual submodules, since:
+        # - database/__init__.py exports 'db' which shadows the submodule
+        # - services/__init__.py exports 'sync_service' (the instance) which shadows the submodule
         import database.db
         import services.sync_service
         db_module = sys.modules['database.db']
+        sync_service_module = sys.modules['services.sync_service']
 
         # Patch the db instances
         original_db = db_module.db
-        original_sync_db = services.sync_service.db
+        original_sync_db = sync_service_module.db
         db_module.db = test_db
-        services.sync_service.db = test_db
+        sync_service_module.db = test_db
 
         # Import app after patching
         from app import app
@@ -69,7 +71,7 @@ def mavis_app(tmp_path):
 
         # Restore original values
         db_module.db = original_db
-        services.sync_service.db = original_sync_db
+        sync_service_module.db = original_sync_db
     finally:
         # Clean up: remove mavis modules to avoid polluting other tests
         modules_to_remove = [k for k in sys.modules.keys()
@@ -94,7 +96,7 @@ def client(mavis_app):
 @pytest.fixture
 def auth_headers():
     """Headers with API key for authenticated requests."""
-    return {'X-API-Key': 'test-bot-api-key'}
+    return {'X-API-Key': 'test-api-key'}
 
 
 @pytest.mark.unit

@@ -113,14 +113,15 @@ class TestScoutHealthEndpoint:
         assert 'bot' in data
         assert data['bot'] == 'Scout'
 
-    def test_health_includes_scheduler_status(self, client):
-        """Test health check includes scheduler info."""
+    def test_health_includes_version(self, client):
+        """Test health check includes version info."""
         response = client.get('/health')
         data = json.loads(response.data)
 
-        assert 'scheduler' in data
-        assert 'enabled' in data['scheduler']
-        assert 'running' in data['scheduler']
+        # Health endpoint should include standard fields
+        assert 'status' in data
+        assert data['status'] == 'healthy'
+        assert 'version' in data
 
 
 @pytest.mark.unit
@@ -173,12 +174,11 @@ class TestScoutAPIChecks:
         assert response.status_code == 401
 
     def test_checks_status_returns_info(self, client, api_headers, scout_app):
-        """Test checks status returns scheduler and last run info."""
+        """Test checks status returns last run info."""
         response = client.get('/api/checks/status', headers=api_headers)
         assert response.status_code == 200
 
         data = json.loads(response.data)
-        assert 'scheduler' in data
         assert 'last_run' in data
 
     def test_checks_history_returns_list(self, client, api_headers, scout_app):

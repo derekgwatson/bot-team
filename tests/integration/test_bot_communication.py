@@ -47,36 +47,23 @@ PeterClient = peter_client_module.PeterClient
 
 @pytest.fixture
 def pam_config_for_test():
-    """Set up Pam's config with proper module isolation."""
-    # Clear any cached config modules
-    modules_to_clear = [k for k in sys.modules.keys()
-                        if k.startswith(('config',))]
-    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
+    """Set up Pam's config with proper module isolation.
 
-    # Add pam to path (must be first to take precedence)
-    if str(pam_path) in sys.path:
-        sys.path.remove(str(pam_path))
-    sys.path.insert(0, str(pam_path))
+    Note: PeterClient was loaded via importlib at module level, so it already
+    has a reference to 'config' from that load. We need to patch the config
+    that peter_client_module is actually using.
+    """
+    # Get the config object that peter_client_module is using
+    # (it imported config when exec_module ran)
+    config_obj = peter_client_module.config
 
-    try:
-        # Now import pam's config fresh
-        import config as pam_config
+    # Pre-populate Chester's bot URL cache to avoid hitting Chester API
+    config_obj._bot_url_cache['peter'] = 'http://localhost:8003'
 
-        # Pre-populate Chester's bot URL cache to avoid hitting Chester API
-        pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
+    yield config_obj
 
-        yield pam_config.config
-    finally:
-        # Clean up: remove config module to avoid polluting other tests
-        if 'config' in sys.modules:
-            del sys.modules['config']
-
-        # Restore previously saved modules
-        sys.modules.update(saved_modules)
-
-        # Remove pam from path
-        if str(pam_path) in sys.path:
-            sys.path.remove(str(pam_path))
+    # Clean up cache after test
+    config_obj._bot_url_cache.clear()
 
 
 @pytest.mark.integration
