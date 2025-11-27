@@ -9,6 +9,10 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR))
 
+# Skip all tests in this module if playwright is not installed
+# (Banji requires playwright for browser automation)
+pytest.importorskip("playwright")
+
 
 @pytest.fixture
 def mock_config():

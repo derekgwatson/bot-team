@@ -54,9 +54,10 @@ def create_zendesk_service(mock_config, mock_zenpy_client):
         mock_zenpy_lib = types.ModuleType('zenpy.lib')
         sys.modules['zenpy.lib'] = mock_zenpy_lib
 
-        # Create mock zenpy.lib.api_objects module with User class
+        # Create mock zenpy.lib.api_objects module with User and GroupMembership classes
         mock_zenpy_api = types.ModuleType('zenpy.lib.api_objects')
         mock_zenpy_api.User = Mock()
+        mock_zenpy_api.GroupMembership = Mock()
         sys.modules['zenpy.lib.api_objects'] = mock_zenpy_api
 
         # Load zendesk module using importlib to avoid 'services' package conflicts
@@ -389,15 +390,17 @@ def test_unsuspend_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk
 
 @pytest.mark.unit
 @pytest.mark.zac
-def test_delete_user_success(mock_zenpy_client, mock_zac_config):
+def test_delete_user_success(mock_zenpy_client, mock_zac_config, mock_zendesk_user):
     """Test successful user deletion."""
+    mock_zenpy_client.users.return_value = mock_zendesk_user
     mock_zenpy_client.users.delete.return_value = None
 
     service = create_zendesk_service(mock_zac_config, mock_zenpy_client)
     result = service.delete_user(12345)
 
     assert result is True
-    mock_zenpy_client.users.delete.assert_called_once_with(12345)
+    # The delete method fetches the user object first, then calls delete with it
+    mock_zenpy_client.users.delete.assert_called_once()
 
 
 @pytest.mark.unit

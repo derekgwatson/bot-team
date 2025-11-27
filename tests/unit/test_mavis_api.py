@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import pytest
+import importlib.util
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -14,30 +15,76 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Set test environment before importing app
+# Note: BOT_API_KEY is set in conftest.py to 'test-api-key' for all tests
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['UNLEASHED_API_ID'] = 'test-api-id'
 os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
-os.environ['BOT_API_KEY'] = 'test-bot-api-key'
 os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
 
-# Import mavis app
-sys.path.insert(0, str(project_root / 'mavis'))
+# Import Database directly using importlib to avoid sys.modules caching issues
+module_path = project_root / 'mavis' / 'database' / 'db.py'
+spec = importlib.util.spec_from_file_location('mavis_database_db', module_path)
+mavis_db_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mavis_db_module)
+MavisDatabase = mavis_db_module.Database
 
 
 @pytest.fixture
 def mavis_app(tmp_path):
     """Create Mavis Flask app with test database."""
-    # Patch the database before importing app
-    from database.db import Database
-    test_db = Database(str(tmp_path / 'test_mavis.db'))
+    # Clear any cached modules that could conflict with mavis's modules
+    modules_to_clear = [k for k in sys.modules.keys()
+                        if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
 
-    with patch('database.db.db', test_db), \
-         patch('services.sync_service.db', test_db), \
-         patch('api.routes.db', test_db):
+    # Add mavis to path (must be first to take precedence)
+    mavis_path = str(project_root / 'mavis')
+    if mavis_path in sys.path:
+        sys.path.remove(mavis_path)
+    sys.path.insert(0, mavis_path)
+
+    try:
+        # Create test database
+        test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
+
+        # Import mavis's modules fresh
+        # Note: Use sys.modules to get the actual submodules, since:
+        # - database/__init__.py exports 'db' which shadows the submodule
+        # - services/__init__.py exports 'sync_service' (the instance) which shadows the submodule
+        import database.db
+        import services.sync_service
+        db_module = sys.modules['database.db']
+        sync_service_module = sys.modules['services.sync_service']
+
+        # Patch the db instances
+        original_db = db_module.db
+        original_sync_db = sync_service_module.db
+        db_module.db = test_db
+        sync_service_module.db = test_db
+
+        # Import app after patching
         from app import app
         app.config['TESTING'] = True
+
         yield app
+
+        # Restore original values
+        db_module.db = original_db
+        sync_service_module.db = original_sync_db
+    finally:
+        # Clean up: remove mavis modules to avoid polluting other tests
+        modules_to_remove = [k for k in sys.modules.keys()
+                             if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+        for k in modules_to_remove:
+            sys.modules.pop(k, None)
+
+        # Restore previously saved modules
+        sys.modules.update(saved_modules)
+
+        # Remove mavis from path
+        if mavis_path in sys.path:
+            sys.path.remove(mavis_path)
 
 
 @pytest.fixture
@@ -49,7 +96,7 @@ def client(mavis_app):
 @pytest.fixture
 def auth_headers():
     """Headers with API key for authenticated requests."""
-    return {'X-API-Key': 'test-bot-api-key'}
+    return {'X-API-Key': 'test-api-key'}
 
 
 @pytest.mark.unit

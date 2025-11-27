@@ -6,6 +6,7 @@ import os
 import sys
 import pytest
 import responses
+import importlib.util
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -19,9 +20,13 @@ os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['UNLEASHED_API_ID'] = 'test-api-id'
 os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
 
-# Import after setting env vars
-sys.path.insert(0, str(project_root / 'mavis'))
-from services.unleashed_client import UnleashedClient
+# Import UnleashedClient directly to avoid loading services/__init__.py
+# which has cascading dependencies on config/sync_service
+module_path = project_root / 'mavis' / 'services' / 'unleashed_client.py'
+spec = importlib.util.spec_from_file_location('unleashed_client', module_path)
+unleashed_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(unleashed_module)
+UnleashedClient = unleashed_module.UnleashedClient
 
 
 @pytest.fixture
@@ -72,9 +77,10 @@ class TestUnleashedClientProducts:
     @responses.activate
     def test_fetch_all_products_single_page(self, unleashed_client):
         """Test fetching products from a single page."""
+        # Unleashed API uses page number in URL path: /Products/1 for page 1
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/1',
             json={
                 'Items': [
                     {
@@ -106,10 +112,11 @@ class TestUnleashedClientProducts:
     @responses.activate
     def test_fetch_all_products_multiple_pages(self, unleashed_client):
         """Test fetching products across multiple pages."""
+        # Unleashed API uses page number in URL path: /Products/1 for page 1
         # Page 1
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/1',
             json={
                 'Items': [
                     {'ProductCode': 'PROD001', 'ProductDescription': 'Product 1'}
@@ -126,7 +133,7 @@ class TestUnleashedClientProducts:
         # Page 2
         responses.add(
             responses.GET,
-            'https://api.unleashedsoftware.com/Products',
+            'https://api.unleashedsoftware.com/Products/2',
             json={
                 'Items': [
                     {'ProductCode': 'PROD002', 'ProductDescription': 'Product 2'}

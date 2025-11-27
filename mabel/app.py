@@ -16,8 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, ConfigError
 from services.email_sender import EmailSender
-from services.auth import init_auth
-from web.auth_routes import auth_bp
+from shared.auth import GatewayAuth
 from shared.error_handlers import register_error_handlers
 
 
@@ -61,15 +60,21 @@ def init_app() -> Flask:
     email_sender = EmailSender(config)
     app.config['EMAIL_SENDER'] = email_sender
 
-    # Initialize authentication
-    init_auth(app)
+    # Initialize authentication via Chester's gateway
+    auth = GatewayAuth(app, config)
 
-    # Register blueprints
+    # Store auth instance in services.auth for backward compatibility with routes
+    import services.auth as auth_module
+    auth_module.auth = auth
+    auth_module.login_required = auth.login_required
+    auth_module.admin_required = auth.admin_required
+    auth_module.get_current_user = auth.get_current_user
+
+    # Register blueprints (import AFTER auth is initialized)
     from api.health import health_bp
     from api.email import email_bp
     from web.routes import web_bp
 
-    app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
     app.register_blueprint(web_bp)
