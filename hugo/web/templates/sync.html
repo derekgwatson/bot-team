@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Sync History - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Sync History</h2>
+
+<div class="card">
+    <h3>All Sync Operations</h3>
+    {% if history %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Organization</th>
+                <th>Users</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in history %}
+            <tr>
+                <td class="text-muted">{{ entry.synced_at[:16] }}</td>
+                <td><strong>{{ entry.org_key }}</strong></td>
+                <td>{{ entry.user_count }}</td>
+                <td>{{ "%.1f"|format(entry.duration_seconds) }}s</td>
+                <td>
+                    <span class="badge badge-{% if entry.status == 'success' %}success{% else %}error{% endif %}">
+                        {{ entry.status }}
+                    </span>
+                </td>
+                <td class="text-danger">{{ entry.error_message or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No sync operations recorded yet.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

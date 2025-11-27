@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Users - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Buz Users</h2>
+
+<div class="filters">
+    <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <select name="org" onchange="this.form.submit()">
+            <option value="">All Organizations</option>
+            {% for org_key in available_orgs %}
+            <option value="{{ org_key }}" {% if filters.org == org_key %}selected{% endif %}>
+                {{ config.buz_orgs[org_key].display_name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="active" onchange="this.form.submit()">
+            <option value="">All Status</option>
+            <option value="true" {% if filters.active == true %}selected{% endif %}>Active</option>
+            <option value="false" {% if filters.active == false %}selected{% endif %}>Inactive</option>
+        </select>
+
+        <select name="type" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            <option value="employee" {% if filters.type == 'employee' %}selected{% endif %}>Employees</option>
+            <option value="customer" {% if filters.type == 'customer' %}selected{% endif %}>Customers</option>
+        </select>
+
+        <a href="{{ url_for('web.users') }}" class="btn btn-secondary btn-sm">Clear Filters</a>
+    </form>
+</div>
+
+<div class="card">
+    <p class="text-muted">{{ users|length }} users found</p>
+
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Organization</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Group</th>
+                <th>Last Session</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><a href="{{ url_for('web.user_detail', email=user.email) }}">{{ user.full_name or user.email }}</a></td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.org_key }}</td>
+                <td>
+                    <span class="badge badge-{{ user.user_type }}">{{ user.user_type }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-{% if user.is_active %}active{% else %}inactive{% endif %}">
+                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </td>
+                <td>{{ user.user_group or '-' }}</td>
+                <td class="text-muted">{{ user.last_session or '-' }}</td>
+                <td>
+                    {% if user.is_active %}
+                    <button class="btn btn-danger btn-sm toggle-btn"
+                            onclick="toggleUser('{{ user.email }}', '{{ user.org_key }}', true, this)">
+                        Deactivate
+                    </button>
+                    {% else %}
+                    <button class="btn btn-success btn-sm toggle-btn"
+                            onclick="toggleUser('{{ user.email }}', '{{ user.org_key }}', false, this)">
+                        Activate
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No users found. Try <a href="{{ url_for('web.index') }}">syncing from the dashboard</a>.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
