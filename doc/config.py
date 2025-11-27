@@ -90,7 +90,7 @@ class Config:
     def auth(self):
         """Auth config for GatewayAuth."""
         return {
-            'mode': 'admin',
+            'mode': 'admin_only',  # Only admin emails can access Doc
             'allowed_domains': self.allowed_domains,
             'admin_emails': self.admin_emails,
         }
