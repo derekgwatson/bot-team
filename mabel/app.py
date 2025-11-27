@@ -12,9 +12,12 @@ import time
 from functools import wraps
 
 from flask import Flask, jsonify, request, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, ConfigError
 from services.email_sender import EmailSender
+from services.auth import init_auth
+from web.auth_routes import auth_bp
 
 
 # Initialize Flask app
@@ -44,6 +47,9 @@ def init_app() -> Flask:
     # Set Flask secret key
     app.secret_key = config.flask_secret_key
 
+    # Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     # Configure logging
     logging.basicConfig(
         level=getattr(logging, config.log_level),
@@ -54,11 +60,15 @@ def init_app() -> Flask:
     email_sender = EmailSender(config)
     app.config['EMAIL_SENDER'] = email_sender
 
+    # Initialize authentication
+    init_auth(app)
+
     # Register blueprints
     from api.health import health_bp
     from api.email import email_bp
     from web.routes import web_bp
 
+    app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
     app.register_blueprint(web_bp)
@@ -70,7 +80,8 @@ def require_api_key(f):
     """
     Decorator to require API key authentication.
 
-    Checks for X-Internal-Api-Key header and validates against config.
+    Accepts either X-API-Key (standard) or X-Internal-Api-Key (legacy) header.
+    Validates against BOT_API_KEY environment variable.
 
     Returns:
         401 JSON response if authentication fails
@@ -78,7 +89,8 @@ def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         config = app.config['MABEL_CONFIG']
-        api_key = request.headers.get('X-Internal-Api-Key')
+        # Accept both standard X-API-Key and legacy X-Internal-Api-Key
+        api_key = request.headers.get('X-API-Key') or request.headers.get('X-Internal-Api-Key')
 
         if not api_key or api_key != config.internal_api_key:
             return jsonify({'error': 'unauthorized'}), 401

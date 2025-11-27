@@ -8,6 +8,7 @@ import logging
 import requests
 from typing import Optional
 from config import config
+from shared.http_client import BotHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,11 @@ class EmailService:
 
     def __init__(self):
         self.mabel_url = config.mabel_url
-        self.bot_api_key = os.getenv("BOT_API_KEY")
         self.from_address = config.email_from_address
+
+    def _get_mabel_client(self, timeout: int = 10) -> BotHttpClient:
+        """Get a BotHttpClient for Mabel"""
+        return BotHttpClient(self.mabel_url, timeout=timeout)
 
     def send_email(self, to_email: str, subject: str, body: str,
                    html_body: Optional[str] = None) -> bool:
@@ -54,18 +58,9 @@ class EmailService:
             if self.from_address:
                 payload["from_address"] = self.from_address
 
-            # Send request to Mabel
-            headers = {
-                "Content-Type": "application/json",
-                "X-Internal-Api-Key": self.bot_api_key
-            }
-
-            response = requests.post(
-                f"{self.mabel_url}/api/send-email",
-                json=payload,
-                headers=headers,
-                timeout=10
-            )
+            # Send request to Mabel via BotHttpClient (adds X-API-Key automatically)
+            mabel = self._get_mabel_client()
+            response = mabel.post('/api/send-email', json=payload)
 
             if response.status_code == 200:
                 logger.info(f"Email sent successfully to {to_email} via Mabel")

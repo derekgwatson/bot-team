@@ -17,6 +17,7 @@ import logging
 
 from juno.config import config
 from juno.database.db import db
+from shared.http_client import BotHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -191,10 +192,8 @@ def get_tracking_location(code: str):
 
         # Call Travis to get location
         try:
-            response = requests.get(
-                f"{config.travis_base_url}/api/location/{link['staff_id']}",
-                timeout=5
-            )
+            travis = BotHttpClient(config.travis_base_url, timeout=5)
+            response = travis.get(f"/api/location/{link['staff_id']}")
 
             if response.status_code == 200:
                 location_data = response.json()

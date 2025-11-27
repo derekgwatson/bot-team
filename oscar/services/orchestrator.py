@@ -4,11 +4,11 @@ Coordinates onboarding workflow across multiple bots
 """
 
 import json
-import requests
 from typing import Dict, List, Any, Optional
 from config import config
 from database.db import db
 from shared.password_generator import generate_memorable_password
+from shared.http_client import BotHttpClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -162,6 +162,10 @@ class OnboardingOrchestrator:
 
         # Default to config.yaml (localhost for dev)
         return config.bots.get(bot_name, {}).get('url', f'http://localhost:800{ord(bot_name[0]) % 10}')
+
+    def _get_bot_client(self, bot_name: str, timeout: int = 30) -> BotHttpClient:
+        """Get a BotHttpClient for the specified bot."""
+        return BotHttpClient(self._get_bot_url(bot_name), timeout=timeout)
 
     def setup_workflow(self, request_id: int) -> Dict[str, Any]:
         """
@@ -515,18 +519,14 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
 
             # Call Fred's API to create user
             # Don't require password change so admin can log in first to set up 2FA
-            response = requests.post(
-                f"{self._get_bot_url('fred')}/api/users",
-                json={
-                    'email': email,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'password': password,
-                    'change_password_at_next_login': False
-                },
-                headers={'X-API-Key': config.bot_api_key},
-                timeout=30
-            )
+            fred = self._get_bot_client('fred')
+            response = fred.post('/api/users', json={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'password': password,
+                'change_password_at_next_login': False
+            })
 
             if response.status_code not in [200, 201]:
                 return {
@@ -537,11 +537,7 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             # Generate backup codes via Fred's API
             backup_codes = []
             try:
-                backup_response = requests.post(
-                    f"{self._get_bot_url('fred')}/api/users/{email}/backup-codes",
-                    headers={'X-API-Key': config.bot_api_key},
-                    timeout=30
-                )
+                backup_response = fred.post(f'/api/users/{email}/backup-codes')
                 if backup_response.status_code == 200:
                     backup_result = backup_response.json()
                     backup_codes = backup_result.get('backup_codes', [])
@@ -576,16 +572,12 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
                     zendesk_groups = []
 
             # Create the user
-            response = requests.post(
-                f"{self._get_bot_url('zac')}/api/users",
-                json={
-                    'name': request_data['full_name'],
-                    'email': email,
-                    'role': 'agent'  # Always agent role
-                },
-                headers={'X-API-Key': config.bot_api_key},
-                timeout=30
-            )
+            zac = self._get_bot_client('zac')
+            response = zac.post('/api/users', json={
+                'name': request_data['full_name'],
+                'email': email,
+                'role': 'agent'  # Always agent role
+            })
 
             if response.status_code not in [200, 201]:
                 return {
@@ -600,11 +592,9 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             groups_assigned = []
             if user_id and zendesk_groups:
                 try:
-                    groups_response = requests.post(
-                        f"{self._get_bot_url('zac')}/api/users/{user_id}/groups",
-                        json={'group_ids': zendesk_groups},
-                        headers={'X-API-Key': config.bot_api_key},
-                        timeout=30
+                    groups_response = zac.post(
+                        f'/api/users/{user_id}/groups',
+                        json={'group_ids': zendesk_groups}
                     )
                     if groups_response.status_code == 200:
                         groups_assigned = zendesk_groups
@@ -629,25 +619,21 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
             # Use provided work email or fall back to results from Google user creation
             work_email = request_data.get('work_email') or request_data.get('google_user_email', '')
 
-            response = requests.post(
-                f"{self._get_bot_url('peter')}/api/staff",
-                json={
-                    'name': request_data['full_name'],
-                    'position': request_data['position'],
-                    'section': request_data['section'],
-                    'phone_mobile': request_data.get('phone_mobile', ''),
-                    'phone_fixed': request_data.get('phone_fixed', ''),
-                    'work_email': work_email,
-                    'personal_email': request_data['personal_email'],
-                    'google_access': request_data.get('google_access', False),
-                    'zendesk_access': request_data.get('zendesk_access', False),
-                    'voip_access': request_data.get('voip_access', False),
-                    'status': 'active',
-                    'notes': request_data.get('notes', '')
-                },
-                headers={'X-API-Key': config.bot_api_key},
-                timeout=30
-            )
+            peter = self._get_bot_client('peter')
+            response = peter.post('/api/staff', json={
+                'name': request_data['full_name'],
+                'position': request_data['position'],
+                'section': request_data['section'],
+                'phone_mobile': request_data.get('phone_mobile', ''),
+                'phone_fixed': request_data.get('phone_fixed', ''),
+                'work_email': work_email,
+                'personal_email': request_data['personal_email'],
+                'google_access': request_data.get('google_access', False),
+                'zendesk_access': request_data.get('zendesk_access', False),
+                'voip_access': request_data.get('voip_access', False),
+                'status': 'active',
+                'notes': request_data.get('notes', '')
+            })
 
             if response.status_code in [200, 201]:
                 result = response.json()
@@ -706,12 +692,8 @@ Automated request from Oscar (Staff Onboarding Bot)
             if voip_group_id:
                 ticket_payload['group_id'] = int(voip_group_id)
 
-            response = requests.post(
-                f"{self._get_bot_url('sadie')}/api/tickets",
-                json=ticket_payload,
-                headers={'X-API-Key': config.bot_api_key},
-                timeout=30
-            )
+            sadie = self._get_bot_client('sadie')
+            response = sadie.post('/api/tickets', json=ticket_payload)
 
             if response.status_code in [200, 201]:
                 result = response.json()

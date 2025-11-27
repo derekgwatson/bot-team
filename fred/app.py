@@ -8,6 +8,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import os
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
 
@@ -15,6 +16,10 @@ app = Flask(__name__)
 
 # Configure Flask for sessions and OAuth
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+# This ensures url_for generates https:// URLs when behind nginx with SSL
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Initialize authentication via Chester's gateway
 auth = GatewayAuth(app, config)
@@ -30,8 +35,6 @@ auth_module.get_current_user = auth.get_current_user
 from api.users import api_bp
 from api.operations import operations_bp
 from web.routes import web_bp
-
-
 
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')

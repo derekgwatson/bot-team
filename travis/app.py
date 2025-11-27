@@ -14,10 +14,13 @@ if str(ROOT_DIR) not in sys.path:
 import os
 import logging
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from travis.config import config
 from travis.api.routes import api_bp
 from travis.web.routes import web_bp
+from travis.web.auth_routes import auth_bp
+from travis.services.auth import init_auth
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -38,7 +41,14 @@ app = Flask(__name__,
             static_folder='web/static')
 app.secret_key = config.secret_key
 
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Initialize authentication
+init_auth(app)
+
 # Register blueprints
+app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 

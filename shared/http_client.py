@@ -55,3 +55,44 @@ class BotHttpClient:
             timeout=timeout,
             **kwargs,
         )
+
+    def patch(self, path: str, json=None, **kwargs):
+        url = urljoin(self.base_url, path.lstrip("/"))
+
+        # Use per-call timeout if provided, otherwise default
+        timeout = kwargs.pop("timeout", self.timeout)
+
+        return requests.patch(
+            url,
+            headers=self._headers(),
+            json=json,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def put(self, path: str, json=None, **kwargs):
+        url = urljoin(self.base_url, path.lstrip("/"))
+
+        # Use per-call timeout if provided, otherwise default
+        timeout = kwargs.pop("timeout", self.timeout)
+
+        return requests.put(
+            url,
+            headers=self._headers(),
+            json=json,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def delete(self, path: str, **kwargs):
+        url = urljoin(self.base_url, path.lstrip("/"))
+
+        # Use per-call timeout if provided, otherwise default
+        timeout = kwargs.pop("timeout", self.timeout)
+
+        return requests.delete(
+            url,
+            headers=self._headers(),
+            timeout=timeout,
+            **kwargs,
+        )

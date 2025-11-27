@@ -41,6 +41,7 @@ def api_or_session_auth(view_func):
     - By other bots via API key (X-API-Key header)
     - By the web UI via session auth (logged in user)
 
+<<<<<<< HEAD
     Example:
         @app.route('/api/quotes/refresh-pricing', methods=['POST'])
         @api_or_session_auth
@@ -51,6 +52,14 @@ def api_or_session_auth(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         # Check for API key first
+=======
+    Returns JSON errors for failed auth.
+    """
+    from flask_login import current_user
+
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+>>>>>>> claude/bot-health-checker-0177PC3W9xfEUfnoYhkY3Foo
         header_key = request.headers.get("X-API-Key")
 
         if header_key:
@@ -58,11 +67,18 @@ def api_or_session_auth(view_func):
             if not BOT_API_KEY:
                 return jsonify({"error": "BOT_API_KEY not configured"}), 500
             if header_key != BOT_API_KEY:
+<<<<<<< HEAD
                 return jsonify({"error": "Invalid API key"}), 401
             # API key valid - proceed
             return view_func(*args, **kwargs)
 
         # No API key - check session auth
+=======
+                return jsonify({"error": "Invalid API key"}), 403
+            return view_func(*args, **kwargs)
+
+        # No API key - check for session auth
+>>>>>>> claude/bot-health-checker-0177PC3W9xfEUfnoYhkY3Foo
         if current_user.is_authenticated:
             return view_func(*args, **kwargs)
 
