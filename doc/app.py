@@ -9,9 +9,6 @@ if str(ROOT_DIR) not in sys.path:
 from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
-from api.routes import api_bp
-from web.routes import web_bp
-from web.auth_routes import auth_bp
 from shared.auth import GatewayAuth
 from database.db import db
 from services.checkup import checkup_service
@@ -45,8 +42,12 @@ auth_module.login_required = auth.login_required
 auth_module.admin_required = auth.admin_required
 auth_module.get_current_user = auth.get_current_user
 
+# Import blueprints AFTER auth is set up (routes use @admin_required decorator)
+from api.routes import api_bp
+from web.routes import web_bp
+# Note: GatewayAuth registers its own 'gateway_auth' blueprint with /login, /auth/callback, /logout
+
 # Register blueprints
-app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
 
