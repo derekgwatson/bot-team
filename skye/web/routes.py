@@ -23,7 +23,8 @@ def index():
     stats = db.get_stats()
     stats['scheduler_running'] = scheduler_service.is_running()
 
-    recent_executions = db.get_recent_executions(limit=20)
+    # Hide quiet job successes by default for cleaner dashboard
+    recent_executions = db.get_recent_executions(limit=20, include_quiet=False)
     failed_executions = db.get_failed_executions(since_hours=24)
 
     return render_template(
@@ -172,6 +173,7 @@ def update_job(job_id):
     method = request.form.get('method', 'POST')
     schedule_type = request.form.get('schedule_type', 'cron')
     description = request.form.get('description', '').strip()
+    quiet = request.form.get('quiet') == '1'
 
     # Build schedule config from form
     if schedule_type == 'cron':
@@ -197,7 +199,8 @@ def update_job(job_id):
             method=method,
             schedule_type=schedule_type,
             schedule_config=schedule_config,
-            description=description
+            description=description,
+            quiet=quiet
         )
         flash(f'Job "{name}" updated successfully', 'success')
         return redirect(url_for('web.job_detail', job_id=job_id))
@@ -264,12 +267,15 @@ def delete_job(job_id):
 @login_required
 def execution_history():
     """View execution history."""
-    executions = db.get_recent_executions(limit=200)
+    # Default to hiding quiet job successes (show_all=0)
+    show_all = request.args.get('show_all', '0') == '1'
+    executions = db.get_recent_executions(limit=200, include_quiet=show_all)
 
     return render_template(
         'history.html',
         config=config,
         executions=executions,
+        show_all=show_all,
         current_user=current_user
     )
 
