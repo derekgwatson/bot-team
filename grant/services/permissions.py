@@ -134,11 +134,20 @@ class PermissionService:
             response.raise_for_status()
 
             data = response.json()
-            bots = data.get('bots', [])
+            bots_data = data.get('bots', {})
 
-            if not bots:
+            if not bots_data:
                 logger.warning("No bots returned from Chester")
                 return {'success': False, 'error': 'No bots returned from Chester'}
+
+            # Chester returns bots as a dict {name: info}, convert to list
+            if isinstance(bots_data, dict):
+                bots = [
+                    {'name': name, **info}
+                    for name, info in bots_data.items()
+                ]
+            else:
+                bots = bots_data
 
             result = self._get_db().sync_bots(bots)
             logger.info(f"Synced {result['synced']} bots from Chester")
