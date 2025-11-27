@@ -21,6 +21,12 @@ os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['BOT_API_KEY'] = 'test-api-key'
 os.environ['CHESTER_API_URL'] = 'http://localhost:8008'
 
+# Clear any cached config and set up pam's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(pam_path))
+sys.path.insert(0, str(project_root))
+
 # Load PeterClient using importlib to avoid conflicts
 spec = importlib.util.spec_from_file_location(
     "pam_peter_client",

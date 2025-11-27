@@ -15,30 +15,24 @@ import importlib.util
 project_root = Path(__file__).parent.parent.parent
 fred_path = project_root / 'fred'
 
-if str(fred_path) not in sys.path:
-    sys.path.insert(0, str(fred_path))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Set test environment
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
 
-# Import the service - use importlib for Windows compatibility
-try:
-    from services import google_workspace
-    from services.google_workspace import GoogleWorkspaceService
-except ImportError as e:
-    # Fallback for Windows: use importlib to load module directly
-    spec = importlib.util.spec_from_file_location(
-        "services.google_workspace",
-        fred_path / "services" / "google_workspace.py"
-    )
-    if spec and spec.loader:
-        google_workspace = importlib.util.module_from_spec(spec)
-        sys.modules['services.google_workspace'] = google_workspace
-        sys.modules['services'] = type(sys)('services')
-        sys.modules['services'].google_workspace = google_workspace
-        spec.loader.exec_module(google_workspace)
-        GoogleWorkspaceService = google_workspace.GoogleWorkspaceService
-    else:
-        raise ImportError(f"Could not import GoogleWorkspaceService: {e}")
+# Clear any cached config and set up fred's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(fred_path))
+sys.path.insert(0, str(project_root))
+
+# Load the service using importlib
+spec = importlib.util.spec_from_file_location(
+    "fred_google_workspace",
+    fred_path / "services" / "google_workspace.py"
+)
+google_workspace = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(google_workspace)
+GoogleWorkspaceService = google_workspace.GoogleWorkspaceService
 
 
 # ==============================================================================

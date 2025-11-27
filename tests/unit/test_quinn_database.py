@@ -9,16 +9,25 @@ import pytest
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 # Add quinn directory to path
-quinn_path = Path(__file__).parent.parent.parent / 'quinn'
-if str(quinn_path) not in sys.path:
-    sys.path.insert(0, str(quinn_path))
+project_root = Path(__file__).parent.parent.parent
+quinn_path = project_root / 'quinn'
+
+# Set test environment
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
+
+# Clear any cached config and set up quinn's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(quinn_path))
+sys.path.insert(0, str(project_root))
 
 # Need to handle module-level database instantiation
 # Import config first and mock it before database module loads
 import config as quinn_config
-from unittest.mock import patch, Mock
 
 # Create a temporary mock config to prevent errors during module import
 original_config = quinn_config.config

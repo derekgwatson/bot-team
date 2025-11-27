@@ -11,14 +11,20 @@ from unittest.mock import MagicMock, patch
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+scout_path = project_root / 'scout'
 
 # Set test environment
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 
+# Clear any cached config and set up scout's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(scout_path))
+sys.path.insert(0, str(project_root))
+
 # Import ScoutDatabase directly using importlib to avoid sys.modules caching issues
-module_path = project_root / 'scout' / 'database' / 'db.py'
+module_path = scout_path / 'database' / 'db.py'
 spec = importlib.util.spec_from_file_location('scout_database_db', module_path)
 scout_db_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(scout_db_module)

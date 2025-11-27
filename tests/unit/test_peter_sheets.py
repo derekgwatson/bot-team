@@ -15,30 +15,24 @@ import importlib.util
 project_root = Path(__file__).parent.parent.parent
 peter_path = project_root / 'peter'
 
-if str(peter_path) not in sys.path:
-    sys.path.insert(0, str(peter_path))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Set test environment
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
 
-# Import the service - use importlib for Windows compatibility
-try:
-    from services import google_sheets
-    from services.google_sheets import GoogleSheetsService
-except ImportError as e:
-    # Fallback for Windows: use importlib to load module directly
-    spec = importlib.util.spec_from_file_location(
-        "services.google_sheets",
-        peter_path / "services" / "google_sheets.py"
-    )
-    if spec and spec.loader:
-        google_sheets = importlib.util.module_from_spec(spec)
-        sys.modules['services.google_sheets'] = google_sheets
-        sys.modules['services'] = type(sys)('services')
-        sys.modules['services'].google_sheets = google_sheets
-        spec.loader.exec_module(google_sheets)
-        GoogleSheetsService = google_sheets.GoogleSheetsService
-    else:
-        raise ImportError(f"Could not import GoogleSheetsService: {e}")
+# Clear any cached config and set up peter's path BEFORE loading the module
+if 'config' in sys.modules:
+    del sys.modules['config']
+sys.path.insert(0, str(peter_path))
+sys.path.insert(0, str(project_root))
+
+# Load the service using importlib
+spec = importlib.util.spec_from_file_location(
+    "peter_google_sheets",
+    peter_path / "services" / "google_sheets.py"
+)
+google_sheets = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(google_sheets)
+GoogleSheetsService = google_sheets.GoogleSheetsService
 
 
 # ==============================================================================
