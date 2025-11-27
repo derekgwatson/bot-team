@@ -11,4 +11,3 @@ auth = None
 login_required = None
 admin_required = None
 get_current_user = None
-

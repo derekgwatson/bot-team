@@ -1,8 +1,13 @@
 """
 Shared authentication module for bot-team.
 
-<<<<<<< HEAD
-This module provides centralized authentication through Chester's gateway.
+This module provides common authentication components used across bots:
+- GatewayAuth for centralized auth through Chester's gateway
+- User class for Flask-Login
+- Decorators (login_required, admin_required)
+- Email authorization checks
+- API key authentication (bot-to-bot)
+- Token operations (used by Chester internally)
 
 Usage:
     # For bots using Chester's auth gateway:
@@ -12,20 +17,12 @@ Usage:
     # For token operations (used by Chester internally):
     from shared.auth.tokens import create_auth_token, verify_auth_token
 """
-from shared.auth.gateway_auth import GatewayAuth
-from shared.auth.tokens import create_auth_token, verify_auth_token
 
-__all__ = [
-    'GatewayAuth',
-    'create_auth_token',
-    'verify_auth_token',
-=======
-This module provides common authentication components used across bots:
-- User class for Flask-Login
-- Decorators (login_required, admin_required)
-- Email authorization checks
-- API key authentication (bot-to-bot)
-"""
+# Gateway auth (centralized via Chester)
+from shared.auth.gateway_auth import GatewayAuth
+
+# Token operations
+from shared.auth.tokens import create_auth_token, verify_auth_token
 
 # User class
 from shared.auth.user import User
@@ -41,10 +38,15 @@ from shared.auth.email_check import (
     is_admin_user,
 )
 
-# API authentication (existing)
+# API authentication (bot-to-bot)
 from shared.auth.bot_api import api_key_required, api_or_session_auth
 
 __all__ = [
+    # Gateway auth
+    'GatewayAuth',
+    # Tokens
+    'create_auth_token',
+    'verify_auth_token',
     # User
     'User',
     # Decorators
@@ -58,5 +60,4 @@ __all__ = [
     # API auth
     'api_key_required',
     'api_or_session_auth',
->>>>>>> claude/bot-health-checker-0177PC3W9xfEUfnoYhkY3Foo
 ]
