@@ -19,6 +19,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from monica.config import config
 from monica.database.db import db
 from shared.auth import GatewayAuth
+from shared.error_handlers import register_error_handlers
 
 # Configure logging based on config
 log_level_name = config.log_level.upper()
@@ -59,6 +60,9 @@ from monica.web.routes import web_bp
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 # Note: Registration code cleanup removed - pending devices are now shown on
 # the dashboard and users delete them directly if not needed
@@ -105,26 +109,6 @@ def info():
             'offline': f'> {config.degraded_threshold} minutes'
         }
     })
-
-
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors"""
-    return jsonify({
-        'error': 'Not found',
-        'message': 'The requested resource was not found on this server.',
-        'hint': 'Visit /info for available endpoints'
-    }), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors"""
-    logger.error(f"Internal server error: {error}", exc_info=True)
-    return jsonify({
-        'error': 'Internal server error',
-        'message': 'An unexpected error occurred. Please try again later.'
-    }), 500
 
 
 if __name__ == '__main__':

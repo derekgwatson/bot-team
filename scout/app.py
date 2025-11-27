@@ -12,6 +12,7 @@ from config import config
 from shared.auth import GatewayAuth
 from services.checker import checker
 from database.db import db
+from shared.error_handlers import register_error_handlers
 import os
 import logging
 
@@ -50,6 +51,9 @@ from web.routes import web_bp
 # Register blueprints  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(web_bp, url_prefix='/')
 app.register_blueprint(api_bp, url_prefix='/api')
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 
 @app.route('/robots.txt')
@@ -150,19 +154,6 @@ def info():
         },
         'dependencies': ['mavis', 'fiona', 'sadie']
     })
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle internal server errors"""
-    logger.error(f"Internal server error: {error}", exc_info=True)
-    return jsonify({'error': 'Internal server error'}), 500
-
-
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors"""
-    return jsonify({'error': 'Not found'}), 404
 
 
 if __name__ == '__main__':

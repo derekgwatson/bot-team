@@ -18,6 +18,7 @@ from config import Config, ConfigError
 from services.email_sender import EmailSender
 from services.auth import init_auth
 from web.auth_routes import auth_bp
+from shared.error_handlers import register_error_handlers
 
 
 # Initialize Flask app
@@ -72,6 +73,9 @@ def init_app() -> Flask:
     app.register_blueprint(health_bp)
     app.register_blueprint(email_bp, url_prefix='/api')
     app.register_blueprint(web_bp)
+
+    # Register error handlers
+    register_error_handlers(app, logging.getLogger(__name__))
 
     return app
 
@@ -157,19 +161,6 @@ def robots():
     return '''User-agent: *
 Disallow: /
 ''', 200, {'Content-Type': 'text/plain'}
-
-
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors."""
-    return jsonify({'error': 'not_found', 'message': 'Endpoint not found'}), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors."""
-    logging.error(f"Internal server error: {error}")
-    return jsonify({'error': 'internal_error', 'message': 'Internal server error'}), 500
 
 
 # Initialize the app

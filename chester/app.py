@@ -12,7 +12,16 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from services.auth import init_auth
+from shared.error_handlers import register_error_handlers
 from api.bots import bots_bp
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 from api.deployment import deployment_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
@@ -32,6 +41,9 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(bots_bp, url_prefix='/api')
 app.register_blueprint(deployment_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 
 @app.route('/health')

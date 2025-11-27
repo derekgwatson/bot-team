@@ -13,7 +13,16 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
+from shared.error_handlers import register_error_handlers
 from services.session_manager import init_session_manager, get_session_manager
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Create Flask app with template folder
 banji_dir = Path(__file__).parent
@@ -60,6 +69,9 @@ def cleanup():
 app.register_blueprint(quotes_bp, url_prefix='/api/quotes')
 app.register_blueprint(sessions_bp, url_prefix='/api/sessions')
 app.register_blueprint(web_bp)
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 
 @app.route('/api/orgs')

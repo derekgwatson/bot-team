@@ -232,11 +232,44 @@ def down(conn):
 ## Key Shared Modules
 
 - `shared/auth/` - Authentication module (see below)
+- `shared/error_handlers.py` - Standard 404/500 error handlers
 - `shared/http_client.py` - BotHttpClient for bot-to-bot calls
 - `shared/config/env_loader.py` - Loads shared .env
 - `shared/config/organization.yaml` - Company domains for auth
 - `shared/config/ports.py` - Port lookup from Chester's config
 - `shared/migrations/` - Database migration framework
+
+### Shared Error Handlers (`shared/error_handlers.py`)
+
+All bots use standardized error handlers for consistent API responses. The module provides a `register_error_handlers()` function that registers 404 and 500 handlers.
+
+**Usage in app.py:**
+
+```python
+import logging
+from shared.error_handlers import register_error_handlers
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+
+# ... register blueprints ...
+
+# Register error handlers (after blueprint registration)
+register_error_handlers(app, logger)
+```
+
+**What it provides:**
+
+- **404 handler**: Returns `{'error': 'Not found'}` with status 404
+- **500 handler**: Logs the error with `exc_info=True` and returns `{'error': 'Internal server error'}` with status 500
+
+**IMPORTANT**: Always pass a logger to ensure 500 errors are logged with full tracebacks.
 
 ### Shared Auth Module (`shared/auth/`)
 
@@ -476,5 +509,6 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 4. Create config.py loading shared patterns (include `allowed_domains` from organization.yaml)
 5. **Set up OAuth** - REQUIRED! Copy `services/auth.py` and `web/auth_routes.py` from any existing bot
 6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
-7. Create database with migrations
-8. Add `.env.example`
+7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
+8. Create database with migrations (if needed)
+9. Add `.env.example`
