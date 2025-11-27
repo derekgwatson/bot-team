@@ -10,7 +10,16 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
+from shared.error_handlers import register_error_handlers
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -42,6 +51,9 @@ from web.simple_routes import simple_web_bp
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(simple_web_bp, url_prefix='/')
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 @app.route('/robots.txt')
 def robots():

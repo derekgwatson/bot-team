@@ -14,7 +14,16 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
+from shared.error_handlers import register_error_handlers
 from services.scheduler import scheduler_service
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Create Flask app
 app = Flask(__name__)
@@ -96,6 +105,9 @@ app.jinja_env.filters['relative_time'] = relative_time
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp)
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 
 @app.route('/health')

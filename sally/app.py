@@ -18,7 +18,16 @@ from api.execute import api_bp
 from web.routes import web_bp
 from web.auth_routes import auth_bp
 from services.auth import init_auth
+from shared.error_handlers import register_error_handlers
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -34,6 +43,9 @@ init_auth(app)
 app.register_blueprint(auth_bp)  # Auth routes at root level (/login, /logout, /auth/callback)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 @app.route('/robots.txt')
 def robots():
