@@ -26,6 +26,7 @@ def index():
 
     db = get_db()
     stats = db.get_stats()
+    queue_stats = db.get_queue_stats()
 
     # Get last sync for each org
     sync_status = {}
@@ -36,7 +37,8 @@ def index():
         'index.html',
         config=config,
         stats=stats,
-        sync_status=sync_status
+        sync_status=sync_status,
+        queue_stats=queue_stats
     )
 
 

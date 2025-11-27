@@ -468,6 +468,205 @@ class UserDatabase:
             'by_org': by_org
         }
 
+    # Queue operations
+
+    def queue_change(
+        self,
+        email: str,
+        org_key: str,
+        action: str,
+        user_type: str,
+        requested_by: str = 'system'
+    ) -> Dict[str, Any]:
+        """
+        Queue a user status change.
+
+        Args:
+            email: User's email
+            org_key: Organization key
+            action: 'activate' or 'deactivate'
+            user_type: 'employee' or 'customer'
+            requested_by: Who requested the change
+
+        Returns:
+            Result dictionary
+        """
+        conn = self.get_connection()
+
+        try:
+            # Check if there's already a pending change for this user/org
+            cursor = conn.execute(
+                '''SELECT id, action FROM pending_changes
+                   WHERE email = ? AND org_key = ? AND status = 'pending' ''',
+                (email, org_key)
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                if existing['action'] == action:
+                    conn.close()
+                    return {
+                        'success': True,
+                        'queued': False,
+                        'message': f'Change already queued'
+                    }
+                else:
+                    # Opposite action - cancel out, remove both
+                    conn.execute(
+                        'DELETE FROM pending_changes WHERE id = ?',
+                        (existing['id'],)
+                    )
+                    conn.commit()
+                    conn.close()
+                    return {
+                        'success': True,
+                        'queued': False,
+                        'message': 'Cancelled existing opposite change'
+                    }
+
+            # Insert new change
+            conn.execute('''
+                INSERT INTO pending_changes (email, org_key, action, user_type, requested_by)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (email, org_key, action, user_type, requested_by))
+            conn.commit()
+            conn.close()
+
+            return {
+                'success': True,
+                'queued': True,
+                'message': f'Change queued for processing'
+            }
+
+        except sqlite3.IntegrityError as e:
+            conn.close()
+            return {
+                'success': False,
+                'error': f'Database error: {str(e)}'
+            }
+
+    def get_pending_changes(self, org_key: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get pending changes, optionally filtered by org.
+
+        Args:
+            org_key: Optional org filter
+
+        Returns:
+            List of pending change dictionaries
+        """
+        conn = self.get_connection()
+
+        if org_key:
+            cursor = conn.execute(
+                '''SELECT * FROM pending_changes
+                   WHERE status = 'pending' AND org_key = ?
+                   ORDER BY requested_at''',
+                (org_key,)
+            )
+        else:
+            cursor = conn.execute(
+                '''SELECT * FROM pending_changes
+                   WHERE status = 'pending'
+                   ORDER BY org_key, requested_at'''
+            )
+
+        changes = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return changes
+
+    def get_pending_changes_by_org(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get pending changes grouped by org.
+
+        Returns:
+            Dictionary of org_key -> list of changes
+        """
+        changes = self.get_pending_changes()
+        by_org = {}
+        for change in changes:
+            org = change['org_key']
+            if org not in by_org:
+                by_org[org] = []
+            by_org[org].append(change)
+        return by_org
+
+    def mark_changes_processing(self, change_ids: List[int]) -> None:
+        """Mark changes as being processed."""
+        if not change_ids:
+            return
+
+        conn = self.get_connection()
+        placeholders = ','.join('?' * len(change_ids))
+        conn.execute(
+            f'''UPDATE pending_changes
+                SET status = 'processing'
+                WHERE id IN ({placeholders})''',
+            change_ids
+        )
+        conn.commit()
+        conn.close()
+
+    def complete_change(
+        self,
+        change_id: int,
+        success: bool,
+        error_message: str = ''
+    ) -> None:
+        """Mark a change as completed or failed."""
+        conn = self.get_connection()
+        conn.execute('''
+            UPDATE pending_changes
+            SET status = ?,
+                processed_at = CURRENT_TIMESTAMP,
+                error_message = ?
+            WHERE id = ?
+        ''', ('completed' if success else 'failed', error_message, change_id))
+        conn.commit()
+        conn.close()
+
+    def get_queue_stats(self) -> Dict[str, Any]:
+        """Get queue statistics."""
+        conn = self.get_connection()
+
+        cursor = conn.execute('''
+            SELECT status, COUNT(*) as count
+            FROM pending_changes
+            GROUP BY status
+        ''')
+        by_status = {row['status']: row['count'] for row in cursor.fetchall()}
+
+        cursor = conn.execute('''
+            SELECT org_key, COUNT(*) as count
+            FROM pending_changes
+            WHERE status = 'pending'
+            GROUP BY org_key
+        ''')
+        pending_by_org = {row['org_key']: row['count'] for row in cursor.fetchall()}
+
+        conn.close()
+
+        return {
+            'pending': by_status.get('pending', 0),
+            'processing': by_status.get('processing', 0),
+            'completed': by_status.get('completed', 0),
+            'failed': by_status.get('failed', 0),
+            'pending_by_org': pending_by_org
+        }
+
+    def clear_completed_changes(self, older_than_days: int = 7) -> int:
+        """Clear completed/failed changes older than X days."""
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            DELETE FROM pending_changes
+            WHERE status IN ('completed', 'failed')
+            AND processed_at < datetime('now', ? || ' days')
+        ''', (f'-{older_than_days}',))
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return deleted
+
 
 # Singleton instance
 user_db = UserDatabase()

@@ -58,6 +58,44 @@ job_templates:
       hour: "3"
       minute: "0"
 
+  hugo_sync:
+    name: "Hugo Buz User Sync"
+    description: "Sync user data from Buz to Hugo's cache"
+    target_bot: "hugo"
+    endpoint: "/api/users/sync"
+    method: "POST"
+    # Default: daily at 6am (before work starts)
+    schedule:
+      type: "cron"
+      hour: "6"
+      minute: "0"
+
+  hugo_queue_process:
+    name: "Hugo Queue Process"
+    description: "Process pending Buz user changes"
+    target_bot: "hugo"
+    endpoint: "/api/queue/process"
+    method: "POST"
+    # Default: every 15 minutes
+    schedule:
+      type: "cron"
+      minute: "*/15"
+
+  hugo_queue_cleanup:
+    name: "Hugo Queue Cleanup"
+    description: "Clean up old completed/failed queue entries"
+    target_bot: "hugo"
+    endpoint: "/api/queue/clear"
+    method: "POST"
+    body:
+      days: 7
+    # Default: weekly on Sunday at 4am
+    schedule:
+      type: "cron"
+      day_of_week: "sun"
+      hour: "4"
+      minute: "0"
+
 # Admin access configuration
 admin:
   emails:
