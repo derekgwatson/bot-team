@@ -86,5 +86,14 @@ class Config:
         """Check if running in development mode"""
         return os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 
+    @property
+    def auth(self):
+        """Auth config for GatewayAuth."""
+        return {
+            'mode': 'admin',
+            'allowed_domains': self.allowed_domains,
+            'admin_emails': self.admin_emails,
+        }
+
 
 config = Config()
