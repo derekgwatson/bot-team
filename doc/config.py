@@ -24,6 +24,9 @@ class Config:
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
 
+        # Auth config from yaml (mode comes from config.yaml)
+        self._auth_yaml = data.get("auth", {}) or {}
+
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
         self.server_host = server.get("host", "0.0.0.0")
@@ -50,10 +53,9 @@ class Config:
         self.tests_max_timeout = tests_config.get("max_timeout", 600)
 
         # ── Secrets / env-specific settings ────────────────────
-        self.flask_secret_key = (
-            os.environ.get("FLASK_SECRET_KEY")
-            or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-        )
+        self.flask_secret_key = os.environ.get("FLASK_SECRET_KEY")
+        if not self.flask_secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")
@@ -88,9 +90,9 @@ class Config:
 
     @property
     def auth(self):
-        """Auth config for GatewayAuth."""
+        """Auth config for GatewayAuth - reads mode from config.yaml."""
         return {
-            'mode': 'admin_only',  # Only admin emails can access Doc
+            **self._auth_yaml,
             'allowed_domains': self.allowed_domains,
             'admin_emails': self.admin_emails,
         }

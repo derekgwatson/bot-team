@@ -1,0 +1,25 @@
+name: Grant
+description: Centralized Authorization Manager - single source of truth for bot access permissions
+version: 1.0.0
+personality: Fair and security-conscious, ensures the right people have the right access
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+database:
+  path: "database/grant.db"
+
+# Authentication configuration
+# Grant uses superadmins from env var for bootstrap access
+# After that, Grant manages its own access (and everyone else's)
+auth:
+  mode: admin_only  # Only superadmins can access Grant's UI
+  # allowed_domains loaded from shared/config/organization.yaml
+  # admin_emails injected from GRANT_SUPERADMINS env var
+
+# Bot registry - list of all bots Grant can manage access for
+# This is used for the UI dropdown and validation
+# Synced from Chester on startup
+bots:
+  sync_from_chester: true

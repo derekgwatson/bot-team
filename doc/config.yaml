@@ -29,3 +29,8 @@ tests:
 # Dependencies - Doc is designed to be standalone
 # These are optional integrations that gracefully degrade
 dependencies: []
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: grant  # Use Grant for centralized authorization

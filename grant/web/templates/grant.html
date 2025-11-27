@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Grant Access{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">
+        <h2>Grant Access</h2>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="form-group">
+                <label for="email">User Email</label>
+                <input type="email" id="email" name="email" placeholder="user@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="bot">Bot</label>
+                <select id="bot" name="bot" required>
+                    <option value="">Select a bot...</option>
+                    <option value="*">* (All Bots)</option>
+                    {% for bot in bots %}
+                    <option value="{{ bot.name }}">{{ bot.name }} - {{ bot.description }}</option>
+                    {% endfor %}
+                </select>
+                {% if not bots %}
+                <p style="margin-top: 8px; color: #888; font-size: 13px;">
+                    No bots loaded. <a href="{{ url_for('web.sync_bots') }}" onclick="event.preventDefault(); document.getElementById('sync-form').submit();">Sync from Chester</a> first.
+                </p>
+                <form id="sync-form" action="{{ url_for('web.sync_bots') }}" method="post" style="display: none;"></form>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" required>
+                    <option value="user">User - Basic access</option>
+                    <option value="admin">Admin - Full access including admin features</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Grant Access</button>
+                <a href="{{ url_for('web.index') }}" class="btn" style="background: #eee; color: #333; margin-left: 10px;">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin-top: 20px;">
+    <div class="card-header">
+        <h2>Quick Reference</h2>
+    </div>
+    <div class="card-body">
+        <p><strong>User Role:</strong> Basic access to the bot's main features.</p>
+        <p><strong>Admin Role:</strong> Full access including admin-only features and settings.</p>
+        <p><strong>* (All Bots):</strong> Grants access to all bots at once. Useful for IT staff.</p>
+        <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #888; font-size: 13px;">
+            Superadmins (set via GRANT_SUPERADMINS env var) always have admin access to all bots
+            and cannot be revoked through this UI.
+        </p>
+    </div>
+</div>
+{% endblock %}

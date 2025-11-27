@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Bots{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Registered Bots ({{ bots|length }})</h2>
+        <form action="{{ url_for('web.sync_bots') }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-primary">Sync from Chester</button>
+        </form>
+    </div>
+    <div class="card-body">
+        {% if bots %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Bot</th>
+                    <th>Description</th>
+                    <th>Port</th>
+                    <th>Users with Access</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bot in bots %}
+                <tr>
+                    <td><strong>{{ bot.name }}</strong></td>
+                    <td>{{ bot.description }}</td>
+                    <td>{{ bot.port }}</td>
+                    <td>
+                        {% set perms = permissions.get(bot.name, []) %}
+                        {% if perms %}
+                            {% for perm in perms %}
+                            <span class="badge {{ perm.role }}" style="margin-right: 5px; margin-bottom: 3px;">
+                                {{ perm.email.split('@')[0] }}
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span style="color: #888;">No permissions</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No bots synced yet.</p>
+            <form action="{{ url_for('web.sync_bots') }}" method="post">
+                <button type="submit" class="btn btn-primary">Sync from Chester</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

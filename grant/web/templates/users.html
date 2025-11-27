@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Users ({{ users|length }})</h2>
+        <a href="{{ url_for('web.grant') }}" class="btn btn-primary">Grant Access</a>
+    </div>
+    <div class="card-body">
+        {% if users %}
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Permissions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for email, permissions in users %}
+                <tr>
+                    <td>{{ email }}</td>
+                    <td>
+                        {% for perm in permissions %}
+                        <span class="badge {{ perm.role }}" style="margin-right: 5px;">
+                            {{ perm.bot_name }} ({{ perm.role }})
+                        </span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('web.audit', email=email) }}" class="btn btn-sm" style="background: #eee; color: #333;">View History</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No users with permissions yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

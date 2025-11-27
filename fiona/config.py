@@ -25,8 +25,8 @@ class Config:
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
 
-        # Authentication config
-        self.auth = data.get("auth", {}) or {}
+        # Authentication config (admin_emails injected after loading from env/yaml below)
+        self._auth_yaml = data.get("auth", {}) or {}
 
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
@@ -61,15 +61,29 @@ class Config:
         if admin_emails_env:
             self.admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
         else:
-            self.admin_emails = admin_config.get("emails", [])
+            # Get from YAML, ensuring it's a list (YAML returns None for empty/commented lists)
+            self.admin_emails = admin_config.get("emails", []) or []
+
+        # ── Load shared organization config for allowed domains ──
+        shared_config_path = self.base_dir.parent / "shared" / "config" / "organization.yaml"
+        with open(shared_config_path, "r") as f:
+            shared_data = yaml.safe_load(f) or {}
+        organization = shared_data.get("organization", {}) or {}
+        self.allowed_domains = organization.get("domains", [])
+
+        # Build auth config for GatewayAuth (inject admin_emails and allowed_domains)
+        self.auth = {
+            **self._auth_yaml,
+            'admin_emails': self.admin_emails,
+            'allowed_domains': self.allowed_domains,
+        }
 
         # ── Secrets / env-specific settings ────────────────────
 
-        # Flask secret key
-        self.flask_secret_key = (
-            os.environ.get("FLASK_SECRET_KEY")
-            or os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-        )
+        # Flask secret key (required)
+        self.flask_secret_key = os.environ.get("FLASK_SECRET_KEY")
+        if not self.flask_secret_key:
+            raise ValueError("FLASK_SECRET_KEY environment variable is required")
 
         # Shared bot API key for bot-to-bot communication
         self.bot_api_key = os.environ.get("BOT_API_KEY")

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ stats.unique_users }}</div>
+        <div class="label">Users</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.registered_bots }}</div>
+        <div class="label">Bots</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.total_permissions }}</div>
+        <div class="label">Permissions</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.admin_permissions }}</div>
+        <div class="label">Admin Access</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ stats.superadmins }}</div>
+        <div class="label">Superadmins</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>All Permissions</h2>
+        <div>
+            <a href="{{ url_for('web.grant') }}" class="btn btn-primary">Grant Access</a>
+            <form action="{{ url_for('web.sync_bots') }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-primary" style="margin-left: 8px;">Sync Bots</button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if permissions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Bot</th>
+                    <th>Role</th>
+                    <th>Granted By</th>
+                    <th>Granted At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for perm in permissions %}
+                <tr>
+                    <td>{{ perm.email }}</td>
+                    <td>{{ perm.bot_name }}</td>
+                    <td><span class="badge {{ perm.role }}">{{ perm.role }}</span></td>
+                    <td>{{ perm.granted_by }}</td>
+                    <td>{{ perm.granted_at }}</td>
+                    <td>
+                        <form action="{{ url_for('web.revoke') }}" method="post" style="display: inline;">
+                            <input type="hidden" name="email" value="{{ perm.email }}">
+                            <input type="hidden" name="bot" value="{{ perm.bot_name }}">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Revoke access for {{ perm.email }} on {{ perm.bot_name }}?')">Revoke</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No permissions granted yet.</p>
+            <p><a href="{{ url_for('web.grant') }}">Grant access to get started</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

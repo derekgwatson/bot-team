@@ -115,12 +115,11 @@ def info():
 - All admin/dashboard/management routes MUST use `@login_required`
 - Use `allowed_domains` from `shared/config/organization.yaml` to restrict to company staff
 
-<<<<<<< HEAD
 When creating a new bot with a web UI:
 1. Add `services/auth.py` compatibility layer (copy from any existing bot)
 2. Initialize `GatewayAuth` in `app.py` (handles /login, /auth/callback, /logout automatically)
 3. Apply `@login_required` to ALL web routes
-4. Add `auth: mode: domain` to config.yaml (allowed_domains loaded automatically from organization.yaml)
+4. Add `auth: mode: grant` to config.yaml (or `domain` for standalone auth)
 5. Add `allowed_domains` property to config.py (loads from organization.yaml)
 
 ### API Authentication (bot-to-bot)
@@ -188,15 +187,15 @@ All bots use Chester as a centralized OAuth gateway. When a user tries to access
 def auth(self):
     """Auth config for GatewayAuth."""
     return {
-        'mode': 'domain',  # Options: 'domain', 'admin_only', or 'tiered'
+        'mode': 'grant',  # Options: 'grant', 'domain', 'admin_only', or 'tiered'
         'allowed_domains': self.allowed_domains,
         'admin_emails': self.admin_emails,
     }
 ```
 
-<<<<<<< HEAD
 **Auth modes:**
-- `'domain'` - Anyone from allowed_domains can access
+- `'grant'` - **Recommended** - Use Grant bot for centralized authorization (falls back to domain check if Grant unavailable)
+- `'domain'` - Anyone from allowed_domains can access (standalone auth)
 - `'admin_only'` - Only emails in admin_emails can access
 - `'tiered'` - Domain users get access, admin_emails get extra admin features
 
@@ -245,22 +244,6 @@ def index():
     return render_template('index.html')
 ```
 
-### Key auth files to copy from:
-- `skye/app.py` - GatewayAuth initialization pattern
-- `skye/services/auth.py` - Stub pattern
-- `skye/config.py` - Config with `auth` property
-- `skye/web/auth_routes.py` - OAuth routes (handles Chester callbacks)
-
-### Chester's Direct OAuth (Exception)
-
-Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
-=======
-Auth pattern (follow Skye as template):
-1. `services/auth.py` - Compatibility layer (decorators injected at runtime by app.py)
-2. `app.py` - Initialize `GatewayAuth(app, config)` which registers all OAuth routes automatically
-3. `config.yaml` - Add `auth: mode: domain` (allowed_domains auto-loaded from organization.yaml)
-4. Config loads `admin_emails` from `{BOT}_ADMIN_EMAILS` env var or `admin.emails` in config.yaml
-
 ### Allowed Domains
 
 **IMPORTANT**: Allowed domains are centralized in `shared/config/organization.yaml`.
@@ -270,17 +253,22 @@ Auth pattern (follow Skye as template):
 - Only override `allowed_domains` in a bot's config if it has special requirements (rare)
 
 ### Key auth files to copy from:
-- `skye/services/auth.py` - Auth compatibility layer
 - `skye/app.py` - GatewayAuth initialization pattern
-- `skye/config.yaml` - Auth config section
+- `skye/services/auth.py` - Stub pattern
+- `skye/config.py` - Config with `auth` property
+
+### Chester's Direct OAuth (Exception)
+
+Chester is the ONLY bot that uses direct Google OAuth (via `init_auth()`), because it IS the auth gateway. All other bots use GatewayAuth which delegates to Chester.
 
 ## Configuration Patterns
 
 ### config.py must:
 1. Import shared env loader: `from shared.config.env_loader import SHARED_ENV  # noqa: F401`
 2. Load bot's config.yaml
-3. Load admin_emails from `{BOT}_ADMIN_EMAILS` env var OR `admin.emails` in config.yaml
+3. Load admin_emails from `{BOT}_ADMIN_EMAILS` env var OR `admin.emails` in config.yaml (optional when using Grant mode)
 4. Load allowed_domains from `shared/config/organization.yaml`
+5. Ensure admin_emails defaults to `[]` not `None` (use `or []` since YAML returns None for empty/commented lists)
 
 ### Environment variables:
 - Shared vars in `/bot-team/.env` (loaded by all bots via `shared/config/env_loader.py`)
@@ -554,7 +542,7 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Has its own SQLite database with a local copy of the bot registry
 - Skye runs a sync job to keep Doc's registry updated from Chester
 - Does NOT hardcode ports - uses its local DB (synced from Chester)
-- Admin-only access (uses `DOC_ADMIN_EMAILS` env var)
+- Uses Grant mode for authorization (access managed via Grant's UI)
 - Runs health checks and test suites against other bots
 
 ### Dorothy - Deployment Orchestrator
@@ -582,6 +570,24 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 - Sadie: Ticket management
 - Both require Zendesk API credentials
 
+### Grant - Centralized Authorization Manager
+- **Single source of truth** for bot access permissions
+- Replaces per-bot `{BOT}_ADMIN_EMAILS` environment variables
+- Stores who can access which bots and with what role (user/admin)
+- Web UI for managing permissions across all bots
+- API for bots to check permissions at login via `auth: mode: grant`
+- Audit trail of all permission changes
+- **Superadmins** (set via `GRANT_SUPERADMINS` env var) always have admin access to all bots
+- Falls back to domain-based auth if Grant is unavailable
+
+**Using Grant mode:**
+1. Set `auth: mode: grant` in your bot's config.yaml
+2. Mark `{BOT}_ADMIN_EMAILS` as optional in `.env.example` (comment it out, add "optional" to description)
+3. Grant checks permissions via `/api/access?email=x&bot=y`
+4. Permissions are cached for 5 minutes to reduce API calls
+
+**Important:** When using Grant mode, the `{BOT}_ADMIN_EMAILS` env var becomes optional because Grant handles authorization centrally. The env validator reads `.env.example` and requires any uncommented variable unless "optional" appears in its description.
+
 ## Quick Start for New Bot
 
 1. **Pick a human name** - All bots are named like team members (Fred, Iris, Chester, Skye, Doc, etc.). No generic names like "tracker" or "journey".
@@ -591,10 +597,10 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 5. **Set up OAuth** - REQUIRED!
    - Copy `services/auth.py` compatibility layer from any existing bot
    - Initialize `GatewayAuth(app, config)` in app.py
-   - Add `auth: mode: domain` to config.yaml (domains auto-loaded from organization.yaml)
+   - Add `auth: mode: grant` to config.yaml (preferred - uses centralized authorization via Grant)
 6. **Apply `@login_required`** to ALL web routes (except customer-facing public pages)
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)
-9. Add `.env.example`
+9. Add `.env.example` - mark `{BOT}_ADMIN_EMAILS` as optional if using Grant mode
 
 **Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.
