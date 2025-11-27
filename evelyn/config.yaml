@@ -13,9 +13,6 @@ admin:
 
 # Authentication configuration
 # Uses Chester's auth gateway for Google OAuth
+# Allowed domains loaded from shared/config/organization.yaml
 auth:
   mode: domain  # Any user from allowed_domains can access
-  allowed_domains:
-    - watsonblinds.com.au
-    - watsoncommercial.com.au
-    - designerdrapes.com.au

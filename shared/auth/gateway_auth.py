@@ -31,18 +31,40 @@ Usage:
 Config options (in config.yaml):
     auth:
       mode: domain           # 'domain', 'admin_only', or 'tiered'
-      allowed_domains:       # Required if mode is 'domain' or 'tiered'
+      allowed_domains:       # Optional - defaults to shared/config/organization.yaml
         - example.com
       admin_emails:          # Optional for 'domain', required for 'admin_only'
         - admin@example.com
       chester_url: http://localhost:8008  # Chester's URL for auth gateway
+
+If allowed_domains is not specified, domains are loaded from shared/config/organization.yaml
+(the organization-wide domain list). Most bots should NOT specify allowed_domains and just
+use the shared organization config.
 """
 import os
 from functools import wraps
+from pathlib import Path
+import yaml
 from flask import session, redirect, url_for, request, Blueprint, render_template_string
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 from shared.auth.tokens import verify_auth_token
 from shared.config.ports import get_port
+
+
+def _load_organization_domains() -> list:
+    """
+    Load allowed domains from shared/config/organization.yaml.
+
+    Returns:
+        List of domain strings, or empty list if file not found
+    """
+    try:
+        org_config_path = Path(__file__).parent.parent / "config" / "organization.yaml"
+        with open(org_config_path, "r") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("organization", {}).get("domains", [])
+    except Exception:
+        return []
 
 
 class User(UserMixin):
@@ -86,7 +108,10 @@ class GatewayAuth:
         self.mode = auth_config.get('mode', 'domain')
 
         # Allowed domains (for domain and tiered modes)
+        # Falls back to organization.yaml if not specified in bot config
         self.allowed_domains = auth_config.get('allowed_domains', [])
+        if not self.allowed_domains:
+            self.allowed_domains = _load_organization_domains()
 
         # Admin emails (for admin_only and tiered modes)
         self.admin_emails = [e.lower() for e in auth_config.get('admin_emails', [])]
