@@ -414,8 +414,8 @@ class BuzUserService:
 # Helper function to run async code from sync context
 def run_async(coro):
     """Run an async coroutine from sync code."""
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+    # Use asyncio.run() which properly handles cleanup, including
+    # allowing pending tasks to complete before closing the loop.
+    # This prevents "Connection closed while reading from the driver"
+    # errors from Playwright.
+    return asyncio.run(coro)
