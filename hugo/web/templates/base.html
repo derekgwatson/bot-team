@@ -329,6 +329,7 @@
                 <li><a href="{{ url_for('web.users') }}">Users</a></li>
                 <li><a href="{{ url_for('web.activity') }}">Activity</a></li>
                 <li><a href="{{ url_for('web.sync') }}">Sync History</a></li>
+                <li><a href="{{ url_for('web.screenshots') }}">Screenshots</a></li>
             </ul>
         </nav>
 
@@ -399,19 +400,29 @@
             return data;
         }
 
-        // Toggle user status
-        async function toggleUser(email, org, isActive, button) {
+        // Toggle user status (queued by default)
+        async function toggleUser(email, org, isActive, button, immediate = false) {
             hideMessage();
             button.classList.add('loading');
             button.disabled = true;
 
-            const endpoint = isActive ? `/api/users/${encodeURIComponent(email)}/deactivate` : `/api/users/${encodeURIComponent(email)}/activate`;
+            const action = isActive ? 'deactivate' : 'activate';
+            const endpoint = `/api/users/${encodeURIComponent(email)}/${action}`;
 
             try {
-                const result = await apiCall(endpoint, 'POST', {org});
+                const result = await apiCall(endpoint, 'POST', {org, immediate});
                 if (result.success) {
-                    showMessage(`User ${email} ${isActive ? 'deactivated' : 'activated'} successfully`, 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    if (result.queued) {
+                        showMessage(`Change queued: ${email} will be ${action}d when queue processes`, 'info');
+                        setTimeout(() => location.reload(), 1000);
+                    } else if (result.no_change) {
+                        showMessage(result.message, 'info');
+                        button.classList.remove('loading');
+                        button.disabled = false;
+                    } else {
+                        showMessage(`User ${email} ${action}d successfully`, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    }
                 } else {
                     showMessage('Error: ' + (result.error || 'Unknown error'), 'error');
                     button.classList.remove('loading');
@@ -451,6 +462,35 @@
             button.classList.remove('loading');
             button.disabled = false;
             button.textContent = 'Sync';
+        }
+
+        // Process pending queue
+        async function processQueue(button) {
+            hideMessage();
+            button.classList.add('loading');
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            try {
+                const result = await apiCall('/api/queue/process', 'POST', {});
+                if (result.success) {
+                    if (result.total_processed > 0) {
+                        showMessage(`Processed ${result.total_processed} changes (${result.total_success} succeeded, ${result.total_failed} failed)`,
+                            result.total_failed > 0 ? 'info' : 'success');
+                    } else {
+                        showMessage(result.message || 'No pending changes', 'info');
+                    }
+                    setTimeout(() => location.reload(), 1500);
+                } else if (result.error) {
+                    showMessage('Queue processing failed: ' + result.error, 'error');
+                }
+            } catch (e) {
+                showMessage('Queue error: ' + e.message, 'error');
+            }
+
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.textContent = 'Process Queue Now';
         }
     </script>
 

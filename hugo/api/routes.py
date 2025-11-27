@@ -180,18 +180,23 @@ def activate_user(email):
     """
     POST /api/users/<email>/activate
 
-    Activate a user in Buz.
+    Activate a user in Buz (queued by default).
 
     Body (JSON):
         org: Organization key (required)
+        immediate: If true, execute immediately (default: false, queue for batch)
     """
     data = request.get_json() or {}
     org_key = data.get('org')
+    immediate = data.get('immediate', False)
 
     if not org_key:
         return jsonify({'error': 'org is required'}), 400
 
-    return _toggle_user(email, org_key, activate=True)
+    if immediate:
+        return _toggle_user_immediate(email, org_key, activate=True)
+    else:
+        return _queue_user_change(email, org_key, action='activate')
 
 
 @api_bp.route('/users/<email>/deactivate', methods=['POST'])
@@ -200,23 +205,91 @@ def deactivate_user(email):
     """
     POST /api/users/<email>/deactivate
 
-    Deactivate a user in Buz.
+    Deactivate a user in Buz (queued by default).
 
     Body (JSON):
         org: Organization key (required)
+        immediate: If true, execute immediately (default: false, queue for batch)
     """
     data = request.get_json() or {}
     org_key = data.get('org')
+    immediate = data.get('immediate', False)
 
     if not org_key:
         return jsonify({'error': 'org is required'}), 400
 
-    return _toggle_user(email, org_key, activate=False)
+    if immediate:
+        return _toggle_user_immediate(email, org_key, activate=False)
+    else:
+        return _queue_user_change(email, org_key, action='deactivate')
 
 
-def _toggle_user(email: str, org_key: str, activate: bool):
+def _queue_user_change(email: str, org_key: str, action: str):
     """
-    Internal helper to toggle user status.
+    Queue a user status change for batch processing.
+
+    Args:
+        email: User's email
+        org_key: Organization key
+        action: 'activate' or 'deactivate'
+    """
+    try:
+        db = get_db()
+
+        # Get user to verify they exist and get user_type
+        user = db.get_user_by_email(email, org_key=org_key)
+
+        if not user:
+            return jsonify({
+                'error': f'User {email} not found in {org_key}. Try syncing first.'
+            }), 404
+
+        current_is_active = bool(user['is_active'])
+        user_type = user['user_type']
+
+        # Check if already in desired state
+        desired_active = (action == 'activate')
+        if current_is_active == desired_active:
+            state = "active" if desired_active else "inactive"
+            return jsonify({
+                'success': True,
+                'message': f'User is already {state}',
+                'no_change': True
+            })
+
+        # Queue the change
+        requested_by = request.headers.get('X-Performed-By', 'web')
+        result = db.queue_change(
+            email=email,
+            org_key=org_key,
+            action=action,
+            user_type=user_type,
+            requested_by=requested_by
+        )
+
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'queued': result.get('queued', True),
+                'message': result.get('message', 'Change queued'),
+                'email': email,
+                'org': org_key,
+                'action': action
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to queue change')
+            }), 500
+
+    except Exception as e:
+        logger.exception(f"Error queuing change for {email}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _toggle_user_immediate(email: str, org_key: str, activate: bool):
+    """
+    Execute user status toggle immediately (not queued).
 
     Args:
         email: User's email
@@ -430,3 +503,353 @@ def stats():
     stats = db.get_stats()
 
     return jsonify(stats)
+
+
+# Queue endpoints
+
+@api_bp.route('/queue', methods=['GET'])
+@api_or_session_auth
+def get_queue():
+    """
+    GET /api/queue
+
+    Get pending changes in the queue.
+
+    Query params:
+        org: Optional org filter
+    """
+    org_key = request.args.get('org')
+    db = get_db()
+
+    changes = db.get_pending_changes(org_key=org_key)
+    queue_stats = db.get_queue_stats()
+
+    return jsonify({
+        'pending': changes,
+        'count': len(changes),
+        'stats': queue_stats
+    })
+
+
+@api_bp.route('/queue/process', methods=['POST'])
+@api_or_session_auth
+def process_queue():
+    """
+    POST /api/queue/process
+
+    Process all pending changes in the queue.
+
+    Body (JSON):
+        org: Optional org_key (if not specified, processes all orgs)
+
+    This endpoint is called by Skye on a schedule.
+    """
+    data = request.get_json() or {}
+    org_filter = data.get('org')
+
+    try:
+        from config import config
+        service, run_async = get_user_service()
+        db = get_db()
+        peter_sync = get_peter_sync()
+
+        # Get pending changes grouped by org
+        if org_filter:
+            changes_by_org = {org_filter: db.get_pending_changes(org_filter)}
+        else:
+            changes_by_org = db.get_pending_changes_by_org()
+
+        if not any(changes_by_org.values()):
+            return jsonify({
+                'success': True,
+                'message': 'No pending changes to process',
+                'processed': 0
+            })
+
+        results = []
+        total_processed = 0
+        total_success = 0
+        total_failed = 0
+
+        for org_key, changes in changes_by_org.items():
+            if not changes:
+                continue
+
+            # Mark as processing
+            change_ids = [c['id'] for c in changes]
+            db.mark_changes_processing(change_ids)
+
+            try:
+                # Build batch for user service
+                user_changes = [{
+                    'email': c['email'],
+                    'is_active': c['action'] != 'activate',  # Current state (opposite of desired)
+                    'user_type': c['user_type']
+                } for c in changes]
+
+                # Process batch
+                batch_results = run_async(service.batch_toggle_users(org_key, user_changes))
+
+                # Update each change based on result
+                for change, result in zip(changes, batch_results):
+                    success = result.get('success', False)
+                    error_msg = result.get('message', '') if not success else ''
+
+                    db.complete_change(change['id'], success, error_msg)
+
+                    if success:
+                        total_success += 1
+
+                        # Update local cache
+                        new_state = result.get('new_state')
+                        if new_state is not None:
+                            db.update_user_status(change['email'], org_key, new_state)
+
+                        # Log activity
+                        db.log_activity(
+                            action=change['action'],
+                            email=change['email'],
+                            org_key=org_key,
+                            old_value=str(not new_state) if new_state is not None else '',
+                            new_value=str(new_state) if new_state is not None else '',
+                            performed_by=change['requested_by'],
+                            success=True
+                        )
+
+                        # Sync to Peter
+                        all_orgs = db.get_user_orgs(change['email'])
+                        peter_sync.sync_user_access(
+                            email=change['email'],
+                            is_active=new_state,
+                            org_key=org_key,
+                            all_user_orgs=all_orgs
+                        )
+                    else:
+                        total_failed += 1
+                        db.log_activity(
+                            action=change['action'],
+                            email=change['email'],
+                            org_key=org_key,
+                            performed_by=change['requested_by'],
+                            success=False,
+                            error_message=error_msg
+                        )
+
+                    total_processed += 1
+
+                results.append({
+                    'org': org_key,
+                    'processed': len(changes),
+                    'success': sum(1 for r in batch_results if r.get('success')),
+                    'failed': sum(1 for r in batch_results if not r.get('success'))
+                })
+
+            except Exception as e:
+                logger.exception(f"Error processing queue for {org_key}")
+                # Mark all as failed
+                for change in changes:
+                    db.complete_change(change['id'], False, str(e))
+                    total_failed += 1
+                    total_processed += 1
+
+                results.append({
+                    'org': org_key,
+                    'processed': len(changes),
+                    'success': 0,
+                    'failed': len(changes),
+                    'error': str(e)
+                })
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_processed': total_processed,
+            'total_success': total_success,
+            'total_failed': total_failed
+        })
+
+    except Exception as e:
+        logger.exception("Error processing queue")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/queue/clear', methods=['POST'])
+@api_or_session_auth
+def clear_queue():
+    """
+    POST /api/queue/clear
+
+    Clear completed/failed changes older than X days.
+
+    Body (JSON):
+        days: Number of days (default 7)
+    """
+    data = request.get_json() or {}
+    days = data.get('days', 7)
+
+    db = get_db()
+    deleted = db.clear_completed_changes(older_than_days=days)
+
+    return jsonify({
+        'success': True,
+        'deleted': deleted
+    })
+
+
+# Auth health endpoints
+
+@api_bp.route('/auth/health', methods=['GET'])
+@api_or_session_auth
+def get_auth_health():
+    """
+    GET /api/auth/health
+
+    Get auth health status for all orgs.
+    """
+    db = get_db()
+    health = db.get_auth_health()
+    unhealthy = db.get_unhealthy_orgs()
+
+    return jsonify({
+        'health': health,
+        'unhealthy_count': len(unhealthy),
+        'unhealthy': unhealthy
+    })
+
+
+@api_bp.route('/auth/check', methods=['POST'])
+@api_or_session_auth
+def check_auth():
+    """
+    POST /api/auth/check
+
+    Run auth health check for one or all orgs.
+
+    Body (JSON):
+        org: Optional org_key (if not specified, checks all orgs)
+
+    This endpoint is called by Skye on a schedule.
+    """
+    data = request.get_json() or {}
+    org_key = data.get('org')
+
+    try:
+        service, run_async = get_user_service()
+        db = get_db()
+
+        if org_key:
+            # Check single org
+            result = run_async(service.check_auth_health(org_key))
+            db.update_auth_health(
+                org_key=result['org_key'],
+                status=result['status'],
+                error_message=result['message'] if result['status'] != 'healthy' else ''
+            )
+            results = [result]
+        else:
+            # Check all orgs
+            results = run_async(service.check_all_auth_health())
+            for result in results:
+                db.update_auth_health(
+                    org_key=result['org_key'],
+                    status=result['status'],
+                    error_message=result['message'] if result['status'] != 'healthy' else ''
+                )
+
+        healthy_count = sum(1 for r in results if r['status'] == 'healthy')
+        unhealthy_count = len(results) - healthy_count
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'healthy': healthy_count,
+            'unhealthy': unhealthy_count
+        })
+
+    except Exception as e:
+        logger.exception("Error checking auth health")
+        return jsonify({'error': str(e)}), 500
+
+
+# Screenshot endpoints
+
+@api_bp.route('/screenshots', methods=['GET'])
+@api_or_session_auth
+def list_screenshots():
+    """
+    GET /api/screenshots
+
+    List available error screenshots.
+    """
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    if not screenshot_dir.exists():
+        return jsonify({'screenshots': [], 'count': 0})
+
+    screenshots = []
+    for f in sorted(screenshot_dir.glob('*.png'), key=lambda x: x.stat().st_mtime, reverse=True):
+        stat = f.stat()
+        screenshots.append({
+            'name': f.name,
+            'size': stat.st_size,
+            'modified': stat.st_mtime,
+            'url': f'/api/screenshots/{f.name}'
+        })
+
+    return jsonify({
+        'screenshots': screenshots[:50],  # Limit to 50 most recent
+        'count': len(screenshots)
+    })
+
+
+@api_bp.route('/screenshots/<filename>', methods=['GET'])
+@api_or_session_auth
+def get_screenshot(filename):
+    """
+    GET /api/screenshots/<filename>
+
+    Serve a screenshot file.
+    """
+    from flask import send_from_directory
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    # Security: ensure filename doesn't contain path traversal
+    if '..' in filename or '/' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    filepath = screenshot_dir / filename
+    if not filepath.exists():
+        return jsonify({'error': 'Screenshot not found'}), 404
+
+    return send_from_directory(str(screenshot_dir), filename, mimetype='image/png')
+
+
+@api_bp.route('/screenshots/<filename>', methods=['DELETE'])
+@api_or_session_auth
+def delete_screenshot(filename):
+    """
+    DELETE /api/screenshots/<filename>
+
+    Delete a screenshot file.
+    """
+    from pathlib import Path
+    from config import config
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    # Security: ensure filename doesn't contain path traversal
+    if '..' in filename or '/' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    filepath = screenshot_dir / filename
+    if not filepath.exists():
+        return jsonify({'error': 'Screenshot not found'}), 404
+
+    filepath.unlink()
+    return jsonify({'success': True, 'deleted': filename})

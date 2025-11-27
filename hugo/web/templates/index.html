@@ -22,7 +22,27 @@
         <div class="stat-value">{{ config.available_orgs|length }}</div>
         <div class="stat-label">Organizations</div>
     </div>
+    <div class="stat-card" {% if queue_stats.pending > 0 %}style="background: #fff3cd;"{% endif %}>
+        <div class="stat-value">{{ queue_stats.pending }}</div>
+        <div class="stat-label">Queued Changes</div>
+    </div>
 </div>
+
+{% if queue_stats.pending > 0 %}
+<div class="card" style="background: #e8f4fd;">
+    <h3>Pending Changes</h3>
+    <p>{{ queue_stats.pending }} change(s) queued for processing.</p>
+    {% if queue_stats.pending_by_org %}
+    <ul style="margin: 10px 0;">
+        {% for org, count in queue_stats.pending_by_org.items() %}
+        <li>{{ org }}: {{ count }} change(s)</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <button class="btn btn-primary" onclick="processQueue(this)">Process Queue Now</button>
+    <span class="text-muted" style="margin-left: 10px;">Or wait for automatic processing (every 15 mins)</span>
+</div>
+{% endif %}
 
 <div class="card">
     <h3>Organizations</h3>
@@ -66,16 +86,81 @@
     </table>
 </div>
 
+{% if unhealthy_orgs %}
+<div class="card" style="background: #f8d7da; border: 1px solid #f5c6cb;">
+    <h3>⚠️ Auth Issues Detected</h3>
+    <p>The following organizations have authentication problems and need their Buz login renewed:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Organization</th>
+                <th>Status</th>
+                <th>Error</th>
+                <th>Last Healthy</th>
+                <th>Failures</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for org in unhealthy_orgs %}
+            <tr>
+                <td><strong>{{ org.org_key }}</strong></td>
+                <td><span class="badge badge-{% if org.status == 'expired' %}error{% else %}failed{% endif %}">{{ org.status }}</span></td>
+                <td class="text-muted">{{ org.error_message[:50] }}{% if org.error_message|length > 50 %}...{% endif %}</td>
+                <td>{{ org.last_healthy[:16] if org.last_healthy else 'Never' }}</td>
+                <td>{{ org.consecutive_failures }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 15px;">
+        <strong>To fix:</strong> Run <code>python banji/tools/buz_auth_bootstrap.py &lt;org&gt;</code> for each org,
+        then copy the JSON file to <code>hugo/.secrets/</code>
+    </p>
+    <button class="btn btn-primary" onclick="checkAuth(this)">Re-check Auth Now</button>
+</div>
+{% endif %}
+
 {% if config.buz_orgs_missing_auth %}
 <div class="card" style="background: #fff3cd;">
     <h3>Missing Authentication</h3>
     <p>The following organizations need authentication setup:</p>
     <ul>
         {% for org_key, path in config.buz_orgs_missing_auth.items() %}
-        <li><strong>{{ org_key }}</strong>: Run <code>python tools/buz_auth_bootstrap.py {{ org_key }}</code></li>
+        <li><strong>{{ org_key }}</strong>: Run <code>python banji/tools/buz_auth_bootstrap.py {{ org_key }}</code></li>
         {% endfor %}
     </ul>
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function checkAuth(button) {
+        hideMessage();
+        button.classList.add('loading');
+        button.disabled = true;
+        button.textContent = 'Checking...';
+
+        try {
+            const result = await apiCall('/api/auth/check', 'POST', {});
+            if (result.success) {
+                if (result.unhealthy > 0) {
+                    showMessage(`Auth check complete: ${result.healthy} healthy, ${result.unhealthy} need attention`, 'info');
+                } else {
+                    showMessage('All auth sessions are healthy!', 'success');
+                }
+                setTimeout(() => location.reload(), 1500);
+            } else if (result.error) {
+                showMessage('Auth check failed: ' + result.error, 'error');
+            }
+        } catch (e) {
+            showMessage('Auth check error: ' + e.message, 'error');
+        }
+
+        button.classList.remove('loading');
+        button.disabled = false;
+        button.textContent = 'Re-check Auth Now';
+    }
+</script>
 {% endblock %}

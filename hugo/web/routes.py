@@ -26,6 +26,9 @@ def index():
 
     db = get_db()
     stats = db.get_stats()
+    queue_stats = db.get_queue_stats()
+    unhealthy_orgs = db.get_unhealthy_orgs()
+    auth_health = db.get_auth_health()
 
     # Get last sync for each org
     sync_status = {}
@@ -36,7 +39,10 @@ def index():
         'index.html',
         config=config,
         stats=stats,
-        sync_status=sync_status
+        sync_status=sync_status,
+        queue_stats=queue_stats,
+        unhealthy_orgs=unhealthy_orgs,
+        auth_health=auth_health
     )
 
 
@@ -134,4 +140,32 @@ def sync():
         config=config,
         history=history,
         by_org=by_org
+    )
+
+
+@web_bp.route('/screenshots')
+@login_required
+def screenshots():
+    """Screenshot viewer page."""
+    from pathlib import Path
+    from config import config
+    from datetime import datetime
+
+    screenshot_dir = Path(config.browser_screenshot_dir)
+
+    screenshot_list = []
+    if screenshot_dir.exists():
+        for f in sorted(screenshot_dir.glob('*.png'), key=lambda x: x.stat().st_mtime, reverse=True)[:50]:
+            stat = f.stat()
+            screenshot_list.append({
+                'name': f.name,
+                'size': stat.st_size,
+                'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                'url': f'/api/screenshots/{f.name}'
+            })
+
+    return render_template(
+        'screenshots.html',
+        config=config,
+        screenshots=screenshot_list
     )
