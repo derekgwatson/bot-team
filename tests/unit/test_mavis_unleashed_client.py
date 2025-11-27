@@ -6,6 +6,7 @@ import os
 import sys
 import pytest
 import responses
+import importlib.util
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -19,9 +20,13 @@ os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['UNLEASHED_API_ID'] = 'test-api-id'
 os.environ['UNLEASHED_API_KEY'] = 'test-api-key'
 
-# Import after setting env vars
-sys.path.insert(0, str(project_root / 'mavis'))
-from services.unleashed_client import UnleashedClient
+# Import UnleashedClient directly to avoid loading services/__init__.py
+# which has cascading dependencies on config/sync_service
+module_path = project_root / 'mavis' / 'services' / 'unleashed_client.py'
+spec = importlib.util.spec_from_file_location('unleashed_client', module_path)
+unleashed_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(unleashed_module)
+UnleashedClient = unleashed_module.UnleashedClient
 
 
 @pytest.fixture
