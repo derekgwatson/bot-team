@@ -179,11 +179,16 @@ All bots use Chester as a centralized OAuth gateway. When a user tries to access
 def auth(self):
     """Auth config for GatewayAuth."""
     return {
-        'mode': 'domain',  # or 'admin' for admin-only bots
+        'mode': 'domain',  # Options: 'domain', 'admin_only', or 'tiered'
         'allowed_domains': self.allowed_domains,
         'admin_emails': self.admin_emails,
     }
 ```
+
+**Auth modes:**
+- `'domain'` - Anyone from allowed_domains can access
+- `'admin_only'` - Only emails in admin_emails can access
+- `'tiered'` - Domain users get access, admin_emails get extra admin features
 
 **Step 2: Initialize GatewayAuth in app.py:**
 
