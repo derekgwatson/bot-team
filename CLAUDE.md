@@ -415,9 +415,41 @@ user = User(
 
 ## Testing
 
+**IMPORTANT**: Test coverage is critical for maintaining a healthy codebase.
+
 - Tests in `/tests/unit/` and `/tests/integration/`
 - Run with `pytest tests/` or `pytest -m botname`
 - Markers defined in `pytest.ini`
+
+### Test Requirements
+
+1. **All tests must pass** - Before committing, run `pytest tests/` to ensure nothing is broken
+2. **New functionality needs tests** - Every new feature, endpoint, or service method should have corresponding tests
+3. **Bug fixes need tests** - When fixing a bug, add a test that would have caught it
+4. **Review existing tests** - When modifying a bot, check its test coverage and add missing tests
+
+### What to Test
+
+- **API endpoints**: Test both success and error cases, authentication requirements
+- **Service methods**: Test business logic, edge cases, error handling
+- **Database operations**: Use `tmp_path` fixture for isolated test databases
+- **Authentication**: Test that protected routes require auth, admin routes require admin
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run tests for a specific bot
+pytest -m hugo
+
+# Run with verbose output
+pytest -v tests/
+
+# Run specific test file
+pytest tests/unit/test_hugo_service.py
+```
 
 ### Test Setup (conftest.py)
 
@@ -627,5 +659,6 @@ job_templates:
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)
 9. Add `.env.example` - mark `{BOT}_ADMIN_EMAILS` as optional if using Grant mode
+10. **Write tests** - Create `tests/unit/test_<botname>_*.py` with tests for services, API endpoints, and database operations. Run `pytest tests/` to ensure all tests pass.
 
 **Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.
