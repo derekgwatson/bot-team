@@ -407,10 +407,12 @@ def auto_sync():
     This endpoint:
     1. Compares Fiona's fabrics with Mavis's valid fabrics
     2. Adds missing fabrics as placeholders
-    3. Reports any fabrics flagged for deletion (requires manual review)
+    3. Syncs Unleashed fields (fabric_type, price_category, width) from Mavis
+    4. Reports any fabrics flagged for deletion (requires manual review)
 
     Returns sync results including:
     - fabrics added
+    - Unleashed fields synced
     - fabrics flagged for deletion (not automatically deleted)
     - comparison statistics
     """
@@ -429,6 +431,9 @@ def auto_sync():
         if comparison.get('missing_count', 0) > 0:
             add_result = fabric_sync_service.add_missing_fabrics(updated_by='skye-auto-sync')
 
+        # Sync Unleashed fields (fabric_type, price_category, width)
+        unleashed_sync = fabric_sync_service.sync_unleashed_fields()
+
         return jsonify({
             'success': True,
             'sync_time': request.headers.get('X-Request-Time'),
@@ -441,6 +446,11 @@ def auto_sync():
             'added': {
                 'count': add_result.get('added', 0),
                 'codes': add_result.get('codes', [])[:20]  # Limit to first 20 for response size
+            },
+            'unleashed_fields': {
+                'updated': unleashed_sync.get('updated', 0),
+                'fabric_types': unleashed_sync.get('fabric_types', []),
+                'price_categories': unleashed_sync.get('price_categories', [])
             },
             'flagged_for_deletion': {
                 'count': comparison.get('flagged_count', 0),
