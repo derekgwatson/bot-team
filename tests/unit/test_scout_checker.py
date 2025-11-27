@@ -162,7 +162,12 @@ class TestCheckerMissingDescriptions:
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
-             patch('services.checker.sadie_client', mock_sadie_client):
+             patch('services.checker.sadie_client', mock_sadie_client), \
+             patch('services.checker.config') as mock_config:
+
+            # Enable ticket creation (may be disabled in dev environment)
+            mock_config.create_tickets = True
+            mock_config.check_missing_descriptions = {'enabled': True, 'priority': 'normal', 'ticket_type': 'task'}
 
             from services.checker import CheckerService
             checker = CheckerService()
@@ -214,7 +219,12 @@ class TestCheckerObsoleteFabrics:
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
-             patch('services.checker.sadie_client', mock_sadie_client):
+             patch('services.checker.sadie_client', mock_sadie_client), \
+             patch('services.checker.config') as mock_config:
+
+            # Enable ticket creation (may be disabled in dev environment)
+            mock_config.create_tickets = True
+            mock_config.check_obsolete_fabrics = {'enabled': True, 'priority': 'normal', 'ticket_type': 'task'}
 
             from services.checker import CheckerService
             checker = CheckerService()
@@ -239,7 +249,12 @@ class TestCheckerIncompleteDescriptions:
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
-             patch('services.checker.sadie_client', mock_sadie_client):
+             patch('services.checker.sadie_client', mock_sadie_client), \
+             patch('services.checker.config') as mock_config:
+
+            # Enable ticket creation (may be disabled in dev environment)
+            mock_config.create_tickets = True
+            mock_config.check_incomplete_descriptions = {'enabled': True, 'priority': 'low', 'ticket_type': 'task'}
 
             from services.checker import CheckerService
             checker = CheckerService()
