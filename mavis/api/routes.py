@@ -62,34 +62,22 @@ def run_sync():
     """
     Trigger a full products sync from Unleashed.
 
+    Runs asynchronously - returns 202 Accepted immediately.
+    Use GET /api/sync/status to check progress.
+
     If a sync is already running, returns 409 Conflict.
     """
     try:
-        if sync_service.is_running():
-            return jsonify({
-                'status': 'conflict',
-                'message': 'A sync is already in progress',
-                'sync_status': sync_service.get_status()
-            }), 409
+        result = sync_service.run_product_sync_async()
 
-        # Run the sync (synchronously for now)
-        result = sync_service.run_product_sync()
+        if result['status'] == 'conflict':
+            return jsonify(result), 409
 
-        if result['success']:
-            return jsonify({
-                'status': 'completed',
-                'message': 'Product sync completed successfully',
-                **result
-            })
-        else:
-            return jsonify({
-                'status': 'failed',
-                'message': 'Product sync failed',
-                **result
-            }), 500
+        # Sync started successfully - return 202 Accepted
+        return jsonify(result), 202
 
     except Exception as e:
-        logger.exception("Error running sync")
+        logger.exception("Error starting sync")
         return jsonify({'error': str(e)}), 500
 
 
