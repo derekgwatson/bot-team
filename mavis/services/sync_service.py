@@ -281,6 +281,42 @@ class SyncService:
         """Get recent sync history from database"""
         return db.get_sync_history('products', limit)
 
+    def run_product_sync_async(self) -> Dict[str, Any]:
+        """
+        Start a product sync in a background thread.
+
+        Returns immediately with status 'accepted' if sync was started,
+        or 'conflict' if a sync is already running.
+
+        Use get_status() to check progress.
+        """
+        if db.is_sync_running('products'):
+            return {
+                'success': False,
+                'status': 'conflict',
+                'message': 'A sync is already in progress',
+                'sync_status': self.get_status()
+            }
+
+        # Start sync in background thread
+        thread = threading.Thread(
+            target=self.run_product_sync,
+            name='mavis-product-sync',
+            daemon=True
+        )
+        thread.start()
+
+        # Give it a moment to create the sync record
+        import time
+        time.sleep(0.1)
+
+        return {
+            'success': True,
+            'status': 'accepted',
+            'message': 'Sync started in background',
+            'sync_status': self.get_status()
+        }
+
 
 # Global sync service instance
 sync_service = SyncService()
