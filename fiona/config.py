@@ -25,8 +25,8 @@ class Config:
         self.description = data.get("description", "")
         self.version = data.get("version", "0.0.0")
 
-        # Authentication config
-        self.auth = data.get("auth", {}) or {}
+        # Authentication config (admin_emails injected after loading from env/yaml below)
+        self._auth_yaml = data.get("auth", {}) or {}
 
         # ── Server config (from YAML) ─────────────────────────
         server = data.get("server", {}) or {}
@@ -62,6 +62,9 @@ class Config:
             self.admin_emails = [e.strip() for e in admin_emails_env.split(",") if e.strip()]
         else:
             self.admin_emails = admin_config.get("emails", [])
+
+        # Build auth config for GatewayAuth (inject admin_emails)
+        self.auth = {**self._auth_yaml, 'admin_emails': self.admin_emails}
 
         # ── Secrets / env-specific settings ────────────────────
 
