@@ -93,8 +93,9 @@ def workspace_service_uninitialized(monkeypatch):
 @pytest.mark.google_api
 def test_initialization_success(mock_config, mock_google_workspace_service):
     """Test successful service initialization."""
-    with patch('services.google_workspace.service_account') as mock_sa, \
-         patch('services.google_workspace.build', return_value=mock_google_workspace_service):
+    # Use the already-loaded google_workspace module
+    with patch.object(google_workspace, 'service_account') as mock_sa, \
+         patch.object(google_workspace, 'build', return_value=mock_google_workspace_service):
         mock_creds = Mock()
         mock_sa.Credentials.from_service_account_file.return_value = mock_creds
         mock_creds.with_subject.return_value = mock_creds

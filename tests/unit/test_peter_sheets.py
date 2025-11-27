@@ -52,9 +52,8 @@ def mock_config(monkeypatch, tmp_path):
 
     mock_config_obj = MockConfig()
 
-    # Patch where the config is USED
-    import services.google_sheets
-    monkeypatch.setattr(services.google_sheets, 'config', mock_config_obj)
+    # Patch the config in the already-loaded google_sheets module
+    monkeypatch.setattr(google_sheets, 'config', mock_config_obj)
 
     return mock_config_obj
 
@@ -62,9 +61,9 @@ def mock_config(monkeypatch, tmp_path):
 @pytest.fixture
 def sheets_service_with_mock(mock_config, mock_google_sheets_service):
     """Create a GoogleSheetsService instance with mocked Google Sheets API."""
-    import services.google_sheets
-    with patch.object(services.google_sheets, 'service_account'), \
-         patch.object(services.google_sheets, 'build', return_value=mock_google_sheets_service):
+    # Use the already-loaded google_sheets module (loaded via importlib at module level)
+    with patch.object(google_sheets, 'service_account'), \
+         patch.object(google_sheets, 'build', return_value=mock_google_sheets_service):
         service = GoogleSheetsService()
         return service
 
@@ -91,9 +90,9 @@ def sample_sheet_data():
 @pytest.mark.google_api
 def test_initialization_success(mock_config, mock_google_sheets_service):
     """Test successful service initialization."""
-    import services.google_sheets
-    with patch.object(services.google_sheets, 'service_account') as mock_sa, \
-         patch.object(services.google_sheets, 'build', return_value=mock_google_sheets_service):
+    # Use the already-loaded google_sheets module
+    with patch.object(google_sheets, 'service_account') as mock_sa, \
+         patch.object(google_sheets, 'build', return_value=mock_google_sheets_service):
         mock_creds = Mock()
         mock_sa.Credentials.from_service_account_file.return_value = mock_creds
 
@@ -113,8 +112,8 @@ def test_initialization_missing_credentials(monkeypatch):
         spreadsheet_id = 'test-id'
         sheet_name = 'Test'
 
-    import config as peter_config
-    monkeypatch.setattr(peter_config, 'config', MockConfig())
+    # Patch config in the already-loaded google_sheets module
+    monkeypatch.setattr(google_sheets, 'config', MockConfig())
 
     service = GoogleSheetsService()
     assert service.service is None
@@ -163,8 +162,8 @@ def test_get_all_contacts_service_not_initialized(monkeypatch):
         spreadsheet_id = 'test-id'
         sheet_name = 'Test'
 
-    import config as peter_config
-    monkeypatch.setattr(peter_config, 'config', MockConfig())
+    # Patch config in the already-loaded google_sheets module
+    monkeypatch.setattr(google_sheets, 'config', MockConfig())
 
     service = GoogleSheetsService()
     result = service.get_all_contacts()

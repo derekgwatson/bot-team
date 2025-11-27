@@ -49,13 +49,16 @@ def mavis_app(tmp_path):
         test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
 
         # Import mavis's modules fresh
+        # Note: Use sys.modules to get the actual submodule, since database/__init__.py
+        # exports 'db' which shadows the submodule when accessed via attribute
         import database.db
         import services.sync_service
+        db_module = sys.modules['database.db']
 
         # Patch the db instances
-        original_db = database.db.db
+        original_db = db_module.db
         original_sync_db = services.sync_service.db
-        database.db.db = test_db
+        db_module.db = test_db
         services.sync_service.db = test_db
 
         # Import app after patching
@@ -65,7 +68,7 @@ def mavis_app(tmp_path):
         yield app
 
         # Restore original values
-        database.db.db = original_db
+        db_module.db = original_db
         services.sync_service.db = original_sync_db
     finally:
         # Clean up: remove mavis modules to avoid polluting other tests

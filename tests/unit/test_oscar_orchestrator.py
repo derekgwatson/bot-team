@@ -160,8 +160,8 @@ def mock_config():
 @pytest.mark.oscar
 def test_create_workflow_steps_all_access(sample_onboarding_request, oscar_db):
     """Test workflow step creation when all access types are requested."""
-    # Patch the db module before calling _create_workflow_steps
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly (it imported db from database.db)
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(sample_onboarding_request)
 
@@ -191,7 +191,8 @@ def test_create_workflow_steps_google_only(oscar_db):
         'voip_access': False
     }
 
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(request)
 
@@ -217,7 +218,8 @@ def test_create_workflow_steps_minimal(oscar_db):
         'voip_access': False
     }
 
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(request)
 
@@ -240,7 +242,8 @@ def test_voip_step_has_manual_action_flag(oscar_db):
         'voip_access': True
     }
 
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(request)
 
@@ -483,7 +486,8 @@ def test_zendesk_step_is_non_critical(oscar_db):
         'voip_access': False
     }
 
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(request)
 
@@ -502,7 +506,8 @@ def test_google_step_is_critical(oscar_db):
         'voip_access': False
     }
 
-    with patch('database.db.db', oscar_db):
+    # Patch db in the orchestrator module directly
+    with patch.object(orchestrator_module, 'db', oscar_db):
         orchestrator = OnboardingOrchestrator()
         steps = orchestrator._create_workflow_steps(request)
 

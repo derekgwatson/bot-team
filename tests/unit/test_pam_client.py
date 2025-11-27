@@ -43,40 +43,19 @@ PeterClient = peter_client_module.PeterClient
 
 @pytest.fixture
 def mock_config(monkeypatch):
-    """Mock Pam's config with proper module isolation."""
-    # Clear any cached config modules
-    modules_to_clear = [k for k in sys.modules.keys()
-                        if k.startswith(('config',))]
-    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
+    """Mock Pam's config - patch the config that peter_client_module already imported."""
+    # Get the config object that peter_client_module is using
+    # (it imported config when exec_module ran)
+    config_obj = peter_client_module.config
 
-    # Add pam to path (must be first to take precedence)
-    if str(pam_path) in sys.path:
-        sys.path.remove(str(pam_path))
-    sys.path.insert(0, str(pam_path))
+    # Pre-populate Chester's bot URL cache to avoid hitting Chester API
+    config_obj._bot_url_cache['peter'] = 'http://localhost:8003'
 
-    try:
-        # Now import pam's config fresh
-        import config as pam_config
+    # Patch the endpoints
+    monkeypatch.setattr(config_obj, 'peter_contacts_endpoint', '/api/contacts')
+    monkeypatch.setattr(config_obj, 'peter_search_endpoint', '/api/contacts/search')
 
-        # Pre-populate Chester's bot URL cache to avoid hitting Chester API
-        pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
-
-        # Patch the endpoints
-        monkeypatch.setattr(pam_config.config, 'peter_contacts_endpoint', '/api/contacts')
-        monkeypatch.setattr(pam_config.config, 'peter_search_endpoint', '/api/contacts/search')
-
-        yield pam_config.config
-    finally:
-        # Clean up: remove config module to avoid polluting other tests
-        if 'config' in sys.modules:
-            del sys.modules['config']
-
-        # Restore previously saved modules
-        sys.modules.update(saved_modules)
-
-        # Remove pam from path
-        if str(pam_path) in sys.path:
-            sys.path.remove(str(pam_path))
+    yield config_obj
 
 
 @pytest.fixture
