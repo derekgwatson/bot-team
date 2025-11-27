@@ -29,21 +29,57 @@ mavis_db_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mavis_db_module)
 MavisDatabase = mavis_db_module.Database
 
-# Add mavis to path for app imports
-sys.path.insert(0, str(project_root / 'mavis'))
-
 
 @pytest.fixture
 def mavis_app(tmp_path):
     """Create Mavis Flask app with test database."""
-    test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
+    # Clear any cached modules that could conflict with mavis's modules
+    modules_to_clear = [k for k in sys.modules.keys()
+                        if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
 
-    with patch('database.db.db', test_db), \
-         patch('services.sync_service.db', test_db), \
-         patch('api.routes.db', test_db):
+    # Add mavis to path (must be first to take precedence)
+    mavis_path = str(project_root / 'mavis')
+    if mavis_path in sys.path:
+        sys.path.remove(mavis_path)
+    sys.path.insert(0, mavis_path)
+
+    try:
+        # Create test database
+        test_db = MavisDatabase(str(tmp_path / 'test_mavis.db'))
+
+        # Import mavis's modules fresh
+        import database.db
+        import services.sync_service
+
+        # Patch the db instances
+        original_db = database.db.db
+        original_sync_db = services.sync_service.db
+        database.db.db = test_db
+        services.sync_service.db = test_db
+
+        # Import app after patching
         from app import app
         app.config['TESTING'] = True
+
         yield app
+
+        # Restore original values
+        database.db.db = original_db
+        services.sync_service.db = original_sync_db
+    finally:
+        # Clean up: remove mavis modules to avoid polluting other tests
+        modules_to_remove = [k for k in sys.modules.keys()
+                             if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+        for k in modules_to_remove:
+            sys.modules.pop(k, None)
+
+        # Restore previously saved modules
+        sys.modules.update(saved_modules)
+
+        # Remove mavis from path
+        if mavis_path in sys.path:
+            sys.path.remove(mavis_path)
 
 
 @pytest.fixture

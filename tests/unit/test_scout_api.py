@@ -19,13 +19,6 @@ os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 os.environ['BOT_API_KEY'] = 'test-api-key'
 
-# Add scout to path before importing its modules
-sys.path.insert(0, str(project_root / 'scout'))
-
-# Clear any cached config module to ensure scout's config is loaded
-if 'config' in sys.modules:
-    del sys.modules['config']
-
 # Import ScoutDatabase directly using importlib to avoid sys.modules caching issues
 module_path = project_root / 'scout' / 'database' / 'db.py'
 spec = importlib.util.spec_from_file_location('scout_database_db', module_path)
@@ -37,17 +30,53 @@ ScoutDatabase = scout_db_module.ScoutDatabase
 @pytest.fixture
 def scout_app(tmp_path):
     """Create Scout Flask app for testing."""
-    test_db = ScoutDatabase(str(tmp_path / "scout_test.db"))
+    # Clear any cached modules that could conflict with scout's modules
+    modules_to_clear = [k for k in sys.modules.keys()
+                        if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
 
-    with patch('database.db.db', test_db), \
-         patch('services.checker.db', test_db), \
-         patch('api.routes.db', test_db), \
-         patch('web.routes.db', test_db):
+    # Add scout to path (must be first to take precedence)
+    scout_path = str(project_root / 'scout')
+    if scout_path in sys.path:
+        sys.path.remove(scout_path)
+    sys.path.insert(0, scout_path)
 
+    try:
+        # Create test database
+        test_db = ScoutDatabase(str(tmp_path / "scout_test.db"))
+
+        # Import scout's modules fresh
+        import database.db
+        import services.checker
+
+        # Patch the db instances
+        original_db = database.db.db
+        original_checker_db = services.checker.db
+        database.db.db = test_db
+        services.checker.db = test_db
+
+        # Import app after patching
         from app import app
         app.config['TESTING'] = True
 
         yield app, test_db
+
+        # Restore original values
+        database.db.db = original_db
+        services.checker.db = original_checker_db
+    finally:
+        # Clean up: remove scout modules to avoid polluting other tests
+        modules_to_remove = [k for k in sys.modules.keys()
+                             if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+        for k in modules_to_remove:
+            sys.modules.pop(k, None)
+
+        # Restore previously saved modules
+        sys.modules.update(saved_modules)
+
+        # Remove scout from path
+        if scout_path in sys.path:
+            sys.path.remove(scout_path)
 
 
 @pytest.fixture

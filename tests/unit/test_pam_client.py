@@ -11,31 +11,24 @@ from pathlib import Path
 import requests
 import importlib.util
 
-# Add pam directory to path for imports
+# Add project root to path
 project_root = Path(__file__).parent.parent.parent
 pam_path = project_root / 'pam'
 
-if str(pam_path) not in sys.path:
-    sys.path.insert(0, str(pam_path))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Set environment variables before any imports
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
+os.environ['BOT_API_KEY'] = 'test-api-key'
+os.environ['CHESTER_API_URL'] = 'http://localhost:8008'
 
-# Import the service - use importlib for Windows compatibility
-try:
-    from services.peter_client import PeterClient
-except ImportError as e:
-    # Fallback for Windows: use importlib to load module directly
-    spec = importlib.util.spec_from_file_location(
-        "peter_client",
-        pam_path / "services" / "peter_client.py"
-    )
-    if spec and spec.loader:
-        peter_client_module = importlib.util.module_from_spec(spec)
-        sys.modules['peter_client'] = peter_client_module
-        spec.loader.exec_module(peter_client_module)
-        PeterClient = peter_client_module.PeterClient
-    else:
-        raise ImportError(f"Could not import PeterClient: {e}")
+# Load PeterClient using importlib to avoid conflicts
+spec = importlib.util.spec_from_file_location(
+    "pam_peter_client",
+    pam_path / "services" / "peter_client.py"
+)
+peter_client_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(peter_client_module)
+PeterClient = peter_client_module.PeterClient
 
 
 # ==============================================================================
@@ -44,17 +37,40 @@ except ImportError as e:
 
 @pytest.fixture
 def mock_config(monkeypatch):
-    """Mock Pam's config."""
-    import config as pam_config
+    """Mock Pam's config with proper module isolation."""
+    # Clear any cached config modules
+    modules_to_clear = [k for k in sys.modules.keys()
+                        if k.startswith(('config',))]
+    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
 
-    # Pre-populate Chester's bot URL cache to avoid hitting Chester API
-    pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
+    # Add pam to path (must be first to take precedence)
+    if str(pam_path) in sys.path:
+        sys.path.remove(str(pam_path))
+    sys.path.insert(0, str(pam_path))
 
-    # Patch the endpoints
-    monkeypatch.setattr(pam_config.config, 'peter_contacts_endpoint', '/api/contacts')
-    monkeypatch.setattr(pam_config.config, 'peter_search_endpoint', '/api/contacts/search')
+    try:
+        # Now import pam's config fresh
+        import config as pam_config
 
-    return pam_config.config
+        # Pre-populate Chester's bot URL cache to avoid hitting Chester API
+        pam_config.config._bot_url_cache['peter'] = 'http://localhost:8003'
+
+        # Patch the endpoints
+        monkeypatch.setattr(pam_config.config, 'peter_contacts_endpoint', '/api/contacts')
+        monkeypatch.setattr(pam_config.config, 'peter_search_endpoint', '/api/contacts/search')
+
+        yield pam_config.config
+    finally:
+        # Clean up: remove config module to avoid polluting other tests
+        if 'config' in sys.modules:
+            del sys.modules['config']
+
+        # Restore previously saved modules
+        sys.modules.update(saved_modules)
+
+        # Remove pam from path
+        if str(pam_path) in sys.path:
+            sys.path.remove(str(pam_path))
 
 
 @pytest.fixture

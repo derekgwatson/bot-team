@@ -71,6 +71,14 @@ def setup_mock_email_service(mock_email_obj):
     return mock_email_class
 
 
+# Load Oscar's Database class using importlib to avoid sys.modules caching issues
+_oscar_db_module_path = oscar_path / 'database' / 'db.py'
+_oscar_db_spec = importlib.util.spec_from_file_location('oscar_database_db', _oscar_db_module_path)
+_oscar_db_module = importlib.util.module_from_spec(_oscar_db_spec)
+_oscar_db_spec.loader.exec_module(_oscar_db_module)
+OscarDatabase = _oscar_db_module.Database
+
+
 # ==============================================================================
 # Fixtures
 # ==============================================================================
@@ -86,11 +94,8 @@ def oscar_db(tmp_path):
     # Create database
     db_path = tmp_path / 'test_oscar.db'
 
-    # Patch the schema path in the Database class
-    from database.db import Database
-
-    # Create database with patched schema path
-    original_init = Database.__init__
+    # Create database with patched schema path using our isolated OscarDatabase class
+    original_init = OscarDatabase.__init__
     def patched_init(self, db_path_arg=None):
         self.db_path = str(db_path)
         import sqlite3
@@ -99,11 +104,8 @@ def oscar_db(tmp_path):
         conn.commit()
         conn.close()
 
-    with patch.object(Database, '__init__', patched_init):
-        db = Database()
-
-    # Restore the original methods
-    db.get_connection = lambda: __import__('sqlite3').connect(str(db_path), check_same_thread=False)
+    with patch.object(OscarDatabase, '__init__', patched_init):
+        db = OscarDatabase()
 
     # Need to fix get_connection to use row_factory
     import sqlite3

@@ -17,13 +17,6 @@ sys.path.insert(0, str(project_root))
 os.environ['TESTING'] = '1'
 os.environ['SKIP_ENV_VALIDATION'] = '1'
 
-# Add scout to path before importing its modules
-sys.path.insert(0, str(project_root / 'scout'))
-
-# Clear any cached config module to ensure scout's config is loaded
-if 'config' in sys.modules:
-    del sys.modules['config']
-
 # Import ScoutDatabase directly using importlib to avoid sys.modules caching issues
 module_path = project_root / 'scout' / 'database' / 'db.py'
 spec = importlib.util.spec_from_file_location('scout_database_db', module_path)
@@ -37,6 +30,36 @@ def scout_db(tmp_path):
     """Create an isolated Scout database for testing."""
     db_path = tmp_path / "scout_test.db"
     return ScoutDatabase(str(db_path))
+
+
+@pytest.fixture
+def scout_checker_env():
+    """Set up scout environment for checker tests - clears and restores sys.modules."""
+    # Clear any cached modules that could conflict
+    modules_to_clear = [k for k in sys.modules.keys()
+                        if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+    saved_modules = {k: sys.modules.pop(k) for k in modules_to_clear}
+
+    # Add scout to path (must be first to take precedence)
+    scout_path = str(project_root / 'scout')
+    if scout_path in sys.path:
+        sys.path.remove(scout_path)
+    sys.path.insert(0, scout_path)
+
+    yield
+
+    # Clean up: remove scout modules to avoid polluting other tests
+    modules_to_remove = [k for k in sys.modules.keys()
+                         if k.startswith(('config', 'database', 'services', 'api', 'web', 'app'))]
+    for k in modules_to_remove:
+        sys.modules.pop(k, None)
+
+    # Restore previously saved modules
+    sys.modules.update(saved_modules)
+
+    # Remove scout from path
+    if scout_path in sys.path:
+        sys.path.remove(scout_path)
 
 
 @pytest.fixture
@@ -127,11 +150,9 @@ class TestCheckerMissingDescriptions:
     """Test missing descriptions check."""
 
     def test_detects_missing_descriptions(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that missing descriptions are detected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
@@ -149,11 +170,9 @@ class TestCheckerMissingDescriptions:
             assert 'FAB004' in result['details']['missing_codes']
 
     def test_no_ticket_if_already_reported(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that no duplicate ticket is created."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         # Pre-record the issue
         scout_db.record_issue(
             issue_type='missing_description',
@@ -183,11 +202,9 @@ class TestCheckerObsoleteFabrics:
     """Test obsolete fabrics check."""
 
     def test_detects_obsolete_fabrics(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that obsolete fabrics are detected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
@@ -210,11 +227,9 @@ class TestCheckerIncompleteDescriptions:
     """Test incomplete descriptions check."""
 
     def test_detects_incomplete_descriptions(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that incomplete descriptions are detected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         with patch('services.checker.db', scout_db), \
              patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
@@ -236,11 +251,9 @@ class TestCheckerSyncHealth:
     """Test sync health check."""
 
     def test_detects_stale_sync(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that stale sync is detected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         # Make sync look stale (48 hours old)
         mock_mavis_client.get_sync_status.return_value = {
             'status': 'idle',
@@ -270,11 +283,9 @@ class TestCheckerSyncHealth:
             assert result['tickets_created'] == 1
 
     def test_detects_sync_failure(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test that sync failure is detected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         mock_mavis_client.get_sync_status.return_value = {
             'status': 'failed',
             'last_successful_sync_at': '2025-01-15T10:00:00Z',
@@ -309,11 +320,9 @@ class TestCheckerBotStatus:
     """Test bot status checking."""
 
     def test_get_bot_status(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test getting status of dependent bots."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         with patch('services.checker.mavis_client', mock_mavis_client), \
              patch('services.checker.fiona_client', mock_fiona_client), \
              patch('services.checker.sadie_client', mock_sadie_client):
@@ -328,11 +337,9 @@ class TestCheckerBotStatus:
             assert status['sadie']['connected'] is True
 
     def test_get_bot_status_disconnected(
-        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client
+        self, scout_db, mock_mavis_client, mock_fiona_client, mock_sadie_client, scout_checker_env
     ):
         """Test getting status when bots are disconnected."""
-        sys.path.insert(0, str(project_root / 'scout'))
-
         mock_mavis_client.check_connection.return_value = {
             'connected': False,
             'error': 'Connection refused'
