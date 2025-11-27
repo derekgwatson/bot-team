@@ -10,6 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 import os
 import atexit
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from shared.auth import GatewayAuth
 from services.session_manager import init_session_manager, get_session_manager
@@ -22,6 +23,10 @@ app = Flask(
     static_folder=str(banji_dir / 'web' / 'static')
 )
 app.secret_key = config.secret_key
+
+# Trust proxy headers (nginx forwards X-Forwarded-Proto, X-Forwarded-Host, etc.)
+# This ensures url_for generates https:// URLs when behind nginx with SSL
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Initialize authentication via Chester's gateway
 # MUST happen before importing blueprints that use @login_required
