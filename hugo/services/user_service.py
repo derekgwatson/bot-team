@@ -151,25 +151,32 @@ class BuzUserService:
                 progress_callback(msg)
 
         log(f"Starting sync for {org_config['display_name']}")
+        logger.info(f"Storage state path: {org_config['storage_state_path']}")
+        logger.info(f"Headless mode: {self.headless}")
 
         all_users = []
 
+        logger.info("Creating AsyncBrowserManager...")
         async with AsyncBrowserManager(
             headless=self.headless,
             screenshot_dir=self.config.browser_screenshot_dir,
             screenshot_on_failure=self.config.browser_screenshot_on_failure
         ) as browser:
+            logger.info("Browser started, creating page for org...")
             page = await browser.new_page_for_org(
                 org_key,
                 org_config['storage_state_path']
             )
+            logger.info("Page created, initializing navigation...")
 
             nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
 
             # Navigate to user management
+            logger.info("Navigating to user management...")
             await nav.go_to_user_management()
 
             # Set page size to maximum
+            logger.info("Setting page size...")
             await nav.set_page_size(500)
 
             # Determine combinations to scrape based on org
@@ -413,9 +420,22 @@ class BuzUserService:
 
 # Helper function to run async code from sync context
 def run_async(coro):
-    """Run an async coroutine from sync code."""
-    # Use asyncio.run() which properly handles cleanup, including
-    # allowing pending tasks to complete before closing the loop.
-    # This prevents "Connection closed while reading from the driver"
-    # errors from Playwright.
-    return asyncio.run(coro)
+    """
+    Run an async coroutine from sync code.
+
+    Handles cases where an event loop may already be running
+    (e.g., in some Flask configurations).
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop - safe to use asyncio.run()
+        logger.debug("No running event loop, using asyncio.run()")
+        return asyncio.run(coro)
+    else:
+        # There's already a running loop - need to run in a separate thread
+        import concurrent.futures
+        logger.debug("Event loop already running, using thread pool")
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result()
