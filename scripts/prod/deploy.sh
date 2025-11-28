@@ -396,4 +396,37 @@ if [[ "${SKIP_MERGE:-0}" == "0" ]] && [[ -n "${LOCAL_BRANCH:-}" ]]; then
     fi
 fi
 
+# Step 4: Automatic cleanup of all fully merged local branches
+header "Step 4: Cleaning up merged local branches"
+
+# Get list of local branches that are fully merged into main (excluding main itself)
+MERGED_BRANCHES=$(sudo -u www-data git -C "$REPO_PATH" branch --merged "$MAIN_BRANCH" 2>/dev/null | grep -v "^\*" | grep -v "^[[:space:]]*$MAIN_BRANCH$" | sed 's/^[[:space:]]*//' || echo "")
+
+if [ -z "$MERGED_BRANCHES" ]; then
+    info "No stale merged branches to clean up."
+else
+    BRANCH_COUNT_MERGED=$(echo "$MERGED_BRANCHES" | wc -l)
+    info "Found ${WHITE}$BRANCH_COUNT_MERGED${NC} fully merged local branch(es) to clean up:"
+    echo "$MERGED_BRANCHES" | while read -r branch; do
+        echo "    - $branch"
+    done
+    echo ""
+
+    # Delete each merged branch
+    DELETED_COUNT=0
+    while read -r branch; do
+        [ -z "$branch" ] && continue
+        if sudo -u www-data git -C "$REPO_PATH" branch -d "$branch" 2>/dev/null; then
+            success "Deleted local branch: $branch"
+            DELETED_COUNT=$((DELETED_COUNT + 1))
+        else
+            warning "Could not delete branch: $branch"
+        fi
+    done <<< "$MERGED_BRANCHES"
+
+    if [ "$DELETED_COUNT" -gt 0 ]; then
+        success "Cleaned up $DELETED_COUNT merged branch(es)."
+    fi
+fi
+
 echo ""
