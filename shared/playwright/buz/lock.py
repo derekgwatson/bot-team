@@ -311,26 +311,34 @@ def _is_process_running(pid: int) -> bool:
 
 def _is_lock_stale(holder_info: dict) -> bool:
     """
-    Check if a lock is stale (process dead or too old).
+    Check if a lock is stale (process dead, or process unknown and too old).
 
     A lock is stale if:
-    - The holding process is no longer running
-    - The lock is older than MAX_LOCK_AGE_SECONDS
-    """
-    # Check if PID is still running
-    pid = holder_info.get('pid')
-    if pid and not _is_process_running(pid):
-        logger.info(f"Lock held by dead process (PID {pid}) - stale")
-        return True
+    - The holding process is no longer running, OR
+    - We can't check the PID AND the lock is older than MAX_LOCK_AGE_SECONDS
 
-    # Check lock age
+    If the process IS running, the lock is NEVER stale (even if old).
+    """
+    pid = holder_info.get('pid')
+
+    # If we have a PID, check if it's running
+    if pid:
+        if _is_process_running(pid):
+            # Process is alive - lock is NOT stale, regardless of age
+            return False
+        else:
+            # Process is dead - lock IS stale
+            logger.info(f"Lock held by dead process (PID {pid}) - stale")
+            return True
+
+    # No PID available - fall back to age check
     acquired_at_str = holder_info.get('acquired_at')
     if acquired_at_str:
         try:
             acquired_at = datetime.fromisoformat(acquired_at_str)
             age = (datetime.now(timezone.utc) - acquired_at).total_seconds()
             if age > MAX_LOCK_AGE_SECONDS:
-                logger.info(f"Lock is {age:.0f}s old (max {MAX_LOCK_AGE_SECONDS}s) - stale")
+                logger.info(f"Lock is {age:.0f}s old (max {MAX_LOCK_AGE_SECONDS}s) with no PID - stale")
                 return True
         except (ValueError, TypeError):
             pass
