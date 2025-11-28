@@ -774,3 +774,66 @@ job_templates:
 10. **Write tests** - Create `tests/unit/test_<botname>_*.py` with tests for services, API endpoints, and database operations. Run `pytest tests/` to ensure all tests pass.
 
 **Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.
+
+## Buz Integration
+
+Buz is the job management system used by Watson Blinds. Several bots interact with Buz:
+- **Hugo** - Syncs user data from Buz
+- **Banji** - Interacts with Buz for job operations
+- **Ivy** - Manages inventory items and pricing coefficients
+
+### Shared Authentication
+
+All Buz-interacting bots share authentication via Playwright storage state files:
+- Storage states are stored in `.secrets/buz/buz_storage_state_{org}.json`
+- Use `tools/buz_auth_bootstrap.py {org}` to create/refresh auth for an org
+- `BuzOrgs.load_orgs()` from `shared/playwright/buz/orgs.py` loads org configs
+- Orgs are configured via `BUZ_ORGS` environment variable (comma-separated)
+
+### Playwright Concurrency Lock
+
+Only ONE bot can use Playwright to access Buz at a time (Buz doesn't handle concurrent sessions well):
+
+```python
+from shared.playwright.buz import get_buz_lock
+
+buz_lock = get_buz_lock()
+async with buz_lock.acquire_async('ivy'):
+    # Safe to use Playwright here
+    async with AsyncBrowserManager(...) as browser:
+        # Do Buz operations
+```
+
+The lock is file-based (`/tmp/buz_playwright.lock`) and works across all bots.
+
+### Excel Export Format Quirks
+
+Buz exports inventory and pricing data as Excel files with these quirks:
+
+**Inventory exports:**
+- Row 1 is a title row (e.g., "Glideshift Blinds - 28/11/2025")
+- Row 2 contains headers
+- Each sheet = one inventory group (sheet name = group code)
+- Skip sheets named "Help"
+
+**Pricing exports:**
+- Row 1 contains headers (no title row)
+- Each sheet = one inventory group
+- Skip sheets named "Sheet1" (empty placeholder)
+
+**Column asterisks (important for imports):**
+- Columns like `Code*` and `Description*` have asterisks
+- The asterisk means Buz IGNORES uploaded data and auto-generates values
+- To upload your own data, REMOVE the asterisk from the column header
+- For now, Ivy only reads from Buz (doesn't upload), so asterisks don't matter
+
+**Operation column:**
+- Both exports have an `Operation` column for imports
+- `A` = Add new item
+- `E` = Edit existing item
+- `D` = Delete item
+- For pricing: only `A` (add) works - set `Date From` for effective date
+
+**Status columns:**
+- Inventory uses `Active` (True = active)
+- Pricing uses `IsNotCurrent` (True = INactive) - note the inversion!
