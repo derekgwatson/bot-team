@@ -6,8 +6,10 @@ This prevents login conflicts and session corruption when multiple bots
 try to interact with the same Buz organization simultaneously.
 """
 import asyncio
+import json
 import logging
 from contextlib import contextmanager, asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Default lock location
 DEFAULT_LOCK_PATH = Path(__file__).parent.parent.parent.parent / '.secrets' / 'buz_playwright.lock'
+# Info file tracks who holds the lock (for better error messages)
+DEFAULT_LOCK_INFO_PATH = DEFAULT_LOCK_PATH.with_suffix('.info')
 
 
 class BuzPlaywrightLock:
@@ -47,7 +51,7 @@ class BuzPlaywrightLock:
     def __init__(
         self,
         lock_path: Optional[Path] = None,
-        timeout: int = 300  # 5 minutes default
+        timeout: int = 600  # 10 minutes default
     ):
         """
         Initialize the lock.
@@ -55,12 +59,43 @@ class BuzPlaywrightLock:
         Args:
             lock_path: Path to the lock file. Defaults to .secrets/buz_playwright.lock
             timeout: Seconds to wait for lock acquisition before timing out.
-                     Set to -1 for infinite wait. Default: 300 (5 minutes)
+                     Set to -1 for infinite wait. Default: 600 (10 minutes)
         """
         self.lock_path = lock_path or DEFAULT_LOCK_PATH
+        self.lock_info_path = self.lock_path.with_suffix('.info')
         self.timeout = timeout
         self._file_lock = FileLock(str(self.lock_path))
         self._holder: Optional[str] = None
+        self._acquired_at: Optional[datetime] = None
+
+    def _write_holder_info(self, bot_name: str) -> None:
+        """Write holder info to the info file."""
+        try:
+            info = {
+                'bot': bot_name,
+                'acquired_at': datetime.now(timezone.utc).isoformat(),
+                'pid': __import__('os').getpid()
+            }
+            self.lock_info_path.write_text(json.dumps(info))
+        except Exception as e:
+            logger.warning(f"Could not write lock info: {e}")
+
+    def _clear_holder_info(self) -> None:
+        """Clear the holder info file."""
+        try:
+            if self.lock_info_path.exists():
+                self.lock_info_path.unlink()
+        except Exception as e:
+            logger.warning(f"Could not clear lock info: {e}")
+
+    def _get_holder_info(self) -> Optional[dict]:
+        """Read holder info from the info file."""
+        try:
+            if self.lock_info_path.exists():
+                return json.loads(self.lock_info_path.read_text())
+        except Exception as e:
+            logger.warning(f"Could not read lock info: {e}")
+        return None
 
     @contextmanager
     def acquire(self, bot_name: str):
@@ -77,19 +112,32 @@ class BuzPlaywrightLock:
             logger.info(f"[{bot_name}] Acquiring Buz Playwright lock...")
             self._file_lock.acquire(timeout=self.timeout)
             self._holder = bot_name
+            self._acquired_at = datetime.now(timezone.utc)
+            self._write_holder_info(bot_name)
             logger.info(f"[{bot_name}] Buz Playwright lock acquired")
             yield
         except Timeout:
-            logger.error(
-                f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
-                f"Another bot may be using Buz."
-            )
+            holder_info = self._get_holder_info()
+            if holder_info:
+                holder_bot = holder_info.get('bot', 'unknown')
+                acquired_at = holder_info.get('acquired_at', 'unknown time')
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Lock held by '{holder_bot}' since {acquired_at}"
+                )
+            else:
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Another bot may be using Buz."
+                )
             raise
         finally:
             if self._file_lock.is_locked:
                 self._file_lock.release()
+                self._clear_holder_info()
                 logger.info(f"[{bot_name}] Buz Playwright lock released")
                 self._holder = None
+                self._acquired_at = None
 
     @asynccontextmanager
     async def acquire_async(self, bot_name: str):
@@ -113,19 +161,32 @@ class BuzPlaywrightLock:
                 lambda: self._file_lock.acquire(timeout=self.timeout)
             )
             self._holder = bot_name
+            self._acquired_at = datetime.now(timezone.utc)
+            self._write_holder_info(bot_name)
             logger.info(f"[{bot_name}] Buz Playwright lock acquired")
             yield
         except Timeout:
-            logger.error(
-                f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
-                f"Another bot may be using Buz."
-            )
+            holder_info = self._get_holder_info()
+            if holder_info:
+                holder_bot = holder_info.get('bot', 'unknown')
+                acquired_at = holder_info.get('acquired_at', 'unknown time')
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Lock held by '{holder_bot}' since {acquired_at}"
+                )
+            else:
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Another bot may be using Buz."
+                )
             raise
         finally:
             if self._file_lock.is_locked:
                 self._file_lock.release()
+                self._clear_holder_info()
                 logger.info(f"[{bot_name}] Buz Playwright lock released")
                 self._holder = None
+                self._acquired_at = None
 
     def lock(self, bot_name: str) -> None:
         """
@@ -141,12 +202,23 @@ class BuzPlaywrightLock:
         try:
             self._file_lock.acquire(timeout=self.timeout)
             self._holder = bot_name
+            self._acquired_at = datetime.now(timezone.utc)
+            self._write_holder_info(bot_name)
             logger.info(f"[{bot_name}] Buz Playwright lock acquired")
         except Timeout:
-            logger.error(
-                f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
-                f"Another bot may be using Buz."
-            )
+            holder_info = self._get_holder_info()
+            if holder_info:
+                holder_bot = holder_info.get('bot', 'unknown')
+                acquired_at = holder_info.get('acquired_at', 'unknown time')
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Lock held by '{holder_bot}' since {acquired_at}"
+                )
+            else:
+                logger.error(
+                    f"[{bot_name}] Failed to acquire Buz Playwright lock after {self.timeout}s. "
+                    f"Another bot may be using Buz."
+                )
             raise
 
     def unlock(self) -> None:
@@ -154,8 +226,10 @@ class BuzPlaywrightLock:
         if self._file_lock.is_locked:
             bot_name = self._holder or "unknown"
             self._file_lock.release()
+            self._clear_holder_info()
             logger.info(f"[{bot_name}] Buz Playwright lock released")
             self._holder = None
+            self._acquired_at = None
 
     @property
     def is_locked(self) -> bool:
@@ -164,20 +238,37 @@ class BuzPlaywrightLock:
 
     @property
     def holder(self) -> Optional[str]:
-        """Get the name of the bot currently holding the lock."""
+        """Get the name of the bot currently holding the lock (this instance only)."""
         return self._holder
+
+    def get_lock_status(self) -> dict:
+        """
+        Get current lock status information.
+
+        Returns:
+            Dict with lock status, holder info if available
+        """
+        holder_info = self._get_holder_info()
+        return {
+            'is_locked_by_us': self._file_lock.is_locked,
+            'our_holder': self._holder,
+            'holder_info': holder_info,
+            'lock_file_exists': self.lock_path.exists(),
+            'info_file_exists': self.lock_info_path.exists()
+        }
 
 
 # Module-level singleton for convenience
 _default_lock: Optional[BuzPlaywrightLock] = None
 
 
-def get_buz_lock(timeout: int = 300) -> BuzPlaywrightLock:
+def get_buz_lock(timeout: int = 600) -> BuzPlaywrightLock:
     """
     Get the default Buz Playwright lock instance.
 
     Args:
-        timeout: Lock timeout in seconds (only used on first call)
+        timeout: Lock timeout in seconds (only used on first call).
+                 Default: 600 (10 minutes)
 
     Returns:
         The singleton BuzPlaywrightLock instance
@@ -186,3 +277,20 @@ def get_buz_lock(timeout: int = 300) -> BuzPlaywrightLock:
     if _default_lock is None:
         _default_lock = BuzPlaywrightLock(timeout=timeout)
     return _default_lock
+
+
+def get_lock_holder_info() -> Optional[dict]:
+    """
+    Get info about who currently holds the Buz Playwright lock.
+
+    Useful for checking lock status without creating a lock instance.
+
+    Returns:
+        Dict with 'bot', 'acquired_at', 'pid' if lock is held, None otherwise
+    """
+    try:
+        if DEFAULT_LOCK_INFO_PATH.exists():
+            return json.loads(DEFAULT_LOCK_INFO_PATH.read_text())
+    except Exception:
+        pass
+    return None

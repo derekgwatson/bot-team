@@ -10,9 +10,10 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from playwright.async_api import Page, Download
+from filelock import Timeout as LockTimeout
 
 from shared.playwright.async_browser import AsyncBrowserManager
-from shared.playwright.buz import get_buz_lock
+from shared.playwright.buz import get_buz_lock, get_lock_holder_info
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,31 @@ class BuzExportService:
         self.download_dir = Path(download_dir) if download_dir else Path(tempfile.gettempdir())
         self.download_dir.mkdir(parents=True, exist_ok=True)
 
+    def _format_lock_error(self, operation: str, org_key: str) -> str:
+        """
+        Format a helpful error message when the Buz Playwright lock cannot be acquired.
+
+        Args:
+            operation: What we were trying to do (e.g., 'inventory export')
+            org_key: Organization key
+
+        Returns:
+            User-friendly error message
+        """
+        holder_info = get_lock_holder_info()
+        if holder_info:
+            holder_bot = holder_info.get('bot', 'unknown')
+            acquired_at = holder_info.get('acquired_at', 'unknown time')
+            return (
+                f"Could not start {operation} for {org_key}: "
+                f"Buz is being used by '{holder_bot}' (since {acquired_at}). "
+                f"Please wait for the other operation to complete."
+            )
+        return (
+            f"Could not start {operation} for {org_key}: "
+            f"Buz is busy with another operation. Please try again later."
+        )
+
     async def export_inventory(
         self,
         org_key: str,
@@ -66,77 +92,86 @@ class BuzExportService:
 
         # Acquire Buz lock to prevent concurrent access from other bots
         buz_lock = get_buz_lock()
-        async with buz_lock.acquire_async('ivy'):
-            async with AsyncBrowserManager(
-                headless=self.headless,
-                screenshot_dir=self.config.browser_screenshot_dir,
-                default_timeout=self.config.buz_navigation_timeout
-            ) as browser:
-                page = await browser.new_page_for_org(org_key, storage_state_path)
+        try:
+            async with buz_lock.acquire_async('ivy'):
+                async with AsyncBrowserManager(
+                    headless=self.headless,
+                    screenshot_dir=self.config.browser_screenshot_dir,
+                    default_timeout=self.config.buz_navigation_timeout
+                ) as browser:
+                    page = await browser.new_page_for_org(org_key, storage_state_path)
 
-                try:
-                    # Navigate to inventory export page
-                    await page.goto(self.config.buz_inventory_url)
-                    logger.info(f"Navigated to inventory import page")
+                    try:
+                        # Navigate to inventory export page
+                        await page.goto(self.config.buz_inventory_url)
+                        logger.info(f"Navigated to inventory import page")
 
-                    # Wait for page to load and handle org selector if present
-                    await self._handle_org_selector(page, org_key)
+                        # Wait for page to load and handle org selector if present
+                        await self._handle_org_selector(page, org_key)
 
-                    # Get available inventory groups
-                    groups = await self._get_inventory_groups(page)
-                    logger.info(f"Found {len(groups)} inventory groups")
+                        # Get available inventory groups
+                        groups = await self._get_inventory_groups(page)
+                        logger.info(f"Found {len(groups)} inventory groups")
 
-                    if not groups:
+                        if not groups:
+                            return {
+                                'success': False,
+                                'error': 'No inventory groups found',
+                                'org_key': org_key
+                            }
+
+                        # Click the export link to open modal
+                        await page.click('a[href="#exportModal"]')
+                        await page.wait_for_selector('#exportModal.in, #exportModal.show', timeout=5000)
+                        logger.info("Opened export modal")
+
+                        # Check include inactive checkbox if requested
+                        if include_inactive:
+                            checkbox = page.locator('#includeNotCurrent')
+                            if await checkbox.count() > 0:
+                                if not await checkbox.is_checked():
+                                    await checkbox.click()
+                                    logger.info("Enabled include inactive items")
+
+                        # Select all options in the inventory group select
+                        select = page.locator('#inventoryGroupCodes')
+                        await select.wait_for(state='visible')
+
+                        # Select all options
+                        await self._select_all_options(page, '#inventoryGroupCodes')
+                        logger.info("Selected all inventory groups")
+
+                        # Click export button and wait for download
+                        file_path = await self._click_export_and_download(
+                            page,
+                            org_key,
+                            'inventory'
+                        )
+
                         return {
-                            'success': False,
-                            'error': 'No inventory groups found',
-                            'org_key': org_key
+                            'success': True,
+                            'file_path': str(file_path),
+                            'org_key': org_key,
+                            'groups': groups,
+                            'include_inactive': include_inactive
                         }
 
-                    # Click the export link to open modal
-                    await page.click('a[href="#exportModal"]')
-                    await page.wait_for_selector('#exportModal.in, #exportModal.show', timeout=5000)
-                    logger.info("Opened export modal")
-
-                    # Check include inactive checkbox if requested
-                    if include_inactive:
-                        checkbox = page.locator('#includeNotCurrent')
-                        if await checkbox.count() > 0:
-                            if not await checkbox.is_checked():
-                                await checkbox.click()
-                                logger.info("Enabled include inactive items")
-
-                    # Select all options in the inventory group select
-                    select = page.locator('#inventoryGroupCodes')
-                    await select.wait_for(state='visible')
-
-                    # Select all options
-                    await self._select_all_options(page, '#inventoryGroupCodes')
-                    logger.info("Selected all inventory groups")
-
-                    # Click export button and wait for download
-                    file_path = await self._click_export_and_download(
-                        page,
-                        org_key,
-                        'inventory'
-                    )
-
-                    return {
-                        'success': True,
-                        'file_path': str(file_path),
-                        'org_key': org_key,
-                        'groups': groups,
-                        'include_inactive': include_inactive
-                    }
-
-                except Exception as e:
-                    logger.exception(f"Error exporting inventory for {org_key}: {e}")
-                    await browser.screenshot(page, f"error_inventory_{org_key}")
-                    return {
-                        'success': False,
-                        'error': str(e),
-                        'org_key': org_key
-                    }
+                    except Exception as e:
+                        logger.exception(f"Error exporting inventory for {org_key}: {e}")
+                        await browser.screenshot(page, f"error_inventory_{org_key}")
+                        return {
+                            'success': False,
+                            'error': str(e),
+                            'org_key': org_key
+                        }
+        except LockTimeout:
+            error_msg = self._format_lock_error('inventory export', org_key)
+            logger.warning(error_msg)
+            return {
+                'success': False,
+                'error': error_msg,
+                'org_key': org_key
+            }
 
     async def export_pricing(
         self,
@@ -160,77 +195,86 @@ class BuzExportService:
 
         # Acquire Buz lock to prevent concurrent access from other bots
         buz_lock = get_buz_lock()
-        async with buz_lock.acquire_async('ivy'):
-            async with AsyncBrowserManager(
-                headless=self.headless,
-                screenshot_dir=self.config.browser_screenshot_dir,
-                default_timeout=self.config.buz_navigation_timeout
-            ) as browser:
-                page = await browser.new_page_for_org(org_key, storage_state_path)
+        try:
+            async with buz_lock.acquire_async('ivy'):
+                async with AsyncBrowserManager(
+                    headless=self.headless,
+                    screenshot_dir=self.config.browser_screenshot_dir,
+                    default_timeout=self.config.buz_navigation_timeout
+                ) as browser:
+                    page = await browser.new_page_for_org(org_key, storage_state_path)
 
-                try:
-                    # Navigate to pricing export page
-                    await page.goto(self.config.buz_pricing_url)
-                    logger.info(f"Navigated to pricing import page")
+                    try:
+                        # Navigate to pricing export page
+                        await page.goto(self.config.buz_pricing_url)
+                        logger.info(f"Navigated to pricing import page")
 
-                    # Wait for page to load and handle org selector if present
-                    await self._handle_org_selector(page, org_key)
+                        # Wait for page to load and handle org selector if present
+                        await self._handle_org_selector(page, org_key)
 
-                    # Get available pricing groups
-                    groups = await self._get_pricing_groups(page)
-                    logger.info(f"Found {len(groups)} pricing groups")
+                        # Get available pricing groups
+                        groups = await self._get_pricing_groups(page)
+                        logger.info(f"Found {len(groups)} pricing groups")
 
-                    if not groups:
+                        if not groups:
+                            return {
+                                'success': False,
+                                'error': 'No pricing groups found',
+                                'org_key': org_key
+                            }
+
+                        # Click the export link to open modal
+                        await page.click('a[href="#exportModal"]')
+                        await page.wait_for_selector('#exportModal.in, #exportModal.show', timeout=5000)
+                        logger.info("Opened export modal")
+
+                        # Check include inactive checkbox if requested
+                        if include_inactive:
+                            checkbox = page.locator('#includeNotCurrent')
+                            if await checkbox.count() > 0:
+                                if not await checkbox.is_checked():
+                                    await checkbox.click()
+                                    logger.info("Enabled include inactive pricing")
+
+                        # Select all options in the pricing group select
+                        select = page.locator('#InventoryGroupPkIdList')
+                        await select.wait_for(state='visible')
+
+                        # Select all options
+                        await self._select_all_options(page, '#InventoryGroupPkIdList')
+                        logger.info("Selected all pricing groups")
+
+                        # Click export button and wait for download
+                        file_path = await self._click_export_and_download(
+                            page,
+                            org_key,
+                            'pricing'
+                        )
+
                         return {
-                            'success': False,
-                            'error': 'No pricing groups found',
-                            'org_key': org_key
+                            'success': True,
+                            'file_path': str(file_path),
+                            'org_key': org_key,
+                            'groups': groups,
+                            'include_inactive': include_inactive
                         }
 
-                    # Click the export link to open modal
-                    await page.click('a[href="#exportModal"]')
-                    await page.wait_for_selector('#exportModal.in, #exportModal.show', timeout=5000)
-                    logger.info("Opened export modal")
-
-                    # Check include inactive checkbox if requested
-                    if include_inactive:
-                        checkbox = page.locator('#includeNotCurrent')
-                        if await checkbox.count() > 0:
-                            if not await checkbox.is_checked():
-                                await checkbox.click()
-                                logger.info("Enabled include inactive pricing")
-
-                    # Select all options in the pricing group select
-                    select = page.locator('#InventoryGroupPkIdList')
-                    await select.wait_for(state='visible')
-
-                    # Select all options
-                    await self._select_all_options(page, '#InventoryGroupPkIdList')
-                    logger.info("Selected all pricing groups")
-
-                    # Click export button and wait for download
-                    file_path = await self._click_export_and_download(
-                        page,
-                        org_key,
-                        'pricing'
-                    )
-
-                    return {
-                        'success': True,
-                        'file_path': str(file_path),
-                        'org_key': org_key,
-                        'groups': groups,
-                        'include_inactive': include_inactive
-                    }
-
-                except Exception as e:
-                    logger.exception(f"Error exporting pricing for {org_key}: {e}")
-                    await browser.screenshot(page, f"error_pricing_{org_key}")
-                    return {
-                        'success': False,
-                        'error': str(e),
-                        'org_key': org_key
-                    }
+                    except Exception as e:
+                        logger.exception(f"Error exporting pricing for {org_key}: {e}")
+                        await browser.screenshot(page, f"error_pricing_{org_key}")
+                        return {
+                            'success': False,
+                            'error': str(e),
+                            'org_key': org_key
+                        }
+        except LockTimeout:
+            error_msg = self._format_lock_error('pricing export', org_key)
+            logger.warning(error_msg)
+            return {
+                'success': False,
+                'error': error_msg,
+                'org_key': org_key
+            }
 
     async def _handle_org_selector(self, page: Page, org_key: str) -> None:
         """
@@ -395,38 +439,47 @@ class BuzExportService:
 
         # Acquire Buz lock to prevent concurrent access from other bots
         buz_lock = get_buz_lock()
-        async with buz_lock.acquire_async('ivy'):
-            async with AsyncBrowserManager(
-                headless=self.headless,
-                screenshot_dir=self.config.browser_screenshot_dir,
-                default_timeout=self.config.buz_navigation_timeout
-            ) as browser:
-                page = await browser.new_page_for_org(org_key, storage_state_path)
+        try:
+            async with buz_lock.acquire_async('ivy'):
+                async with AsyncBrowserManager(
+                    headless=self.headless,
+                    screenshot_dir=self.config.browser_screenshot_dir,
+                    default_timeout=self.config.buz_navigation_timeout
+                ) as browser:
+                    page = await browser.new_page_for_org(org_key, storage_state_path)
 
-                try:
-                    if group_type == 'inventory':
-                        await page.goto(self.config.buz_inventory_url)
-                        await self._handle_org_selector(page, org_key)
-                        groups = await self._get_inventory_groups(page)
-                    else:
-                        await page.goto(self.config.buz_pricing_url)
-                        await self._handle_org_selector(page, org_key)
-                        groups = await self._get_pricing_groups(page)
+                    try:
+                        if group_type == 'inventory':
+                            await page.goto(self.config.buz_inventory_url)
+                            await self._handle_org_selector(page, org_key)
+                            groups = await self._get_inventory_groups(page)
+                        else:
+                            await page.goto(self.config.buz_pricing_url)
+                            await self._handle_org_selector(page, org_key)
+                            groups = await self._get_pricing_groups(page)
 
-                    return {
-                        'success': True,
-                        'org_key': org_key,
-                        'group_type': group_type,
-                        'groups': groups
-                    }
+                        return {
+                            'success': True,
+                            'org_key': org_key,
+                            'group_type': group_type,
+                            'groups': groups
+                        }
 
-                except Exception as e:
-                    logger.exception(f"Error getting {group_type} groups for {org_key}: {e}")
-                    return {
-                        'success': False,
-                        'error': str(e),
-                        'org_key': org_key
-                    }
+                    except Exception as e:
+                        logger.exception(f"Error getting {group_type} groups for {org_key}: {e}")
+                        return {
+                            'success': False,
+                            'error': str(e),
+                            'org_key': org_key
+                        }
+        except LockTimeout:
+            error_msg = self._format_lock_error(f'{group_type} groups lookup', org_key)
+            logger.warning(error_msg)
+            return {
+                'success': False,
+                'error': error_msg,
+                'org_key': org_key
+            }
 
 
 def run_async(coro):
