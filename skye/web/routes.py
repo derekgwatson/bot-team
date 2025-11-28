@@ -240,7 +240,9 @@ def run_job(job_id):
 
     result = scheduler_service.run_job_now(job_id)
 
-    if result.get('success'):
+    if result.get('queued'):
+        flash(f'Job "{job["name"]}" queued - check history for results', 'info')
+    elif result.get('success'):
         flash(f'Job "{job["name"]}" executed successfully', 'success')
     else:
         flash(f'Job "{job["name"]}" failed: {result.get("error", "Unknown error")}', 'error')

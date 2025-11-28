@@ -7,9 +7,18 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import os
+import logging
 from flask import Flask, jsonify
 from config import config
 from shared.auth import GatewayAuth
+from shared.error_handlers import register_error_handlers
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -34,6 +43,9 @@ from web.routes import web_bp, check_banji_status
 # Register blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(web_bp, url_prefix='/')
+
+# Register error handlers
+register_error_handlers(app, logger)
 
 
 @app.context_processor
