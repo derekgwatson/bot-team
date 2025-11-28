@@ -283,9 +283,30 @@
 .divider span {
     padding: 0 15px;
 }
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    color: #667eea;
+    text-decoration: none;
+    font-size: 0.95em;
+    margin-bottom: 20px;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.back-link span {
+    margin-right: 6px;
+}
 {% endblock %}
 
 {% block content %}
+<a href="{{ url_for('web.index') }}" class="back-link">
+    <span>&larr;</span> Back to menu
+</a>
+
 <div id="step1" class="step">
     <div class="step-title">
         <span class="step-number">1</span>
