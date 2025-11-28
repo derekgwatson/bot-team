@@ -215,7 +215,10 @@ class SchedulerService:
             logger.info(f"Job {job_id} is disabled, skipping")
             return
 
+        # Record that job is starting (shows as "running" in UI)
+        execution_id = db.start_execution(job_id)
         start_time = datetime.now()
+
         target_bot = job_data['target_bot']
         endpoint = job_data['endpoint']
         method = job_data['method'].upper()
@@ -253,9 +256,9 @@ class SchedulerService:
             # Truncate response body if too long
             response_body = response.text[:10000] if response.text else None
 
-            # Record execution
-            db.record_execution(
-                job_id=job_id,
+            # Complete execution record
+            db.complete_execution(
+                execution_id=execution_id,
                 status=status,
                 response_code=response.status_code,
                 response_body=response_body,
@@ -266,8 +269,8 @@ class SchedulerService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             logger.error(f"Job {job_id} failed with exception: {e}")
 
-            db.record_execution(
-                job_id=job_id,
+            db.complete_execution(
+                execution_id=execution_id,
                 status='failed',
                 error_message=str(e),
                 duration_ms=duration_ms

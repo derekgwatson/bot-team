@@ -5,6 +5,19 @@
 {% block content %}
 <h2>{{ job.name }}</h2>
 
+{% if running %}
+<div class="card" style="background: #fff3cd; border: 1px solid #ffc107;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="spinner" style="width: 20px; height: 20px; border: 3px solid #ffc107; border-top-color: #856404; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+        <strong style="color: #856404;">Job is running...</strong>
+        <span style="color: #856404; font-size: 13px;">(page will refresh automatically)</span>
+    </div>
+</div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endif %}
+
 <div class="card">
     <h3>Job Configuration</h3>
     <table>
@@ -35,7 +48,9 @@
         <tr>
             <th>Status</th>
             <td>
-                {% if job.enabled %}
+                {% if running %}
+                    <span class="badge" style="background: #ffc107; color: #856404;">Running</span>
+                {% elif job.enabled %}
                     <span class="badge badge-enabled">Enabled</span>
                 {% else %}
                     <span class="badge badge-disabled">Disabled</span>
@@ -94,7 +109,9 @@
     {% if current_user.is_admin %}
     <div class="actions" style="margin-top: 20px;">
         <form action="{{ url_for('web.run_job', job_id=job.job_id) }}" method="post" style="display:inline;">
-            <button type="submit" class="btn btn-primary">Run Now</button>
+            <button type="submit" class="btn btn-primary" {% if running %}disabled{% endif %}>
+                {% if running %}Running...{% else %}Run Now{% endif %}
+            </button>
         </form>
         <form action="{{ url_for('web.toggle_job', job_id=job.job_id) }}" method="post" style="display:inline;">
             <button type="submit" class="btn btn-secondary">
@@ -102,8 +119,12 @@
             </button>
         </form>
         <a href="{{ url_for('web.edit_job', job_id=job.job_id) }}" class="btn btn-secondary">Edit</a>
-        <form action="{{ url_for('web.delete_job', job_id=job.job_id) }}" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this job?');">
-            <button type="submit" class="btn btn-danger">Delete</button>
+        <form action="{{ url_for('web.delete_job', job_id=job.job_id) }}" method="post" style="display:inline;" class="confirm-form">
+            <button type="button" class="btn btn-danger confirm-trigger">Delete</button>
+            <span class="confirm-state" style="display: none;">
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                <button type="button" class="btn cancel-confirm" style="background: #95a5a6;">Cancel</button>
+            </span>
         </form>
     </div>
     {% endif %}
@@ -125,25 +146,41 @@
         <tbody>
             {% for exec in history %}
             <tr>
-                <td><span class="local-time" data-utc="{{ exec.executed_at }}">{{ exec.executed_at|relative_time }}</span></td>
                 <td>
-                    <span class="badge badge-{{ exec.status }}">{{ exec.status }}</span>
+                    {% if exec.status == 'running' and exec.started_at %}
+                        <span class="local-time" data-utc="{{ exec.started_at }}">{{ exec.started_at|relative_time }}</span>
+                    {% elif exec.executed_at %}
+                        <span class="local-time" data-utc="{{ exec.executed_at }}">{{ exec.executed_at|relative_time }}</span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if exec.status == 'running' %}
+                        <span class="badge" style="background: #ffc107; color: #856404;">running</span>
+                    {% else %}
+                        <span class="badge badge-{{ exec.status }}">{{ exec.status }}</span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if exec.response_code %}
                         HTTP {{ exec.response_code }}
                     {% elif exec.error_message %}
                         <span class="text-danger">Error</span>
+                    {% elif exec.status == 'running' %}
+                        <span class="text-muted">...</span>
                     {% else %}
                         -
                     {% endif %}
                 </td>
-                <td>{{ exec.duration_ms or '-' }}ms</td>
+                <td>{% if exec.status == 'running' %}<span class="text-muted">...</span>{% else %}{{ exec.duration_ms or '-' }}ms{% endif %}</td>
                 <td>
                     {% if exec.error_message %}
                         <small class="text-danger">{{ exec.error_message[:100] }}</small>
                     {% elif exec.response_body %}
                         <small>{{ exec.response_body[:100] }}...</small>
+                    {% elif exec.status == 'running' %}
+                        <small class="text-muted">In progress...</small>
                     {% else %}
                         -
                     {% endif %}
@@ -160,4 +197,27 @@
 <p style="margin-top: 20px;">
     <a href="{{ url_for('web.jobs_list') }}">&larr; Back to Jobs</a>
 </p>
+
+<script>
+// Confirmation pattern for delete
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('confirm-trigger')) {
+        const form = e.target.closest('.confirm-form');
+        e.target.style.display = 'none';
+        form.querySelector('.confirm-state').style.display = 'inline';
+    }
+    if (e.target.classList.contains('cancel-confirm')) {
+        const form = e.target.closest('.confirm-form');
+        form.querySelector('.confirm-state').style.display = 'none';
+        form.querySelector('.confirm-trigger').style.display = '';
+    }
+});
+
+// Auto-refresh while job is running
+{% if running %}
+setTimeout(function() {
+    window.location.reload();
+}, 3000);
+{% endif %}
+</script>
 {% endblock %}

@@ -68,12 +68,14 @@ def job_detail(job_id):
     job['schedule_config_parsed'] = json.loads(job['schedule_config'])
 
     history = db.get_job_history(job_id, limit=50)
+    running = db.get_running_executions(job_id)
 
     return render_template(
         'job_detail.html',
         config=config,
         job=job,
         history=history,
+        running=running,
         current_user=current_user
     )
 

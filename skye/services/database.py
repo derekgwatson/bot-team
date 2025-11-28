@@ -148,6 +148,78 @@ class Database:
     # Job Execution History
     # ─────────────────────────────────────────────────────────────────────────
 
+    def start_execution(self, job_id: str) -> Optional[int]:
+        """Record that a job has started executing.
+
+        Returns the execution ID to use when completing the execution.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO job_executions
+                (job_id, status, started_at)
+                VALUES (?, 'running', CURRENT_TIMESTAMP)
+            ''', (job_id,))
+            return cursor.lastrowid
+
+    def complete_execution(
+        self,
+        execution_id: int,
+        status: str,
+        response_code: int = None,
+        response_body: str = None,
+        error_message: str = None,
+        duration_ms: int = None
+    ) -> bool:
+        """Complete a running execution with final status."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE job_executions
+                SET status = ?, response_code = ?, response_body = ?,
+                    error_message = ?, duration_ms = ?, executed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (status, response_code, response_body, error_message, duration_ms, execution_id))
+
+            # Get job_id for updating job stats
+            cursor.execute('SELECT job_id FROM job_executions WHERE id = ?', (execution_id,))
+            row = cursor.fetchone()
+            if row:
+                job_id = row[0]
+                # Update last_run on the job
+                cursor.execute('''
+                    UPDATE jobs SET last_run = CURRENT_TIMESTAMP WHERE job_id = ?
+                ''', (job_id,))
+                # If successful, update last_success
+                if status == 'success':
+                    cursor.execute('''
+                        UPDATE jobs SET last_success = CURRENT_TIMESTAMP WHERE job_id = ?
+                    ''', (job_id,))
+
+            return cursor.rowcount > 0
+
+    def get_running_executions(self, job_id: str = None) -> List[Dict]:
+        """Get currently running executions, optionally filtered by job_id."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if job_id:
+                cursor.execute('''
+                    SELECT e.*, j.name as job_name, j.target_bot
+                    FROM job_executions e
+                    JOIN jobs j ON e.job_id = j.job_id
+                    WHERE e.status = 'running' AND e.job_id = ?
+                    ORDER BY e.started_at DESC
+                ''', (job_id,))
+            else:
+                cursor.execute('''
+                    SELECT e.*, j.name as job_name, j.target_bot
+                    FROM job_executions e
+                    JOIN jobs j ON e.job_id = j.job_id
+                    WHERE e.status = 'running'
+                    ORDER BY e.started_at DESC
+                ''')
+            return [dict(row) for row in cursor.fetchall()]
+
     def record_execution(
         self,
         job_id: str,
@@ -157,13 +229,13 @@ class Database:
         error_message: str = None,
         duration_ms: int = None
     ) -> Optional[int]:
-        """Record a job execution."""
+        """Record a job execution (legacy - for direct complete recording)."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO job_executions
-                (job_id, status, response_code, response_body, error_message, duration_ms)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (job_id, status, response_code, response_body, error_message, duration_ms, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ''', (job_id, status, response_code, response_body, error_message, duration_ms))
 
             # Update last_run on the job
