@@ -26,13 +26,35 @@
         <option value="false" {% if is_active == 'false' %}selected{% endif %}>Inactive</option>
     </select>
 
-    <input type="text" name="search" value="{{ search }}" placeholder="Search pricing...">
-    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    <input type="search" id="searchInput" name="search" value="{{ search }}" placeholder="Search pricing..." autocomplete="off">
 
     {% if org_key or group_code or is_active or search %}
     <a href="{{ url_for('web.pricing') }}" class="btn btn-secondary btn-sm">Clear</a>
     {% endif %}
 </form>
+
+<script>
+// Debounced instant search
+(function() {
+    const searchInput = document.getElementById('searchInput');
+    let debounceTimer;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                searchInput.form.submit();
+            }, 400);
+        });
+
+        // Focus search input if there's a search term
+        {% if search %}
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+        {% endif %}
+    }
+})();
+</script>
 
 <p class="text-muted">Showing {{ coefficients | length }} of {{ format_number(total) }} coefficients</p>
 
