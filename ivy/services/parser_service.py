@@ -3,6 +3,14 @@ Parser service for processing Buz inventory and pricing Excel exports.
 
 Parses Excel files exported from Buz and extracts inventory items and
 pricing coefficients into structured data.
+
+Buz export format quirks:
+- Inventory files: Row 1 is title (e.g., "Glideshift Blinds - 28/11/2025"),
+  headers are on row 2
+- Pricing files: Headers are on row 1
+- Both have an Operation column (A=Add, E=Edit, D=Delete) for import
+- Each sheet represents an inventory group (sheet name = group code)
+- 'Help' and 'Sheet1' sheets should be skipped
 """
 import logging
 from pathlib import Path
@@ -13,6 +21,9 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 logger = logging.getLogger(__name__)
 
+# Sheets to skip when parsing
+SKIP_SHEETS = {'help', 'sheet1'}
+
 
 class BuzExcelParser:
     """
@@ -22,119 +33,168 @@ class BuzExcelParser:
     The parser is flexible to handle varying column structures.
     """
 
-    # Common column name mappings for inventory items
+    # Column name mappings for Buz inventory items export
+    # Buz exports use "Code*" and "Description*" with asterisks
     INVENTORY_COLUMN_MAP = {
-        # Code columns
+        # Primary key (Buz internal)
+        'pkid': 'pk_id',
+
+        # Code columns - Buz uses "Code*" with asterisk
+        'code*': 'item_code',
+        'code': 'item_code',
+        'item code': 'item_code',
         'inventory group code': 'group_code',
         'inventorygroupcode': 'group_code',
         'group code': 'group_code',
-        'group': 'group_code',
-        'item code': 'item_code',
-        'itemcode': 'item_code',
-        'code': 'item_code',
-        'product code': 'item_code',
 
-        # Name columns
-        'item name': 'item_name',
-        'itemname': 'item_name',
-        'name': 'item_name',
-        'product name': 'item_name',
+        # Description columns - Buz uses "Description*" with asterisk
+        'description*': 'description',
         'description': 'description',
-        'item description': 'description',
+        'descnpart1 (material)': 'material',
+        'descnpart2 (material types)': 'material_type',
+        'descnpart3 (colour)': 'colour',
 
-        # Status columns
-        'is current': 'is_active',
-        'iscurrent': 'is_active',
-        'current': 'is_active',
-        'active': 'is_active',
-        'status': 'is_active',
+        # Grid codes
+        'price grid code': 'price_grid_code',
+        'cost grid code': 'cost_grid_code',
+        'discount group code': 'discount_group_code',
 
-        # Pricing columns
-        'cost price': 'cost_price',
-        'costprice': 'cost_price',
-        'cost': 'cost_price',
-        'sell price': 'sell_price',
-        'sellprice': 'sell_price',
-        'price': 'sell_price',
+        # Pricing
+        'last purchase price': 'last_purchase_price',
+        'standard cost': 'standard_cost',
+        'tax rate': 'tax_rate',
 
-        # Quantity columns
+        # Units and quantities
+        'units purchase': 'units_purchase',
         'min qty': 'min_qty',
-        'minqty': 'min_qty',
-        'minimum': 'min_qty',
-        'min': 'min_qty',
         'max qty': 'max_qty',
-        'maxqty': 'max_qty',
-        'maximum': 'max_qty',
-        'max': 'max_qty',
+        'reorder multiplier': 'reorder_multiplier',
+        'stocking multiplier': 'stocking_multiplier',
+        'units stock': 'units_stock',
+        'selling multiplier': 'selling_multiplier',
+        'units sell': 'units_sell',
+
+        # ForeX (foreign exchange)
+        'forex code': 'forex_code',
+        'last purchase forex': 'last_purchase_forex',
+
+        # Lead times
+        'purchasing lead days': 'purchasing_lead_days',
+
+        # Product info
+        'cost method': 'cost_method',
+        'product size': 'product_size',
+        'product type': 'product_type',
 
         # Supplier columns
-        'supplier code': 'supplier_code',
-        'suppliercode': 'supplier_code',
-        'supplier name': 'supplier_name',
-        'suppliername': 'supplier_name',
         'supplier': 'supplier_name',
+        'supplier code': 'supplier_code',
+        'supplier product code': 'supplier_product_code',
+        'supplier product description': 'supplier_product_description',
 
-        # Other columns
-        'unit of measure': 'unit_of_measure',
-        'uom': 'unit_of_measure',
-        'unit': 'unit_of_measure',
-        'sort order': 'sort_order',
-        'sortorder': 'sort_order',
-        'order': 'sort_order',
-    }
+        # Dimensions
+        'length': 'length',
+        'maximum width': 'maximum_width',
 
-    # Common column name mappings for pricing coefficients
-    PRICING_COLUMN_MAP = {
-        # Group columns
-        'inventory group code': 'group_code',
-        'inventorygroupcode': 'group_code',
-        'group code': 'group_code',
-        'group': 'group_code',
-        'layout': 'group_code',
+        # Production times
+        'extra time to produce': 'extra_time_to_produce',
+        'extra time to fit': 'extra_time_to_fit',
 
-        # Coefficient columns
-        'coefficient code': 'coefficient_code',
-        'coefficientcode': 'coefficient_code',
-        'code': 'coefficient_code',
-        'pricing code': 'coefficient_code',
-        'coefficient name': 'coefficient_name',
-        'coefficientname': 'coefficient_name',
-        'name': 'coefficient_name',
-        'pricing name': 'coefficient_name',
+        # Custom variables
+        'custom var 1 (packsize)': 'pack_size',
+        'custom var 2 (packopt)': 'pack_option',
+        'custom var 3 (packtype)': 'pack_type',
 
-        # Description columns
-        'description': 'description',
-        'coefficient description': 'description',
-
-        # Type columns
-        'type': 'coefficient_type',
-        'coefficient type': 'coefficient_type',
+        # Other
+        'warning': 'warning',
+        'rptcat': 'report_category',
+        'last edit date': 'last_edit_date',
 
         # Status columns
+        'active': 'is_active',
         'is current': 'is_active',
         'iscurrent': 'is_active',
-        'current': 'is_active',
-        'active': 'is_active',
-        'status': 'is_active',
 
-        # Value columns
-        'value': 'base_value',
-        'base value': 'base_value',
-        'basevalue': 'base_value',
-        'coefficient': 'base_value',
-        'min value': 'min_value',
-        'minvalue': 'min_value',
-        'minimum': 'min_value',
-        'max value': 'max_value',
-        'maxvalue': 'max_value',
-        'maximum': 'max_value',
+        # Operation column (A=Add, E=Edit, D=Delete)
+        'operation': 'operation',
+    }
 
-        # Other columns
-        'unit': 'unit',
-        'uom': 'unit',
-        'sort order': 'sort_order',
+    # Column name mappings for Buz pricing export
+    # Note: IsNotCurrent is inverted (True = inactive)
+    PRICING_COLUMN_MAP = {
+        # Primary key (Buz internal)
+        'pkid': 'pk_id',
+
+        # Item reference columns
+        'inventory code': 'item_code',
+        'inventorycode': 'item_code',
+        'code': 'item_code',
+
+        # Description
+        'description': 'description',
+
+        # Customer price group
+        'customer price group code': 'price_group_code',
+        'customerpricegroupcode': 'price_group_code',
+        'price group code': 'price_group_code',
+        'price group': 'price_group_code',
+
+        # Effective date
+        'date from': 'effective_date',
+        'datefrom': 'effective_date',
+        'effective date': 'effective_date',
+
+        # Sell prices - various calculation methods
+        'sell each': 'sell_each',
+        'selleach': 'sell_each',
+        'selllmwide': 'sell_lm_wide',
+        'selllmheight': 'sell_lm_height',
+        'selllmdepth': 'sell_lm_depth',
+        'sellsqm': 'sell_sqm',
+        'sellpercentageonmain': 'sell_percentage_on_main',
+        'sellminimum': 'sell_minimum',
+
+        # Cost prices - various calculation methods
+        'costeach': 'cost_each',
+        'costlmwide': 'cost_lm_wide',
+        'costlmheight': 'cost_lm_height',
+        'costlmdepth': 'cost_lm_depth',
+        'costsqm': 'cost_sqm',
+        'costpercentageonmain': 'cost_percentage_on_main',
+        'costminimum': 'cost_minimum',
+
+        # Install costs
+        'installcosteach': 'install_cost_each',
+        'installcostlmwidth': 'install_cost_lm_width',
+        'installcost height': 'install_cost_height',
+        'installcostdepth': 'install_cost_depth',
+        'installcostsqm': 'install_cost_sqm',
+        'installcostpercentageofmain': 'install_cost_percentage_of_main',
+        'installcostminimum': 'install_cost_minimum',
+
+        # Install sell prices
+        'installselleach': 'install_sell_each',
+        'installsellminimum': 'install_sell_minimum',
+        'installselllmwide': 'install_sell_lm_wide',
+        'installsellsqm': 'install_sell_sqm',
+        'installsellheight': 'install_sell_height',
+        'installselldepth': 'install_sell_depth',
+        'installsellpercentageofmain': 'install_sell_percentage_of_main',
+
+        # Supplier
+        'supplier code': 'supplier_code',
+        'supplier descn': 'supplier_description',
+
+        # Sort order
         'sortorder': 'sort_order',
-        'order': 'sort_order',
+        'sort order': 'sort_order',
+
+        # Status - NOTE: IsNotCurrent is inverted (True = inactive)
+        'isnotcurrent': 'is_not_current',
+        'is not current': 'is_not_current',
+
+        # Operation column (A=Add for pricing)
+        'operation': 'operation',
     }
 
     def parse_inventory_file(self, file_path: str) -> Dict[str, Any]:
@@ -155,13 +215,18 @@ class BuzExcelParser:
             groups = {}
 
             for sheet_name in workbook.sheetnames:
+                # Skip Help and Sheet1 sheets
+                if sheet_name.lower() in SKIP_SHEETS:
+                    logger.debug(f"Skipping sheet: {sheet_name}")
+                    continue
+
                 sheet = workbook[sheet_name]
                 sheet_items = self._parse_inventory_sheet(sheet, sheet_name)
                 items.extend(sheet_items)
 
-                # Track groups
+                # Track groups - use sheet name as group code
                 for item in sheet_items:
-                    group_code = item.get('group_code', sheet_name)
+                    group_code = item.get('group_code') or sheet_name
                     if group_code not in groups:
                         groups[group_code] = {
                             'group_code': group_code,
@@ -209,13 +274,18 @@ class BuzExcelParser:
             groups = {}
 
             for sheet_name in workbook.sheetnames:
-                sheet = workbook[sheet_name]
-                sheet_coefficients = self._parse_pricing_sheet(sheet, sheet_name)
-                coefficients.extend(sheet_coefficients)
+                # Skip Help and Sheet1 sheets
+                if sheet_name.lower() in SKIP_SHEETS:
+                    logger.debug(f"Skipping sheet: {sheet_name}")
+                    continue
 
-                # Track groups
-                for coeff in sheet_coefficients:
-                    group_code = coeff.get('group_code', sheet_name)
+                sheet = workbook[sheet_name]
+                sheet_pricing = self._parse_pricing_sheet(sheet, sheet_name)
+                coefficients.extend(sheet_pricing)
+
+                # Track groups - use sheet name as group code
+                for pricing in sheet_pricing:
+                    group_code = pricing.get('group_code') or sheet_name
                     if group_code not in groups:
                         groups[group_code] = {
                             'group_code': group_code,
@@ -368,18 +438,20 @@ class BuzExcelParser:
         """Parse a single inventory item row."""
         item = {
             'group_code': default_group,
+            'pk_id': None,
             'item_code': '',
-            'item_name': '',
             'description': '',
+            'description_part1': '',
+            'description_part2': '',
+            'description_part3': '',
+            'price_grid_code': '',
+            'cost_grid_code': '',
             'unit_of_measure': '',
             'is_active': True,
             'supplier_code': '',
             'supplier_name': '',
-            'cost_price': 0.0,
-            'sell_price': 0.0,
-            'min_qty': 0.0,
-            'max_qty': 0.0,
             'sort_order': 0,
+            'operation': '',
             'extra_data': {}
         }
 
@@ -396,13 +468,9 @@ class BuzExcelParser:
         if unmapped:
             item['extra_data'] = unmapped
 
-        # Item must have at least a code or name
-        if not item['item_code'] and not item['item_name']:
+        # Item must have at least a code
+        if not item['item_code']:
             return None
-
-        # If no item_code, derive from name
-        if not item['item_code'] and item['item_name']:
-            item['item_code'] = item['item_name'][:50]
 
         return item
 
@@ -412,19 +480,52 @@ class BuzExcelParser:
         column_map: Dict[int, str],
         default_group: str
     ) -> Optional[Dict[str, Any]]:
-        """Parse a single pricing coefficient row."""
-        coeff = {
+        """Parse a single pricing row."""
+        pricing = {
             'group_code': default_group,
-            'coefficient_code': '',
-            'coefficient_name': '',
+            'pk_id': None,
+            'item_code': '',
             'description': '',
-            'coefficient_type': '',
+            'price_group_code': '',
+            'effective_date': None,
             'is_active': True,
-            'base_value': 0.0,
-            'min_value': 0.0,
-            'max_value': 0.0,
-            'unit': '',
+            # Sell prices - various calculation methods
+            'sell_each': 0.0,
+            'sell_lm_wide': 0.0,
+            'sell_lm_height': 0.0,
+            'sell_lm_depth': 0.0,
+            'sell_sqm': 0.0,
+            'sell_percentage_on_main': 0.0,
+            'sell_minimum': 0.0,
+            # Cost prices
+            'cost_each': 0.0,
+            'cost_lm_wide': 0.0,
+            'cost_lm_height': 0.0,
+            'cost_lm_depth': 0.0,
+            'cost_sqm': 0.0,
+            'cost_percentage_on_main': 0.0,
+            'cost_minimum': 0.0,
+            # Install costs
+            'install_cost_each': 0.0,
+            'install_cost_lm_width': 0.0,
+            'install_cost_height': 0.0,
+            'install_cost_depth': 0.0,
+            'install_cost_sqm': 0.0,
+            'install_cost_percentage_of_main': 0.0,
+            'install_cost_minimum': 0.0,
+            # Install sell prices
+            'install_sell_each': 0.0,
+            'install_sell_minimum': 0.0,
+            'install_sell_lm_wide': 0.0,
+            'install_sell_sqm': 0.0,
+            'install_sell_height': 0.0,
+            'install_sell_depth': 0.0,
+            'install_sell_percentage_of_main': 0.0,
+            # Supplier
+            'supplier_code': '',
+            'supplier_description': '',
             'sort_order': 0,
+            'operation': '',
             'extra_data': {}
         }
 
@@ -433,60 +534,102 @@ class BuzExcelParser:
         for idx, value in enumerate(row):
             if idx in column_map:
                 field = column_map[idx]
-                coeff[field] = self._convert_value(value, field)
+                pricing[field] = self._convert_value(value, field)
             elif value is not None:
                 # Store unmapped columns in extra_data
                 unmapped[f'col_{idx}'] = value
 
         if unmapped:
-            coeff['extra_data'] = unmapped
+            pricing['extra_data'] = unmapped
 
-        # Coefficient must have at least a code or name
-        if not coeff['coefficient_code'] and not coeff['coefficient_name']:
+        # Handle IsNotCurrent inversion (True = inactive, so invert for is_active)
+        if 'is_not_current' in pricing:
+            is_not_current = pricing.pop('is_not_current')
+            # Invert: if is_not_current is True, is_active should be False
+            if isinstance(is_not_current, bool):
+                pricing['is_active'] = not is_not_current
+            elif isinstance(is_not_current, str):
+                pricing['is_active'] = is_not_current.lower() not in ('yes', 'true', '1', 'y')
+            elif isinstance(is_not_current, (int, float)):
+                pricing['is_active'] = not bool(is_not_current)
+
+        # Pricing must have at least an item code
+        if not pricing['item_code']:
             return None
 
-        # If no code, derive from name
-        if not coeff['coefficient_code'] and coeff['coefficient_name']:
-            coeff['coefficient_code'] = coeff['coefficient_name'][:50]
+        return pricing
 
-        return coeff
+    # Fields that should be treated as numeric (floats)
+    NUMERIC_FIELDS = {
+        # Inventory numeric fields
+        'last_purchase_price', 'standard_cost', 'tax_rate',
+        'min_qty', 'max_qty', 'reorder_multiplier',
+        'stocking_multiplier', 'selling_multiplier',
+        'last_purchase_forex', 'length', 'maximum_width',
+        'extra_time_to_produce', 'extra_time_to_fit',
+        # Pricing numeric fields - sell
+        'sell_each', 'sell_lm_wide', 'sell_lm_height', 'sell_lm_depth',
+        'sell_sqm', 'sell_percentage_on_main', 'sell_minimum',
+        # Pricing numeric fields - cost
+        'cost_each', 'cost_lm_wide', 'cost_lm_height', 'cost_lm_depth',
+        'cost_sqm', 'cost_percentage_on_main', 'cost_minimum',
+        # Pricing numeric fields - install cost
+        'install_cost_each', 'install_cost_lm_width', 'install_cost_height',
+        'install_cost_depth', 'install_cost_sqm',
+        'install_cost_percentage_of_main', 'install_cost_minimum',
+        # Pricing numeric fields - install sell
+        'install_sell_each', 'install_sell_minimum', 'install_sell_lm_wide',
+        'install_sell_sqm', 'install_sell_height', 'install_sell_depth',
+        'install_sell_percentage_of_main',
+    }
 
     def _convert_value(self, value: Any, field: str) -> Any:
         """Convert a cell value to the appropriate type for a field."""
+        from datetime import datetime
+
         if value is None:
             # Return appropriate default based on field type
-            if field in ('is_active',):
-                return True
-            elif field in ('cost_price', 'sell_price', 'min_qty', 'max_qty',
-                          'base_value', 'min_value', 'max_value'):
+            if field in ('is_active', 'is_not_current'):
+                return False if field == 'is_not_current' else True
+            elif field in self.NUMERIC_FIELDS:
                 return 0.0
-            elif field in ('sort_order',):
-                return 0
+            elif field in ('sort_order', 'pk_id', 'purchasing_lead_days'):
+                return 0 if field != 'pk_id' else None
+            elif field in ('effective_date', 'last_edit_date'):
+                return None
             return ''
 
         # Boolean fields
-        if field == 'is_active':
+        if field in ('is_active', 'is_not_current'):
             if isinstance(value, bool):
                 return value
             if isinstance(value, (int, float)):
                 return bool(value)
             if isinstance(value, str):
                 return value.lower() in ('yes', 'true', '1', 'y', 'active', 'current')
-            return True
+            return False
 
-        # Numeric fields
-        if field in ('cost_price', 'sell_price', 'min_qty', 'max_qty',
-                    'base_value', 'min_value', 'max_value'):
+        # Date fields
+        if field in ('effective_date', 'last_edit_date'):
+            if isinstance(value, datetime):
+                return value.strftime('%Y-%m-%d')
+            if isinstance(value, str):
+                return value.strip()
+            return str(value) if value else None
+
+        # Numeric (float) fields
+        if field in self.NUMERIC_FIELDS:
             try:
                 return float(value)
             except (ValueError, TypeError):
                 return 0.0
 
-        if field == 'sort_order':
+        # Integer fields
+        if field in ('sort_order', 'pk_id', 'purchasing_lead_days'):
             try:
                 return int(value)
             except (ValueError, TypeError):
-                return 0
+                return 0 if field != 'pk_id' else None
 
         # String fields
         return str(value).strip() if value else ''
