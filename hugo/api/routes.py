@@ -920,3 +920,202 @@ def delete_screenshot(filename):
 
     filepath.unlink()
     return jsonify({'success': True, 'deleted': filename})
+
+
+# -------------------------------------------------------------------------
+# User Edit endpoints
+# -------------------------------------------------------------------------
+
+@api_bp.route('/users/<email>/details', methods=['GET'])
+@api_or_session_auth
+def get_user_details(email):
+    """
+    GET /api/users/<email>/details
+
+    Get editable user details from Buz.
+
+    Query params:
+        org: Organization key (required)
+    """
+    org_key = request.args.get('org')
+
+    if not org_key:
+        return jsonify({'error': 'org query parameter is required'}), 400
+
+    try:
+        service, run_async = get_user_service()
+        result = run_async(service.get_user_details(org_key, email))
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['message']}), 404
+
+    except Exception as e:
+        logger.exception(f"Error getting user details for {email}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<email>', methods=['PATCH'])
+@api_or_session_auth
+def update_user(email):
+    """
+    PATCH /api/users/<email>
+
+    Update user details in Buz.
+
+    Body (JSON):
+        org: Organization key (required)
+        group: New group name (optional)
+        first_name: New first name (optional)
+        last_name: New last name (optional)
+        phone: New phone number (optional)
+        mobile: New mobile number (optional)
+        customer_name: Customer name (optional, for customer users)
+        customer_pkid: Customer PKID (optional, required with customer_name)
+    """
+    data = request.get_json() or {}
+    org_key = data.get('org')
+
+    if not org_key:
+        return jsonify({'error': 'org is required'}), 400
+
+    # Extract changes (excluding 'org')
+    changes = {k: v for k, v in data.items() if k != 'org'}
+
+    if not changes:
+        return jsonify({'error': 'No changes provided'}), 400
+
+    try:
+        service, run_async = get_user_service()
+        db = get_db()
+
+        result = run_async(service.update_user(org_key, email, changes))
+
+        if result['success']:
+            # Log the activity
+            db.log_activity(
+                action='update',
+                email=email,
+                org_key=org_key,
+                old_value='',
+                new_value=', '.join(result['changes_applied']),
+                performed_by=request.headers.get('X-Performed-By', 'web'),
+                success=True
+            )
+
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['message']}), 400
+
+    except Exception as e:
+        logger.exception(f"Error updating user {email}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/groups', methods=['GET'])
+@api_or_session_auth
+def get_groups():
+    """
+    GET /api/groups
+
+    Get available user groups for an organization.
+
+    Query params:
+        org: Organization key (required)
+    """
+    org_key = request.args.get('org')
+
+    if not org_key:
+        return jsonify({'error': 'org query parameter is required'}), 400
+
+    try:
+        service, run_async = get_user_service()
+        result = run_async(service.get_available_groups(org_key))
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['message']}), 500
+
+    except Exception as e:
+        logger.exception(f"Error getting groups for {org_key}")
+        return jsonify({'error': str(e)}), 500
+
+
+# -------------------------------------------------------------------------
+# Customer endpoints
+# -------------------------------------------------------------------------
+
+@api_bp.route('/customers/search', methods=['GET'])
+@api_or_session_auth
+def search_customers():
+    """
+    GET /api/customers/search
+
+    Search for customers by company name.
+
+    Query params:
+        org: Organization key (required)
+        q: Search query (company name, required)
+    """
+    org_key = request.args.get('org')
+    query = request.args.get('q', '').strip()
+
+    if not org_key:
+        return jsonify({'error': 'org query parameter is required'}), 400
+
+    if not query:
+        return jsonify({'error': 'q (search query) is required'}), 400
+
+    if len(query) < 2:
+        return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+
+    try:
+        service, run_async = get_user_service()
+        result = run_async(service.search_customers(org_key, query))
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['message']}), 500
+
+    except Exception as e:
+        logger.exception(f"Error searching customers in {org_key}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/customers/from-user', methods=['GET'])
+@api_or_session_auth
+def get_customer_from_user():
+    """
+    GET /api/customers/from-user
+
+    Get customer details from an existing user's assignment.
+    Useful for finding the customer when adding another user to the same customer.
+
+    Query params:
+        org: Organization key (required)
+        email: Email of existing user (required)
+    """
+    org_key = request.args.get('org')
+    email = request.args.get('email')
+
+    if not org_key:
+        return jsonify({'error': 'org query parameter is required'}), 400
+
+    if not email:
+        return jsonify({'error': 'email query parameter is required'}), 400
+
+    try:
+        service, run_async = get_user_service()
+        result = run_async(service.get_customer_from_user(org_key, email))
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['message']}), 404
+
+    except Exception as e:
+        logger.exception(f"Error getting customer from user {email}")
+        return jsonify({'error': str(e)}), 500
