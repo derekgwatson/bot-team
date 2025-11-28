@@ -1,0 +1,9 @@
+# Buz storage state files (contain session cookies)
+buz/*.json
+
+# Keep the buz directory structure
+!buz/
+!buz/.gitkeep
+
+# Lock file (runtime artifact)
+buz_playwright.lock

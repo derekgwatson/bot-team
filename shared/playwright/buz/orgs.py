@@ -3,6 +3,9 @@ Buz organization configuration.
 
 Provides centralized org configuration for Buz-interacting bots.
 Each org has authentication stored in a Playwright storage state file.
+
+Storage state files are stored in the shared .secrets/buz/ directory
+at the project root, so all Buz-interacting bots use the same auth.
 """
 import os
 import logging
@@ -11,15 +14,18 @@ from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Default shared secrets directory at project root
+DEFAULT_SECRETS_DIR = Path(__file__).parent.parent.parent.parent / '.secrets' / 'buz'
+
 
 class BuzOrgs:
     """
     Manages Buz organization configurations.
 
     Orgs are loaded from BUZ_ORGS environment variable and storage state
-    files are expected in {bot_dir}/.secrets/buz_storage_state_{org}.json
+    files are expected in .secrets/buz/buz_storage_state_{org}.json
 
-    The storage state files are created using the buz_auth_bootstrap.py tool.
+    The storage state files are created using tools/buz_auth_bootstrap.py
     """
 
     # Default org display names (can be extended)
@@ -38,14 +44,15 @@ class BuzOrgs:
     @classmethod
     def load_orgs(
         cls,
-        secrets_dir: Path,
+        secrets_dir: Optional[Path] = None,
         env_var: str = 'BUZ_ORGS'
     ) -> Tuple[Dict[str, dict], Dict[str, str]]:
         """
         Load Buz organization configurations from environment.
 
         Args:
-            secrets_dir: Directory containing storage state files
+            secrets_dir: Directory containing storage state files.
+                         Defaults to shared .secrets/buz/ directory.
             env_var: Environment variable name containing org list
 
         Returns:
@@ -53,6 +60,8 @@ class BuzOrgs:
             - configured_orgs: dict of org_name -> {name, display_name, storage_state_path, has_customers}
             - missing_auth_orgs: dict of org_name -> expected_path
         """
+        if secrets_dir is None:
+            secrets_dir = DEFAULT_SECRETS_DIR
         orgs_env = os.environ.get(env_var, '').strip()
         if not orgs_env:
             return {}, {}
@@ -95,7 +104,8 @@ class BuzOrgs:
         print("\n Warning: Some organizations are missing authentication")
         for org_name, expected_path in missing_auth.items():
             print(f"  - {org_name}: {expected_path}")
-        print("\n Run this to set up authentication:")
+        print("\n Run this from the bot-team root directory to set up authentication:")
         for org_name in missing_auth.keys():
             print(f"    python tools/buz_auth_bootstrap.py {org_name}")
+        print("\n Storage states are shared between Banji, Hugo, and Ivy")
         print()
