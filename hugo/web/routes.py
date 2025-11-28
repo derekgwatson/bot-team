@@ -215,6 +215,7 @@ def sync():
 
     db = get_db()
     history = db.get_sync_history(limit=50)
+    running = db.get_running_syncs()
 
     # Group by org
     by_org = {}
@@ -228,7 +229,8 @@ def sync():
         'sync.html',
         config=config,
         history=history,
-        by_org=by_org
+        by_org=by_org,
+        running=running
     )
 
 
