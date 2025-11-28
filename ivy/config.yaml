@@ -24,6 +24,16 @@ buz_urls:
   inventory_export: https://go.buzmanager.com/Settings/Inventory/Import
   pricing_export: https://go.buzmanager.com/Settings/InventoryPrices/Import
 
+# Home org for each inventory group
+# Each group has a "home org" with the complete/authoritative item set.
+# Other orgs get items copied on-demand during ordering.
+# Format: GROUP_CODE: org_key
+inventory_group_home_orgs:
+  # Examples - fill in as needed:
+  # ROLL: cb      # Roller blind components - Canberra
+  # TRACK: cb     # Track systems - Canberra
+  # FABRIC: dd    # Fabrics - Designer Drapes
+
 # Authentication configuration
 # Uses Chester's auth gateway for Google OAuth
 auth:

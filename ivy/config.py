@@ -58,6 +58,9 @@ class Config:
             "https://go.buzmanager.com/Settings/InventoryPrices/Import"
         )
 
+        # Inventory group home orgs - which org has the authoritative items
+        self.inventory_group_home_orgs = data.get("inventory_group_home_orgs", {}) or {}
+
         # Flask secret key (env)
         self.secret_key = os.environ.get(
             "FLASK_SECRET_KEY",
@@ -108,6 +111,18 @@ class Config:
     def available_orgs(self) -> list:
         """Get list of available org names."""
         return list(self.buz_orgs.keys())
+
+    def get_home_org(self, group_code: str) -> str | None:
+        """
+        Get the home org for an inventory group.
+
+        Args:
+            group_code: The inventory group code (e.g., 'ROLL', 'TRACK')
+
+        Returns:
+            The org key that is the home/authoritative source, or None if not configured
+        """
+        return self.inventory_group_home_orgs.get(group_code)
 
     @property
     def is_fully_configured(self) -> bool:
