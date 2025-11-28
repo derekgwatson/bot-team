@@ -347,8 +347,8 @@ def check_pending_tickets():
     Returns:
         JSON object with results of the check
     """
-    import requests as http_requests
     from config import config
+    from shared.http_client import BotHttpClient
 
     try:
         # Get all in-progress VOIP steps with ticket IDs
@@ -371,8 +371,9 @@ def check_pending_tickets():
             'details': []
         }
 
-        # Get Sadie URL from config
+        # Get Sadie client
         sadie_url = config.bots.get('sadie', {}).get('url', 'http://localhost:8005')
+        sadie_client = BotHttpClient(sadie_url, timeout=10)
 
         for step in pending_steps:
             ticket_id = step.get('zendesk_ticket_id')
@@ -385,11 +386,7 @@ def check_pending_tickets():
 
             try:
                 # Query Sadie for ticket status
-                response = http_requests.get(
-                    f"{sadie_url}/api/tickets/{ticket_id}",
-                    headers={'X-API-Key': config.bot_api_key},
-                    timeout=10
-                )
+                response = sadie_client.get(f'/api/tickets/{ticket_id}')
 
                 if response.status_code == 200:
                     # Sadie returns ticket data directly, not wrapped in {"ticket": ...}
