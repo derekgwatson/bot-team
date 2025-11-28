@@ -485,9 +485,14 @@ class InventoryDatabase:
         for coeff in coefficients:
             extra_json = json.dumps(coeff.get('extra_data', {}))
 
+            # Parser uses 'item_code', db schema uses 'coefficient_code'
+            coeff_code = coeff.get('coefficient_code') or coeff.get('item_code', '')
+            # Parser uses 'description' for name, but we store it as coefficient_name
+            coeff_name = coeff.get('coefficient_name') or coeff.get('description', '')
+
             cursor = conn.execute(
                 'SELECT id FROM pricing_coefficients WHERE org_key = ? AND group_code = ? AND coefficient_code = ?',
-                (org_key, coeff['group_code'], coeff['coefficient_code'])
+                (org_key, coeff['group_code'], coeff_code)
             )
             existing = cursor.fetchone()
 
@@ -508,7 +513,7 @@ class InventoryDatabase:
                         updated_at = CURRENT_TIMESTAMP
                     WHERE org_key = ? AND group_code = ? AND coefficient_code = ?
                 ''', (
-                    coeff.get('coefficient_name', ''),
+                    coeff_name,
                     coeff.get('description', ''),
                     coeff.get('coefficient_type', ''),
                     1 if coeff.get('is_active', True) else 0,
@@ -518,7 +523,7 @@ class InventoryDatabase:
                     coeff.get('unit', ''),
                     coeff.get('sort_order', 0),
                     extra_json,
-                    org_key, coeff['group_code'], coeff['coefficient_code']
+                    org_key, coeff['group_code'], coeff_code
                 ))
                 updated += 1
             else:
@@ -529,8 +534,8 @@ class InventoryDatabase:
                         unit, sort_order, extra_data
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    org_key, coeff['group_code'], coeff['coefficient_code'],
-                    coeff.get('coefficient_name', ''), coeff.get('description', ''),
+                    org_key, coeff['group_code'], coeff_code,
+                    coeff_name, coeff.get('description', ''),
                     coeff.get('coefficient_type', ''),
                     1 if coeff.get('is_active', True) else 0,
                     coeff.get('base_value', 0), coeff.get('min_value', 0),
