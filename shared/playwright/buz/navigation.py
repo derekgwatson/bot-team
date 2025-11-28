@@ -29,6 +29,9 @@ class BuzNavigation:
     # Customer URLs
     CUSTOMERS_URL = "https://go.buzmanager.com/Contacts/Customers"
 
+    # Groups URL (Angular app on console1)
+    GROUPS_URL = "https://console1.buzmanager.com/myorg/user-management/groups"
+
     def __init__(self, page: Page, timeout: int = 30000, debug: bool = False):
         """
         Initialize navigation helper.
@@ -521,3 +524,64 @@ class BuzNavigation:
             logger.warning(f"Could not extract PKID: {e}")
 
         return None
+
+    # -------------------------------------------------------------------------
+    # Group Management Methods
+    # -------------------------------------------------------------------------
+
+    async def go_to_groups(self) -> None:
+        """Navigate to the groups management page."""
+        logger.info("Navigating to groups page...")
+        await self.page.goto(self.GROUPS_URL, wait_until='networkidle', timeout=self.timeout)
+
+        if await self.handle_org_selector():
+            await self.page.goto(self.GROUPS_URL, wait_until='networkidle', timeout=self.timeout)
+
+        # Wait for Angular to render the table
+        await self.page.wait_for_selector('tbody tr', timeout=self.timeout)
+        logger.info("Groups page loaded")
+
+    async def scrape_groups(self) -> List[Dict[str, Any]]:
+        """
+        Scrape all groups from the groups page.
+
+        Must be called after go_to_groups().
+
+        Returns:
+            List of dicts with name, type, user_count
+        """
+        logger.info("Scraping groups...")
+
+        groups = []
+        rows = await self.page.locator('tbody tr').all()
+
+        for row in rows:
+            try:
+                # Group name is in first column (inside <a> tag)
+                name_elem = row.locator('td').nth(0).locator('a')
+                name = await name_elem.text_content()
+                name = name.strip() if name else ''
+
+                # Group type is in second column (inside badge span)
+                type_elem = row.locator('td').nth(1).locator('span.badge')
+                group_type = await type_elem.text_content()
+                group_type = group_type.strip() if group_type else ''
+
+                # User count is in third column
+                count_elem = row.locator('td').nth(2)
+                count_text = await count_elem.text_content()
+                user_count = int(count_text.strip()) if count_text and count_text.strip().isdigit() else 0
+
+                if name:
+                    groups.append({
+                        'name': name,
+                        'type': group_type,
+                        'user_count': user_count
+                    })
+
+            except Exception as e:
+                logger.warning(f"Error parsing group row: {e}")
+                continue
+
+        logger.info(f"Found {len(groups)} groups")
+        return groups

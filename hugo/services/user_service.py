@@ -13,6 +13,7 @@ from playwright.async_api import Page
 
 from shared.playwright import AsyncBrowserManager
 from shared.playwright.buz import BuzOrgs, BuzNavigation
+from hugo.database.db import user_db
 
 logger = logging.getLogger(__name__)
 
@@ -648,6 +649,28 @@ class BuzUserService:
                     await nav.save_user()
                     result['success'] = True
                     result['message'] = f"Updated: {', '.join(result['changes_applied'])}"
+
+                    # Update local database cache immediately
+                    db_updates = {}
+                    if 'group' in changes:
+                        db_updates['user_group'] = changes['group']
+                    if 'first_name' in changes or 'last_name' in changes:
+                        # Reconstruct full name from changes
+                        first = changes.get('first_name', '')
+                        last = changes.get('last_name', '')
+                        if first or last:
+                            db_updates['full_name'] = f"{first} {last}".strip()
+
+                    if db_updates:
+                        db_result = user_db.update_user_fields(
+                            email=email,
+                            org_key=org_key,
+                            **db_updates
+                        )
+                        if db_result.get('success'):
+                            logger.info(f"Updated local cache for {email}: {db_updates}")
+                        else:
+                            logger.warning(f"Failed to update local cache: {db_result.get('error')}")
                 else:
                     result['message'] = "No changes to apply"
 
@@ -846,6 +869,74 @@ class BuzUserService:
             logger.exception(f"Error getting customer from user {email} in {org_key}")
 
         return result
+
+    # -------------------------------------------------------------------------
+    # Group Sync Methods
+    # -------------------------------------------------------------------------
+
+    async def sync_groups(self, org_key: str) -> Dict[str, Any]:
+        """
+        Sync groups from Buz to local database.
+
+        Scrapes the groups page and stores results in DB.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            Dict with success status and counts
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'org_key': org_key,
+            'groups_synced': 0,
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
+
+                # Navigate to groups page and scrape
+                await nav.go_to_groups()
+                groups = await nav.scrape_groups()
+
+                # Store in database
+                db_result = user_db.bulk_upsert_groups(org_key, groups)
+
+                result['success'] = True
+                result['groups_synced'] = db_result.get('total', 0)
+                result['message'] = f"Synced {result['groups_synced']} groups"
+                logger.info(f"Synced groups for {org_key}: {result['groups_synced']} groups")
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error syncing groups for {org_key}")
+
+        return result
+
+    async def sync_all_groups(self) -> Dict[str, Any]:
+        """
+        Sync groups for all configured organizations.
+
+        Returns:
+            Dict with results per org
+        """
+        results = {}
+        for org_key in self.config.available_orgs:
+            results[org_key] = await self.sync_groups(org_key)
+        return results
 
 
 # Helper function to run async code from sync context
