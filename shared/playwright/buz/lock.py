@@ -8,12 +8,16 @@ try to interact with the same Buz organization simultaneously.
 import asyncio
 import json
 import logging
+import os
 from contextlib import contextmanager, asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from filelock import FileLock, Timeout
+
+# Max lock age before considering it stale (30 minutes)
+MAX_LOCK_AGE_SECONDS = 1800
 
 logger = logging.getLogger(__name__)
 
@@ -296,16 +300,79 @@ def get_lock_holder_info() -> Optional[dict]:
     return None
 
 
+def _is_process_running(pid: int) -> bool:
+    """Check if a process with the given PID is still running."""
+    try:
+        os.kill(pid, 0)  # Signal 0 doesn't kill, just checks existence
+        return True
+    except OSError:
+        return False
+
+
+def _is_lock_stale(holder_info: dict) -> bool:
+    """
+    Check if a lock is stale (process dead or too old).
+
+    A lock is stale if:
+    - The holding process is no longer running
+    - The lock is older than MAX_LOCK_AGE_SECONDS
+    """
+    # Check if PID is still running
+    pid = holder_info.get('pid')
+    if pid and not _is_process_running(pid):
+        logger.info(f"Lock held by dead process (PID {pid}) - stale")
+        return True
+
+    # Check lock age
+    acquired_at_str = holder_info.get('acquired_at')
+    if acquired_at_str:
+        try:
+            acquired_at = datetime.fromisoformat(acquired_at_str)
+            age = (datetime.now(timezone.utc) - acquired_at).total_seconds()
+            if age > MAX_LOCK_AGE_SECONDS:
+                logger.info(f"Lock is {age:.0f}s old (max {MAX_LOCK_AGE_SECONDS}s) - stale")
+                return True
+        except (ValueError, TypeError):
+            pass
+
+    return False
+
+
+def _cleanup_stale_lock() -> bool:
+    """
+    Clean up stale lock files if the lock is stale.
+
+    Returns:
+        True if stale lock was cleaned up, False otherwise
+    """
+    holder_info = get_lock_holder_info()
+    if holder_info and _is_lock_stale(holder_info):
+        bot = holder_info.get('bot', 'unknown')
+        logger.warning(f"Cleaning up stale lock from '{bot}'")
+        try:
+            if DEFAULT_LOCK_INFO_PATH.exists():
+                DEFAULT_LOCK_INFO_PATH.unlink()
+            if DEFAULT_LOCK_PATH.exists():
+                DEFAULT_LOCK_PATH.unlink()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to clean up stale lock: {e}")
+    return False
+
+
 def is_lock_available() -> bool:
     """
     Quick check if the Buz Playwright lock is available.
 
     This is a non-blocking check - useful for determining whether to
-    wait or fail immediately.
+    wait or fail immediately. Automatically cleans up stale locks.
 
     Returns:
         True if lock appears to be available, False if held
     """
+    # Try to clean up stale locks first
+    _cleanup_stale_lock()
+
     # Check if info file exists (indicates lock is held)
     if DEFAULT_LOCK_INFO_PATH.exists():
         return False
