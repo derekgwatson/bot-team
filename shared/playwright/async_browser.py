@@ -173,7 +173,8 @@ class AsyncBrowserManager:
             filename = f"{name}_{timestamp}.png"
             filepath = self.screenshot_dir / filename
 
-            await page.screenshot(path=str(filepath), full_page=True)
+            # Use short timeout for screenshots - they're nice-to-have, not critical
+            await page.screenshot(path=str(filepath), full_page=True, timeout=10000)
             logger.info(f"Screenshot saved: {filepath}")
             return str(filepath)
 
