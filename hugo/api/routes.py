@@ -220,7 +220,7 @@ def sync_users():
 
 @api_bp.route('/users/sync/status', methods=['GET'])
 @api_or_session_auth
-def sync_status():
+def users_sync_status():
     """
     GET /api/users/sync/status
 
