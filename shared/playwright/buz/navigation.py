@@ -400,7 +400,8 @@ class BuzNavigation:
         """
         logger.info("Saving user...")
 
-        save_button = self.page.locator('button#save-button')
+        # Use text to disambiguate - Buz has multiple buttons with id="save-button"
+        save_button = self.page.get_by_role("button", name="Save User")
         await save_button.click()
         await self.page.wait_for_load_state('networkidle')
 
