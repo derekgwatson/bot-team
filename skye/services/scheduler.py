@@ -223,9 +223,9 @@ class SchedulerService:
         endpoint = job_data['endpoint']
         method = job_data['method'].upper()
 
-        # Build URL and client
+        # Build URL and client - use long timeout for jobs that may take minutes
         base_url = self._get_bot_url(target_bot)
-        client = BotHttpClient(base_url, timeout=60)
+        client = BotHttpClient(base_url, timeout=600)  # 10 minutes
 
         logger.info(f"Executing job {job_id}: {method} {base_url}{endpoint}")
 
@@ -295,9 +295,9 @@ class SchedulerService:
         endpoint = job_data['endpoint']
         method = job_data['method'].upper()
 
-        # Build URL and client
+        # Build URL and client - use long timeout for jobs that may take minutes
         base_url = self._get_bot_url(target_bot)
-        client = BotHttpClient(base_url, timeout=60)
+        client = BotHttpClient(base_url, timeout=600)  # 10 minutes
 
         logger.info(f"Executing job {job_id}: {method} {base_url}{endpoint}")
 
