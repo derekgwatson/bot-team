@@ -8,11 +8,48 @@
         white-space: nowrap;
         cursor: help;
     }
+    .running-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #f0ad4e;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <h2>Sync History</h2>
+
+{% if running %}
+<div class="card" style="border-left: 4px solid #f0ad4e; margin-bottom: 20px;">
+    <h3><span class="running-indicator"></span> Sync in Progress</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Organization</th>
+                <th>Started</th>
+                <th>Elapsed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sync in running %}
+            <tr>
+                <td><strong>{{ config.buz_orgs[sync.org_key].display_name if config.buz_orgs[sync.org_key] else sync.org_key }}</strong></td>
+                <td class="time-cell text-muted" title="{{ sync.started_at }}">{{ time_ago(sync.started_at) }}</td>
+                <td><span class="elapsed-time" data-started="{{ sync.started_at }}">calculating...</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 <div class="card">
     <h3>All Sync Operations</h3>
@@ -31,14 +68,21 @@
         <tbody>
             {% for entry in history %}
             <tr>
-                <td class="time-cell text-muted" title="{{ entry.synced_at }}">
-                    {{ time_ago(entry.synced_at) }}
+                <td class="time-cell text-muted" title="{{ entry.synced_at or entry.started_at }}">
+                    {{ time_ago(entry.synced_at or entry.started_at) }}
                 </td>
                 <td><strong>{{ config.buz_orgs[entry.org_key].display_name if config.buz_orgs[entry.org_key] else entry.org_key }}</strong></td>
-                <td>{{ entry.user_count }}</td>
-                <td>{{ "%.1f"|format(entry.duration_seconds) }}s</td>
+                <td>{% if entry.status == 'running' %}-{% else %}{{ entry.user_count }}{% endif %}</td>
                 <td>
-                    <span class="badge badge-{% if entry.status == 'success' %}success{% else %}error{% endif %}">
+                    {% if entry.status == 'running' %}
+                    <span class="elapsed-time" data-started="{{ entry.started_at }}">...</span>
+                    {% else %}
+                    {{ "%.1f"|format(entry.duration_seconds) }}s
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-{% if entry.status == 'success' %}success{% elif entry.status == 'running' %}warning{% else %}error{% endif %}">
+                        {% if entry.status == 'running' %}<span class="running-indicator"></span>{% endif %}
                         {{ entry.status }}
                     </span>
                 </td>
@@ -52,4 +96,48 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateElapsedTimes() {
+    document.querySelectorAll('.elapsed-time').forEach(function(el) {
+        var started = el.getAttribute('data-started');
+        if (!started) return;
+
+        // Parse the timestamp (SQLite format: "2024-01-15 10:30:00")
+        var startDate;
+        if (started.includes('T')) {
+            startDate = new Date(started);
+        } else {
+            startDate = new Date(started.replace(' ', 'T') + 'Z');
+        }
+
+        var now = new Date();
+        var elapsed = Math.floor((now - startDate) / 1000);
+
+        if (elapsed < 0) elapsed = 0;
+
+        var minutes = Math.floor(elapsed / 60);
+        var seconds = elapsed % 60;
+
+        if (minutes > 0) {
+            el.textContent = minutes + 'm ' + seconds + 's';
+        } else {
+            el.textContent = seconds + 's';
+        }
+    });
+}
+
+// Update immediately and then every second
+updateElapsedTimes();
+setInterval(updateElapsedTimes, 1000);
+
+{% if running %}
+// Auto-refresh page every 5 seconds while syncs are running
+setTimeout(function() {
+    window.location.reload();
+}, 5000);
+{% endif %}
+</script>
 {% endblock %}

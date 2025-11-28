@@ -417,17 +417,18 @@ class UserDatabase:
         return dict(row) if row else None
 
     def get_sync_history(self, org_key: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get sync history."""
+        """Get sync history including running syncs."""
         conn = self.get_connection()
 
+        # Use COALESCE to sort by started_at for running syncs (where synced_at is NULL)
         if org_key:
             cursor = conn.execute(
-                'SELECT * FROM sync_log WHERE org_key = ? ORDER BY synced_at DESC LIMIT ?',
+                'SELECT * FROM sync_log WHERE org_key = ? ORDER BY COALESCE(synced_at, started_at) DESC LIMIT ?',
                 (org_key, limit)
             )
         else:
             cursor = conn.execute(
-                'SELECT * FROM sync_log ORDER BY synced_at DESC LIMIT ?',
+                'SELECT * FROM sync_log ORDER BY COALESCE(synced_at, started_at) DESC LIMIT ?',
                 (limit,)
             )
 
