@@ -15,15 +15,18 @@
 <h2>Activity Log</h2>
 
 <div class="filters">
-    <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <input type="text" name="email" placeholder="Filter by email" value="{{ filters.email or '' }}">
-        <input type="text" name="org" placeholder="Filter by org" value="{{ filters.org or '' }}">
-        <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-        <a href="{{ url_for('web.activity') }}" class="btn btn-secondary btn-sm">Clear</a>
-    </form>
+    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <input type="search" id="searchInput" placeholder="Search by email, action, org, or performer..." autocomplete="off" data-lpignore="true" data-form-type="other" style="min-width: 300px;">
+        <span class="text-muted"><span id="visibleCount">{{ activity|length }}</span> entries</span>
+    </div>
 </div>
 
-<div class="card">
+<div id="noResults" class="card" style="display: none; text-align: center; padding: 40px;">
+    <h3 style="color: #6c757d;">No activity found</h3>
+    <p class="text-muted">Try a different search term.</p>
+</div>
+
+<div class="card" id="activityCard">
     {% if activity %}
     <table>
         <thead>
@@ -37,9 +40,9 @@
                 <th>Result</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="activityTableBody">
             {% for entry in activity %}
-            <tr>
+            <tr data-searchable="{{ entry.email|lower }} {{ entry.action|lower }} {{ entry.org_key|lower }} {{ entry.performed_by|lower if entry.performed_by else '' }} {{ entry.old_value|lower if entry.old_value else '' }} {{ entry.new_value|lower if entry.new_value else '' }}">
                 <td class="time-cell text-muted" title="{{ entry.performed_at }}">
                     {{ time_ago(entry.performed_at) }}
                 </td>
@@ -64,4 +67,54 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Instant search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const activityCard = document.getElementById('activityCard');
+    const visibleCount = document.getElementById('visibleCount');
+    const tableBody = document.getElementById('activityTableBody');
+
+    if (searchInput && tableBody) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = tableBody.querySelectorAll('tr');
+            let visible = 0;
+
+            if (query === '') {
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+                visible = rows.length;
+            } else {
+                rows.forEach(row => {
+                    const searchable = row.getAttribute('data-searchable') || '';
+                    if (searchable.includes(query)) {
+                        row.style.display = '';
+                        visible++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            if (visibleCount) {
+                visibleCount.textContent = visible;
+            }
+
+            if (visible === 0) {
+                noResults.style.display = 'block';
+                activityCard.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                activityCard.style.display = 'block';
+            }
+        });
+
+        searchInput.focus();
+    }
+</script>
 {% endblock %}
