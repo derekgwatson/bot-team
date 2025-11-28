@@ -281,6 +281,7 @@ Do NOT include shared variables like:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `CHESTER_API_URL`
+- `BUZ_ORGS`
 
 These are already in `/bot-team/.env` and loaded automatically.
 
