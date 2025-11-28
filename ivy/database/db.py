@@ -484,63 +484,96 @@ class InventoryDatabase:
 
         for coeff in coefficients:
             extra_json = json.dumps(coeff.get('extra_data', {}))
-
-            # Parser uses 'item_code', db schema uses 'coefficient_code'
-            coeff_code = coeff.get('coefficient_code') or coeff.get('item_code', '')
-            # Parser uses 'description' for name, but we store it as coefficient_name
-            coeff_name = coeff.get('coefficient_name') or coeff.get('description', '')
+            item_code = coeff.get('item_code', '')
+            price_group_code = coeff.get('price_group_code', '')
 
             cursor = conn.execute(
-                'SELECT id FROM pricing_coefficients WHERE org_key = ? AND group_code = ? AND coefficient_code = ?',
-                (org_key, coeff['group_code'], coeff_code)
+                '''SELECT id FROM pricing_coefficients
+                   WHERE org_key = ? AND group_code = ? AND item_code = ? AND price_group_code = ?''',
+                (org_key, coeff['group_code'], item_code, price_group_code)
             )
             existing = cursor.fetchone()
 
             if existing:
                 conn.execute('''
                     UPDATE pricing_coefficients SET
-                        coefficient_name = ?,
-                        description = ?,
-                        coefficient_type = ?,
-                        is_active = ?,
-                        base_value = ?,
-                        min_value = ?,
-                        max_value = ?,
-                        unit = ?,
-                        sort_order = ?,
-                        extra_data = ?,
-                        last_synced = CURRENT_TIMESTAMP,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE org_key = ? AND group_code = ? AND coefficient_code = ?
+                        description = ?, effective_date = ?, is_active = ?,
+                        sell_each = ?, sell_lm_wide = ?, sell_lm_height = ?, sell_lm_depth = ?,
+                        sell_sqm = ?, sell_percentage_on_main = ?, sell_minimum = ?,
+                        cost_each = ?, cost_lm_wide = ?, cost_lm_height = ?, cost_lm_depth = ?,
+                        cost_sqm = ?, cost_percentage_on_main = ?, cost_minimum = ?,
+                        install_cost_each = ?, install_cost_lm_width = ?, install_cost_height = ?,
+                        install_cost_depth = ?, install_cost_sqm = ?, install_cost_percentage_of_main = ?,
+                        install_cost_minimum = ?,
+                        install_sell_each = ?, install_sell_minimum = ?, install_sell_lm_wide = ?,
+                        install_sell_sqm = ?, install_sell_height = ?, install_sell_depth = ?,
+                        install_sell_percentage_of_main = ?,
+                        supplier_code = ?, supplier_description = ?,
+                        pk_id = ?, sort_order = ?, extra_data = ?,
+                        last_synced = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    WHERE org_key = ? AND group_code = ? AND item_code = ? AND price_group_code = ?
                 ''', (
-                    coeff_name,
-                    coeff.get('description', ''),
-                    coeff.get('coefficient_type', ''),
+                    coeff.get('description', ''), coeff.get('effective_date'),
                     1 if coeff.get('is_active', True) else 0,
-                    coeff.get('base_value', 0),
-                    coeff.get('min_value', 0),
-                    coeff.get('max_value', 0),
-                    coeff.get('unit', ''),
-                    coeff.get('sort_order', 0),
-                    extra_json,
-                    org_key, coeff['group_code'], coeff_code
+                    coeff.get('sell_each', 0), coeff.get('sell_lm_wide', 0),
+                    coeff.get('sell_lm_height', 0), coeff.get('sell_lm_depth', 0),
+                    coeff.get('sell_sqm', 0), coeff.get('sell_percentage_on_main', 0),
+                    coeff.get('sell_minimum', 0),
+                    coeff.get('cost_each', 0), coeff.get('cost_lm_wide', 0),
+                    coeff.get('cost_lm_height', 0), coeff.get('cost_lm_depth', 0),
+                    coeff.get('cost_sqm', 0), coeff.get('cost_percentage_on_main', 0),
+                    coeff.get('cost_minimum', 0),
+                    coeff.get('install_cost_each', 0), coeff.get('install_cost_lm_width', 0),
+                    coeff.get('install_cost_height', 0), coeff.get('install_cost_depth', 0),
+                    coeff.get('install_cost_sqm', 0), coeff.get('install_cost_percentage_of_main', 0),
+                    coeff.get('install_cost_minimum', 0),
+                    coeff.get('install_sell_each', 0), coeff.get('install_sell_minimum', 0),
+                    coeff.get('install_sell_lm_wide', 0), coeff.get('install_sell_sqm', 0),
+                    coeff.get('install_sell_height', 0), coeff.get('install_sell_depth', 0),
+                    coeff.get('install_sell_percentage_of_main', 0),
+                    coeff.get('supplier_code', ''), coeff.get('supplier_description', ''),
+                    coeff.get('pk_id'), coeff.get('sort_order', 0), extra_json,
+                    org_key, coeff['group_code'], item_code, price_group_code
                 ))
                 updated += 1
             else:
                 conn.execute('''
                     INSERT INTO pricing_coefficients (
-                        org_key, group_code, coefficient_code, coefficient_name, description,
-                        coefficient_type, is_active, base_value, min_value, max_value,
-                        unit, sort_order, extra_data
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        org_key, group_code, item_code, description, price_group_code, effective_date,
+                        is_active, sell_each, sell_lm_wide, sell_lm_height, sell_lm_depth,
+                        sell_sqm, sell_percentage_on_main, sell_minimum,
+                        cost_each, cost_lm_wide, cost_lm_height, cost_lm_depth,
+                        cost_sqm, cost_percentage_on_main, cost_minimum,
+                        install_cost_each, install_cost_lm_width, install_cost_height,
+                        install_cost_depth, install_cost_sqm, install_cost_percentage_of_main,
+                        install_cost_minimum,
+                        install_sell_each, install_sell_minimum, install_sell_lm_wide,
+                        install_sell_sqm, install_sell_height, install_sell_depth,
+                        install_sell_percentage_of_main,
+                        supplier_code, supplier_description, pk_id, sort_order, extra_data
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    org_key, coeff['group_code'], coeff_code,
-                    coeff_name, coeff.get('description', ''),
-                    coeff.get('coefficient_type', ''),
+                    org_key, coeff['group_code'], item_code, coeff.get('description', ''),
+                    price_group_code, coeff.get('effective_date'),
                     1 if coeff.get('is_active', True) else 0,
-                    coeff.get('base_value', 0), coeff.get('min_value', 0),
-                    coeff.get('max_value', 0), coeff.get('unit', ''),
-                    coeff.get('sort_order', 0), extra_json
+                    coeff.get('sell_each', 0), coeff.get('sell_lm_wide', 0),
+                    coeff.get('sell_lm_height', 0), coeff.get('sell_lm_depth', 0),
+                    coeff.get('sell_sqm', 0), coeff.get('sell_percentage_on_main', 0),
+                    coeff.get('sell_minimum', 0),
+                    coeff.get('cost_each', 0), coeff.get('cost_lm_wide', 0),
+                    coeff.get('cost_lm_height', 0), coeff.get('cost_lm_depth', 0),
+                    coeff.get('cost_sqm', 0), coeff.get('cost_percentage_on_main', 0),
+                    coeff.get('cost_minimum', 0),
+                    coeff.get('install_cost_each', 0), coeff.get('install_cost_lm_width', 0),
+                    coeff.get('install_cost_height', 0), coeff.get('install_cost_depth', 0),
+                    coeff.get('install_cost_sqm', 0), coeff.get('install_cost_percentage_of_main', 0),
+                    coeff.get('install_cost_minimum', 0),
+                    coeff.get('install_sell_each', 0), coeff.get('install_sell_minimum', 0),
+                    coeff.get('install_sell_lm_wide', 0), coeff.get('install_sell_sqm', 0),
+                    coeff.get('install_sell_height', 0), coeff.get('install_sell_depth', 0),
+                    coeff.get('install_sell_percentage_of_main', 0),
+                    coeff.get('supplier_code', ''), coeff.get('supplier_description', ''),
+                    coeff.get('pk_id'), coeff.get('sort_order', 0), extra_json
                 ))
                 created += 1
 
