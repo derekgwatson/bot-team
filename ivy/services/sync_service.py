@@ -105,11 +105,13 @@ class SyncService:
             # Stage 3: Update inventory groups in database (70-80%)
             self.db.update_sync_progress(sync_id, 75, f'Updating {len(groups)} groups...')
             for group in groups:
+                group_code = group['group_code']
                 self.db.upsert_inventory_group(
                     org_key=org_key,
-                    group_code=group['group_code'],
+                    group_code=group_code,
                     group_name=group['group_name'],
-                    item_count=group.get('item_count', 0)
+                    item_count=group.get('item_count', 0),
+                    home_org=self.config.get_home_org(group_code)
                 )
 
             # Stage 4: Bulk upsert items to database (80-100%)

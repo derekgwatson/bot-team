@@ -44,7 +44,8 @@ class InventoryDatabase:
         group_code: str,
         group_name: str,
         is_active: bool = True,
-        item_count: int = 0
+        item_count: int = 0,
+        home_org: Optional[str] = None
     ) -> Dict[str, Any]:
         """Insert or update an inventory group."""
         conn = self.get_connection()
@@ -55,21 +56,34 @@ class InventoryDatabase:
         existing = cursor.fetchone()
 
         if existing:
-            conn.execute('''
-                UPDATE inventory_groups SET
-                    group_name = ?,
-                    is_active = ?,
-                    item_count = ?,
-                    last_synced = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE org_key = ? AND group_code = ?
-            ''', (group_name, 1 if is_active else 0, item_count, org_key, group_code))
+            # Only update home_org if provided
+            if home_org is not None:
+                conn.execute('''
+                    UPDATE inventory_groups SET
+                        group_name = ?,
+                        is_active = ?,
+                        item_count = ?,
+                        home_org = ?,
+                        last_synced = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE org_key = ? AND group_code = ?
+                ''', (group_name, 1 if is_active else 0, item_count, home_org, org_key, group_code))
+            else:
+                conn.execute('''
+                    UPDATE inventory_groups SET
+                        group_name = ?,
+                        is_active = ?,
+                        item_count = ?,
+                        last_synced = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE org_key = ? AND group_code = ?
+                ''', (group_name, 1 if is_active else 0, item_count, org_key, group_code))
             action = 'updated'
         else:
             conn.execute('''
-                INSERT INTO inventory_groups (org_key, group_code, group_name, is_active, item_count)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (org_key, group_code, group_name, 1 if is_active else 0, item_count))
+                INSERT INTO inventory_groups (org_key, group_code, group_name, is_active, item_count, home_org)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (org_key, group_code, group_name, 1 if is_active else 0, item_count, home_org))
             action = 'created'
 
         conn.commit()
