@@ -89,6 +89,8 @@
 
 <div class="filters">
     <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <input type="search" id="searchInput" placeholder="Search by name or email..." autocomplete="off" data-lpignore="true" data-form-type="other" style="min-width: 200px;">
+
         <select name="org" onchange="this.form.submit()">
             <option value="">All Organizations</option>
             {% for org_key in available_orgs %}
@@ -114,9 +116,14 @@
     </form>
 </div>
 
-<div class="card">
+<div id="noResults" class="card" style="display: none; text-align: center; padding: 40px;">
+    <h3 style="color: #6c757d;">No users found</h3>
+    <p class="text-muted">Try a different search term or adjust the filters.</p>
+</div>
+
+<div class="card" id="usersCard">
     <div class="user-count-summary">
-        <span class="count-item"><strong>{{ users|length }}</strong> unique users</span>
+        <span class="count-item"><strong id="visibleCount">{{ users|length }}</strong> unique users</span>
         {% if raw_user_count != users|length %}
         <span class="count-item text-muted">({{ raw_user_count }} total entries across orgs)</span>
         {% endif %}
@@ -133,9 +140,9 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="usersTableBody">
             {% for user in users %}
-            <tr>
+            <tr data-searchable="{{ user.full_name|lower if user.full_name else '' }} {{ user.email|lower }} {% for org in user.orgs %}{{ org.org_key|lower }} {% endfor %}">
                 <td class="user-identity">
                     <div class="user-name">
                         <a href="{{ url_for('web.user_detail', email=user.email) }}">{{ user.full_name or user.email }}</a>
@@ -177,4 +184,66 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Instant search functionality
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const usersCard = document.getElementById('usersCard');
+    const visibleCount = document.getElementById('visibleCount');
+    const tableBody = document.getElementById('usersTableBody');
+
+    if (searchInput && tableBody) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = tableBody.querySelectorAll('tr');
+            let visible = 0;
+
+            if (query === '') {
+                // Show all rows when search is empty
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+                visible = rows.length;
+            } else {
+                // Filter rows based on search
+                rows.forEach(row => {
+                    const searchable = row.getAttribute('data-searchable') || '';
+                    if (searchable.includes(query)) {
+                        row.style.display = '';
+                        visible++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            // Update count
+            if (visibleCount) {
+                visibleCount.textContent = visible;
+            }
+
+            // Show/hide no results message
+            if (visible === 0) {
+                noResults.style.display = 'block';
+                usersCard.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                usersCard.style.display = 'block';
+            }
+        });
+
+        // Focus search input on page load
+        searchInput.focus();
+
+        // Prevent form submission on Enter in search field
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    }
+</script>
 {% endblock %}

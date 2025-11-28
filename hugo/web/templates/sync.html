@@ -51,7 +51,19 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="filters" style="margin-bottom: 20px;">
+    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <input type="search" id="searchInput" placeholder="Search by organization or status..." autocomplete="off" data-lpignore="true" data-form-type="other" style="min-width: 250px;">
+        <span class="text-muted"><span id="visibleCount">{{ history|length }}</span> sync operations</span>
+    </div>
+</div>
+
+<div id="noResults" class="card" style="display: none; text-align: center; padding: 40px;">
+    <h3 style="color: #6c757d;">No sync operations found</h3>
+    <p class="text-muted">Try a different search term.</p>
+</div>
+
+<div class="card" id="syncCard">
     <h3>All Sync Operations</h3>
     {% if history %}
     <table>
@@ -65,9 +77,9 @@
                 <th>Error</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="syncTableBody">
             {% for entry in history %}
-            <tr>
+            <tr data-searchable="{{ entry.org_key|lower }} {{ config.buz_orgs[entry.org_key].display_name|lower if config.buz_orgs[entry.org_key] else '' }} {{ entry.status|lower }} {{ entry.error_message|lower if entry.error_message else '' }}">
                 <td class="time-cell text-muted" title="{{ entry.synced_at or entry.started_at }}">
                     {{ time_ago(entry.synced_at or entry.started_at) }}
                 </td>
@@ -100,6 +112,52 @@
 
 {% block extra_js %}
 <script>
+// Instant search functionality
+(function() {
+    const searchInput = document.getElementById('searchInput');
+    const noResults = document.getElementById('noResults');
+    const syncCard = document.getElementById('syncCard');
+    const visibleCount = document.getElementById('visibleCount');
+    const tableBody = document.getElementById('syncTableBody');
+
+    if (searchInput && tableBody) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = tableBody.querySelectorAll('tr');
+            let visible = 0;
+
+            if (query === '') {
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+                visible = rows.length;
+            } else {
+                rows.forEach(row => {
+                    const searchable = row.getAttribute('data-searchable') || '';
+                    if (searchable.includes(query)) {
+                        row.style.display = '';
+                        visible++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            if (visibleCount) {
+                visibleCount.textContent = visible;
+            }
+
+            if (visible === 0) {
+                noResults.style.display = 'block';
+                syncCard.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                syncCard.style.display = 'block';
+            }
+        });
+    }
+})();
+
 function updateElapsedTimes() {
     document.querySelectorAll('.elapsed-time').forEach(function(el) {
         var started = el.getAttribute('data-started');
