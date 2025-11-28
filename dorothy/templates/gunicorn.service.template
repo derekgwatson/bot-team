@@ -8,7 +8,7 @@ User=www-data
 Group=www-data
 RuntimeDirectory=gunicorn-bot-team-{bot_name}
 WorkingDirectory={bot_path}
-Environment="PATH={repo_path}/.venv/bin:$PATH"
+Environment="PATH={repo_path}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 EnvironmentFile=-{repo_path}/.env
 EnvironmentFile=-{bot_path}/.env
 ExecStart={repo_path}/.venv/bin/gunicorn \
