@@ -149,13 +149,45 @@ function updateDurationCounters() {
     });
 }
 
-// Update every second
+// Update duration every second
 updateDurationCounters();
 setInterval(updateDurationCounters, 1000);
 
-// Auto-refresh page every 30 seconds if there are running syncs
-{% if sync_status.is_syncing %}
-setTimeout(function() { location.reload(); }, 30000);
-{% endif %}
+// Track if we had running syncs on page load
+var hadRunningSyncs = {{ 'true' if sync_status.is_syncing else 'false' }};
+
+// Poll for sync status changes (every 5 seconds when syncs are running)
+function checkSyncStatus() {
+    fetch('/api/sync/status', {
+        credentials: 'same-origin'
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        var isNowSyncing = data.is_syncing;
+
+        // If status changed (was syncing, now not syncing), refresh to show results
+        if (hadRunningSyncs && !isNowSyncing) {
+            location.reload();
+        }
+
+        // Update tracking
+        hadRunningSyncs = isNowSyncing;
+
+        // Continue polling if still syncing
+        if (isNowSyncing) {
+            setTimeout(checkSyncStatus, 5000);
+        }
+    })
+    .catch(function(err) {
+        console.error('Error checking sync status:', err);
+        // Retry on error
+        setTimeout(checkSyncStatus, 10000);
+    });
+}
+
+// Start polling if syncs are running
+if (hadRunningSyncs) {
+    setTimeout(checkSyncStatus, 5000);
+}
 </script>
 {% endblock %}

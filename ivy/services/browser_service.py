@@ -403,10 +403,10 @@ class BuzExportService:
         Returns:
             Path to the downloaded file
         """
-        # Set up download handler
+        # Set up download handler with generous timeout (Buz can be slow)
         async with page.expect_download(timeout=self.config.buz_download_timeout) as download_info:
-            # Click export button
-            await page.click('#btnExport')
+            # Click export button - use download timeout since Buz may process before responding
+            await page.click('#btnExport', timeout=self.config.buz_download_timeout)
             logger.info("Clicked export button, waiting for download...")
 
         download: Download = await download_info.value
