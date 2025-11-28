@@ -16,7 +16,7 @@ browser:
 # Buz timeouts
 buz:
   navigation_timeout: 60000   # 60 seconds - Buz can be slow
-  download_timeout: 120000    # 2 minutes for large Excel exports
+  download_timeout: 300000    # 5 minutes for large Excel exports (152 pricing groups!)
   save_timeout: 300000        # 5 minutes for slow operations
 
 # Buz URLs for inventory/pricing exports
