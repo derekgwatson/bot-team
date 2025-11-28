@@ -469,6 +469,84 @@ class TestQueueOperations:
         # We just need to verify the method works - whether it clears depends on timing
         assert stats['completed'] >= 0
 
+    def test_get_pending_change_by_id(self, hugo_db):
+        """Test getting a pending change by ID."""
+        hugo_db.queue_change('user@example.com', 'canberra', 'deactivate', 'employee')
+
+        # Get the ID from pending changes
+        pending = hugo_db.get_pending_changes()
+        change_id = pending[0]['id']
+
+        # Get by ID
+        change = hugo_db.get_pending_change_by_id(change_id)
+        assert change is not None
+        assert change['email'] == 'user@example.com'
+        assert change['action'] == 'deactivate'
+
+        # Non-existent ID returns None
+        assert hugo_db.get_pending_change_by_id(9999) is None
+
+    def test_cancel_pending_change(self, hugo_db):
+        """Test cancelling a pending change."""
+        hugo_db.queue_change('user@example.com', 'canberra', 'deactivate', 'employee')
+
+        # Get the ID from pending changes
+        pending = hugo_db.get_pending_changes()
+        change_id = pending[0]['id']
+
+        # Cancel the change
+        result = hugo_db.cancel_pending_change(change_id)
+        assert result['success'] is True
+        assert result['change']['email'] == 'user@example.com'
+
+        # Verify it's no longer pending
+        pending = hugo_db.get_pending_changes()
+        assert len(pending) == 0
+
+    def test_cancel_nonpending_change(self, hugo_db):
+        """Test cancelling a non-pending change fails."""
+        hugo_db.queue_change('user@example.com', 'canberra', 'deactivate', 'employee')
+
+        # Get the ID and mark as processing
+        pending = hugo_db.get_pending_changes()
+        change_id = pending[0]['id']
+        hugo_db.mark_changes_processing([change_id])
+
+        # Try to cancel - should fail since it's processing
+        result = hugo_db.cancel_pending_change(change_id)
+        assert result['success'] is False
+
+    def test_get_user_pending_change(self, hugo_db):
+        """Test getting a pending change for a user/org."""
+        hugo_db.queue_change('user@example.com', 'canberra', 'deactivate', 'employee')
+        hugo_db.queue_change('other@example.com', 'tweed', 'activate', 'employee')
+
+        # Get pending change for user
+        pending = hugo_db.get_user_pending_change('user@example.com', 'canberra')
+        assert pending is not None
+        assert pending['action'] == 'deactivate'
+
+        # No pending change for this user/org
+        pending = hugo_db.get_user_pending_change('user@example.com', 'tweed')
+        assert pending is None
+
+    def test_queue_opposite_cancels_existing(self, hugo_db):
+        """Test that queuing the opposite action cancels the existing one."""
+        # Queue a deactivate
+        result1 = hugo_db.queue_change('user@example.com', 'canberra', 'deactivate', 'employee')
+        assert result1['success'] is True
+        assert result1['queued'] is True
+
+        # Queue the opposite (activate) - should cancel
+        result2 = hugo_db.queue_change('user@example.com', 'canberra', 'activate', 'employee')
+        assert result2['success'] is True
+        assert result2['queued'] is False
+        assert 'Cancelled' in result2['message']
+
+        # No pending changes remain
+        pending = hugo_db.get_pending_changes()
+        assert len(pending) == 0
+
 
 @pytest.mark.unit
 @pytest.mark.hugo

@@ -328,6 +328,7 @@
                 <li><a href="{{ url_for('web.index') }}">Dashboard</a></li>
                 <li><a href="{{ url_for('web.users') }}">Users</a></li>
                 <li><a href="{{ url_for('web.activity') }}">Activity</a></li>
+                <li><a href="{{ url_for('web.queue') }}">Queue</a></li>
                 <li><a href="{{ url_for('web.sync') }}">Sync History</a></li>
                 <li><a href="{{ url_for('web.screenshots') }}">Screenshots</a></li>
             </ul>
@@ -412,7 +413,11 @@
             try {
                 const result = await apiCall(endpoint, 'POST', {org, immediate});
                 if (result.success) {
-                    if (result.queued) {
+                    if (result.cancelled) {
+                        // Pending change was cancelled
+                        showMessage(`Pending change cancelled for ${email}`, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else if (result.queued) {
                         showMessage(`Change queued: ${email} will be ${action}d when queue processes`, 'info');
                         setTimeout(() => location.reload(), 1000);
                     } else if (result.no_change) {

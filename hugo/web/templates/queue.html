@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Queue - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .time-cell {
+        white-space: nowrap;
+        cursor: help;
+    }
+    .action-activate {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .action-deactivate {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    .empty-state h3 {
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+    .queue-stats {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .queue-stat {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .queue-stat .value {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: #5b247a;
+    }
+    .queue-stat .label {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+    .queue-stat.pending {
+        background: #fff3cd;
+    }
+    .cancel-btn {
+        padding: 4px 10px;
+        font-size: 0.85em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Change Queue</h2>
+
+<div class="queue-stats">
+    <div class="queue-stat pending">
+        <div class="value">{{ queue_stats.pending }}</div>
+        <div class="label">Pending</div>
+    </div>
+    <div class="queue-stat">
+        <div class="value">{{ queue_stats.processing }}</div>
+        <div class="label">Processing</div>
+    </div>
+    <div class="queue-stat">
+        <div class="value">{{ queue_stats.completed }}</div>
+        <div class="label">Completed</div>
+    </div>
+    <div class="queue-stat">
+        <div class="value">{{ queue_stats.failed }}</div>
+        <div class="label">Failed</div>
+    </div>
+</div>
+
+{% if pending_changes %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3>Pending Changes</h3>
+        <button class="btn btn-primary" onclick="processQueue(this)">Process Queue Now</button>
+    </div>
+    <p class="text-muted" style="margin-bottom: 15px;">
+        These changes will be applied when the queue processes (every 15 minutes), or you can process them immediately.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Action</th>
+                <th>Organization</th>
+                <th>Type</th>
+                <th>Requested</th>
+                <th>By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for change in pending_changes %}
+            <tr id="change-{{ change.id }}">
+                <td>
+                    <a href="{{ url_for('web.user_detail', email=change.email) }}">{{ change.email }}</a>
+                </td>
+                <td>
+                    <span class="action-{{ change.action }}">{{ change.action | capitalize }}</span>
+                </td>
+                <td>{{ config.buz_orgs[change.org_key].display_name if config.buz_orgs[change.org_key] else change.org_key }}</td>
+                <td>{{ change.user_type }}</td>
+                <td class="time-cell text-muted" title="{{ change.requested_at }}">
+                    {{ time_ago(change.requested_at) }}
+                </td>
+                <td>{{ change.requested_by }}</td>
+                <td>
+                    <button class="btn btn-secondary btn-sm cancel-btn"
+                            onclick="cancelChange({{ change.id }}, '{{ change.email }}', '{{ change.action }}', this)">
+                        Cancel
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty-state">
+    <h3>No Pending Changes</h3>
+    <p class="text-muted">All queued changes have been processed.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function cancelChange(changeId, email, action, button) {
+        hideMessage();
+        button.classList.add('loading');
+        button.disabled = true;
+        button.textContent = 'Cancelling...';
+
+        try {
+            const result = await apiCall(`/api/queue/${changeId}/cancel`, 'POST', {});
+            if (result.success) {
+                showMessage(`Cancelled ${action} for ${email}`, 'success');
+                // Remove the row from the table
+                const row = document.getElementById('change-' + changeId);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        row.remove();
+                        // Check if table is now empty
+                        const tbody = document.querySelector('tbody');
+                        if (tbody && tbody.children.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                }
+            } else {
+                showMessage('Error: ' + (result.error || 'Unknown error'), 'error');
+                button.classList.remove('loading');
+                button.disabled = false;
+                button.textContent = 'Cancel';
+            }
+        } catch (e) {
+            showMessage('Error: ' + e.message, 'error');
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.textContent = 'Cancel';
+        }
+    }
+</script>
+{% endblock %}

@@ -47,6 +47,35 @@
         background: #dc3545;
     }
 
+    .org-badge.pending {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px dashed #ffc107;
+        text-decoration: none;
+        opacity: 1;
+    }
+
+    .org-badge.pending .status-dot {
+        background: #ffc107;
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+
+    .pending-indicator {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 8px;
+        padding: 2px 6px;
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 4px;
+        font-size: 0.75em;
+    }
+
     .last-session {
         white-space: nowrap;
         font-size: 0.85em;
@@ -154,11 +183,19 @@
                 <td>
                     <div class="org-badges">
                         {% for org in user.orgs|sort(attribute='org_key') %}
+                        {% if org.pending_action %}
+                        <span class="org-badge pending"
+                              title="Pending {{ org.pending_action }} in {{ config.buz_orgs[org.org_key].display_name }}{% if org.user_group %} ({{ org.user_group }}){% endif %}">
+                            <span class="status-dot"></span>
+                            {{ org.org_key[:3]|upper }}
+                        </span>
+                        {% else %}
                         <span class="org-badge {% if org.is_active %}active{% else %}inactive{% endif %}"
                               title="{{ 'Active' if org.is_active else 'Inactive' }} in {{ config.buz_orgs[org.org_key].display_name }}{% if org.user_group %} ({{ org.user_group }}){% endif %}">
                             <span class="status-dot"></span>
                             {{ org.org_key[:3]|upper }}
                         </span>
+                        {% endif %}
                         {% endfor %}
                     </div>
                 </td>
