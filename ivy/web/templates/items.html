@@ -64,7 +64,7 @@
             <th>Item Code</th>
             <th>Name</th>
             <th>Group</th>
-            <th>Org</th>
+            <th>Orgs</th>
             <th>Status</th>
             <th>Cost Each</th>
             <th>Sell Each</th>
@@ -79,7 +79,11 @@
             <td><code>{{ item.item_code }}</code></td>
             <td>{{ item.item_name }}</td>
             <td>{{ item.group_code }}</td>
-            <td>{{ BuzOrgs.get_display_name(item.org_key) }}</td>
+            <td>
+                {% for org in (item.org_keys or '').split(',') if org %}
+                <span class="badge badge-org" title="{{ BuzOrgs.get_display_name(org) }}">{{ org }}</span>
+                {% endfor %}
+            </td>
             <td>
                 {% if item.is_active %}
                 <span class="badge badge-active">Active</span>

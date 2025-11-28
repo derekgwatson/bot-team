@@ -261,39 +261,70 @@ class InventoryDatabase:
         limit: int = 100,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Get inventory items with pricing data joined."""
-        conn = self.get_connection()
+        """Get inventory items with pricing data joined.
 
-        # Join items with pricing - get the first pricing entry per item
-        # (items may have multiple price groups, we show the primary one)
-        query = '''
-            SELECT
-                i.*,
-                p.sell_each as pricing_sell_each,
-                p.sell_sqm as pricing_sell_sqm,
-                p.cost_each as pricing_cost_each,
-                p.cost_sqm as pricing_cost_sqm,
-                p.sell_minimum as pricing_sell_min,
-                p.cost_minimum as pricing_cost_min
-            FROM inventory_items i
-            LEFT JOIN (
-                SELECT *,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY org_key, group_code, item_code
-                        ORDER BY sort_order, price_group_code
-                    ) as rn
-                FROM pricing_coefficients
-            ) p ON i.org_key = p.org_key
-                AND i.group_code = p.group_code
-                AND i.item_code = p.item_code
-                AND p.rn = 1
-            WHERE 1=1
-        '''
+        When no org_key is specified, groups items by item_code across orgs.
+        """
+        conn = self.get_connection()
         params = []
 
         if org_key:
-            query += ' AND i.org_key = ?'
+            # Single org view - show items from just that org
+            query = '''
+                SELECT
+                    i.*,
+                    i.org_key as org_keys,
+                    p.sell_each as pricing_sell_each,
+                    p.sell_sqm as pricing_sell_sqm,
+                    p.cost_each as pricing_cost_each,
+                    p.cost_sqm as pricing_cost_sqm,
+                    p.sell_minimum as pricing_sell_min,
+                    p.cost_minimum as pricing_cost_min
+                FROM inventory_items i
+                LEFT JOIN (
+                    SELECT *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY org_key, group_code, item_code
+                            ORDER BY sort_order, price_group_code
+                        ) as rn
+                    FROM pricing_coefficients
+                ) p ON i.org_key = p.org_key
+                    AND i.group_code = p.group_code
+                    AND i.item_code = p.item_code
+                    AND p.rn = 1
+                WHERE i.org_key = ?
+            '''
             params.append(org_key)
+        else:
+            # All orgs view - group items by item_code, aggregate orgs
+            query = '''
+                SELECT
+                    i.item_code,
+                    MAX(i.item_name) as item_name,
+                    MAX(i.group_code) as group_code,
+                    GROUP_CONCAT(DISTINCT i.org_key) as org_keys,
+                    MAX(i.is_active) as is_active,
+                    MAX(i.last_synced) as last_synced,
+                    MAX(p.sell_each) as pricing_sell_each,
+                    MAX(p.sell_sqm) as pricing_sell_sqm,
+                    MAX(p.cost_each) as pricing_cost_each,
+                    MAX(p.cost_sqm) as pricing_cost_sqm,
+                    MAX(p.sell_minimum) as pricing_sell_min,
+                    MAX(p.cost_minimum) as pricing_cost_min
+                FROM inventory_items i
+                LEFT JOIN (
+                    SELECT *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY org_key, group_code, item_code
+                            ORDER BY sort_order, price_group_code
+                        ) as rn
+                    FROM pricing_coefficients
+                ) p ON i.org_key = p.org_key
+                    AND i.group_code = p.group_code
+                    AND i.item_code = p.item_code
+                    AND p.rn = 1
+                WHERE 1=1
+            '''
 
         if group_code:
             query += ' AND i.group_code = ?'
@@ -304,25 +335,30 @@ class InventoryDatabase:
             params.append(1 if is_active else 0)
 
         if search:
-            query += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.description LIKE ?)'
+            query += ' AND (i.item_code LIKE ? OR i.item_name LIKE ?)'
             search_param = f'%{search}%'
-            params.extend([search_param, search_param, search_param])
+            params.extend([search_param, search_param])
 
-        query += ' ORDER BY i.org_key, i.group_code, i.sort_order, i.item_name'
+        if not org_key:
+            # Group by item_code when viewing all orgs
+            query += ' GROUP BY i.item_code'
+            query += ' ORDER BY i.group_code, i.item_code'
+        else:
+            query += ' ORDER BY i.group_code, i.sort_order, i.item_name'
+
         query += f' LIMIT {limit} OFFSET {offset}'
 
         cursor = conn.execute(query, params)
         items = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
-        # Parse extra_data JSON and clean up pricing fields
+        # Parse extra_data JSON and clean up
         for item in items:
             if item.get('extra_data'):
                 try:
                     item['extra_data'] = json.loads(item['extra_data'])
                 except json.JSONDecodeError:
                     item['extra_data'] = {}
-            # Remove the rn column if present
             item.pop('rn', None)
 
         return items
@@ -359,15 +395,20 @@ class InventoryDatabase:
         is_active: Optional[bool] = None,
         search: Optional[str] = None
     ) -> int:
-        """Get count of inventory items."""
-        conn = self.get_connection()
+        """Get count of inventory items.
 
-        query = 'SELECT COUNT(*) as count FROM inventory_items WHERE 1=1'
+        When no org_key is specified, counts distinct item_codes (grouped view).
+        """
+        conn = self.get_connection()
         params = []
 
         if org_key:
-            query += ' AND org_key = ?'
+            # Count items in specific org
+            query = 'SELECT COUNT(*) as count FROM inventory_items WHERE org_key = ?'
             params.append(org_key)
+        else:
+            # Count distinct item_codes across all orgs (grouped view)
+            query = 'SELECT COUNT(DISTINCT item_code) as count FROM inventory_items WHERE 1=1'
 
         if group_code:
             query += ' AND group_code = ?'
