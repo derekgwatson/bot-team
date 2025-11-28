@@ -233,8 +233,12 @@ def test_oauth_combines_domain_and_quinn_checks(mock_responses, test_env):
 @pytest.mark.slow
 def test_end_to_end_external_access_flow(mock_responses, tmp_path, monkeypatch, test_env):
     """Test complete flow: request -> approve in Quinn -> access granted via OAuth."""
-    # Set up Quinn database
-    from database.db import ExternalStaffDB
+    # Load Quinn's database module using importlib to avoid path conflicts
+    quinn_db_path = project_root / 'quinn' / 'database' / 'db.py'
+    spec = importlib.util.spec_from_file_location('quinn_db_module', quinn_db_path)
+    quinn_db_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(quinn_db_module)
+    ExternalStaffDB = quinn_db_module.ExternalStaffDB
 
     db_file = tmp_path / 'test_e2e.db'
 

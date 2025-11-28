@@ -63,10 +63,48 @@ def users():
     db = get_db()
     users_list = db.get_users(org_key=org_key, is_active=is_active, user_type=user_type)
 
+    # Consolidate users by email - group multiple org entries together
+    consolidated = {}
+    for user in users_list:
+        email = user['email']
+        if email not in consolidated:
+            consolidated[email] = {
+                'email': email,
+                'full_name': user['full_name'],
+                'user_type': user['user_type'],
+                'orgs': [],
+                'last_session': user['last_session'] or '',
+                'is_active_anywhere': False
+            }
+
+        # Track org membership with status
+        consolidated[email]['orgs'].append({
+            'org_key': user['org_key'],
+            'is_active': user['is_active'],
+            'user_group': user['user_group']
+        })
+
+        # Track if active anywhere
+        if user['is_active']:
+            consolidated[email]['is_active_anywhere'] = True
+
+        # Keep the most recent last_session
+        if user['last_session']:
+            current = consolidated[email]['last_session']
+            if not current or user['last_session'] > current:
+                consolidated[email]['last_session'] = user['last_session']
+
+    # Convert to sorted list
+    consolidated_list = sorted(
+        consolidated.values(),
+        key=lambda u: (u['full_name'] or u['email']).lower()
+    )
+
     return render_template(
         'users.html',
         config=config,
-        users=users_list,
+        users=consolidated_list,
+        raw_user_count=len(users_list),
         filters={
             'org': org_key,
             'active': is_active,
@@ -80,6 +118,8 @@ def users():
 @login_required
 def user_detail(email):
     """User detail page."""
+    from config import config
+
     db = get_db()
 
     # Get user from all orgs
@@ -89,12 +129,17 @@ def user_detail(email):
     if not user_records:
         return render_template('error.html', message=f'User {email} not found'), 404
 
+    # Get the display name (most common or first non-empty)
+    full_name = next((u['full_name'] for u in user_records if u['full_name']), None)
+
     # Get activity log for this user
     activity = db.get_activity_log(email=email, limit=20)
 
     return render_template(
         'user_detail.html',
+        config=config,
         email=email,
+        full_name=full_name,
         user_records=user_records,
         activity=activity
     )

@@ -415,9 +415,41 @@ user = User(
 
 ## Testing
 
+**IMPORTANT**: Test coverage is critical for maintaining a healthy codebase.
+
 - Tests in `/tests/unit/` and `/tests/integration/`
 - Run with `pytest tests/` or `pytest -m botname`
 - Markers defined in `pytest.ini`
+
+### Test Requirements
+
+1. **All tests must pass** - Before committing, run `pytest tests/` to ensure nothing is broken
+2. **New functionality needs tests** - Every new feature, endpoint, or service method should have corresponding tests
+3. **Bug fixes need tests** - When fixing a bug, add a test that would have caught it
+4. **Review existing tests** - When modifying a bot, check its test coverage and add missing tests
+
+### What to Test
+
+- **API endpoints**: Test both success and error cases, authentication requirements
+- **Service methods**: Test business logic, edge cases, error handling
+- **Database operations**: Use `tmp_path` fixture for isolated test databases
+- **Authentication**: Test that protected routes require auth, admin routes require admin
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run tests for a specific bot
+pytest -m hugo
+
+# Run with verbose output
+pytest -v tests/
+
+# Run specific test file
+pytest tests/unit/test_hugo_service.py
+```
 
 ### Test Setup (conftest.py)
 
@@ -534,8 +566,33 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 
 ### Skye - Task Scheduler
 - Runs scheduled jobs for the entire bot team
-- Has a sync job that updates Doc's local bot registry from Chester
 - Good template for new bots with web UI and auth
+
+**How Skye jobs work:**
+
+Jobs are stored in Skye's SQLite database and managed via its web UI or API. However, you can define **job templates** in `skye/config.yaml` under `job_templates:` - these are automatically seeded to the database on first startup.
+
+```yaml
+# skye/config.yaml
+job_templates:
+  hugo_sync:
+    name: "Hugo Buz User Sync"
+    description: "Sync user data from Buz to Hugo's cache"
+    target_bot: "hugo"
+    endpoint: "/api/users/sync"
+    method: "POST"
+    schedule:
+      type: "cron"
+      hour: "6"
+      minute: "0"
+```
+
+**Key points:**
+- Templates are seeded on Skye startup (idempotent - skips if job already exists)
+- After seeding, jobs are managed in the database (edits via UI persist)
+- To add a new scheduled job: add it to `job_templates` in config.yaml, restart Skye
+- Jobs call bot APIs using `BotHttpClient` with automatic `X-API-Key` auth
+- Target bot endpoints should use `@api_or_session_auth` to allow both Skye calls and dashboard buttons
 
 ### Doc - Bot Health Checker
 - **Designed to be standalone** - must work even when other bots are down
@@ -602,5 +659,6 @@ For the full list of bots and their ports, see `/chester/config.yaml`. Here are 
 7. **Register error handlers** - Add `register_error_handlers(app, logger)` after blueprint registration
 8. Create database with migrations (if needed)
 9. Add `.env.example` - mark `{BOT}_ADMIN_EMAILS` as optional if using Grant mode
+10. **Write tests** - Create `tests/unit/test_<botname>_*.py` with tests for services, API endpoints, and database operations. Run `pytest tests/` to ensure all tests pass.
 
 **Note:** No Google Cloud Console changes needed! GatewayAuth uses Chester for OAuth, so only Chester's redirect URIs need to be configured.

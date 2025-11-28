@@ -1,9 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}{{ email }} - {{ config.name }}{% endblock %}
+{% block title %}{{ full_name or email }} - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-header {
+        margin-bottom: 10px;
+    }
+    .user-header h2 {
+        margin-bottom: 5px;
+    }
+    .user-header .email {
+        color: #6c757d;
+        font-size: 1em;
+    }
+    .last-session-cell {
+        white-space: nowrap;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<h2>User: {{ email }}</h2>
+<div class="user-header">
+    <h2>{{ full_name or email }}</h2>
+    {% if full_name %}
+    <div class="email">{{ email }}</div>
+    {% endif %}
+</div>
 
 <div class="card">
     <h3>Access by Organization</h3>
@@ -11,7 +35,6 @@
         <thead>
             <tr>
                 <th>Organization</th>
-                <th>Name</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th>Group</th>
@@ -22,8 +45,7 @@
         <tbody>
             {% for user in user_records %}
             <tr>
-                <td><strong>{{ user.org_key }}</strong></td>
-                <td>{{ user.full_name or '-' }}</td>
+                <td><strong>{{ config.buz_orgs[user.org_key].display_name if config.buz_orgs[user.org_key] else user.org_key }}</strong></td>
                 <td>
                     <span class="badge badge-{{ user.user_type }}">{{ user.user_type }}</span>
                 </td>
@@ -33,7 +55,13 @@
                     </span>
                 </td>
                 <td>{{ user.user_group or '-' }}</td>
-                <td class="text-muted">{{ user.last_session or '-' }}</td>
+                <td class="last-session-cell text-muted">
+                    {% if user.last_session %}
+                        {{ user.last_session[:10] }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
                 <td>
                     {% if user.is_active %}
                     <button class="btn btn-danger btn-sm toggle-btn"

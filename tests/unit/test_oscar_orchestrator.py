@@ -11,26 +11,52 @@ from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 import responses
 import tempfile
+import importlib
 import importlib.util
+
+# Set test environment
+os.environ['TESTING'] = '1'
+os.environ['SKIP_ENV_VALIDATION'] = '1'
+os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
 
 # Add Oscar to path
 project_root = Path(__file__).parent.parent.parent
 oscar_path = project_root / 'oscar'
 
-# Clear any cached config from other tests BEFORE adding to path
-# This ensures we get Oscar's config, not another bot's
-if 'config' in sys.modules:
-    del sys.modules['config']
 
-if str(oscar_path) not in sys.path:
-    sys.path.insert(0, str(oscar_path))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+def _clear_oscar_modules():
+    """Clear any cached modules that might interfere with Oscar imports."""
+    modules_to_clear = [m for m in list(sys.modules.keys())
+                        if m == 'config' or m.startswith('config.') or
+                        m == 'database' or m.startswith('database.') or
+                        m.endswith('.config') or 'oscar' in m.lower()]
+    for mod in modules_to_clear:
+        del sys.modules[mod]
 
-# Import orchestrator module using importlib for proper isolation
-# This avoids conflicts with other bots' services modules
+
+def _setup_oscar_path():
+    """Ensure Oscar is first in path."""
+    oscar_str = str(oscar_path)
+    project_str = str(project_root)
+
+    # Remove and re-add to ensure Oscar is first
+    if oscar_str in sys.path:
+        sys.path.remove(oscar_str)
+    sys.path.insert(0, oscar_str)
+
+    if project_str not in sys.path:
+        sys.path.insert(0, project_str)
+
+
 def _load_orchestrator_module():
     """Load the orchestrator module using importlib to avoid module conflicts."""
+    _clear_oscar_modules()
+    _setup_oscar_path()
+
+    # Import Oscar's config first
+    import config as oscar_config
+    importlib.reload(oscar_config)
+
     spec = importlib.util.spec_from_file_location(
         "oscar_orchestrator",
         oscar_path / "services" / "orchestrator.py"
@@ -42,15 +68,22 @@ def _load_orchestrator_module():
         return module
     raise ImportError("Could not load Oscar orchestrator module")
 
-# Try to load the orchestrator module
-try:
-    orchestrator_module = _load_orchestrator_module()
-    OnboardingOrchestrator = orchestrator_module.OnboardingOrchestrator
-except Exception as e:
-    # Fallback - set to None and skip tests that need it
-    orchestrator_module = None
-    OnboardingOrchestrator = None
-    print(f"Warning: Could not load Oscar orchestrator: {e}")
+
+# Lazy loading - don't load at module level since other tests may pollute the cache
+orchestrator_module = None
+OnboardingOrchestrator = None
+
+
+def get_orchestrator_class():
+    """Get the OnboardingOrchestrator class, loading if needed."""
+    global orchestrator_module, OnboardingOrchestrator
+    if OnboardingOrchestrator is None:
+        try:
+            orchestrator_module = _load_orchestrator_module()
+            OnboardingOrchestrator = orchestrator_module.OnboardingOrchestrator
+        except Exception as e:
+            print(f"Warning: Could not load Oscar orchestrator: {e}")
+    return OnboardingOrchestrator
 
 
 def setup_mock_email_service(mock_email_obj):
@@ -77,12 +110,15 @@ def setup_mock_email_service(mock_email_obj):
     return mock_email_class
 
 
-# Load Oscar's Database class using importlib to avoid sys.modules caching issues
-_oscar_db_module_path = oscar_path / 'database' / 'db.py'
-_oscar_db_spec = importlib.util.spec_from_file_location('oscar_database_db', _oscar_db_module_path)
-_oscar_db_module = importlib.util.module_from_spec(_oscar_db_spec)
-_oscar_db_spec.loader.exec_module(_oscar_db_module)
-OscarDatabase = _oscar_db_module.Database
+def _load_oscar_database():
+    """Load Oscar's Database class lazily."""
+    _clear_oscar_modules()
+    _setup_oscar_path()
+    _oscar_db_module_path = oscar_path / 'database' / 'db.py'
+    _oscar_db_spec = importlib.util.spec_from_file_location('oscar_database_db', _oscar_db_module_path)
+    _oscar_db_module = importlib.util.module_from_spec(_oscar_db_spec)
+    _oscar_db_spec.loader.exec_module(_oscar_db_module)
+    return _oscar_db_module.Database
 
 
 # ==============================================================================
@@ -90,8 +126,19 @@ OscarDatabase = _oscar_db_module.Database
 # ==============================================================================
 
 @pytest.fixture
+def orchestrator_loaded():
+    """Load and return the orchestrator module and class."""
+    _clear_oscar_modules()
+    _setup_oscar_path()
+    module = _load_orchestrator_module()
+    return module, module.OnboardingOrchestrator
+
+
+@pytest.fixture
 def oscar_db(tmp_path):
     """Create an isolated Oscar database for testing."""
+    OscarDatabase = _load_oscar_database()
+
     # Copy schema to temp location
     schema_src = oscar_path / 'database' / 'schema.sql'
     schema_dst = tmp_path / 'schema.sql'
@@ -174,11 +221,13 @@ def mock_config():
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_create_workflow_steps_all_access(sample_onboarding_request, oscar_db):
+def test_create_workflow_steps_all_access(sample_onboarding_request, oscar_db, orchestrator_loaded):
     """Test workflow step creation when all access types are requested."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     # Patch db in the orchestrator module directly (it imported db from database.db)
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(sample_onboarding_request)
 
     # Should have 5 steps: create_google_user, create_zendesk_user, register_peter, voip_ticket, notify_hr
@@ -198,8 +247,10 @@ def test_create_workflow_steps_all_access(sample_onboarding_request, oscar_db):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_create_workflow_steps_google_only(oscar_db):
+def test_create_workflow_steps_google_only(oscar_db, orchestrator_loaded):
     """Test workflow step creation when only Google access is requested."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     request = {
         'full_name': 'Test User',
         'google_access': True,
@@ -208,8 +259,8 @@ def test_create_workflow_steps_google_only(oscar_db):
     }
 
     # Patch db in the orchestrator module directly
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(request)
 
     # Should have 3 steps: create_google_user, register_peter, notify_hr
@@ -225,8 +276,10 @@ def test_create_workflow_steps_google_only(oscar_db):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_create_workflow_steps_minimal(oscar_db):
+def test_create_workflow_steps_minimal(oscar_db, orchestrator_loaded):
     """Test workflow step creation with no optional access."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     request = {
         'full_name': 'Test User',
         'google_access': False,
@@ -235,8 +288,8 @@ def test_create_workflow_steps_minimal(oscar_db):
     }
 
     # Patch db in the orchestrator module directly
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(request)
 
     # Should have 2 steps: register_peter, notify_hr
@@ -249,8 +302,10 @@ def test_create_workflow_steps_minimal(oscar_db):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_voip_step_has_manual_action_flag(oscar_db):
+def test_voip_step_has_manual_action_flag(oscar_db, orchestrator_loaded):
     """Test that VOIP step is marked as requiring manual action."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     request = {
         'full_name': 'Test User',
         'google_access': False,
@@ -259,8 +314,8 @@ def test_voip_step_has_manual_action_flag(oscar_db):
     }
 
     # Patch db in the orchestrator module directly
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(request)
 
     voip_step = next(s for s in steps if s['name'] == 'voip_ticket')
@@ -275,8 +330,10 @@ def test_voip_step_has_manual_action_flag(oscar_db):
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_create_google_user_success(mock_responses, mock_config, sample_onboarding_request):
+def test_create_google_user_success(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test successful Google user creation via Fred."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     # Mock Fred's API response
     mock_responses.add(
         responses.POST,
@@ -290,10 +347,8 @@ def test_create_google_user_success(mock_responses, mock_config, sample_onboardi
         status=201
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
-
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config):
+        orchestrator = OrchestratorClass()
         result = orchestrator._create_google_user(sample_onboarding_request)
 
     assert result['success'] is True
@@ -303,8 +358,9 @@ def test_create_google_user_success(mock_responses, mock_config, sample_onboardi
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_create_google_user_fred_unavailable(mock_responses, mock_config, sample_onboarding_request):
+def test_create_google_user_fred_unavailable(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test handling when Fred is unavailable."""
+    orch_module, OrchestratorClass = orchestrator_loaded
     import requests.exceptions
 
     mock_responses.add(
@@ -313,10 +369,8 @@ def test_create_google_user_fred_unavailable(mock_responses, mock_config, sample
         body=requests.exceptions.ConnectionError('Connection refused')
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
-
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config):
+        orchestrator = OrchestratorClass()
         result = orchestrator._create_google_user(sample_onboarding_request)
 
     assert result['success'] is False
@@ -326,8 +380,10 @@ def test_create_google_user_fred_unavailable(mock_responses, mock_config, sample
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_create_zendesk_user_success(mock_responses, mock_config, sample_onboarding_request):
+def test_create_zendesk_user_success(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test successful Zendesk user creation via Zac."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_responses.add(
         responses.POST,
         'http://localhost:8007/api/users',
@@ -341,10 +397,8 @@ def test_create_zendesk_user_success(mock_responses, mock_config, sample_onboard
         status=201
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
-
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config):
+        orchestrator = OrchestratorClass()
         result = orchestrator._create_zendesk_user(sample_onboarding_request)
 
     assert result['success'] is True
@@ -354,8 +408,10 @@ def test_create_zendesk_user_success(mock_responses, mock_config, sample_onboard
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_create_zendesk_user_zac_error(mock_responses, mock_config, sample_onboarding_request):
+def test_create_zendesk_user_zac_error(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test handling Zac API errors."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_responses.add(
         responses.POST,
         'http://localhost:8007/api/users',
@@ -363,10 +419,8 @@ def test_create_zendesk_user_zac_error(mock_responses, mock_config, sample_onboa
         status=400
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
-
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config):
+        orchestrator = OrchestratorClass()
         result = orchestrator._create_zendesk_user(sample_onboarding_request)
 
     assert result['success'] is False
@@ -376,8 +430,10 @@ def test_create_zendesk_user_zac_error(mock_responses, mock_config, sample_onboa
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_register_peter_success(mock_responses, mock_config, sample_onboarding_request):
+def test_register_peter_success(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test successful staff registration via Peter."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_responses.add(
         responses.POST,
         'http://localhost:8003/api/staff',
@@ -390,10 +446,8 @@ def test_register_peter_success(mock_responses, mock_config, sample_onboarding_r
         status=201
     )
 
-    with patch('oscar_orchestrator.config', mock_config):
-        # OnboardingOrchestrator already loaded at module level
-
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config):
+        orchestrator = OrchestratorClass()
         result = orchestrator._register_peter(sample_onboarding_request)
 
     assert result['success'] is True
@@ -403,8 +457,10 @@ def test_register_peter_success(mock_responses, mock_config, sample_onboarding_r
 @pytest.mark.unit
 @pytest.mark.oscar
 @pytest.mark.integration
-def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboarding_request):
+def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test successful VOIP ticket creation via Sadie."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_responses.add(
         responses.POST,
         'http://localhost:8010/api/tickets',
@@ -424,9 +480,9 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
         'voip_ticket_group_name': 'IT Support'
     }.get(key, default)
 
-    with patch('oscar_orchestrator.config', mock_config), \
-         patch('oscar_orchestrator.db', mock_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config), \
+         patch.object(orch_module, 'db', mock_db):
+        orchestrator = OrchestratorClass()
         result = orchestrator._create_voip_ticket(sample_onboarding_request)
 
     assert result['success'] is True
@@ -439,8 +495,10 @@ def test_create_voip_ticket_success(mock_responses, mock_config, sample_onboardi
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_notify_hr_success(mock_config, sample_onboarding_request):
+def test_notify_hr_success(mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test successful email notification to HR."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_email_instance = Mock()
     mock_email_instance.send_email.return_value = (True, None)
 
@@ -454,9 +512,9 @@ def test_notify_hr_success(mock_config, sample_onboarding_request):
         'hr_notification_name': 'HR Team'
     }.get(key, default)
 
-    with patch('oscar_orchestrator.config', mock_config), \
-         patch('oscar_orchestrator.db', mock_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config), \
+         patch.object(orch_module, 'db', mock_db):
+        orchestrator = OrchestratorClass()
         result = orchestrator._notify_hr(sample_onboarding_request)
 
     assert result['success'] is True
@@ -469,8 +527,10 @@ def test_notify_hr_success(mock_config, sample_onboarding_request):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_notify_hr_email_failure(mock_config, sample_onboarding_request):
+def test_notify_hr_email_failure(mock_config, sample_onboarding_request, orchestrator_loaded):
     """Test handling email send failure."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     mock_email_instance = Mock()
     mock_email_instance.send_email.return_value = (False, "SMTP connection failed")
 
@@ -484,9 +544,9 @@ def test_notify_hr_email_failure(mock_config, sample_onboarding_request):
         'hr_notification_name': 'HR Team'
     }.get(key, default)
 
-    with patch('oscar_orchestrator.config', mock_config), \
-         patch('oscar_orchestrator.db', mock_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'config', mock_config), \
+         patch.object(orch_module, 'db', mock_db):
+        orchestrator = OrchestratorClass()
         result = orchestrator._notify_hr(sample_onboarding_request)
 
     assert result['success'] is False
@@ -499,8 +559,10 @@ def test_notify_hr_email_failure(mock_config, sample_onboarding_request):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_zendesk_step_is_non_critical(oscar_db):
+def test_zendesk_step_is_non_critical(oscar_db, orchestrator_loaded):
     """Test that Zendesk step failure doesn't block workflow."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     request = {
         'full_name': 'Test User',
         'google_access': True,
@@ -509,8 +571,8 @@ def test_zendesk_step_is_non_critical(oscar_db):
     }
 
     # Patch db in the orchestrator module directly
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(request)
 
     zendesk_step = next(s for s in steps if s['name'] == 'create_zendesk_user')
@@ -519,8 +581,10 @@ def test_zendesk_step_is_non_critical(oscar_db):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_google_step_is_critical(oscar_db):
+def test_google_step_is_critical(oscar_db, orchestrator_loaded):
     """Test that Google step is marked as critical."""
+    orch_module, OrchestratorClass = orchestrator_loaded
+
     request = {
         'full_name': 'Test User',
         'google_access': True,
@@ -529,8 +593,8 @@ def test_google_step_is_critical(oscar_db):
     }
 
     # Patch db in the orchestrator module directly
-    with patch.object(orchestrator_module, 'db', oscar_db):
-        orchestrator = OnboardingOrchestrator()
+    with patch.object(orch_module, 'db', oscar_db):
+        orchestrator = OrchestratorClass()
         steps = orchestrator._create_workflow_steps(request)
 
     google_step = next(s for s in steps if s['name'] == 'create_google_user')
@@ -543,11 +607,11 @@ def test_google_step_is_critical(oscar_db):
 
 @pytest.mark.unit
 @pytest.mark.oscar
-def test_email_generation_single_name():
+def test_email_generation_single_name(orchestrator_loaded):
     """Test email generation for single-name person."""
-    # OnboardingOrchestrator already loaded at module level
+    orch_module, OrchestratorClass = orchestrator_loaded
 
-    orchestrator = OnboardingOrchestrator()
+    orchestrator = OrchestratorClass()
 
     # Access the email generation logic from _create_google_user
     # The email is generated as: first_name.last_name@watsonblinds.com.au
