@@ -10,10 +10,14 @@ Usage:
     python tools/buz_auth_bootstrap.py canberra
     python tools/buz_auth_bootstrap.py tweed
 
-This creates storage state files:
-    .secrets/buz_storage_state_designer_drapes.json
-    .secrets/buz_storage_state_canberra.json
-    .secrets/buz_storage_state_tweed.json
+This creates storage state files in the SHARED .secrets/buz/ directory:
+    .secrets/buz/buz_storage_state_designer_drapes.json
+    .secrets/buz/buz_storage_state_canberra.json
+    .secrets/buz/buz_storage_state_tweed.json
+
+NOTE: These files are shared between Banji, Hugo, and Ivy.
+      You can also run the shared tool from bot-team root:
+      python tools/buz_auth_bootstrap.py {org}
 """
 from __future__ import annotations
 import asyncio
@@ -24,6 +28,10 @@ from playwright.async_api import async_playwright
 
 START_URL = "https://go.buzmanager.com/Settings/Inventory"  # lands you in the app after login
 
+# Use shared .secrets/buz/ directory at project root (not banji/.secrets/)
+PROJECT_ROOT = Path(__file__).parent.parent.parent  # bot-team/
+SECRETS_DIR = PROJECT_ROOT / ".secrets" / "buz"
+
 
 async def main(org_name: str = "default") -> None:
     """
@@ -32,13 +40,10 @@ async def main(org_name: str = "default") -> None:
     Args:
         org_name: Organization name (e.g., 'designer_drapes', 'canberra')
     """
-    # Determine where to save the storage state
-    # Use banji/.secrets/ directory
-    script_dir = Path(__file__).parent.parent  # banji/
-    secrets_dir = script_dir / ".secrets"
-    secrets_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure shared secrets directory exists
+    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    state_path = secrets_dir / f"buz_storage_state_{org_name}.json"
+    state_path = SECRETS_DIR / f"buz_storage_state_{org_name}.json"
 
     print("\n" + "="*80)
     print(f"Buz Authentication Bootstrap for: {org_name}")
