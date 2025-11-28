@@ -194,7 +194,13 @@ class BuzPlaywrightLock:
         finally:
             if acquired:
                 try:
-                    self._file_lock.release()
+                    # IMPORTANT: Release must run in executor too!
+                    # filelock uses thread-local state, so release must happen
+                    # in the same thread context as acquire
+                    await loop.run_in_executor(
+                        None,
+                        lambda: self._file_lock.release()
+                    )
                     self._clear_holder_info()
                     logger.info(f"[{bot_name}] Buz Playwright lock released")
                 except Exception as e:
