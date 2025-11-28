@@ -116,7 +116,12 @@ def items():
         offset=offset
     )
 
-    total = inventory_db.get_inventory_item_count(org_key, is_active_bool)
+    total = inventory_db.get_inventory_item_count(
+        org_key=org_key,
+        group_code=group_code,
+        is_active=is_active_bool,
+        search=search if search else None
+    )
     total_pages = (total + per_page - 1) // per_page
 
     # Get inventory groups for filter dropdown

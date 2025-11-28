@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Pricing Coefficients - {{ config.name }}{% endblock %}
+{% block title %}Pricing Details - {{ config.name }}{% endblock %}
 
 {% block content %}
-<h2>Pricing Coefficients</h2>
+<h2>Pricing Details</h2>
+<p class="text-muted" style="margin-bottom: 15px;">View all price group entries. For a combined item/pricing view, use <a href="{{ url_for('web.items') }}">Items & Pricing</a>.</p>
 
 <form method="get" class="filters">
     <select name="org_key" onchange="this.form.submit()">
@@ -61,24 +62,29 @@
 <table>
     <thead>
         <tr>
-            <th>Code</th>
-            <th>Name</th>
+            <th>Item Code</th>
+            <th>Description</th>
             <th>Group</th>
             <th>Org</th>
-            <th>Type</th>
+            <th>Sell Each</th>
+            <th>Sell SQM</th>
+            <th>Cost Each</th>
+            <th>Cost SQM</th>
             <th>Status</th>
-            <th>Base Value</th>
             <th>Last Synced</th>
         </tr>
     </thead>
     <tbody>
         {% for coeff in coefficients %}
         <tr>
-            <td><code>{{ coeff.coefficient_code }}</code></td>
-            <td>{{ coeff.coefficient_name }}</td>
+            <td><code>{{ coeff.item_code }}</code></td>
+            <td>{{ coeff.description or '-' }}</td>
             <td>{{ coeff.group_code }}</td>
             <td>{{ BuzOrgs.get_display_name(coeff.org_key) }}</td>
-            <td>{{ coeff.coefficient_type or '-' }}</td>
+            <td>{% if coeff.sell_each %}${{ "%.2f"|format(coeff.sell_each) }}{% else %}-{% endif %}</td>
+            <td>{% if coeff.sell_sqm %}${{ "%.2f"|format(coeff.sell_sqm) }}{% else %}-{% endif %}</td>
+            <td>{% if coeff.cost_each %}${{ "%.2f"|format(coeff.cost_each) }}{% else %}-{% endif %}</td>
+            <td>{% if coeff.cost_sqm %}${{ "%.2f"|format(coeff.cost_sqm) }}{% else %}-{% endif %}</td>
             <td>
                 {% if coeff.is_active %}
                 <span class="badge badge-active">Active</span>
@@ -86,12 +92,11 @@
                 <span class="badge badge-inactive">Inactive</span>
                 {% endif %}
             </td>
-            <td>{% if coeff.base_value %}{{ "%.4f"|format(coeff.base_value) }}{% else %}-{% endif %}</td>
             <td class="text-muted" title="{{ coeff.last_synced }}">{{ time_ago(coeff.last_synced) }}</td>
         </tr>
         {% else %}
         <tr>
-            <td colspan="8" class="text-muted" style="text-align: center;">No coefficients found</td>
+            <td colspan="10" class="text-muted" style="text-align: center;">No pricing found</td>
         </tr>
         {% endfor %}
     </tbody>

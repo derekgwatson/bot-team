@@ -178,6 +178,10 @@ class InventoryDatabase:
         for item in items:
             extra_json = json.dumps(item.get('extra_data', {}))
 
+            # Buz exports use 'description' as the item name
+            # Use 'description' as item_name if not explicitly set
+            item_name = item.get('item_name') or item.get('description', '')
+
             cursor = conn.execute(
                 'SELECT id FROM inventory_items WHERE org_key = ? AND group_code = ? AND item_code = ?',
                 (org_key, item['group_code'], item['item_code'])
@@ -203,7 +207,7 @@ class InventoryDatabase:
                         updated_at = CURRENT_TIMESTAMP
                     WHERE org_key = ? AND group_code = ? AND item_code = ?
                 ''', (
-                    item.get('item_name', ''),
+                    item_name,
                     item.get('description', ''),
                     item.get('unit_of_measure', ''),
                     1 if item.get('is_active', True) else 0,
@@ -227,7 +231,7 @@ class InventoryDatabase:
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     org_key, item['group_code'], item['item_code'],
-                    item.get('item_name', ''), item.get('description', ''),
+                    item_name, item.get('description', ''),
                     item.get('unit_of_measure', ''),
                     1 if item.get('is_active', True) else 0,
                     item.get('supplier_code', ''), item.get('supplier_name', ''),
@@ -257,43 +261,69 @@ class InventoryDatabase:
         limit: int = 100,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Get inventory items with optional filters."""
+        """Get inventory items with pricing data joined."""
         conn = self.get_connection()
 
-        query = 'SELECT * FROM inventory_items WHERE 1=1'
+        # Join items with pricing - get the first pricing entry per item
+        # (items may have multiple price groups, we show the primary one)
+        query = '''
+            SELECT
+                i.*,
+                p.sell_each as pricing_sell_each,
+                p.sell_sqm as pricing_sell_sqm,
+                p.cost_each as pricing_cost_each,
+                p.cost_sqm as pricing_cost_sqm,
+                p.sell_minimum as pricing_sell_min,
+                p.cost_minimum as pricing_cost_min
+            FROM inventory_items i
+            LEFT JOIN (
+                SELECT *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY org_key, group_code, item_code
+                        ORDER BY sort_order, price_group_code
+                    ) as rn
+                FROM pricing_coefficients
+            ) p ON i.org_key = p.org_key
+                AND i.group_code = p.group_code
+                AND i.item_code = p.item_code
+                AND p.rn = 1
+            WHERE 1=1
+        '''
         params = []
 
         if org_key:
-            query += ' AND org_key = ?'
+            query += ' AND i.org_key = ?'
             params.append(org_key)
 
         if group_code:
-            query += ' AND group_code = ?'
+            query += ' AND i.group_code = ?'
             params.append(group_code)
 
         if is_active is not None:
-            query += ' AND is_active = ?'
+            query += ' AND i.is_active = ?'
             params.append(1 if is_active else 0)
 
         if search:
-            query += ' AND (item_code LIKE ? OR item_name LIKE ? OR description LIKE ?)'
+            query += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.description LIKE ?)'
             search_param = f'%{search}%'
             params.extend([search_param, search_param, search_param])
 
-        query += ' ORDER BY org_key, group_code, sort_order, item_name'
+        query += ' ORDER BY i.org_key, i.group_code, i.sort_order, i.item_name'
         query += f' LIMIT {limit} OFFSET {offset}'
 
         cursor = conn.execute(query, params)
         items = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
-        # Parse extra_data JSON
+        # Parse extra_data JSON and clean up pricing fields
         for item in items:
             if item.get('extra_data'):
                 try:
                     item['extra_data'] = json.loads(item['extra_data'])
                 except json.JSONDecodeError:
                     item['extra_data'] = {}
+            # Remove the rn column if present
+            item.pop('rn', None)
 
         return items
 
@@ -325,7 +355,9 @@ class InventoryDatabase:
     def get_inventory_item_count(
         self,
         org_key: Optional[str] = None,
-        is_active: Optional[bool] = None
+        group_code: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        search: Optional[str] = None
     ) -> int:
         """Get count of inventory items."""
         conn = self.get_connection()
@@ -337,9 +369,18 @@ class InventoryDatabase:
             query += ' AND org_key = ?'
             params.append(org_key)
 
+        if group_code:
+            query += ' AND group_code = ?'
+            params.append(group_code)
+
         if is_active is not None:
             query += ' AND is_active = ?'
             params.append(1 if is_active else 0)
+
+        if search:
+            query += ' AND (item_code LIKE ? OR item_name LIKE ?)'
+            search_param = f'%{search}%'
+            params.extend([search_param, search_param])
 
         cursor = conn.execute(query, params)
         count = cursor.fetchone()['count']
@@ -616,11 +657,11 @@ class InventoryDatabase:
             params.append(1 if is_active else 0)
 
         if search:
-            query += ' AND (coefficient_code LIKE ? OR coefficient_name LIKE ? OR description LIKE ?)'
+            query += ' AND (item_code LIKE ? OR description LIKE ?)'
             search_param = f'%{search}%'
-            params.extend([search_param, search_param, search_param])
+            params.extend([search_param, search_param])
 
-        query += ' ORDER BY org_key, group_code, sort_order, coefficient_name'
+        query += ' ORDER BY org_key, group_code, sort_order, item_code'
         query += f' LIMIT {limit} OFFSET {offset}'
 
         cursor = conn.execute(query, params)
@@ -641,13 +682,13 @@ class InventoryDatabase:
         self,
         org_key: str,
         group_code: str,
-        coefficient_code: str
+        item_code: str
     ) -> Optional[Dict[str, Any]]:
         """Get a single pricing coefficient."""
         conn = self.get_connection()
         cursor = conn.execute(
-            'SELECT * FROM pricing_coefficients WHERE org_key = ? AND group_code = ? AND coefficient_code = ?',
-            (org_key, group_code, coefficient_code)
+            'SELECT * FROM pricing_coefficients WHERE org_key = ? AND group_code = ? AND item_code = ?',
+            (org_key, group_code, item_code)
         )
         row = cursor.fetchone()
         conn.close()

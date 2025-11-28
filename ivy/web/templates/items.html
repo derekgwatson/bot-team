@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory Items - {{ config.name }}{% endblock %}
+{% block title %}Items & Pricing - {{ config.name }}{% endblock %}
 
 {% block content %}
-<h2>Inventory Items</h2>
+<h2>Items & Pricing</h2>
 
 <form method="get" class="filters">
     <select name="org_key" onchange="this.form.submit()">
@@ -66,8 +66,10 @@
             <th>Group</th>
             <th>Org</th>
             <th>Status</th>
-            <th>Cost</th>
-            <th>Sell</th>
+            <th>Cost Each</th>
+            <th>Sell Each</th>
+            <th>Cost SQM</th>
+            <th>Sell SQM</th>
             <th>Last Synced</th>
         </tr>
     </thead>
@@ -85,13 +87,15 @@
                 <span class="badge badge-inactive">Inactive</span>
                 {% endif %}
             </td>
-            <td>{% if item.cost_price %}${{ "%.2f"|format(item.cost_price) }}{% else %}-{% endif %}</td>
-            <td>{% if item.sell_price %}${{ "%.2f"|format(item.sell_price) }}{% else %}-{% endif %}</td>
+            <td>{% if item.pricing_cost_each %}${{ "%.2f"|format(item.pricing_cost_each) }}{% elif item.cost_price %}${{ "%.2f"|format(item.cost_price) }}{% else %}-{% endif %}</td>
+            <td>{% if item.pricing_sell_each %}${{ "%.2f"|format(item.pricing_sell_each) }}{% elif item.sell_price %}${{ "%.2f"|format(item.sell_price) }}{% else %}-{% endif %}</td>
+            <td>{% if item.pricing_cost_sqm %}${{ "%.2f"|format(item.pricing_cost_sqm) }}{% else %}-{% endif %}</td>
+            <td>{% if item.pricing_sell_sqm %}${{ "%.2f"|format(item.pricing_sell_sqm) }}{% else %}-{% endif %}</td>
             <td class="text-muted" title="{{ item.last_synced }}">{{ time_ago(item.last_synced) }}</td>
         </tr>
         {% else %}
         <tr>
-            <td colspan="8" class="text-muted" style="text-align: center;">No items found</td>
+            <td colspan="10" class="text-muted" style="text-align: center;">No items found</td>
         </tr>
         {% endfor %}
     </tbody>
