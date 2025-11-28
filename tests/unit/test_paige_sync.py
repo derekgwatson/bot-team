@@ -142,6 +142,21 @@ class TestSyncServiceEmailSelection:
 
         assert service._get_email_for_staff(staff) == 'john.smith@watson.com'
 
+    def test_google_user_falls_back_to_work_email(self):
+        """Google users missing primary email should use work_email."""
+        SyncService = get_sync_service_class()
+        mock_wiki = MagicMock()
+        service = SyncService(mock_wiki)
+
+        staff = {
+            'google_access': 1,
+            'google_primary_email': '',
+            'work_email': 'john@watson.com',
+            'personal_email': 'john@gmail.com'
+        }
+
+        assert service._get_email_for_staff(staff) == 'john@watson.com'
+
     def test_non_google_user_gets_work_email(self):
         """Staff without Google access should use work_email first."""
         SyncService = get_sync_service_class()

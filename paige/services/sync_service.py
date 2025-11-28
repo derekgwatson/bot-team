@@ -97,10 +97,14 @@ class SyncService:
         """
         Get the appropriate email for a staff member.
 
-        Priority:
-        1. google_primary_email (if they have Google access)
-        2. work_email (for staff without Google accounts)
+        Priority for Google users:
+        1. google_primary_email
+        2. work_email (fallback if primary missing)
         3. personal_email (final fallback)
+
+        Priority for non-Google users:
+        1. work_email
+        2. personal_email
 
         Args:
             staff: Staff dict from Peter
@@ -109,10 +113,12 @@ class SyncService:
             Email address to use for wiki account
         """
         if staff.get('google_access') == 1:
-            # Use Google primary email (for OAuth)
-            return staff.get('google_primary_email') or ''
+            # Google users: prefer google_primary_email, fall back to others
+            return (staff.get('google_primary_email') or
+                    staff.get('work_email') or
+                    staff.get('personal_email') or '')
         else:
-            # For non-Google users: work_email first, then personal_email
+            # Non-Google users: work_email first, then personal_email
             return staff.get('work_email') or staff.get('personal_email') or ''
 
     def sync(self) -> Dict:
