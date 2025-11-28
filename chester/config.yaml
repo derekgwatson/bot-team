@@ -472,6 +472,26 @@ bot_team:
       stats: /api/stats
     personality: Knows exactly who has access to what in Buz, manages user lifecycle with precision
 
+  ivy:
+    name: Ivy
+    port: 8028
+    description: Buz Inventory & Pricing Manager
+    capabilities:
+      - Download inventory items from all Buz organizations
+      - Download pricing coefficients from all Buz organizations
+      - Store inventory and pricing data locally for fast access
+      - Track changes between syncs
+      - Provide API for other bots to query items and pricing
+      - Support Buz-Unleashed sync workflows
+    api_endpoints:
+      info: /info
+      health: /health
+      items: /api/items
+      pricing: /api/pricing
+      sync: /api/sync
+      orgs: /api/orgs
+    personality: Meticulous inventory keeper, knows every item and its price across all organizations
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).

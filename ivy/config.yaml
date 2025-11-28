@@ -1,0 +1,30 @@
+name: Ivy
+description: Buz Inventory & Pricing Manager - downloads and caches inventory items and pricing coefficients
+version: 1.0.0
+personality: Meticulous inventory keeper, knows every item and its price across all organizations
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+# Browser configuration (for Playwright)
+browser:
+  default_timeout: 60000  # milliseconds - inventory exports can be slow
+  screenshot_on_failure: true
+  screenshot_dir: screenshots
+
+# Buz timeouts
+buz:
+  navigation_timeout: 60000   # 60 seconds - Buz can be slow
+  download_timeout: 600000    # 10 minutes for large Excel exports (Buz is slow!)
+  save_timeout: 300000        # 5 minutes for slow operations
+
+# Buz URLs for inventory/pricing exports
+buz_urls:
+  inventory_export: https://go.buzmanager.com/Settings/Inventory/Import
+  pricing_export: https://go.buzmanager.com/Settings/InventoryPrices/Import
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: grant  # Use Grant for centralized authorization

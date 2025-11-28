@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Activity - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Activity Log</h2>
+
+<form method="get" class="filters">
+    <select name="org_key" onchange="this.form.submit()">
+        <option value="">All Organizations</option>
+        {% for org in config.available_orgs %}
+        <option value="{{ org }}" {% if org == org_key %}selected{% endif %}>{{ BuzOrgs.get_display_name(org) }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="entity_type" onchange="this.form.submit()">
+        <option value="">All Types</option>
+        <option value="inventory" {% if entity_type == 'inventory' %}selected{% endif %}>Inventory</option>
+        <option value="pricing" {% if entity_type == 'pricing' %}selected{% endif %}>Pricing</option>
+    </select>
+
+    {% if org_key or entity_type %}
+    <a href="{{ url_for('web.activity') }}" class="btn btn-secondary btn-sm">Clear</a>
+    {% endif %}
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Organization</th>
+            <th>Action</th>
+            <th>Type</th>
+            <th>Details</th>
+            <th>Performed By</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in log %}
+        <tr>
+            <td class="text-muted" title="{{ entry.performed_at }}" style="white-space: nowrap;">{{ time_ago(entry.performed_at) }}</td>
+            <td>{{ BuzOrgs.get_display_name(entry.org_key) }}</td>
+            <td>{{ entry.action }}</td>
+            <td>
+                {% if entry.entity_type == 'inventory' %}
+                <span class="badge badge-inventory">Inventory</span>
+                {% else %}
+                <span class="badge badge-pricing">Pricing</span>
+                {% endif %}
+            </td>
+            <td>{{ entry.new_value or entry.old_value or entry.entity_id }}</td>
+            <td>{{ entry.performed_by }}</td>
+            <td>
+                {% if entry.success %}
+                <span class="badge badge-success">OK</span>
+                {% else %}
+                <span class="badge badge-failed" title="{{ entry.error_message }}">Failed</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" class="text-muted" style="text-align: center;">No activity</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

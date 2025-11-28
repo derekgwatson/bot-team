@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Dashboard</h2>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ format_number(stats.total_inventory_items) }}</div>
+        <div class="stat-label">Inventory Items</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ format_number(stats.total_pricing_coefficients) }}</div>
+        <div class="stat-label">Pricing Coefficients</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_inventory_groups }}</div>
+        <div class="stat-label">Inventory Groups</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_pricing_groups }}</div>
+        <div class="stat-label">Pricing Groups</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.available_orgs | length }}</div>
+        <div class="stat-label">Organizations</div>
+    </div>
+</div>
+
+{% if sync_status.is_syncing %}
+<div class="card" style="background: #fff3cd; border: 1px solid #ffc107;">
+    <h3>Sync in Progress</h3>
+    {% for sync in sync_status.running_syncs %}
+    <p>
+        <span class="badge badge-running">{{ sync.sync_type }}</span>
+        {{ BuzOrgs.get_display_name(sync.org_key) }} - Started {{ time_ago(sync.started_at) }}
+    </p>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2>Organizations</h2>
+
+{% for org_key in config.available_orgs %}
+<div class="org-card">
+    <h4>{{ BuzOrgs.get_display_name(org_key) }} ({{ org_key }})</h4>
+
+    <div class="org-stats">
+        {% if stats.inventory_by_org.get(org_key) %}
+        <div>
+            <strong>Inventory:</strong>
+            {{ format_number(stats.inventory_by_org[org_key].total) }} items
+            ({{ stats.inventory_by_org[org_key].active }} active,
+            {{ stats.inventory_by_org[org_key].inactive }} inactive)
+        </div>
+        {% else %}
+        <div class="text-muted">No inventory data</div>
+        {% endif %}
+
+        {% if stats.pricing_by_org.get(org_key) %}
+        <div>
+            <strong>Pricing:</strong>
+            {{ format_number(stats.pricing_by_org[org_key].total) }} coefficients
+            ({{ stats.pricing_by_org[org_key].active }} active,
+            {{ stats.pricing_by_org[org_key].inactive }} inactive)
+        </div>
+        {% else %}
+        <div class="text-muted">No pricing data</div>
+        {% endif %}
+    </div>
+
+    <div>
+        {% if last_syncs.get(org_key) %}
+            {% if last_syncs[org_key].inventory %}
+            <small class="text-muted">
+                Last inventory sync: {{ time_ago(last_syncs[org_key].inventory.completed_at) }}
+                {% if last_syncs[org_key].inventory.status == 'success' %}
+                <span class="text-success">({{ last_syncs[org_key].inventory.item_count }} items)</span>
+                {% else %}
+                <span class="text-danger">({{ last_syncs[org_key].inventory.status }})</span>
+                {% endif %}
+            </small>
+            {% endif %}
+            {% if last_syncs[org_key].pricing %}
+            <small class="text-muted">
+                | Last pricing sync: {{ time_ago(last_syncs[org_key].pricing.completed_at) }}
+                {% if last_syncs[org_key].pricing.status == 'success' %}
+                <span class="text-success">({{ last_syncs[org_key].pricing.item_count }} coefficients)</span>
+                {% else %}
+                <span class="text-danger">({{ last_syncs[org_key].pricing.status }})</span>
+                {% endif %}
+            </small>
+            {% endif %}
+        {% else %}
+        <small class="text-muted">Never synced</small>
+        {% endif %}
+    </div>
+
+    <div class="actions" style="margin-top: 10px;">
+        <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='inventory') }}" style="display: inline;">
+            <button type="submit" class="btn btn-sm btn-primary">Sync Inventory</button>
+        </form>
+        <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='pricing') }}" style="display: inline;">
+            <button type="submit" class="btn btn-sm btn-primary">Sync Pricing</button>
+        </form>
+        <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='all') }}" style="display: inline;">
+            <button type="submit" class="btn btn-sm btn-success">Sync All</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% if stats.missing_auth_orgs %}
+<div class="card" style="background: #f8d7da; border: 1px solid #f5c6cb;">
+    <h3>Missing Authentication</h3>
+    <p>The following organizations need authentication setup:</p>
+    <ul>
+        {% for org in stats.missing_auth_orgs %}
+        <li>{{ org }}</li>
+        {% endfor %}
+    </ul>
+    <p class="text-muted">Run: <code>python tools/buz_auth_bootstrap.py [org_name]</code></p>
+</div>
+{% endif %}
+{% endblock %}

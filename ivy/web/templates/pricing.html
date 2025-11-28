@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Coefficients - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Pricing Coefficients</h2>
+
+<form method="get" class="filters">
+    <select name="org_key" onchange="this.form.submit()">
+        <option value="">All Organizations</option>
+        {% for org in config.available_orgs %}
+        <option value="{{ org }}" {% if org == org_key %}selected{% endif %}>{{ BuzOrgs.get_display_name(org) }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="group_code" onchange="this.form.submit()">
+        <option value="">All Groups</option>
+        {% for group in groups %}
+        <option value="{{ group.group_code }}" {% if group.group_code == group_code %}selected{% endif %}>{{ group.group_name }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="is_active" onchange="this.form.submit()">
+        <option value="">All Status</option>
+        <option value="true" {% if is_active == 'true' %}selected{% endif %}>Active</option>
+        <option value="false" {% if is_active == 'false' %}selected{% endif %}>Inactive</option>
+    </select>
+
+    <input type="text" name="search" value="{{ search }}" placeholder="Search pricing...">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+
+    {% if org_key or group_code or is_active or search %}
+    <a href="{{ url_for('web.pricing') }}" class="btn btn-secondary btn-sm">Clear</a>
+    {% endif %}
+</form>
+
+<p class="text-muted">Showing {{ coefficients | length }} of {{ format_number(total) }} coefficients</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Group</th>
+            <th>Org</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Base Value</th>
+            <th>Last Synced</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for coeff in coefficients %}
+        <tr>
+            <td><code>{{ coeff.coefficient_code }}</code></td>
+            <td>{{ coeff.coefficient_name }}</td>
+            <td>{{ coeff.group_code }}</td>
+            <td>{{ BuzOrgs.get_display_name(coeff.org_key) }}</td>
+            <td>{{ coeff.coefficient_type or '-' }}</td>
+            <td>
+                {% if coeff.is_active %}
+                <span class="badge badge-active">Active</span>
+                {% else %}
+                <span class="badge badge-inactive">Inactive</span>
+                {% endif %}
+            </td>
+            <td>{% if coeff.base_value %}{{ "%.4f"|format(coeff.base_value) }}{% else %}-{% endif %}</td>
+            <td class="text-muted" title="{{ coeff.last_synced }}">{{ time_ago(coeff.last_synced) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="8" class="text-muted" style="text-align: center;">No coefficients found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('web.pricing', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=page-1) }}">Prev</a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="active">{{ p }}</span>
+        {% elif p <= 3 or p > total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+        <a href="{{ url_for('web.pricing', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=p) }}">{{ p }}</a>
+        {% elif p == 4 or p == total_pages - 2 %}
+        <span>...</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="{{ url_for('web.pricing', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=page+1) }}">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

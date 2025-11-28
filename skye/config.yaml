@@ -120,6 +120,24 @@ job_templates:
       hour: "*/6"
       minute: "30"
 
+  ivy_sync:
+    name: "Ivy Inventory & Pricing Sync"
+    description: "Sync inventory items and pricing from Buz for all orgs"
+    target_bot: "ivy"
+    endpoint: "/api/sync/all-orgs"
+    method: "POST"
+    body:
+      include_inactive: true
+      performed_by: "skye"
+      wait_for_lock: true  # Wait for Playwright lock instead of failing
+    # Default: daily at 5am (before Hugo user sync)
+    # Runs async - returns immediately, background threads do the work
+    # If another bot is using Playwright, will wait (status: waiting_for_lock)
+    schedule:
+      type: "cron"
+      hour: "5"
+      minute: "0"
+
 # Admin access configuration
 admin:
   emails:

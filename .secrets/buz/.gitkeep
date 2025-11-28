@@ -1,0 +1,2 @@
+# This file ensures the buz/ directory is tracked by git.
+# Storage state files (buz_storage_state_*.json) are gitignored.

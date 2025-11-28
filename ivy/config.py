@@ -1,4 +1,4 @@
-"""Configuration loader for Hugo."""
+"""Configuration loader for Ivy."""
 import os
 import yaml
 from pathlib import Path
@@ -12,7 +12,7 @@ load_dotenv()
 
 
 class Config:
-    """Configuration management for Hugo."""
+    """Configuration management for Ivy."""
 
     def __init__(self):
         base_dir = Path(__file__).parent
@@ -22,7 +22,7 @@ class Config:
             data = yaml.safe_load(f) or {}
 
         # Bot info
-        self.name = data.get("name", "Hugo")
+        self.name = data.get("name", "Ivy")
         self.description = data.get("description", "")
         self.version = data.get("version", "1.0.0")
         self.personality = data.get("personality", "")
@@ -33,18 +33,30 @@ class Config:
         # Server config
         server_cfg = data.get("server", {}) or {}
         self.server_host = server_cfg.get("host", "0.0.0.0")
-        self.server_port = get_port("hugo")
+        self.server_port = get_port("ivy")
 
         # Browser config
         browser_cfg = data.get("browser", {}) or {}
-        self.browser_default_timeout = browser_cfg.get("default_timeout", 30000)
+        self.browser_default_timeout = browser_cfg.get("default_timeout", 60000)
         self.browser_screenshot_on_failure = browser_cfg.get("screenshot_on_failure", True)
         self.browser_screenshot_dir = browser_cfg.get("screenshot_dir", "screenshots")
 
         # Buz config
         buz_cfg = data.get("buz", {}) or {}
-        self.buz_navigation_timeout = buz_cfg.get("navigation_timeout", 30000)
+        self.buz_navigation_timeout = buz_cfg.get("navigation_timeout", 60000)
+        self.buz_download_timeout = buz_cfg.get("download_timeout", 120000)
         self.buz_save_timeout = buz_cfg.get("save_timeout", 300000)
+
+        # Buz URLs
+        urls_cfg = data.get("buz_urls", {}) or {}
+        self.buz_inventory_url = urls_cfg.get(
+            "inventory_export",
+            "https://go.buzmanager.com/Settings/Inventory/Import"
+        )
+        self.buz_pricing_url = urls_cfg.get(
+            "pricing_export",
+            "https://go.buzmanager.com/Settings/InventoryPrices/Import"
+        )
 
         # Flask secret key (env)
         self.secret_key = os.environ.get(

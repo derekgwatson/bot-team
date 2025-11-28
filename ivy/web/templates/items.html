@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Items - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Inventory Items</h2>
+
+<form method="get" class="filters">
+    <select name="org_key" onchange="this.form.submit()">
+        <option value="">All Organizations</option>
+        {% for org in config.available_orgs %}
+        <option value="{{ org }}" {% if org == org_key %}selected{% endif %}>{{ BuzOrgs.get_display_name(org) }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="group_code" onchange="this.form.submit()">
+        <option value="">All Groups</option>
+        {% for group in groups %}
+        <option value="{{ group.group_code }}" {% if group.group_code == group_code %}selected{% endif %}>{{ group.group_name }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="is_active" onchange="this.form.submit()">
+        <option value="">All Status</option>
+        <option value="true" {% if is_active == 'true' %}selected{% endif %}>Active</option>
+        <option value="false" {% if is_active == 'false' %}selected{% endif %}>Inactive</option>
+    </select>
+
+    <input type="text" name="search" value="{{ search }}" placeholder="Search items...">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+
+    {% if org_key or group_code or is_active or search %}
+    <a href="{{ url_for('web.items') }}" class="btn btn-secondary btn-sm">Clear</a>
+    {% endif %}
+</form>
+
+<p class="text-muted">Showing {{ items | length }} of {{ format_number(total) }} items</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Item Code</th>
+            <th>Name</th>
+            <th>Group</th>
+            <th>Org</th>
+            <th>Status</th>
+            <th>Cost</th>
+            <th>Sell</th>
+            <th>Last Synced</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td><code>{{ item.item_code }}</code></td>
+            <td>{{ item.item_name }}</td>
+            <td>{{ item.group_code }}</td>
+            <td>{{ BuzOrgs.get_display_name(item.org_key) }}</td>
+            <td>
+                {% if item.is_active %}
+                <span class="badge badge-active">Active</span>
+                {% else %}
+                <span class="badge badge-inactive">Inactive</span>
+                {% endif %}
+            </td>
+            <td>{% if item.cost_price %}${{ "%.2f"|format(item.cost_price) }}{% else %}-{% endif %}</td>
+            <td>{% if item.sell_price %}${{ "%.2f"|format(item.sell_price) }}{% else %}-{% endif %}</td>
+            <td class="text-muted" title="{{ item.last_synced }}">{{ time_ago(item.last_synced) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="8" class="text-muted" style="text-align: center;">No items found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('web.items', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=page-1) }}">Prev</a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="active">{{ p }}</span>
+        {% elif p <= 3 or p > total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+        <a href="{{ url_for('web.items', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=p) }}">{{ p }}</a>
+        {% elif p == 4 or p == total_pages - 2 %}
+        <span>...</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="{{ url_for('web.items', org_key=org_key, group_code=group_code, is_active=is_active, search=search, page=page+1) }}">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

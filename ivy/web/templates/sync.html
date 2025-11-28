@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Sync - {{ config.name }}{% endblock %}
+
+{% block content %}
+<h2>Sync Management</h2>
+
+{% if sync_status.is_syncing %}
+<div class="card" style="background: #fff3cd; border: 1px solid #ffc107;" id="sync-progress-card">
+    <h3>Sync in Progress</h3>
+    {% for sync in sync_status.running_syncs %}
+    <div class="sync-progress-item" data-sync-id="{{ sync.id }}">
+        <p style="margin-bottom: 5px;">
+            {% if sync.status == 'waiting_for_lock' %}
+            <span class="badge badge-warning">Waiting for lock</span>
+            {% else %}
+            <span class="badge badge-running">{{ sync.sync_type }}</span>
+            {% endif %}
+            <strong>{{ BuzOrgs.get_display_name(sync.org_key) }}</strong>
+            - <span class="duration-counter" data-started="{{ sync.started_at }}">--</span>
+        </p>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <div class="progress-bar-container" style="flex: 1; background: #e9ecef; border-radius: 4px; height: 20px; overflow: hidden;">
+                <div class="progress-bar" data-sync-id="{{ sync.id }}" style="width: {{ sync.progress or 0 }}%; height: 100%; background: #28a745; transition: width 0.3s ease;"></div>
+            </div>
+            <span class="progress-percent" data-sync-id="{{ sync.id }}" style="font-weight: bold; min-width: 45px;">{{ sync.progress or 0 }}%</span>
+        </div>
+        <p class="progress-message" data-sync-id="{{ sync.id }}" style="margin: 0; font-size: 0.9em; color: #666;">
+            {{ sync.progress_message or 'Starting...' }}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>Trigger Sync</h3>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        {% for org_key in config.available_orgs %}
+        <div>
+            <strong>{{ BuzOrgs.get_display_name(org_key) }}</strong>
+            <div class="actions" style="margin-top: 5px;">
+                <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='inventory') }}" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-primary">Inventory</button>
+                </form>
+                <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='pricing') }}" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-primary">Pricing</button>
+                </form>
+                <form method="post" action="{{ url_for('web.trigger_sync', org_key=org_key, sync_type='all') }}" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-success">Both</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Sync History</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Organization</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Items</th>
+                <th>Duration</th>
+                <th>Started</th>
+                <th>Completed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sync in history %}
+            <tr>
+                <td>{{ BuzOrgs.get_display_name(sync.org_key) }}</td>
+                <td>
+                    {% if sync.sync_type == 'inventory' %}
+                    <span class="badge badge-inventory">Inventory</span>
+                    {% else %}
+                    <span class="badge badge-pricing">Pricing</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if sync.status == 'success' %}
+                    <span class="badge badge-success">Success</span>
+                    {% elif sync.status == 'running' %}
+                    <span class="badge badge-running">Running</span>
+                    {% elif sync.status == 'waiting_for_lock' %}
+                    <span class="badge badge-warning">Waiting</span>
+                    {% else %}
+                    <span class="badge badge-failed">Failed</span>
+                    {% endif %}
+                </td>
+                <td>{{ sync.item_count if sync.item_count else '-' }}</td>
+                <td>
+                    {% if sync.status in ['running', 'waiting_for_lock'] %}
+                    <span class="duration-counter" data-started="{{ sync.started_at }}">--</span>
+                    {% elif sync.duration_seconds %}
+                    {{ "%.1f"|format(sync.duration_seconds) }}s
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td class="text-muted" title="{{ sync.started_at }}">{{ time_ago(sync.started_at) }}</td>
+                <td class="text-muted" title="{{ sync.completed_at }}">
+                    {% if sync.status in ['running', 'waiting_for_lock'] %}
+                    <em>In progress...</em>
+                    {% elif sync.completed_at %}
+                    {{ time_ago(sync.completed_at) }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% if sync.status == 'failed' and sync.error_message %}
+            <tr class="error-row">
+                <td colspan="7" style="background: #f8d7da; color: #721c24; padding: 8px 12px; font-size: 0.9em;">
+                    <strong>Error:</strong> {{ sync.error_message }}
+                </td>
+            </tr>
+            {% endif %}
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-muted" style="text-align: center;">No sync history</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Live duration counter for running syncs
+function updateDurationCounters() {
+    document.querySelectorAll('.duration-counter').forEach(function(el) {
+        var started = el.dataset.started;
+        if (!started) return;
+
+        // Parse SQLite timestamp format
+        var startTime;
+        if (started.includes('T')) {
+            startTime = new Date(started);
+        } else {
+            // SQLite format: "2024-01-15 10:30:00" - treat as UTC
+            startTime = new Date(started.replace(' ', 'T') + 'Z');
+        }
+
+        var now = new Date();
+        var seconds = Math.floor((now - startTime) / 1000);
+
+        if (seconds < 60) {
+            el.textContent = seconds + 's';
+        } else if (seconds < 3600) {
+            var mins = Math.floor(seconds / 60);
+            var secs = seconds % 60;
+            el.textContent = mins + 'm ' + secs + 's';
+        } else {
+            var hours = Math.floor(seconds / 3600);
+            var mins = Math.floor((seconds % 3600) / 60);
+            el.textContent = hours + 'h ' + mins + 'm';
+        }
+    });
+}
+
+// Update duration every second
+updateDurationCounters();
+setInterval(updateDurationCounters, 1000);
+
+// Track if we had running syncs on page load
+var hadRunningSyncs = {{ 'true' if sync_status.is_syncing else 'false' }};
+
+// Poll for sync status changes (every 2 seconds when syncs are running)
+function checkSyncStatus() {
+    fetch('/api/sync/status', {
+        credentials: 'same-origin'
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        var isNowSyncing = data.is_syncing;
+
+        // Update progress bars for running syncs
+        if (data.running_syncs) {
+            data.running_syncs.forEach(function(sync) {
+                var progressBar = document.querySelector('.progress-bar[data-sync-id="' + sync.id + '"]');
+                var progressPercent = document.querySelector('.progress-percent[data-sync-id="' + sync.id + '"]');
+                var progressMessage = document.querySelector('.progress-message[data-sync-id="' + sync.id + '"]');
+
+                if (progressBar) {
+                    progressBar.style.width = (sync.progress || 0) + '%';
+                }
+                if (progressPercent) {
+                    progressPercent.textContent = (sync.progress || 0) + '%';
+                }
+                if (progressMessage) {
+                    progressMessage.textContent = sync.progress_message || 'Working...';
+                }
+            });
+        }
+
+        // If status changed (was syncing, now not syncing), refresh to show results
+        if (hadRunningSyncs && !isNowSyncing) {
+            location.reload();
+        }
+
+        // Update tracking
+        hadRunningSyncs = isNowSyncing;
+
+        // Continue polling if still syncing (faster polling for progress updates)
+        if (isNowSyncing) {
+            setTimeout(checkSyncStatus, 2000);
+        }
+    })
+    .catch(function(err) {
+        console.error('Error checking sync status:', err);
+        // Retry on error
+        setTimeout(checkSyncStatus, 10000);
+    });
+}
+
+// Start polling if syncs are running
+if (hadRunningSyncs) {
+    setTimeout(checkSyncStatus, 2000);
+}
+</script>
+{% endblock %}
