@@ -45,6 +45,10 @@
         input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
         .select-all { margin-bottom: 10px; }
         .empty-state { text-align: center; padding: 40px; color: #666; }
+        .confirm-panel { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin-top: 15px; display: none; }
+        .confirm-panel.show { display: block; }
+        .confirm-panel p { margin: 0 0 10px 0; color: #856404; }
+        .confirm-panel .btn-group { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -118,10 +122,13 @@
         <div class="card">
             <div class="card-title">
                 <span>Missing from Fiona ({{ comparison.missing_count }})</span>
-                <form method="post" action="{{ url_for('web.sync_add_missing') }}" style="margin: 0;">
-                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Add {{ comparison.missing_count }} placeholder entries to Fiona?')">
-                        Add All Missing
-                    </button>
+                <button type="button" class="btn btn-success btn-sm" id="showAddConfirm">Add All Missing</button>
+            </div>
+            <div class="confirm-panel" id="addConfirm">
+                <p><strong>Add {{ comparison.missing_count }} placeholder entries to Fiona?</strong></p>
+                <form method="post" action="{{ url_for('web.sync_add_missing') }}" class="btn-group">
+                    <button type="submit" class="btn btn-success btn-sm">Yes, Add All</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="cancelAdd">Cancel</button>
                 </form>
             </div>
             <p style="margin-bottom: 15px; color: #666;">
@@ -172,9 +179,14 @@
                     </table>
                 </div>
                 <div style="margin-top: 15px;">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected fabrics from Fiona? This cannot be undone.')">
-                        Delete Selected
-                    </button>
+                    <button type="button" class="btn btn-danger" id="showDeleteConfirm">Delete Selected</button>
+                </div>
+                <div class="confirm-panel" id="deleteConfirm">
+                    <p><strong>Delete selected fabrics from Fiona?</strong> This cannot be undone.</p>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                        <button type="button" class="btn btn-secondary" id="cancelDelete">Cancel</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -197,6 +209,38 @@
         function toggleAll(source) {
             const checkboxes = document.querySelectorAll('input[name="codes"]');
             checkboxes.forEach(cb => cb.checked = source.checked);
+        }
+
+        // Add confirm panel
+        const showAddBtn = document.getElementById('showAddConfirm');
+        const cancelAddBtn = document.getElementById('cancelAdd');
+        if (showAddBtn) {
+            showAddBtn.addEventListener('click', function() {
+                document.getElementById('addConfirm').classList.add('show');
+                this.style.display = 'none';
+            });
+        }
+        if (cancelAddBtn) {
+            cancelAddBtn.addEventListener('click', function() {
+                document.getElementById('addConfirm').classList.remove('show');
+                document.getElementById('showAddConfirm').style.display = '';
+            });
+        }
+
+        // Delete confirm panel
+        const showDeleteBtn = document.getElementById('showDeleteConfirm');
+        const cancelDeleteBtn = document.getElementById('cancelDelete');
+        if (showDeleteBtn) {
+            showDeleteBtn.addEventListener('click', function() {
+                document.getElementById('deleteConfirm').classList.add('show');
+                this.style.display = 'none';
+            });
+        }
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener('click', function() {
+                document.getElementById('deleteConfirm').classList.remove('show');
+                document.getElementById('showDeleteConfirm').style.display = '';
+            });
         }
     </script>
 </body>

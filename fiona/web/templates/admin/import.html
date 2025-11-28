@@ -38,6 +38,10 @@
         .preview-table th { background: #f8f9fa; font-weight: 600; }
         .preview-table .code { font-family: monospace; color: #9b59b6; }
         code { background: #f1f1f1; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .confirm-panel { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin-top: 15px; display: none; }
+        .confirm-panel.show { display: block; }
+        .confirm-panel p { margin: 0 0 10px 0; color: #856404; }
+        .confirm-panel .btn-group { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -93,10 +97,27 @@
                     </tbody>
                 </table>
                 {% endif %}
-                <form method="post" action="{{ url_for('web.import_run') }}" style="margin-top: 20px;">
-                    <button type="submit" class="btn btn-success" onclick="return confirm('Run the import? This will update {{ preview_result.stats.fabrics_found }} fabric descriptions.')">Run Import</button>
+                <div style="margin-top: 20px;">
+                    <button type="button" class="btn btn-success" id="showImportConfirm">Run Import</button>
                     <a href="{{ url_for('web.import_page') }}" class="btn btn-secondary">Cancel</a>
-                </form>
+                </div>
+                <div class="confirm-panel" id="importConfirm">
+                    <p><strong>Run the import?</strong> This will update {{ preview_result.stats.fabrics_found }} fabric descriptions.</p>
+                    <form method="post" action="{{ url_for('web.import_run') }}" class="btn-group">
+                        <button type="submit" class="btn btn-success">Yes, Run Import</button>
+                        <button type="button" class="btn btn-secondary" id="cancelImport">Cancel</button>
+                    </form>
+                </div>
+                <script>
+                    document.getElementById('showImportConfirm').addEventListener('click', function() {
+                        document.getElementById('importConfirm').classList.add('show');
+                        this.style.display = 'none';
+                    });
+                    document.getElementById('cancelImport').addEventListener('click', function() {
+                        document.getElementById('importConfirm').classList.remove('show');
+                        document.getElementById('showImportConfirm').style.display = '';
+                    });
+                </script>
             </div>
             {% else %}
             <div class="alert alert-error"><strong>Preview Failed:</strong> {{ preview_result.error }}</div>

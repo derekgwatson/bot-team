@@ -379,25 +379,37 @@ class SchedulerService:
         return True
 
     def run_job_now(self, job_id: str) -> Dict:
-        """Manually trigger a job to run immediately."""
+        """Manually trigger a job to run immediately (async).
+
+        The job runs in the background via APScheduler. Check job history
+        for the result.
+        """
         db = self._get_db()
         job_data = db.get_job(job_id)
 
         if not job_data:
             return {'success': False, 'error': 'Job not found'}
 
-        # Execute synchronously
-        self._execute_job(job_id)
+        if not self._running or not self._scheduler:
+            return {'success': False, 'error': 'Scheduler not running'}
 
-        # Get latest execution result
-        history = db.get_job_history(job_id, limit=1)
-        if history:
-            return {
-                'success': history[0]['status'] == 'success',
-                'execution': history[0]
-            }
+        # Add a one-time job that runs immediately in the background
+        # Use a unique ID so it doesn't conflict with the scheduled job
+        run_id = f"{job_id}_manual_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-        return {'success': False, 'error': 'Execution not recorded'}
+        self._scheduler.add_job(
+            func=self._execute_job,
+            trigger='date',  # One-time execution
+            run_date=datetime.now(),  # Run immediately
+            id=run_id,
+            name=f"Manual: {job_data['name']}",
+            args=[job_id],
+            misfire_grace_time=60
+        )
+
+        logger.info(f"Queued manual execution of job {job_id} as {run_id}")
+
+        return {'success': True, 'queued': True, 'message': 'Job queued for execution'}
 
     def get_scheduled_jobs(self) -> list:
         """Get list of jobs currently scheduled in APScheduler."""

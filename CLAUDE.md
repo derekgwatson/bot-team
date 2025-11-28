@@ -629,6 +629,43 @@ When showing absolute times, **always use local time** (convert from UTC on the 
 
 See `hugo/web/routes.py` for the full `time_ago()` implementation and `hugo/web/templates/sync.html` for template usage.
 
+## UI/UX Patterns
+
+### No JavaScript Popups
+
+**CRITICAL**: Never use JavaScript `alert()`, `confirm()`, or `prompt()` dialogs.
+
+Instead, always use:
+- **Flash messages** for notifications (success, error, info)
+- **Inline divs** for confirmation dialogs or forms
+- **HTML error pages** for error states (see `shared/error_handlers.py`)
+
+Flash message example:
+```python
+from flask import flash
+flash('Job queued successfully', 'success')  # Types: success, error, info, warning
+```
+
+For confirmations, use a form with a submit button, not `confirm()`:
+```html
+<!-- Good: Inline form -->
+<form method="post" action="/delete/123">
+    <p>Are you sure you want to delete this item?</p>
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a href="/cancel" class="btn">Cancel</a>
+</form>
+
+<!-- Bad: JavaScript confirm -->
+<button onclick="if(confirm('Delete?')) ...">Delete</button>
+```
+
+### Error Display
+
+Use `shared/error_handlers.py` which provides:
+- JSON responses for API requests (detects `X-API-Key` header or `Accept: application/json`)
+- Clean HTML error pages for browser requests (div-based, no popups)
+- Handlers for: 400, 401, 403, 404, 405, 408, 429, 500, 502, 503, 504
+
 ## Bot-Specific Notes
 
 For the full list of bots and their ports, see `/chester/config.yaml`. Here are important notes for key bots:

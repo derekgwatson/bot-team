@@ -42,11 +42,12 @@
                 <td>{{ section.created_date[:10] }}</td>
                 <td>
                     <a href="/sections/{{ section.id }}/edit" class="btn btn-small" style="background: #3498db; margin-right: 5px;">Edit</a>
-                    <form method="POST" action="/sections/{{ section.id }}/delete" style="display: inline;">
-                        <button type="submit" class="btn btn-danger btn-small"
-                                onclick="return confirm('Delete section {{ section.name }}? This only works if no staff are assigned to it.')">
-                            Delete
-                        </button>
+                    <form method="POST" action="/sections/{{ section.id }}/delete" style="display: inline;" class="confirm-form">
+                        <button type="button" class="btn btn-danger btn-small confirm-trigger">Delete</button>
+                        <span class="confirm-state" style="display: none;">
+                            <button type="submit" class="btn btn-danger btn-small">Yes</button>
+                            <button type="button" class="btn btn-small cancel-confirm" style="background: #95a5a6;">No</button>
+                        </span>
                     </form>
                 </td>
             </tr>
@@ -64,4 +65,20 @@
 <div style="margin-top: 20px;">
     <a href="/" class="btn" style="background: #95a5a6;">Back to Directory</a>
 </div>
+
+<script>
+    // Confirmation pattern for destructive actions
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('confirm-trigger')) {
+            const form = e.target.closest('.confirm-form');
+            e.target.style.display = 'none';
+            form.querySelector('.confirm-state').style.display = 'inline';
+        }
+        if (e.target.classList.contains('cancel-confirm')) {
+            const form = e.target.closest('.confirm-form');
+            form.querySelector('.confirm-state').style.display = 'none';
+            form.querySelector('.confirm-trigger').style.display = '';
+        }
+    });
+</script>
 {% endblock %}

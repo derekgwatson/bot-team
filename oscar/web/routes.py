@@ -10,7 +10,7 @@ from services.auth import login_required, admin_required
 from database.db import db
 from services.orchestrator import orchestrator
 from config import config
-import requests as http_requests
+from shared.http_client import BotHttpClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,15 +18,17 @@ logger = logging.getLogger(__name__)
 web_bp = Blueprint('web', __name__, template_folder='templates')
 
 
+def _get_bot_client(bot_name: str, timeout: int = 10) -> BotHttpClient:
+    """Get a BotHttpClient for the specified bot."""
+    bot_url = config.bots.get(bot_name, {}).get('url', f'http://localhost:8000')
+    return BotHttpClient(bot_url, timeout=timeout)
+
+
 def _get_google_domains():
     """Fetch available domains from Fred's API"""
     try:
-        fred_url = config.bots.get('fred', {}).get('url', 'http://localhost:8001')
-        response = http_requests.get(
-            f"{fred_url}/api/domains",
-            headers={'X-API-Key': config.bot_api_key},
-            timeout=10
-        )
+        client = _get_bot_client('fred')
+        response = client.get('/api/domains')
         if response.status_code == 200:
             return response.json().get('domains', [])
     except Exception as e:
@@ -37,12 +39,8 @@ def _get_google_domains():
 def _get_zendesk_groups():
     """Fetch available groups from Zac's API"""
     try:
-        zac_url = config.bots.get('zac', {}).get('url', 'http://localhost:8003')
-        response = http_requests.get(
-            f"{zac_url}/api/groups",
-            headers={'X-API-Key': config.bot_api_key},
-            timeout=10
-        )
+        client = _get_bot_client('zac')
+        response = client.get('/api/groups')
         if response.status_code == 200:
             return response.json().get('groups', [])
     except Exception as e:
@@ -53,12 +51,8 @@ def _get_zendesk_groups():
 def _get_sadie_groups():
     """Fetch available groups from Sadie's API for ticket assignment"""
     try:
-        sadie_url = config.bots.get('sadie', {}).get('url', 'http://localhost:8005')
-        response = http_requests.get(
-            f"{sadie_url}/api/groups",
-            headers={'X-API-Key': config.bot_api_key},
-            timeout=10
-        )
+        client = _get_bot_client('sadie')
+        response = client.get('/api/groups')
         if response.status_code == 200:
             return response.json().get('groups', [])
     except Exception as e:

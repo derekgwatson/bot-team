@@ -140,6 +140,54 @@
         margin: 0;
         color: #495057;
     }
+
+    /* Status messages */
+    .status-message {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .status-message.success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .status-message.error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .status-message.show {
+        display: block;
+    }
+
+    /* Delete confirmation */
+    .delete-confirm {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+        display: none;
+    }
+
+    .delete-confirm.show {
+        display: block;
+    }
+
+    .delete-confirm p {
+        margin: 0 0 15px 0;
+        color: #856404;
+    }
+
+    .delete-confirm .btn-group {
+        display: flex;
+        gap: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -149,6 +197,9 @@
         <h2>✏️ Edit {{ bot.name }}</h2>
         <p>Update deployment configuration for {{ bot.name }}</p>
     </div>
+
+    <!-- Status messages -->
+    <div id="statusMessage" class="status-message"></div>
 
     <div class="info-box">
         <p><strong>Note:</strong> The bot name cannot be changed. If you need to rename a bot, create a new one and delete the old one.</p>
@@ -222,12 +273,29 @@
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="/manage" class="btn btn-secondary">Cancel</a>
-            <button type="button" class="btn btn-danger" onclick="deleteBot()">Delete Bot</button>
+            <button type="button" class="btn btn-danger" id="showDeleteBtn">Delete Bot</button>
+        </div>
+
+        <!-- Delete confirmation panel -->
+        <div id="deleteConfirm" class="delete-confirm">
+            <p><strong>Are you sure you want to delete {{ bot.name }}?</strong> This action cannot be undone.</p>
+            <div class="btn-group">
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Yes, Delete</button>
+                <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+            </div>
         </div>
     </form>
 </div>
 
 <script>
+// Helper to show status messages
+function showStatus(message, type) {
+    const statusEl = document.getElementById('statusMessage');
+    statusEl.textContent = message;
+    statusEl.className = 'status-message ' + type + ' show';
+    statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 // Form submission
 document.getElementById('editBotForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -270,21 +338,28 @@ document.getElementById('editBotForm').addEventListener('submit', async function
         const result = await response.json();
 
         if (result.success) {
-            alert('Bot updated successfully!');
-            window.location.href = '/manage';
+            showStatus('Bot updated successfully! Redirecting...', 'success');
+            setTimeout(() => { window.location.href = '/manage'; }, 1500);
         } else {
-            alert('Error: ' + result.error);
+            showStatus('Error: ' + result.error, 'error');
         }
     } catch (error) {
-        alert('Error updating bot: ' + error.message);
+        showStatus('Error updating bot: ' + error.message, 'error');
     }
 });
 
-async function deleteBot() {
-    if (!confirm('Are you sure you want to delete {{ bot.name }}? This action cannot be undone.')) {
-        return;
-    }
+// Delete confirmation panel
+document.getElementById('showDeleteBtn').addEventListener('click', function() {
+    document.getElementById('deleteConfirm').classList.add('show');
+    this.style.display = 'none';
+});
 
+document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
+    document.getElementById('deleteConfirm').classList.remove('show');
+    document.getElementById('showDeleteBtn').style.display = '';
+});
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
     try {
         const response = await fetch('/api/deployment/bots/{{ bot.name }}', {
             method: 'DELETE'
@@ -293,14 +368,18 @@ async function deleteBot() {
         const result = await response.json();
 
         if (result.success) {
-            alert('Bot deleted successfully!');
-            window.location.href = '/manage';
+            showStatus('Bot deleted successfully! Redirecting...', 'success');
+            setTimeout(() => { window.location.href = '/manage'; }, 1500);
         } else {
-            alert('Error: ' + result.error);
+            showStatus('Error: ' + result.error, 'error');
+            document.getElementById('deleteConfirm').classList.remove('show');
+            document.getElementById('showDeleteBtn').style.display = '';
         }
     } catch (error) {
-        alert('Error deleting bot: ' + error.message);
+        showStatus('Error deleting bot: ' + error.message, 'error');
+        document.getElementById('deleteConfirm').classList.remove('show');
+        document.getElementById('showDeleteBtn').style.display = '';
     }
-}
+});
 </script>
 {% endblock %}
