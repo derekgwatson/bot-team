@@ -282,10 +282,16 @@ Do NOT include shared variables like:
 - `GOOGLE_CLIENT_SECRET`
 - `CHESTER_API_URL`
 
-These are already in `/bot-team/.env` and loaded automatically. Just add a comment pointing to the root .env:
+These are already in `/bot-team/.env` and loaded automatically.
+
+**REQUIRED**: Every bot with a web UI MUST include `FLASK_SECRET_KEY`:
 ```
 # Bot-specific environment variables
 # Shared variables (BOT_API_KEY, GOOGLE_CLIENT_ID, etc.) are in /bot-team/.env
+
+# Flask secret key for session signing (REQUIRED for web UI)
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+FLASK_SECRET_KEY=your-secret-key-here
 ```
 
 ## Database Patterns
