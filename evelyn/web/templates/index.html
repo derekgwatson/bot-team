@@ -314,7 +314,7 @@
         <div class="profile-section-title">Quick Profiles</div>
         <div class="profile-buttons">
             {% for name, profile in config.sheet_profiles.items() %}
-            <button type="button" class="btn-profile" data-profile="{{ name }}" data-sheets="{{ profile.sheets | tojson }}" title="Requires: {{ profile.sheets | join(', ') }}">
+            <button type="button" class="btn-profile" data-profile="{{ name }}" data-sheets='{{ profile.sheets | tojson }}' title="Requires: {{ profile.sheets | join(', ') }}">
                 <span class="profile-icon">📋</span>
                 {{ profile.description | default(name) }}
             </button>
