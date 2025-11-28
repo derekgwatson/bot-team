@@ -238,6 +238,23 @@
     cursor: not-allowed;
 }
 
+.btn-profile.unavailable {
+    background: #f8f9fa;
+    border-color: #ccc;
+    color: #999;
+}
+
+.btn-profile.unavailable .profile-icon {
+    opacity: 0.5;
+}
+
+.btn-profile.unavailable:hover {
+    background: #f8f9fa;
+    color: #999;
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-profile .profile-icon {
     font-size: 1.2em;
 }
@@ -297,7 +314,7 @@
         <div class="profile-section-title">Quick Profiles</div>
         <div class="profile-buttons">
             {% for name, profile in config.sheet_profiles.items() %}
-            <button type="button" class="btn-profile" data-profile="{{ name }}" title="{{ profile.sheets | join(', ') }}">
+            <button type="button" class="btn-profile" data-profile="{{ name }}" data-sheets="{{ profile.sheets | tojson }}" title="Requires: {{ profile.sheets | join(', ') }}">
                 <span class="profile-icon">📋</span>
                 {{ profile.description | default(name) }}
             </button>
@@ -443,6 +460,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         updateProcessButton();
+        updateProfileAvailability(sheets);
+    }
+
+    function updateProfileAvailability(availableSheets) {
+        document.querySelectorAll('.btn-profile').forEach(btn => {
+            const requiredSheets = JSON.parse(btn.dataset.sheets || '[]');
+            const missingSheets = requiredSheets.filter(s => !availableSheets.includes(s));
+
+            if (missingSheets.length > 0) {
+                btn.classList.add('unavailable');
+                btn.disabled = true;
+                btn.title = `Missing sheets: ${missingSheets.join(', ')}`;
+            } else {
+                btn.classList.remove('unavailable');
+                btn.disabled = false;
+                btn.title = `Requires: ${requiredSheets.join(', ')}`;
+            }
+        });
     }
 
     function getSelectedSheets() {
@@ -549,19 +584,32 @@ document.addEventListener('DOMContentLoaded', function() {
         step2.classList.add('hidden');
         sheetList.innerHTML = '';
         errorMessage.classList.add('hidden');
-        enableProfileButtons();
+        resetProfileButtons();
     });
 
     // Profile buttons
     function enableProfileButtons() {
+        // Only enable buttons that aren't marked as unavailable (missing sheets)
         document.querySelectorAll('.btn-profile').forEach(btn => {
-            btn.disabled = false;
+            if (!btn.classList.contains('unavailable')) {
+                btn.disabled = false;
+            }
         });
     }
 
     function disableProfileButtons() {
         document.querySelectorAll('.btn-profile').forEach(btn => {
             btn.disabled = true;
+        });
+    }
+
+    function resetProfileButtons() {
+        // Reset all profile buttons to initial state (before sheets are loaded)
+        document.querySelectorAll('.btn-profile').forEach(btn => {
+            btn.classList.remove('unavailable');
+            btn.disabled = false;
+            const requiredSheets = JSON.parse(btn.dataset.sheets || '[]');
+            btn.title = `Requires: ${requiredSheets.join(', ')}`;
         });
     }
 
