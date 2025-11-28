@@ -129,8 +129,10 @@ job_templates:
     body:
       include_inactive: true
       performed_by: "skye"
+      wait_for_lock: true  # Wait for Playwright lock instead of failing
     # Default: daily at 5am (before Hugo user sync)
     # Runs async - returns immediately, background threads do the work
+    # If another bot is using Playwright, will wait (status: waiting_for_lock)
     schedule:
       type: "cron"
       hour: "5"

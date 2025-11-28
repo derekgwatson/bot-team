@@ -6,27 +6,72 @@ import threading
 import time
 from flask import Blueprint, jsonify, request
 from shared.auth.bot_api import api_key_required, api_or_session_auth
+from shared.playwright.buz import is_lock_available, get_lock_holder_info
 from database.db import inventory_db
 from services.sync_service import sync_service
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__)
 
+# How often to check for lock availability when waiting (seconds)
+LOCK_POLL_INTERVAL = 60
+
 
 # =====================
 # Background Sync Helpers
 # =====================
 
-def _run_inventory_sync_background(org_key: str, sync_id: int, include_inactive: bool, performed_by: str):
+def _wait_for_lock(sync_id: int, sync_type: str, org_key: str) -> bool:
+    """
+    Wait for the Buz Playwright lock to become available.
+
+    Polls every LOCK_POLL_INTERVAL seconds until lock is free.
+    Updates sync status from 'waiting_for_lock' to 'running' when ready.
+
+    Args:
+        sync_id: Sync log ID to update
+        sync_type: Type of sync for logging
+        org_key: Org key for logging
+
+    Returns:
+        True when lock is available
+    """
+    from database.db import inventory_db
+    from shared.playwright.buz import is_lock_available, get_lock_holder_info
+
+    while not is_lock_available():
+        holder_info = get_lock_holder_info()
+        holder_bot = holder_info.get('bot', 'unknown') if holder_info else 'unknown'
+        logger.info(
+            f"[{org_key}] {sync_type} sync waiting for lock "
+            f"(held by {holder_bot}), checking again in {LOCK_POLL_INTERVAL}s"
+        )
+        time.sleep(LOCK_POLL_INTERVAL)
+
+    # Lock is available - update status to running
+    inventory_db.update_sync_status(sync_id, 'running')
+    logger.info(f"[{org_key}] Lock available, {sync_type} sync starting")
+    return True
+
+
+def _run_inventory_sync_background(
+    org_key: str,
+    sync_id: int,
+    include_inactive: bool,
+    performed_by: str,
+    wait_for_lock: bool = False
+):
     """Run inventory sync in background thread."""
     from services.sync_service import sync_service
     from database.db import inventory_db
     start_time = time.time()
 
     try:
+        # If waiting mode, poll until lock is free
+        if wait_for_lock:
+            _wait_for_lock(sync_id, 'inventory', org_key)
+
         logger.info(f"Background inventory sync starting for {org_key}")
-        # The sync_service.sync_inventory method handles everything, but we need to
-        # skip the sync_id creation since we already have one
         result = sync_service._do_inventory_sync(org_key, sync_id, include_inactive, performed_by)
         logger.info(f"Background inventory sync completed for {org_key}: {result}")
 
@@ -42,13 +87,23 @@ def _run_inventory_sync_background(org_key: str, sync_id: int, include_inactive:
         )
 
 
-def _run_pricing_sync_background(org_key: str, sync_id: int, include_inactive: bool, performed_by: str):
+def _run_pricing_sync_background(
+    org_key: str,
+    sync_id: int,
+    include_inactive: bool,
+    performed_by: str,
+    wait_for_lock: bool = False
+):
     """Run pricing sync in background thread."""
     from services.sync_service import sync_service
     from database.db import inventory_db
     start_time = time.time()
 
     try:
+        # If waiting mode, poll until lock is free
+        if wait_for_lock:
+            _wait_for_lock(sync_id, 'pricing', org_key)
+
         logger.info(f"Background pricing sync starting for {org_key}")
         result = sync_service._do_pricing_sync(org_key, sync_id, include_inactive, performed_by)
         logger.info(f"Background pricing sync completed for {org_key}: {result}")
@@ -65,9 +120,16 @@ def _run_pricing_sync_background(org_key: str, sync_id: int, include_inactive: b
         )
 
 
-def _run_all_orgs_sync_background(sync_ids: dict, include_inactive: bool, performed_by: str):
+def _run_all_orgs_sync_background(
+    sync_ids: dict,
+    include_inactive: bool,
+    performed_by: str,
+    wait_for_lock: bool = False
+):
     """Run sync for all orgs in background thread."""
     from services.sync_service import sync_service
+    from database.db import inventory_db
+    from shared.playwright.buz import is_lock_available, get_lock_holder_info
 
     logger.info(f"Background all-orgs sync starting for {list(sync_ids.keys())}")
 
@@ -75,6 +137,9 @@ def _run_all_orgs_sync_background(sync_ids: dict, include_inactive: bool, perfor
         # Sync inventory
         if ids.get('inventory'):
             try:
+                # Wait for lock if in waiting mode
+                if wait_for_lock:
+                    _wait_for_lock(ids['inventory'], 'inventory', org_key)
                 sync_service._do_inventory_sync(org_key, ids['inventory'], include_inactive, performed_by)
             except Exception as e:
                 logger.exception(f"Background inventory sync failed for {org_key}: {e}")
@@ -82,6 +147,9 @@ def _run_all_orgs_sync_background(sync_ids: dict, include_inactive: bool, perfor
         # Sync pricing
         if ids.get('pricing'):
             try:
+                # Wait for lock if in waiting mode
+                if wait_for_lock:
+                    _wait_for_lock(ids['pricing'], 'pricing', org_key)
                 sync_service._do_pricing_sync(org_key, ids['pricing'], include_inactive, performed_by)
             except Exception as e:
                 logger.exception(f"Background pricing sync failed for {org_key}: {e}")
@@ -102,6 +170,7 @@ def sync_inventory():
     Request body:
         org_key: Organization to sync
         include_inactive: Include inactive items (default: true)
+        wait_for_lock: If true, wait for lock; if false, fail immediately if busy (default: false)
 
     Returns immediately with sync_id for status polling.
     """
@@ -113,6 +182,7 @@ def sync_inventory():
 
     include_inactive = data.get('include_inactive', True)
     performed_by = data.get('performed_by', 'api')
+    wait_for_lock = data.get('wait_for_lock', False)
 
     # Check for running syncs
     running_syncs = inventory_db.get_running_syncs(org_key)
@@ -122,22 +192,36 @@ def sync_inventory():
             'running_syncs': running_syncs
         }), 409
 
+    # For manual runs (wait_for_lock=False), check lock availability immediately
+    if not wait_for_lock and not is_lock_available():
+        holder_info = get_lock_holder_info()
+        holder_bot = holder_info.get('bot', 'unknown') if holder_info else 'unknown'
+        acquired_at = holder_info.get('acquired_at', 'unknown') if holder_info else 'unknown'
+        return jsonify({
+            'error': f"Buz is busy (used by '{holder_bot}' since {acquired_at}). Please try again later.",
+            'lock_holder': holder_info
+        }), 409
+
+    # Determine initial status based on mode
+    initial_status = 'waiting_for_lock' if wait_for_lock and not is_lock_available() else 'running'
+
     # Start sync log record
-    sync_id = inventory_db.start_sync(org_key, 'inventory')
+    sync_id = inventory_db.start_sync(org_key, 'inventory', status=initial_status)
 
     # Launch background thread
     thread = threading.Thread(
         target=_run_inventory_sync_background,
-        args=(org_key, sync_id, include_inactive, performed_by),
+        args=(org_key, sync_id, include_inactive, performed_by, wait_for_lock),
         name=f"sync_inventory_{org_key}",
         daemon=True
     )
     thread.start()
 
-    logger.info(f"Started background inventory sync for {org_key} (sync_id={sync_id})")
+    status_msg = 'waiting_for_lock' if initial_status == 'waiting_for_lock' else 'started'
+    logger.info(f"Started background inventory sync for {org_key} (sync_id={sync_id}, status={status_msg})")
 
     return jsonify({
-        'status': 'started',
+        'status': status_msg,
         'org_key': org_key,
         'sync_id': sync_id,
         'sync_type': 'inventory',
@@ -154,6 +238,7 @@ def sync_pricing():
     Request body:
         org_key: Organization to sync
         include_inactive: Include inactive pricing (default: true)
+        wait_for_lock: If true, wait for lock; if false, fail immediately if busy (default: false)
 
     Returns immediately with sync_id for status polling.
     """
@@ -165,6 +250,7 @@ def sync_pricing():
 
     include_inactive = data.get('include_inactive', True)
     performed_by = data.get('performed_by', 'api')
+    wait_for_lock = data.get('wait_for_lock', False)
 
     # Check for running syncs
     running_syncs = inventory_db.get_running_syncs(org_key)
@@ -174,22 +260,36 @@ def sync_pricing():
             'running_syncs': running_syncs
         }), 409
 
+    # For manual runs (wait_for_lock=False), check lock availability immediately
+    if not wait_for_lock and not is_lock_available():
+        holder_info = get_lock_holder_info()
+        holder_bot = holder_info.get('bot', 'unknown') if holder_info else 'unknown'
+        acquired_at = holder_info.get('acquired_at', 'unknown') if holder_info else 'unknown'
+        return jsonify({
+            'error': f"Buz is busy (used by '{holder_bot}' since {acquired_at}). Please try again later.",
+            'lock_holder': holder_info
+        }), 409
+
+    # Determine initial status based on mode
+    initial_status = 'waiting_for_lock' if wait_for_lock and not is_lock_available() else 'running'
+
     # Start sync log record
-    sync_id = inventory_db.start_sync(org_key, 'pricing')
+    sync_id = inventory_db.start_sync(org_key, 'pricing', status=initial_status)
 
     # Launch background thread
     thread = threading.Thread(
         target=_run_pricing_sync_background,
-        args=(org_key, sync_id, include_inactive, performed_by),
+        args=(org_key, sync_id, include_inactive, performed_by, wait_for_lock),
         name=f"sync_pricing_{org_key}",
         daemon=True
     )
     thread.start()
 
-    logger.info(f"Started background pricing sync for {org_key} (sync_id={sync_id})")
+    status_msg = 'waiting_for_lock' if initial_status == 'waiting_for_lock' else 'started'
+    logger.info(f"Started background pricing sync for {org_key} (sync_id={sync_id}, status={status_msg})")
 
     return jsonify({
-        'status': 'started',
+        'status': status_msg,
         'org_key': org_key,
         'sync_id': sync_id,
         'sync_type': 'pricing',
@@ -206,6 +306,7 @@ def sync_all():
     Request body:
         org_key: Organization to sync
         include_inactive: Include inactive items/pricing (default: true)
+        wait_for_lock: If true, wait for lock; if false, fail immediately if busy (default: false)
 
     Returns immediately with sync_ids for status polling.
     """
@@ -217,6 +318,7 @@ def sync_all():
 
     include_inactive = data.get('include_inactive', True)
     performed_by = data.get('performed_by', 'api')
+    wait_for_lock = data.get('wait_for_lock', False)
 
     # Check for running syncs
     running_syncs = inventory_db.get_running_syncs(org_key)
@@ -227,9 +329,22 @@ def sync_all():
             'running_syncs': running_syncs
         }), 409
 
+    # For manual runs (wait_for_lock=False), check lock availability immediately
+    if not wait_for_lock and not is_lock_available():
+        holder_info = get_lock_holder_info()
+        holder_bot = holder_info.get('bot', 'unknown') if holder_info else 'unknown'
+        acquired_at = holder_info.get('acquired_at', 'unknown') if holder_info else 'unknown'
+        return jsonify({
+            'error': f"Buz is busy (used by '{holder_bot}' since {acquired_at}). Please try again later.",
+            'lock_holder': holder_info
+        }), 409
+
+    # Determine initial status based on mode
+    initial_status = 'waiting_for_lock' if wait_for_lock and not is_lock_available() else 'running'
+
     # Start sync log records
-    inventory_sync_id = inventory_db.start_sync(org_key, 'inventory')
-    pricing_sync_id = inventory_db.start_sync(org_key, 'pricing')
+    inventory_sync_id = inventory_db.start_sync(org_key, 'inventory', status=initial_status)
+    pricing_sync_id = inventory_db.start_sync(org_key, 'pricing', status=initial_status)
 
     sync_ids = {
         org_key: {
@@ -241,16 +356,17 @@ def sync_all():
     # Launch background thread
     thread = threading.Thread(
         target=_run_all_orgs_sync_background,
-        args=(sync_ids, include_inactive, performed_by),
+        args=(sync_ids, include_inactive, performed_by, wait_for_lock),
         name=f"sync_all_{org_key}",
         daemon=True
     )
     thread.start()
 
-    logger.info(f"Started background full sync for {org_key}")
+    status_msg = 'waiting_for_lock' if initial_status == 'waiting_for_lock' else 'started'
+    logger.info(f"Started background full sync for {org_key} (status={status_msg})")
 
     return jsonify({
-        'status': 'started',
+        'status': status_msg,
         'org_key': org_key,
         'sync_ids': {
             'inventory': inventory_sync_id,
@@ -268,6 +384,7 @@ def sync_all_orgs():
 
     Request body:
         include_inactive: Include inactive items/pricing (default: true)
+        wait_for_lock: If true, wait for lock; if false, fail immediately if busy (default: false)
 
     Returns immediately with sync_ids for status polling.
     """
@@ -276,6 +393,7 @@ def sync_all_orgs():
     data = request.get_json() or {}
     include_inactive = data.get('include_inactive', True)
     performed_by = data.get('performed_by', 'api')
+    wait_for_lock = data.get('wait_for_lock', False)
 
     # Check for any running syncs across all orgs
     all_running = inventory_db.get_running_syncs()
@@ -286,27 +404,41 @@ def sync_all_orgs():
             'running_syncs': all_running
         }), 409
 
+    # For manual runs (wait_for_lock=False), check lock availability immediately
+    if not wait_for_lock and not is_lock_available():
+        holder_info = get_lock_holder_info()
+        holder_bot = holder_info.get('bot', 'unknown') if holder_info else 'unknown'
+        acquired_at = holder_info.get('acquired_at', 'unknown') if holder_info else 'unknown'
+        return jsonify({
+            'error': f"Buz is busy (used by '{holder_bot}' since {acquired_at}). Please try again later.",
+            'lock_holder': holder_info
+        }), 409
+
+    # Determine initial status based on mode
+    initial_status = 'waiting_for_lock' if wait_for_lock and not is_lock_available() else 'running'
+
     # Create sync records for each org
     sync_ids = {}
     for org_key in config.available_orgs:
         sync_ids[org_key] = {
-            'inventory': inventory_db.start_sync(org_key, 'inventory'),
-            'pricing': inventory_db.start_sync(org_key, 'pricing')
+            'inventory': inventory_db.start_sync(org_key, 'inventory', status=initial_status),
+            'pricing': inventory_db.start_sync(org_key, 'pricing', status=initial_status)
         }
 
     # Launch background thread
     thread = threading.Thread(
         target=_run_all_orgs_sync_background,
-        args=(sync_ids, include_inactive, performed_by),
+        args=(sync_ids, include_inactive, performed_by, wait_for_lock),
         name="sync_all_orgs",
         daemon=True
     )
     thread.start()
 
-    logger.info(f"Started background sync for all orgs: {list(sync_ids.keys())}")
+    status_msg = 'waiting_for_lock' if initial_status == 'waiting_for_lock' else 'started'
+    logger.info(f"Started background sync for all orgs: {list(sync_ids.keys())} (status={status_msg})")
 
     return jsonify({
-        'status': 'started',
+        'status': status_msg,
         'orgs': list(sync_ids.keys()),
         'sync_ids': sync_ids,
         'message': 'All-orgs sync started in background. Check /api/sync/status for progress.'

@@ -294,3 +294,29 @@ def get_lock_holder_info() -> Optional[dict]:
     except Exception:
         pass
     return None
+
+
+def is_lock_available() -> bool:
+    """
+    Quick check if the Buz Playwright lock is available.
+
+    This is a non-blocking check - useful for determining whether to
+    wait or fail immediately.
+
+    Returns:
+        True if lock appears to be available, False if held
+    """
+    # Check if info file exists (indicates lock is held)
+    if DEFAULT_LOCK_INFO_PATH.exists():
+        return False
+    # Also check the actual lock file
+    if DEFAULT_LOCK_PATH.exists():
+        # Try to acquire with timeout=0 to check availability
+        try:
+            lock = FileLock(str(DEFAULT_LOCK_PATH))
+            lock.acquire(timeout=0)
+            lock.release()
+            return True
+        except Timeout:
+            return False
+    return True

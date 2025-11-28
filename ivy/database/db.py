@@ -652,13 +652,14 @@ class InventoryDatabase:
     # Sync Log Operations
     # =====================
 
-    def start_sync(self, org_key: str, sync_type: str) -> int:
+    def start_sync(self, org_key: str, sync_type: str, status: str = 'running') -> int:
         """
         Record that a sync has started.
 
         Args:
             org_key: Organization key
             sync_type: 'inventory' or 'pricing'
+            status: Initial status ('running' or 'waiting_for_lock')
 
         Returns:
             ID of the sync log entry
@@ -666,12 +667,34 @@ class InventoryDatabase:
         conn = self.get_connection()
         cursor = conn.execute('''
             INSERT INTO sync_log (org_key, sync_type, status, started_at)
-            VALUES (?, ?, 'running', CURRENT_TIMESTAMP)
-        ''', (org_key, sync_type))
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (org_key, sync_type, status))
         sync_id = cursor.lastrowid
         conn.commit()
         conn.close()
         return sync_id
+
+    def update_sync_status(self, sync_id: int, status: str) -> bool:
+        """
+        Update the status of a sync log entry.
+
+        Used to transition from 'waiting_for_lock' to 'running'.
+
+        Args:
+            sync_id: Sync log ID
+            status: New status
+
+        Returns:
+            True if updated successfully
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            UPDATE sync_log SET status = ? WHERE id = ?
+        ''', (status, sync_id))
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
 
     def complete_sync(
         self,
@@ -695,16 +718,16 @@ class InventoryDatabase:
         return updated
 
     def get_running_syncs(self, org_key: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get currently running syncs."""
+        """Get currently running or waiting syncs."""
         conn = self.get_connection()
         if org_key:
             cursor = conn.execute(
-                "SELECT * FROM sync_log WHERE status = 'running' AND org_key = ? ORDER BY started_at DESC",
+                "SELECT * FROM sync_log WHERE status IN ('running', 'waiting_for_lock') AND org_key = ? ORDER BY started_at DESC",
                 (org_key,)
             )
         else:
             cursor = conn.execute(
-                "SELECT * FROM sync_log WHERE status = 'running' ORDER BY started_at DESC"
+                "SELECT * FROM sync_log WHERE status IN ('running', 'waiting_for_lock') ORDER BY started_at DESC"
             )
         syncs = [dict(row) for row in cursor.fetchall()]
         conn.close()
