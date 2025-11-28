@@ -210,28 +210,138 @@ def sync_page():
 @web_bp.route('/sync/trigger/<org_key>/<sync_type>', methods=['POST'])
 @login_required
 def trigger_sync(org_key: str, sync_type: str):
-    """Trigger a sync operation."""
+    """
+    Trigger a sync operation in the background.
+
+    Unlike API routes, web routes redirect immediately and let the sync
+    run in a background thread. The user can monitor progress on the sync page.
+    """
+    import threading
+    from shared.playwright.buz import is_lock_available, get_lock_holder_info
     from services.auth import get_current_user
 
     user = get_current_user()
     performed_by = user.email if user else 'web'
 
+    # Check for already running syncs
+    running_syncs = inventory_db.get_running_syncs(org_key)
+
     if sync_type == 'inventory':
-        result = sync_service.sync_inventory(org_key, True, performed_by)
+        if any(s['sync_type'] == 'inventory' for s in running_syncs):
+            flash('Inventory sync already running for this org', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Check lock availability immediately for manual runs
+        if not is_lock_available():
+            holder_info = get_lock_holder_info()
+            holder = holder_info.get('bot', 'another process') if holder_info else 'another process'
+            flash(f'Buz is busy (used by {holder}). Please try again later.', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Start background sync
+        sync_id = inventory_db.start_sync(org_key, 'inventory')
+        thread = threading.Thread(
+            target=_run_sync_background,
+            args=(org_key, sync_id, 'inventory', True, performed_by),
+            daemon=True
+        )
+        thread.start()
+        flash(f'Inventory sync started for {BuzOrgs.get_display_name(org_key)}', 'info')
+
     elif sync_type == 'pricing':
-        result = sync_service.sync_pricing(org_key, True, performed_by)
+        if any(s['sync_type'] == 'pricing' for s in running_syncs):
+            flash('Pricing sync already running for this org', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Check lock availability immediately for manual runs
+        if not is_lock_available():
+            holder_info = get_lock_holder_info()
+            holder = holder_info.get('bot', 'another process') if holder_info else 'another process'
+            flash(f'Buz is busy (used by {holder}). Please try again later.', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Start background sync
+        sync_id = inventory_db.start_sync(org_key, 'pricing')
+        thread = threading.Thread(
+            target=_run_sync_background,
+            args=(org_key, sync_id, 'pricing', True, performed_by),
+            daemon=True
+        )
+        thread.start()
+        flash(f'Pricing sync started for {BuzOrgs.get_display_name(org_key)}', 'info')
+
     elif sync_type == 'all':
-        result = sync_service.sync_all(org_key, True, performed_by)
+        if running_syncs:
+            running_types = ', '.join(s['sync_type'] for s in running_syncs)
+            flash(f'Sync already running: {running_types}', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Check lock availability immediately for manual runs
+        if not is_lock_available():
+            holder_info = get_lock_holder_info()
+            holder = holder_info.get('bot', 'another process') if holder_info else 'another process'
+            flash(f'Buz is busy (used by {holder}). Please try again later.', 'warning')
+            return redirect(url_for('web.sync_page'))
+
+        # Start background syncs for both types
+        inv_sync_id = inventory_db.start_sync(org_key, 'inventory')
+        price_sync_id = inventory_db.start_sync(org_key, 'pricing')
+
+        thread = threading.Thread(
+            target=_run_both_syncs_background,
+            args=(org_key, inv_sync_id, price_sync_id, True, performed_by),
+            daemon=True
+        )
+        thread.start()
+        flash(f'Full sync started for {BuzOrgs.get_display_name(org_key)}', 'info')
+
     else:
         flash(f'Unknown sync type: {sync_type}', 'error')
-        return redirect(url_for('web.sync_page'))
-
-    if result['success']:
-        flash(f'Sync completed successfully for {org_key}', 'success')
-    else:
-        flash(f'Sync failed: {result.get("error", "Unknown error")}', 'error')
 
     return redirect(url_for('web.sync_page'))
+
+
+def _run_sync_background(org_key: str, sync_id: int, sync_type: str, include_inactive: bool, performed_by: str):
+    """Run a single sync in the background."""
+    import time
+    import logging
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    try:
+        if sync_type == 'inventory':
+            sync_service._do_inventory_sync(org_key, sync_id, include_inactive, performed_by)
+        else:
+            sync_service._do_pricing_sync(org_key, sync_id, include_inactive, performed_by)
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.exception(f"Background {sync_type} sync failed for {org_key}")
+        inventory_db.complete_sync(sync_id, 0, 'failed', str(e), duration)
+
+
+def _run_both_syncs_background(org_key: str, inv_sync_id: int, price_sync_id: int, include_inactive: bool, performed_by: str):
+    """Run both inventory and pricing syncs sequentially in the background."""
+    import time
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Inventory first
+    start_time = time.time()
+    try:
+        sync_service._do_inventory_sync(org_key, inv_sync_id, include_inactive, performed_by)
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.exception(f"Background inventory sync failed for {org_key}")
+        inventory_db.complete_sync(inv_sync_id, 0, 'failed', str(e), duration)
+
+    # Then pricing
+    start_time = time.time()
+    try:
+        sync_service._do_pricing_sync(org_key, price_sync_id, include_inactive, performed_by)
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.exception(f"Background pricing sync failed for {org_key}")
+        inventory_db.complete_sync(price_sync_id, 0, 'failed', str(e), duration)
 
 
 @web_bp.route('/activity')
