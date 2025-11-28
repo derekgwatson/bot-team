@@ -138,29 +138,33 @@ header "Step 1: Checking for feature branches to merge"
 info "Fetching latest from $REMOTE..."
 sudo -u www-data git -C "$REPO_PATH" fetch "$REMOTE" --prune
 
-# Find the latest matching branch
-LATEST_REMOTE_BRANCH=$(
+# Find all matching branches, sorted by most recent first
+mapfile -t REMOTE_BRANCHES < <(
   sudo -u www-data git -C "$REPO_PATH" for-each-ref \
     --sort=-committerdate \
     --format='%(refname:short)' \
-    "refs/remotes/$REMOTE/$BRANCH_PATTERN" \
-    | head -n 1
+    "refs/remotes/$REMOTE/$BRANCH_PATTERN"
 )
 
-if [[ -z "${LATEST_REMOTE_BRANCH:-}" ]]; then
+BRANCH_COUNT=${#REMOTE_BRANCHES[@]}
+
+if [[ $BRANCH_COUNT -eq 0 ]]; then
     warning "No remote branches found matching pattern '$BRANCH_PATTERN'."
     info "Skipping merge step - will just update $MAIN_BRANCH and restart bots."
     SKIP_MERGE=1
-else
-    LOCAL_BRANCH="${LATEST_REMOTE_BRANCH#${REMOTE}/}"
+    SELECTED_REMOTE_BRANCH=""
+elif [[ $BRANCH_COUNT -eq 1 ]]; then
+    # Single branch - use original behavior
+    SELECTED_REMOTE_BRANCH="${REMOTE_BRANCHES[0]}"
+    LOCAL_BRANCH="${SELECTED_REMOTE_BRANCH#${REMOTE}/}"
 
     echo ""
-    info "Latest matching branch: ${WHITE}$LOCAL_BRANCH${NC}"
+    info "Found 1 feature branch: ${WHITE}$LOCAL_BRANCH${NC}"
 
     # Show recent commits on the branch
     echo ""
     info "Recent commits on this branch:"
-    sudo -u www-data git -C "$REPO_PATH" log --oneline -5 "$LATEST_REMOTE_BRANCH" 2>/dev/null | while read -r line; do
+    sudo -u www-data git -C "$REPO_PATH" log --oneline -5 "$SELECTED_REMOTE_BRANCH" 2>/dev/null | while read -r line; do
         echo "    $line"
     done
     echo ""
@@ -183,12 +187,100 @@ else
         warning "Non-interactive shell detected; proceeding with merge automatically."
         SKIP_MERGE=0
     fi
+else
+    # Multiple branches - show selection menu
+    echo ""
+    info "Found ${WHITE}$BRANCH_COUNT${NC} feature branches (sorted by most recent):"
+    echo ""
+
+    # Display branches with numbers and recent commit info
+    for i in "${!REMOTE_BRANCHES[@]}"; do
+        local_name="${REMOTE_BRANCHES[$i]#${REMOTE}/}"
+        # Get the most recent commit info for this branch
+        commit_info=$(sudo -u www-data git -C "$REPO_PATH" log --oneline -1 "${REMOTE_BRANCHES[$i]}" 2>/dev/null)
+        commit_date=$(sudo -u www-data git -C "$REPO_PATH" log -1 --format='%cr' "${REMOTE_BRANCHES[$i]}" 2>/dev/null)
+        echo -e "  ${WHITE}$((i + 1))${NC}) $local_name"
+        echo -e "     ${CYAN}$commit_date${NC} - $commit_info"
+        echo ""
+    done
+
+    echo -e "  ${WHITE}0${NC}) Skip merge (just update $MAIN_BRANCH)"
+    echo ""
+
+    # Prompt for selection
+    if [ -t 0 ]; then
+        while true; do
+            read -r -p "Select branch to merge [1-$BRANCH_COUNT, or 0 to skip]: " SELECTION
+
+            # Handle empty input (default to skip)
+            if [[ -z "$SELECTION" ]]; then
+                warning "No selection made. Skipping merge."
+                SKIP_MERGE=1
+                SELECTED_REMOTE_BRANCH=""
+                break
+            fi
+
+            # Validate input is a number
+            if ! [[ "$SELECTION" =~ ^[0-9]+$ ]]; then
+                error "Please enter a number between 0 and $BRANCH_COUNT"
+                continue
+            fi
+
+            # Handle skip
+            if [[ "$SELECTION" -eq 0 ]]; then
+                warning "Merge skipped by user."
+                info "Will just update $MAIN_BRANCH from remote and restart bots."
+                SKIP_MERGE=1
+                SELECTED_REMOTE_BRANCH=""
+                break
+            fi
+
+            # Validate selection is in range
+            if [[ "$SELECTION" -lt 1 ]] || [[ "$SELECTION" -gt "$BRANCH_COUNT" ]]; then
+                error "Please enter a number between 0 and $BRANCH_COUNT"
+                continue
+            fi
+
+            # Valid selection
+            SELECTED_REMOTE_BRANCH="${REMOTE_BRANCHES[$((SELECTION - 1))]}"
+            LOCAL_BRANCH="${SELECTED_REMOTE_BRANCH#${REMOTE}/}"
+
+            echo ""
+            info "Selected: ${WHITE}$LOCAL_BRANCH${NC}"
+            echo ""
+            info "Recent commits on this branch:"
+            sudo -u www-data git -C "$REPO_PATH" log --oneline -5 "$SELECTED_REMOTE_BRANCH" 2>/dev/null | while read -r line; do
+                echo "    $line"
+            done
+            echo ""
+
+            read -r -p "Confirm merge '$LOCAL_BRANCH' into $MAIN_BRANCH? [Y/n]: " CONFIRM
+            case "$CONFIRM" in
+                n|N|no|NO)
+                    warning "Merge cancelled. Please select again."
+                    echo ""
+                    continue
+                    ;;
+                *)
+                    info "Proceeding with merge..."
+                    SKIP_MERGE=0
+                    break
+                    ;;
+            esac
+        done
+    else
+        warning "Non-interactive shell detected; using most recent branch."
+        SELECTED_REMOTE_BRANCH="${REMOTE_BRANCHES[0]}"
+        SKIP_MERGE=0
+    fi
 fi
 
 if [[ "${SKIP_MERGE:-0}" == "0" ]]; then
     header "Merging feature branch into main"
-    info "Running merge_latest_git_branch.sh as www-data..."
-    sudo -u www-data "$PROD_SCRIPTS_DIR/merge_latest_git_branch.sh"
+    # Pass the specific branch name to merge (strip origin/ prefix for the pattern)
+    BRANCH_TO_MERGE="${SELECTED_REMOTE_BRANCH#${REMOTE}/}"
+    info "Running merge_latest_git_branch.sh for '$BRANCH_TO_MERGE' as www-data..."
+    sudo -u www-data "$PROD_SCRIPTS_DIR/merge_latest_git_branch.sh" "$BRANCH_TO_MERGE"
     success "Merge step complete"
 else
     header "Updating main branch"
