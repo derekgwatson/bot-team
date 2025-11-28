@@ -1019,7 +1019,7 @@ def get_groups():
     """
     GET /api/groups
 
-    Get available user groups for an organization.
+    Get available user groups for an organization from cache.
 
     Query params:
         org: Organization key (required)
@@ -1030,16 +1030,64 @@ def get_groups():
         return jsonify({'error': 'org query parameter is required'}), 400
 
     try:
-        service, run_async = get_user_service()
-        result = run_async(service.get_available_groups(org_key))
+        db = get_db()
+        groups = db.get_groups(org_key)
 
-        if result['success']:
-            return jsonify(result)
+        if groups:
+            return jsonify({
+                'success': True,
+                'org_key': org_key,
+                'groups': [g['group_name'] for g in groups],
+                'groups_full': groups,
+                'source': 'cache'
+            })
         else:
-            return jsonify({'error': result['message']}), 500
+            # No cached groups - suggest syncing
+            return jsonify({
+                'success': True,
+                'org_key': org_key,
+                'groups': [],
+                'groups_full': [],
+                'source': 'cache',
+                'message': 'No groups cached. Run /api/groups/sync to fetch from Buz.'
+            })
 
     except Exception as e:
         logger.exception(f"Error getting groups for {org_key}")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/groups/sync', methods=['POST'])
+@api_or_session_auth
+def sync_groups():
+    """
+    POST /api/groups/sync
+
+    Sync groups from Buz to local cache.
+
+    Body (JSON):
+        org: Organization key (optional - syncs all orgs if not specified)
+    """
+    data = request.get_json() or {}
+    org_key = data.get('org')
+
+    try:
+        service, run_async = get_user_service()
+
+        if org_key:
+            result = run_async(service.sync_groups(org_key))
+            return jsonify(result)
+        else:
+            results = run_async(service.sync_all_groups())
+            total_synced = sum(r.get('groups_synced', 0) for r in results.values())
+            return jsonify({
+                'success': all(r.get('success') for r in results.values()),
+                'results': results,
+                'total_groups_synced': total_synced
+            })
+
+    except Exception as e:
+        logger.exception(f"Error syncing groups")
         return jsonify({'error': str(e)}), 500
 
 

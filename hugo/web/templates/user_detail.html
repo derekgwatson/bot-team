@@ -205,7 +205,7 @@
                 </td>
                 <td class="actions-cell">
                     <button class="btn btn-primary btn-sm"
-                            onclick="openEditModal('{{ user.email }}', '{{ user.org_key }}', '{{ user.user_type }}')">
+                            onclick="openEditModal('{{ user.email }}', '{{ user.org_key }}', '{{ user.user_type }}', '{{ user.user_group or '' }}')">
                         Edit
                     </button>
                     {% if user.is_active %}
@@ -347,7 +347,7 @@
     let originalDetails = {};
     let customerSearchTimeout = null;
 
-    async function openEditModal(email, org, userType) {
+    async function openEditModal(email, org, userType, currentGroup) {
         hideMessage();
         document.getElementById('editModal').classList.add('active');
 
@@ -373,23 +373,40 @@
         document.getElementById('edit-group').innerHTML = '<option value="">Loading...</option>';
         clearCustomer();
 
-        // Fetch user details
+        // Initialize originalDetails with the current group from DB cache
+        originalDetails = { group: currentGroup };
+
+        // Load groups from cache first (instant)
+        try {
+            const groupsResult = await apiCall(`/api/groups?org=${org}`);
+            const groupSelect = document.getElementById('edit-group');
+
+            if (groupsResult.success && groupsResult.groups.length > 0) {
+                groupSelect.innerHTML = groupsResult.groups.map(g =>
+                    `<option value="${g}" ${g === currentGroup ? 'selected' : ''}>${g}</option>`
+                ).join('');
+            } else {
+                // No cached groups - suggest syncing
+                groupSelect.innerHTML = `<option value="${currentGroup}">${currentGroup || 'No groups cached - sync needed'}</option>`;
+            }
+        } catch (e) {
+            console.error('Error loading groups:', e);
+            const groupSelect = document.getElementById('edit-group');
+            groupSelect.innerHTML = `<option value="${currentGroup}">${currentGroup || 'Error loading groups'}</option>`;
+        }
+
+        // Fetch additional user details from Buz (for name, phone, customer)
         try {
             const result = await apiCall(`/api/users/${encodeURIComponent(email)}/details?org=${org}`);
 
             if (result.success) {
-                originalDetails = result.details;
+                // Merge with cached data
+                originalDetails = { ...originalDetails, ...result.details };
 
                 document.getElementById('edit-first-name').value = result.details.first_name || '';
                 document.getElementById('edit-last-name').value = result.details.last_name || '';
                 document.getElementById('edit-phone').value = result.details.phone || '';
                 document.getElementById('edit-mobile').value = result.details.mobile || '';
-
-                // Populate groups dropdown
-                const groupSelect = document.getElementById('edit-group');
-                groupSelect.innerHTML = result.available_groups.map(g =>
-                    `<option value="${g}" ${g === result.details.group ? 'selected' : ''}>${g}</option>`
-                ).join('');
 
                 // Set customer if present
                 if (result.details.customer_name) {

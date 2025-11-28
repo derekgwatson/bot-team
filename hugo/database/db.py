@@ -894,6 +894,156 @@ class UserDatabase:
         conn.close()
         return orgs
 
+    # Group operations
+
+    def upsert_group(
+        self,
+        org_key: str,
+        group_name: str,
+        group_type: str = '',
+        user_count: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Insert or update a group.
+
+        Args:
+            org_key: Organization key
+            group_name: Name of the group
+            group_type: Type (Administrator, Customer User, etc.)
+            user_count: Number of users in group
+
+        Returns:
+            Result dictionary
+        """
+        conn = self.get_connection()
+
+        cursor = conn.execute(
+            'SELECT id FROM groups WHERE org_key = ? AND group_name = ?',
+            (org_key, group_name)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            conn.execute('''
+                UPDATE groups SET
+                    group_type = ?,
+                    user_count = ?,
+                    last_synced = CURRENT_TIMESTAMP
+                WHERE org_key = ? AND group_name = ?
+            ''', (group_type, user_count, org_key, group_name))
+            action = 'updated'
+        else:
+            conn.execute('''
+                INSERT INTO groups (org_key, group_name, group_type, user_count)
+                VALUES (?, ?, ?, ?)
+            ''', (org_key, group_name, group_type, user_count))
+            action = 'created'
+
+        conn.commit()
+        conn.close()
+        return {'success': True, 'action': action}
+
+    def bulk_upsert_groups(
+        self,
+        org_key: str,
+        groups: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Bulk upsert groups from a sync operation.
+
+        Args:
+            org_key: Organization key
+            groups: List of group dicts with name, type, user_count
+
+        Returns:
+            Result dictionary with counts
+        """
+        conn = self.get_connection()
+        created = 0
+        updated = 0
+
+        for group in groups:
+            cursor = conn.execute(
+                'SELECT id FROM groups WHERE org_key = ? AND group_name = ?',
+                (org_key, group['name'])
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                conn.execute('''
+                    UPDATE groups SET
+                        group_type = ?,
+                        user_count = ?,
+                        last_synced = CURRENT_TIMESTAMP
+                    WHERE org_key = ? AND group_name = ?
+                ''', (
+                    group.get('type', ''),
+                    group.get('user_count', 0),
+                    org_key,
+                    group['name']
+                ))
+                updated += 1
+            else:
+                conn.execute('''
+                    INSERT INTO groups (org_key, group_name, group_type, user_count)
+                    VALUES (?, ?, ?, ?)
+                ''', (
+                    org_key,
+                    group['name'],
+                    group.get('type', ''),
+                    group.get('user_count', 0)
+                ))
+                created += 1
+
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'org_key': org_key,
+            'created': created,
+            'updated': updated,
+            'total': created + updated
+        }
+
+    def get_groups(self, org_key: str) -> List[Dict[str, Any]]:
+        """
+        Get all groups for an organization.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            List of group dictionaries
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            'SELECT * FROM groups WHERE org_key = ? ORDER BY group_name',
+            (org_key,)
+        )
+        groups = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return groups
+
+    def get_group_names(self, org_key: str) -> List[str]:
+        """
+        Get just the group names for an organization.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            List of group names
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            'SELECT group_name FROM groups WHERE org_key = ? ORDER BY group_name',
+            (org_key,)
+        )
+        names = [row['group_name'] for row in cursor.fetchall()]
+        conn.close()
+        return names
+
 
 # Singleton instance
 user_db = UserDatabase()

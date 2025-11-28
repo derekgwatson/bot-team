@@ -870,6 +870,74 @@ class BuzUserService:
 
         return result
 
+    # -------------------------------------------------------------------------
+    # Group Sync Methods
+    # -------------------------------------------------------------------------
+
+    async def sync_groups(self, org_key: str) -> Dict[str, Any]:
+        """
+        Sync groups from Buz to local database.
+
+        Scrapes the groups page and stores results in DB.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            Dict with success status and counts
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'org_key': org_key,
+            'groups_synced': 0,
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
+
+                # Navigate to groups page and scrape
+                await nav.go_to_groups()
+                groups = await nav.scrape_groups()
+
+                # Store in database
+                db_result = user_db.bulk_upsert_groups(org_key, groups)
+
+                result['success'] = True
+                result['groups_synced'] = db_result.get('total', 0)
+                result['message'] = f"Synced {result['groups_synced']} groups"
+                logger.info(f"Synced groups for {org_key}: {result['groups_synced']} groups")
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error syncing groups for {org_key}")
+
+        return result
+
+    async def sync_all_groups(self) -> Dict[str, Any]:
+        """
+        Sync groups for all configured organizations.
+
+        Returns:
+            Dict with results per org
+        """
+        results = {}
+        for org_key in self.config.available_orgs:
+            results[org_key] = await self.sync_groups(org_key)
+        return results
+
 
 # Helper function to run async code from sync context
 def run_async(coro):
