@@ -312,7 +312,7 @@
                 </select>
             </div>
 
-            <!-- Sales Rep and Installer (for customer users) -->
+            <!-- Sales Rep and Installer (for employee users) -->
             <div id="sales-installer-section" class="form-row" style="display: none;">
                 <div class="form-group">
                     <label for="edit-sales-rep">Sales Representative</label>
@@ -373,15 +373,15 @@
         document.getElementById('edit-user-type').value = userType;
         document.getElementById('edit-email-display').value = email;
 
-        // Show customer-specific sections for customer users
+        // Show customer section for customer users, sales/installer for employees
         const customerSection = document.getElementById('customer-section');
         const salesInstallerSection = document.getElementById('sales-installer-section');
         if (userType === 'customer') {
             customerSection.style.display = 'block';
-            salesInstallerSection.style.display = 'grid';
+            salesInstallerSection.style.display = 'none';  // Customers don't have sales rep/installer
         } else {
             customerSection.style.display = 'none';
-            salesInstallerSection.style.display = 'none';
+            salesInstallerSection.style.display = 'grid';  // Employees have sales rep/installer
         }
 
         // Clear previous values
@@ -510,7 +510,7 @@
         if (mobile !== (originalDetails.mobile || '')) changes.mobile = mobile;
         if (group !== (originalDetails.group || '')) changes.group = group;
 
-        // Sales rep and installer changes (for customer users)
+        // Sales rep and installer changes (for employee users)
         if (salesRep && salesRep !== (originalDetails.sales_rep || '')) changes.sales_rep = salesRep;
         if (installer && installer !== (originalDetails.installer || '')) changes.installer = installer;
 
