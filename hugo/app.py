@@ -83,17 +83,22 @@ def info():
             'web': {
                 '/': 'Dashboard with user statistics',
                 '/users': 'List all users with filters',
-                '/users/<email>': 'User detail page',
+                '/users/<email>': 'User detail page with edit modal',
                 '/activity': 'Activity log',
                 '/sync': 'Sync history'
             },
             'api': {
                 'GET /api/users': 'List cached users',
                 'GET /api/users/<email>': 'Get user by email',
+                'GET /api/users/<email>/details': 'Get editable user details from Buz',
+                'PATCH /api/users/<email>': 'Update user details in Buz',
                 'POST /api/users/sync': 'Sync users from Buz',
                 'POST /api/users/<email>/activate': 'Activate user in Buz',
                 'POST /api/users/<email>/deactivate': 'Deactivate user in Buz',
                 'GET /api/orgs': 'List available organizations',
+                'GET /api/groups': 'Get available user groups for an org',
+                'GET /api/customers/search': 'Search for customers by company name',
+                'GET /api/customers/from-user': 'Get customer from existing user',
                 'GET /api/sync/status': 'Get sync status',
                 'GET /api/sync/history': 'Get sync history',
                 'GET /api/activity': 'Get activity log',
@@ -108,6 +113,9 @@ def info():
             'Cache Buz users locally for fast lookups',
             'Sync users from Buz across multiple organizations',
             'Activate/deactivate users in Buz',
+            'Edit user details (name, phone, group)',
+            'Assign customers to customer users',
+            'Search for customers by company name',
             'Track access changes with activity log',
             'Sync access changes to Peter (staff database)',
             'Web UI for user management'

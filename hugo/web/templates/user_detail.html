@@ -18,6 +18,147 @@
         white-space: nowrap;
         font-size: 0.9em;
     }
+    .actions-cell {
+        white-space: nowrap;
+    }
+    .actions-cell .btn {
+        margin-right: 5px;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-overlay.active {
+        display: flex;
+    }
+    .modal {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    .modal h3 {
+        margin-bottom: 20px;
+        color: #5b247a;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 1em;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: #5b247a;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(91, 36, 122, 0.2);
+    }
+    .form-group input:disabled,
+    .form-group select:disabled {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+    }
+    .customer-section {
+        background: #fff3cd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    .customer-section h4 {
+        margin-bottom: 10px;
+        color: #856404;
+        font-size: 0.95em;
+    }
+    .customer-search-results {
+        max-height: 150px;
+        overflow-y: auto;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        margin-top: 10px;
+        display: none;
+    }
+    .customer-search-results.active {
+        display: block;
+    }
+    .customer-result {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .customer-result:last-child {
+        border-bottom: none;
+    }
+    .customer-result:hover {
+        background: #f8f9fa;
+    }
+    .customer-result .code {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+    .selected-customer {
+        background: #d4edda;
+        padding: 10px;
+        border-radius: 6px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+    }
+    .selected-customer.active {
+        display: flex;
+    }
+    .selected-customer .clear-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 1.2em;
+    }
+    .loading-spinner {
+        display: none;
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+    .loading-spinner.active {
+        display: inline;
+    }
 </style>
 {% endblock %}
 
@@ -62,7 +203,11 @@
                         -
                     {% endif %}
                 </td>
-                <td>
+                <td class="actions-cell">
+                    <button class="btn btn-primary btn-sm"
+                            onclick="openEditModal('{{ user.email }}', '{{ user.org_key }}', '{{ user.user_type }}')">
+                        Edit
+                    </button>
                     {% if user.is_active %}
                     <button class="btn btn-danger btn-sm toggle-btn"
                             onclick="toggleUser('{{ user.email }}', '{{ user.org_key }}', true, this)">
@@ -124,4 +269,296 @@
 
 <p><a href="{{ url_for('web.users') }}">&larr; Back to Users</a></p>
 
+<!-- Edit User Modal -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal">
+        <h3>Edit User</h3>
+        <form id="editForm" onsubmit="saveUser(event)">
+            <input type="hidden" id="edit-email" name="email">
+            <input type="hidden" id="edit-org" name="org">
+            <input type="hidden" id="edit-user-type" name="user_type">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-first-name">First Name</label>
+                    <input type="text" id="edit-first-name" name="first_name">
+                </div>
+                <div class="form-group">
+                    <label for="edit-last-name">Last Name</label>
+                    <input type="text" id="edit-last-name" name="last_name">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-email-display">Email</label>
+                <input type="email" id="edit-email-display" disabled>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-phone">Phone</label>
+                    <input type="tel" id="edit-phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="edit-mobile">Mobile</label>
+                    <input type="tel" id="edit-mobile" name="mobile">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-group">Group</label>
+                <select id="edit-group" name="group">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <!-- Customer Section (only for customer users) -->
+            <div id="customer-section" class="customer-section" style="display: none;">
+                <h4>Customer Assignment</h4>
+
+                <div class="selected-customer" id="selected-customer">
+                    <span id="selected-customer-name"></span>
+                    <button type="button" class="clear-btn" onclick="clearCustomer()">&times;</button>
+                </div>
+                <input type="hidden" id="edit-customer-pkid" name="customer_pkid">
+                <input type="hidden" id="edit-customer-name" name="customer_name">
+
+                <div class="form-group" id="customer-search-group">
+                    <label for="customer-search">Search Customer</label>
+                    <input type="text" id="customer-search" placeholder="Type company name to search..."
+                           oninput="debounceCustomerSearch()">
+                    <span class="loading-spinner" id="customer-search-spinner">Searching...</span>
+                    <div class="customer-search-results" id="customer-results"></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="save-btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let originalDetails = {};
+    let customerSearchTimeout = null;
+
+    async function openEditModal(email, org, userType) {
+        hideMessage();
+        document.getElementById('editModal').classList.add('active');
+
+        // Set hidden fields
+        document.getElementById('edit-email').value = email;
+        document.getElementById('edit-org').value = org;
+        document.getElementById('edit-user-type').value = userType;
+        document.getElementById('edit-email-display').value = email;
+
+        // Show customer section for customer users
+        const customerSection = document.getElementById('customer-section');
+        if (userType === 'customer') {
+            customerSection.style.display = 'block';
+        } else {
+            customerSection.style.display = 'none';
+        }
+
+        // Clear previous values
+        document.getElementById('edit-first-name').value = '';
+        document.getElementById('edit-last-name').value = '';
+        document.getElementById('edit-phone').value = '';
+        document.getElementById('edit-mobile').value = '';
+        document.getElementById('edit-group').innerHTML = '<option value="">Loading...</option>';
+        clearCustomer();
+
+        // Fetch user details
+        try {
+            const result = await apiCall(`/api/users/${encodeURIComponent(email)}/details?org=${org}`);
+
+            if (result.success) {
+                originalDetails = result.details;
+
+                document.getElementById('edit-first-name').value = result.details.first_name || '';
+                document.getElementById('edit-last-name').value = result.details.last_name || '';
+                document.getElementById('edit-phone').value = result.details.phone || '';
+                document.getElementById('edit-mobile').value = result.details.mobile || '';
+
+                // Populate groups dropdown
+                const groupSelect = document.getElementById('edit-group');
+                groupSelect.innerHTML = result.available_groups.map(g =>
+                    `<option value="${g}" ${g === result.details.group ? 'selected' : ''}>${g}</option>`
+                ).join('');
+
+                // Set customer if present
+                if (result.details.customer_name) {
+                    setCustomer(result.details.customer_name, result.details.customer_pkid || '');
+                }
+            } else {
+                showMessage('Error loading user details: ' + result.error, 'error');
+                closeEditModal();
+            }
+        } catch (e) {
+            showMessage('Error loading user details: ' + e.message, 'error');
+            closeEditModal();
+        }
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+        originalDetails = {};
+    }
+
+    // Close modal on overlay click
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditModal();
+        }
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeEditModal();
+        }
+    });
+
+    async function saveUser(event) {
+        event.preventDefault();
+        hideMessage();
+
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        const email = document.getElementById('edit-email').value;
+        const org = document.getElementById('edit-org').value;
+
+        // Collect changes (only changed fields)
+        const changes = { org };
+
+        const firstName = document.getElementById('edit-first-name').value.trim();
+        const lastName = document.getElementById('edit-last-name').value.trim();
+        const phone = document.getElementById('edit-phone').value.trim();
+        const mobile = document.getElementById('edit-mobile').value.trim();
+        const group = document.getElementById('edit-group').value;
+        const customerName = document.getElementById('edit-customer-name').value;
+        const customerPkid = document.getElementById('edit-customer-pkid').value;
+
+        if (firstName !== (originalDetails.first_name || '')) changes.first_name = firstName;
+        if (lastName !== (originalDetails.last_name || '')) changes.last_name = lastName;
+        if (phone !== (originalDetails.phone || '')) changes.phone = phone;
+        if (mobile !== (originalDetails.mobile || '')) changes.mobile = mobile;
+        if (group !== (originalDetails.group || '')) changes.group = group;
+
+        // Customer changes
+        if (customerName !== (originalDetails.customer_name || '') ||
+            customerPkid !== (originalDetails.customer_pkid || '')) {
+            if (customerName && customerPkid) {
+                changes.customer_name = customerName;
+                changes.customer_pkid = customerPkid;
+            }
+        }
+
+        // Check if any changes
+        if (Object.keys(changes).length <= 1) { // only 'org' is present
+            showMessage('No changes to save', 'info');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+            return;
+        }
+
+        try {
+            const result = await apiCall(`/api/users/${encodeURIComponent(email)}`, 'PATCH', changes);
+
+            if (result.success) {
+                showMessage('User updated successfully', 'success');
+                closeEditModal();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showMessage('Error: ' + (result.error || 'Unknown error'), 'error');
+            }
+        } catch (e) {
+            showMessage('Error: ' + e.message, 'error');
+        }
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+    }
+
+    // Customer search
+    function debounceCustomerSearch() {
+        if (customerSearchTimeout) {
+            clearTimeout(customerSearchTimeout);
+        }
+        customerSearchTimeout = setTimeout(searchCustomers, 500);
+    }
+
+    async function searchCustomers() {
+        const query = document.getElementById('customer-search').value.trim();
+        const org = document.getElementById('edit-org').value;
+        const resultsDiv = document.getElementById('customer-results');
+        const spinner = document.getElementById('customer-search-spinner');
+
+        if (query.length < 2) {
+            resultsDiv.classList.remove('active');
+            return;
+        }
+
+        spinner.classList.add('active');
+
+        try {
+            const result = await apiCall(`/api/customers/search?org=${org}&q=${encodeURIComponent(query)}`);
+
+            spinner.classList.remove('active');
+
+            if (result.success && result.customers.length > 0) {
+                resultsDiv.innerHTML = result.customers.map(c => `
+                    <div class="customer-result" onclick="selectCustomer('${escapeHtml(c.customer_name)}', '${c.customer_pkid}')">
+                        <div>${escapeHtml(c.customer_name)}</div>
+                        <div class="code">${escapeHtml(c.customer_code)}</div>
+                    </div>
+                `).join('');
+                resultsDiv.classList.add('active');
+            } else {
+                resultsDiv.innerHTML = '<div class="customer-result">No customers found</div>';
+                resultsDiv.classList.add('active');
+            }
+        } catch (e) {
+            spinner.classList.remove('active');
+            resultsDiv.innerHTML = '<div class="customer-result text-danger">Error: ' + escapeHtml(e.message) + '</div>';
+            resultsDiv.classList.add('active');
+        }
+    }
+
+    function selectCustomer(name, pkid) {
+        setCustomer(name, pkid);
+        document.getElementById('customer-results').classList.remove('active');
+        document.getElementById('customer-search').value = '';
+    }
+
+    function setCustomer(name, pkid) {
+        document.getElementById('edit-customer-name').value = name;
+        document.getElementById('edit-customer-pkid').value = pkid;
+        document.getElementById('selected-customer-name').textContent = name;
+        document.getElementById('selected-customer').classList.add('active');
+        document.getElementById('customer-search-group').style.display = 'none';
+    }
+
+    function clearCustomer() {
+        document.getElementById('edit-customer-name').value = '';
+        document.getElementById('edit-customer-pkid').value = '';
+        document.getElementById('selected-customer').classList.remove('active');
+        document.getElementById('customer-search-group').style.display = 'block';
+        document.getElementById('customer-search').value = '';
+        document.getElementById('customer-results').classList.remove('active');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
 {% endblock %}

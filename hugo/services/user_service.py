@@ -503,6 +503,349 @@ class BuzUserService:
             results.append(result)
         return results
 
+    # -------------------------------------------------------------------------
+    # User Edit Methods
+    # -------------------------------------------------------------------------
+
+    async def get_user_details(
+        self,
+        org_key: str,
+        email: str
+    ) -> Dict[str, Any]:
+        """
+        Get editable user details from Buz.
+
+        Args:
+            org_key: Organization key
+            email: User's email address
+
+        Returns:
+            Dict with user details and available_groups, or error
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'email': email,
+            'org_key': org_key,
+            'details': None,
+            'available_groups': [],
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+
+                # Navigate to user edit page
+                user_exists = await nav.go_to_user_edit(email)
+                if not user_exists:
+                    result['message'] = f"User not found: {email}"
+                    return result
+
+                # Get details and available groups
+                details = await nav.get_user_edit_details()
+                groups = await nav.get_available_groups()
+
+                result['success'] = True
+                result['details'] = details
+                result['available_groups'] = groups
+                result['message'] = 'User details retrieved'
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error getting user details for {email} in {org_key}")
+
+        return result
+
+    async def update_user(
+        self,
+        org_key: str,
+        email: str,
+        changes: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update user details in Buz.
+
+        Args:
+            org_key: Organization key
+            email: User's email address
+            changes: Dict with optional keys:
+                - group: New group name
+                - first_name, last_name, phone, mobile: Field updates
+                - customer_name, customer_pkid: Customer assignment
+
+        Returns:
+            Dict with success status and message
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'email': email,
+            'org_key': org_key,
+            'changes_applied': [],
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+
+                # Navigate to user edit page
+                user_exists = await nav.go_to_user_edit(email)
+                if not user_exists:
+                    result['message'] = f"User not found: {email}"
+                    return result
+
+                # Apply changes
+                if 'group' in changes:
+                    if await nav.update_user_group(changes['group']):
+                        result['changes_applied'].append(f"group -> {changes['group']}")
+
+                if 'customer_name' in changes and 'customer_pkid' in changes:
+                    if await nav.update_user_customer(
+                        changes['customer_name'],
+                        changes['customer_pkid']
+                    ):
+                        result['changes_applied'].append(
+                            f"customer -> {changes['customer_name']}"
+                        )
+
+                # Update basic fields
+                await nav.update_user_fields(
+                    first_name=changes.get('first_name'),
+                    last_name=changes.get('last_name'),
+                    phone=changes.get('phone'),
+                    mobile=changes.get('mobile')
+                )
+
+                for field in ['first_name', 'last_name', 'phone', 'mobile']:
+                    if field in changes:
+                        result['changes_applied'].append(f"{field} -> {changes[field]}")
+
+                # Save
+                if result['changes_applied']:
+                    await nav.save_user()
+                    result['success'] = True
+                    result['message'] = f"Updated: {', '.join(result['changes_applied'])}"
+                else:
+                    result['message'] = "No changes to apply"
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error updating user {email} in {org_key}")
+
+        return result
+
+    async def get_available_groups(self, org_key: str) -> Dict[str, Any]:
+        """
+        Get list of available user groups for an org.
+
+        Uses a dummy user lookup to get the group dropdown options.
+
+        Args:
+            org_key: Organization key
+
+        Returns:
+            Dict with groups list or error
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'org_key': org_key,
+            'groups': [],
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+
+                # Navigate to new user page to get group options
+                await page.goto(
+                    BuzNavigation.USER_INVITE_URL,
+                    wait_until='networkidle',
+                    timeout=self.config.buz_navigation_timeout
+                )
+                await nav.handle_org_selector()
+
+                groups = await nav.get_available_groups()
+
+                result['success'] = True
+                result['groups'] = groups
+                result['message'] = f"Found {len(groups)} groups"
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error getting groups for {org_key}")
+
+        return result
+
+    # -------------------------------------------------------------------------
+    # Customer Search Methods
+    # -------------------------------------------------------------------------
+
+    async def search_customers(
+        self,
+        org_key: str,
+        query: str
+    ) -> Dict[str, Any]:
+        """
+        Search for customers by company name.
+
+        Args:
+            org_key: Organization key
+            query: Company name to search for
+
+        Returns:
+            Dict with customers list or error
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'org_key': org_key,
+            'customers': [],
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+
+                # Navigate to customers and search
+                await nav.go_to_customers()
+                customers = await nav.search_customer(query)
+
+                # Get PKIDs for each customer
+                for customer in customers:
+                    if customer['customer_code']:
+                        pkid = await nav.get_customer_pkid(customer['customer_code'])
+                        customer['customer_pkid'] = pkid or ''
+
+                result['success'] = True
+                result['customers'] = customers
+                result['message'] = f"Found {len(customers)} customers"
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error searching customers in {org_key}")
+
+        return result
+
+    async def get_customer_from_user(
+        self,
+        org_key: str,
+        email: str
+    ) -> Dict[str, Any]:
+        """
+        Get customer details from an existing user's assignment.
+
+        Useful for finding the customer when adding another user to same customer.
+
+        Args:
+            org_key: Organization key
+            email: Email of existing user
+
+        Returns:
+            Dict with customer_name, customer_pkid or error
+        """
+        org_config = self.config.get_org_config(org_key)
+
+        result = {
+            'success': False,
+            'org_key': org_key,
+            'email': email,
+            'customer_name': None,
+            'customer_pkid': None,
+            'message': ''
+        }
+
+        try:
+            async with AsyncBrowserManager(
+                headless=self.headless,
+                screenshot_dir=self.config.browser_screenshot_dir,
+                screenshot_on_failure=self.config.browser_screenshot_on_failure
+            ) as browser:
+                page = await browser.new_page_for_org(
+                    org_key,
+                    org_config['storage_state_path']
+                )
+
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+
+                # Get user details which includes customer info
+                user_exists = await nav.go_to_user_edit(email)
+                if not user_exists:
+                    result['message'] = f"User not found: {email}"
+                    return result
+
+                details = await nav.get_user_edit_details()
+
+                customer_name = details.get('customer_name', '')
+                customer_pkid = details.get('customer_pkid', '')
+
+                if not customer_name:
+                    result['message'] = f"User {email} is not linked to a customer"
+                    return result
+
+                # If we have name but not PKID, try to find it
+                if customer_name and not customer_pkid:
+                    await nav.go_to_customers()
+                    customers = await nav.search_customer(customer_name)
+                    if customers:
+                        pkid = await nav.get_customer_pkid(customers[0]['customer_code'])
+                        customer_pkid = pkid or ''
+
+                result['success'] = True
+                result['customer_name'] = customer_name
+                result['customer_pkid'] = customer_pkid
+                result['message'] = f"Found customer: {customer_name}"
+
+        except Exception as e:
+            result['message'] = f"Error: {str(e)}"
+            logger.exception(f"Error getting customer from user {email} in {org_key}")
+
+        return result
+
 
 # Helper function to run async code from sync context
 def run_async(coro):
