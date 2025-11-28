@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Verification History</h2>
+
+<div class="card">
+    <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <label>
+            Store:
+            <select name="org" onchange="this.form.submit()">
+                <option value="">All Stores</option>
+                {% for org_key in org_keys %}
+                <option value="{{ org_key }}" {% if selected_org == org_key %}selected{% endif %}>
+                    {{ org_key | title }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+    </form>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Store</th>
+                <th>Verified Date</th>
+                <th>Leads</th>
+                <th>Status</th>
+                <th>Message</th>
+                <th>Checked At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history %}
+            <tr>
+                <td>{{ record.org_key | title }}</td>
+                <td>{{ record.verified_date }}</td>
+                <td>
+                    {% if record.lead_count is not none %}
+                    {{ record.lead_count }}
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.status == 'ok' %}
+                    <span class="badge badge-ok">OK</span>
+                    {% elif record.status == 'alert' %}
+                    <span class="badge badge-alert">Alert</span>
+                    {% elif record.status == 'error' %}
+                    <span class="badge badge-error">Error</span>
+                    {% elif record.status == 'skipped' %}
+                    <span class="badge badge-skipped">Skipped</span>
+                    {% endif %}
+                </td>
+                <td class="text-muted">{{ record.message }}</td>
+                <td class="text-muted" title="{{ record.verified_at }}" style="cursor: help;">
+                    {{ time_ago(record.verified_at) }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-muted" style="text-align: center;">
+                    No verification history yet. Run a verification to get started.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

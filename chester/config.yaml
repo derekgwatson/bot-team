@@ -510,6 +510,23 @@ bot_team:
       sync: /api/sync
     personality: Organized and helpful, keeps the wiki team membership tidy and up-to-date
 
+  liam:
+    name: Liam
+    port: 8030
+    description: Buz Leads Monitor
+    capabilities:
+      - Monitor Buz OData feeds for leads data
+      - Daily verification that leads are being recorded
+      - Detect OData backup failures via zero-lead alerts
+      - Create Zendesk tickets for IT when issues detected
+      - Dashboard showing verification history
+    api_endpoints:
+      info: /info
+      health: /health
+      verify: /api/leads/verify
+      history: /api/leads/history
+    personality: Vigilant early-riser who checks that leads are flowing correctly each morning
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).

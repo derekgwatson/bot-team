@@ -1,0 +1,56 @@
+name: Liam
+description: Buz Leads Monitor - verifies leads are flowing correctly from Buz OData feeds
+version: 1.0.0
+personality: Vigilant early-riser who checks that leads are flowing correctly each morning
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+# OData endpoint configuration for each store
+# Format: org_key -> OData org code
+odata_orgs:
+  canberra:
+    code: WATSO
+    display_name: Canberra
+    is_primary: true  # Primary store - zero leads is definitely a problem
+  bay:
+    code: WABAY
+    display_name: Batemans Bay
+    is_primary: false
+  dd:
+    code: DESDR
+    display_name: Designer Drapes
+    is_primary: false
+  wagga:
+    code: KRCUR
+    display_name: Wagga Wagga
+    is_primary: false
+  shoalhaven:
+    code: WASHL
+    display_name: Shoalhaven
+    is_primary: false
+  tweed:
+    code: TWEED
+    display_name: Tweed
+    is_primary: false
+
+# Verification settings
+verification:
+  # Days to skip (0=Monday, 6=Sunday)
+  skip_days:
+    - 5  # Saturday
+    - 6  # Sunday
+  # Timeout for OData requests (seconds)
+  request_timeout: 30
+
+# Zendesk ticket settings for alerts
+alerts:
+  zendesk_group: "IT Support"
+  # Subject template (org_name will be substituted)
+  subject_template: "Buz OData Alert: No leads recorded for {org_name} on {date}"
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: grant  # Use Grant for centralized authorization
