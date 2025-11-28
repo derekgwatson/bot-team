@@ -346,6 +346,65 @@ class UserDatabase:
         conn.close()
         return log_id
 
+    def start_sync(self, org_key: str) -> int:
+        """
+        Record that a sync has started.
+
+        Returns:
+            ID of the sync log entry
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            INSERT INTO sync_log (org_key, status, started_at)
+            VALUES (?, 'running', CURRENT_TIMESTAMP)
+        ''', (org_key,))
+        sync_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return sync_id
+
+    def complete_sync(
+        self,
+        sync_id: int,
+        user_count: int,
+        status: str = 'success',
+        error_message: str = '',
+        duration_seconds: float = 0
+    ) -> bool:
+        """
+        Complete a running sync with final status.
+
+        Returns:
+            True if sync was updated
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            UPDATE sync_log
+            SET user_count = ?, status = ?, error_message = ?,
+                duration_seconds = ?, synced_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (user_count, status, error_message, duration_seconds, sync_id))
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
+
+    def get_running_syncs(self, org_key: str = None) -> List[Dict[str, Any]]:
+        """Get currently running syncs, optionally filtered by org."""
+        conn = self.get_connection()
+        if org_key:
+            cursor = conn.execute(
+                "SELECT * FROM sync_log WHERE status = 'running' AND org_key = ? ORDER BY started_at DESC",
+                (org_key,)
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM sync_log WHERE status = 'running' ORDER BY started_at DESC"
+            )
+        syncs = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return syncs
+
     def get_last_sync(self, org_key: str) -> Optional[Dict[str, Any]]:
         """Get the last sync record for an org."""
         conn = self.get_connection()
