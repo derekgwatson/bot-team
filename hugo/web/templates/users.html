@@ -2,6 +2,88 @@
 
 {% block title %}Users - {{ config.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .org-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .org-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .org-badge.active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .org-badge.inactive {
+        background: #f8d7da;
+        color: #721c24;
+        text-decoration: line-through;
+        opacity: 0.7;
+    }
+
+    .org-badge .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+
+    .org-badge.active .status-dot {
+        background: #28a745;
+    }
+
+    .org-badge.inactive .status-dot {
+        background: #dc3545;
+    }
+
+    .last-session {
+        white-space: nowrap;
+        font-size: 0.85em;
+    }
+
+    .user-count-summary {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .count-item {
+        font-size: 0.9em;
+    }
+
+    .user-name {
+        font-weight: 500;
+    }
+
+    .user-email {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+
+    /* Compact table for better density */
+    table td {
+        padding: 10px 12px;
+        vertical-align: middle;
+    }
+
+    /* Name/email column styling */
+    .user-identity {
+        line-height: 1.4;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <h2>Buz Users</h2>
 
@@ -33,18 +115,20 @@
 </div>
 
 <div class="card">
-    <p class="text-muted">{{ users|length }} users found</p>
+    <div class="user-count-summary">
+        <span class="count-item"><strong>{{ users|length }}</strong> unique users</span>
+        {% if raw_user_count != users|length %}
+        <span class="count-item text-muted">({{ raw_user_count }} total entries across orgs)</span>
+        {% endif %}
+    </div>
 
     {% if users %}
     <table>
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Organization</th>
+                <th>User</th>
+                <th>Organizations</th>
                 <th>Type</th>
-                <th>Status</th>
-                <th>Group</th>
                 <th>Last Session</th>
                 <th>Actions</th>
             </tr>
@@ -52,38 +136,44 @@
         <tbody>
             {% for user in users %}
             <tr>
-                <td><a href="{{ url_for('web.user_detail', email=user.email) }}">{{ user.full_name or user.email }}</a></td>
-                <td>{{ user.email }}</td>
-                <td>{{ user.org_key }}</td>
+                <td class="user-identity">
+                    <div class="user-name">
+                        <a href="{{ url_for('web.user_detail', email=user.email) }}">{{ user.full_name or user.email }}</a>
+                    </div>
+                    {% if user.full_name %}
+                    <div class="user-email">{{ user.email }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="org-badges">
+                        {% for org in user.orgs|sort(attribute='org_key') %}
+                        <span class="org-badge {% if org.is_active %}active{% else %}inactive{% endif %}"
+                              title="{{ 'Active' if org.is_active else 'Inactive' }} in {{ config.buz_orgs[org.org_key].display_name }}{% if org.user_group %} ({{ org.user_group }}){% endif %}">
+                            <span class="status-dot"></span>
+                            {{ org.org_key[:3]|upper }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </td>
                 <td>
                     <span class="badge badge-{{ user.user_type }}">{{ user.user_type }}</span>
                 </td>
-                <td>
-                    <span class="badge badge-{% if user.is_active %}active{% else %}inactive{% endif %}">
-                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
-                    </span>
-                </td>
-                <td>{{ user.user_group or '-' }}</td>
-                <td class="text-muted">{{ user.last_session or '-' }}</td>
-                <td>
-                    {% if user.is_active %}
-                    <button class="btn btn-danger btn-sm toggle-btn"
-                            onclick="toggleUser('{{ user.email }}', '{{ user.org_key }}', true, this)">
-                        Deactivate
-                    </button>
+                <td class="last-session text-muted">
+                    {% if user.last_session %}
+                        {{ user.last_session[:10] }}
                     {% else %}
-                    <button class="btn btn-success btn-sm toggle-btn"
-                            onclick="toggleUser('{{ user.email }}', '{{ user.org_key }}', false, this)">
-                        Activate
-                    </button>
+                        -
                     {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('web.user_detail', email=user.email) }}" class="btn btn-secondary btn-sm">Manage</a>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p>No users found. Try <a href="{{ url_for('web.index') }}">syncing from the dashboard</a>.</p>
+    <p style="margin-top: 15px;">No users found. Try <a href="{{ url_for('web.index') }}">syncing from the dashboard</a>.</p>
     {% endif %}
 </div>
 
