@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+.menu-intro {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #666;
+}
+
+.function-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.function-card {
+    display: block;
+    background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 25px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+
+.function-card:hover {
+    border-color: #667eea;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+}
+
+.function-card-icon {
+    font-size: 2.5em;
+    margin-bottom: 15px;
+}
+
+.function-card-title {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #1e3c72;
+    margin-bottom: 10px;
+}
+
+.function-card-description {
+    color: #666;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.function-card-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 15px;
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.function-card-arrow span {
+    margin-left: 5px;
+    transition: transform 0.2s;
+}
+
+.function-card:hover .function-card-arrow span {
+    transform: translateX(4px);
+}
+
+.coming-soon {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.coming-soon .function-card-arrow {
+    color: #999;
+}
+
+.coming-soon-badge {
+    display: inline-block;
+    background: #e9ecef;
+    color: #666;
+    font-size: 0.75em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+{% endblock %}
+
+{% block content %}
+<p class="menu-intro">
+    Select a function below to get started
+</p>
+
+<div class="function-grid">
+    <a href="{{ url_for('web.extract_sheets') }}" class="function-card">
+        <div class="function-card-icon">📋</div>
+        <div class="function-card-title">Extract Sheets as Values</div>
+        <div class="function-card-description">
+            Upload an Excel file, select which sheets to keep, and download a copy
+            with all formulas converted to their calculated values.
+        </div>
+        <div class="function-card-arrow">
+            Get started <span>&rarr;</span>
+        </div>
+    </a>
+
+    <!-- Placeholder for future functions - uncomment and modify as needed
+    <a href="#" class="function-card coming-soon">
+        <div class="function-card-icon">🔀</div>
+        <div class="function-card-title">
+            Merge Workbooks
+            <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        <div class="function-card-description">
+            Combine multiple Excel files into a single workbook, with options
+            to merge sheets or append data.
+        </div>
+        <div class="function-card-arrow">
+            Coming soon <span>&rarr;</span>
+        </div>
+    </a>
+
+    <a href="#" class="function-card coming-soon">
+        <div class="function-card-icon">📊</div>
+        <div class="function-card-title">
+            Compare Sheets
+            <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        <div class="function-card-description">
+            Compare two Excel files or sheets and highlight the differences
+            between them.
+        </div>
+        <div class="function-card-arrow">
+            Coming soon <span>&rarr;</span>
+        </div>
+    </a>
+    -->
+</div>
+{% endblock %}
