@@ -4,6 +4,8 @@ Hugo API routes.
 Provides REST API for Buz user management.
 """
 import logging
+import threading
+import time
 from flask import Blueprint, jsonify, request
 from shared.auth.bot_api import api_key_required, api_or_session_auth
 
@@ -102,6 +104,56 @@ def get_user(email):
         return jsonify({'error': str(e)}), 500
 
 
+def _run_sync_in_background(orgs_to_sync: list, sync_ids: dict):
+    """
+    Run the sync operation in a background thread.
+
+    Args:
+        orgs_to_sync: List of org keys to sync
+        sync_ids: Dict mapping org_key to sync_log id
+    """
+    from config import config
+    service, run_async = get_user_service()
+    db = get_db()
+
+    for org in orgs_to_sync:
+        sync_id = sync_ids.get(org)
+        start_time = time.time()
+
+        try:
+            logger.info(f"Background sync starting for {org}")
+
+            # Scrape users from Buz
+            sync_result = run_async(service.scrape_org_users(org))
+
+            # Update database
+            db_result = db.bulk_upsert_users(sync_result['users'], org)
+
+            duration = time.time() - start_time
+
+            # Complete the sync record
+            db.complete_sync(
+                sync_id=sync_id,
+                user_count=sync_result['user_count'],
+                status='success',
+                duration_seconds=duration
+            )
+
+            logger.info(f"Background sync completed for {org}: {sync_result['user_count']} users in {duration:.1f}s")
+
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.exception(f"Background sync failed for {org}")
+
+            db.complete_sync(
+                sync_id=sync_id,
+                user_count=0,
+                status='error',
+                error_message=str(e),
+                duration_seconds=duration
+            )
+
+
 @api_bp.route('/users/sync', methods=['POST'])
 @api_or_session_auth
 def sync_users():
@@ -109,68 +161,83 @@ def sync_users():
     POST /api/users/sync
 
     Sync users from Buz for one or all orgs.
+    Runs in background thread and returns immediately.
 
     Body (JSON):
         org: Optional org_key (if not specified, syncs all orgs)
+
+    Returns:
+        status: 'started'
+        sync_ids: Dict of org_key -> sync_log id for tracking
     """
     data = request.get_json() or {}
     org_key = data.get('org')
 
     try:
         from config import config
-        service, run_async = get_user_service()
         db = get_db()
 
         orgs_to_sync = [org_key] if org_key else config.available_orgs
 
-        results = []
+        # Check if any syncs are already running
+        running = db.get_running_syncs()
+        running_orgs = {s['org_key'] for s in running}
+        conflicts = set(orgs_to_sync) & running_orgs
+
+        if conflicts:
+            return jsonify({
+                'error': f"Sync already running for: {', '.join(conflicts)}",
+                'running_syncs': running
+            }), 409
+
+        # Create sync records for each org
+        sync_ids = {}
         for org in orgs_to_sync:
-            try:
-                # Scrape users from Buz
-                sync_result = run_async(service.scrape_org_users(org))
+            sync_ids[org] = db.start_sync(org)
 
-                # Update database
-                db_result = db.bulk_upsert_users(sync_result['users'], org)
+        # Start background thread
+        thread = threading.Thread(
+            target=_run_sync_in_background,
+            args=(orgs_to_sync, sync_ids),
+            name=f"sync_{'_'.join(orgs_to_sync)}",
+            daemon=True
+        )
+        thread.start()
 
-                # Log the sync
-                db.log_sync(
-                    org_key=org,
-                    user_count=sync_result['user_count'],
-                    status='success',
-                    duration_seconds=sync_result['duration_seconds']
-                )
-
-                results.append({
-                    'org': org,
-                    'success': True,
-                    'user_count': sync_result['user_count'],
-                    'created': db_result['created'],
-                    'updated': db_result['updated'],
-                    'duration': sync_result['duration_seconds']
-                })
-
-            except Exception as e:
-                logger.exception(f"Error syncing {org}")
-                db.log_sync(
-                    org_key=org,
-                    user_count=0,
-                    status='error',
-                    error_message=str(e)
-                )
-                results.append({
-                    'org': org,
-                    'success': False,
-                    'error': str(e)
-                })
+        logger.info(f"Started background sync for {orgs_to_sync} (sync_ids={sync_ids})")
 
         return jsonify({
-            'results': results,
-            'total_orgs': len(results),
-            'successful': sum(1 for r in results if r['success'])
+            'status': 'started',
+            'orgs': orgs_to_sync,
+            'sync_ids': sync_ids,
+            'message': 'Sync started in background. Check /api/users/sync/status for progress.'
         })
 
     except Exception as e:
-        logger.exception("Error in sync")
+        logger.exception("Error starting sync")
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/sync/status', methods=['GET'])
+@api_or_session_auth
+def sync_status():
+    """
+    GET /api/users/sync/status
+
+    Get status of running syncs and recent sync history.
+    """
+    try:
+        db = get_db()
+        running = db.get_running_syncs()
+        recent = db.get_sync_history(limit=10)
+
+        return jsonify({
+            'running': running,
+            'recent': recent
+        })
+
+    except Exception as e:
+        logger.exception("Error getting sync status")
         return jsonify({'error': str(e)}), 500
 
 
