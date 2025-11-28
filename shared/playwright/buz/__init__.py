@@ -24,11 +24,18 @@ Usage:
 
 from shared.playwright.buz.orgs import BuzOrgs
 from shared.playwright.buz.navigation import BuzNavigation
-from shared.playwright.buz.lock import BuzPlaywrightLock, get_buz_lock
+from shared.playwright.buz.lock import (
+    BuzPlaywrightLock,
+    get_buz_lock,
+    get_lock_holder_info,
+    is_lock_available,
+)
 
 __all__ = [
     'BuzOrgs',
     'BuzNavigation',
     'BuzPlaywrightLock',
     'get_buz_lock',
+    'get_lock_holder_info',
+    'is_lock_available',
 ]
