@@ -29,16 +29,33 @@ class BuzNavigation:
     # Customer URLs
     CUSTOMERS_URL = "https://go.buzmanager.com/Contacts/Customers"
 
-    def __init__(self, page: Page, timeout: int = 30000):
+    def __init__(self, page: Page, timeout: int = 30000, debug: bool = False):
         """
         Initialize navigation helper.
 
         Args:
             page: Playwright page instance
             timeout: Default navigation timeout in milliseconds
+            debug: If True, pause at strategic points for debugging
         """
         self.page = page
         self.timeout = timeout
+        self.debug = debug
+
+    async def _debug_pause(self, label: str = "") -> None:
+        """
+        Pause for debugging if debug mode is enabled.
+
+        Opens the Playwright Inspector for step-through debugging.
+        Set BUZ_DEBUG=true to enable.
+
+        Args:
+            label: Description of current step (logged before pause)
+        """
+        if self.debug:
+            if label:
+                logger.info(f"[DEBUG PAUSE] {label}")
+            await self.page.pause()
 
     async def handle_org_selector(self) -> bool:
         """
@@ -174,6 +191,8 @@ class BuzNavigation:
         if await self.handle_org_selector():
             logger.info("Re-navigating to user edit after org selection...")
             await self.page.goto(edit_url, wait_until='networkidle', timeout=self.timeout)
+
+        await self._debug_pause(f"Loaded user edit page for {email}")
 
         # Wait for Angular to populate the form - the email field gets filled if user exists
         email_input = self.page.locator('input#text-email')
@@ -388,6 +407,8 @@ class BuzNavigation:
         # Check if we're still on edit page (might indicate error) or redirected
         current_url = self.page.url
         logger.info(f"After save, URL: {current_url}")
+
+        await self._debug_pause("After save - inspect result")
 
         # Success usually redirects away from the edit page
         return True

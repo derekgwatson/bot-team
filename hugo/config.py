@@ -58,6 +58,12 @@ class Config:
         # Browser headless mode
         self.browser_headless = os.environ.get("BUZ_HEADLESS", "true").lower() == "true"
 
+        # Debug mode - enables headed browser and pause points
+        self.browser_debug = os.environ.get("BUZ_DEBUG", "false").lower() == "true"
+        if self.browser_debug:
+            # Debug mode forces headed browser
+            self.browser_headless = False
+
         # Load Buz organizations
         secrets_dir = base_dir / ".secrets"
         self.buz_orgs, self.buz_orgs_missing_auth = BuzOrgs.load_orgs(secrets_dir)

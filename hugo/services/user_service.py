@@ -56,6 +56,7 @@ class BuzUserService:
         """
         self.config = config
         self.headless = config.browser_headless
+        self.debug = getattr(config, 'browser_debug', False)
 
     async def _scrape_users_from_page(
         self,
@@ -169,7 +170,7 @@ class BuzUserService:
             )
             logger.info("Page created, initializing navigation...")
 
-            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
             # Navigate to user management
             logger.info("Navigating to user management...")
@@ -255,7 +256,7 @@ class BuzUserService:
                 org_config['storage_state_path']
             )
 
-            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
             try:
                 await nav.go_to_user_management()
@@ -339,7 +340,7 @@ class BuzUserService:
                 org_config['storage_state_path']
             )
 
-            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+            nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
             try:
                 await nav.go_to_user_management()
@@ -544,7 +545,7 @@ class BuzUserService:
                     org_config['storage_state_path']
                 )
 
-                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
                 # Navigate to user edit page
                 user_exists = await nav.go_to_user_edit(email)
@@ -608,7 +609,7 @@ class BuzUserService:
                     org_config['storage_state_path']
                 )
 
-                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
                 # Navigate to user edit page
                 user_exists = await nav.go_to_user_edit(email)
@@ -688,7 +689,7 @@ class BuzUserService:
                     org_config['storage_state_path']
                 )
 
-                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
                 # Navigate to new user page to get group options
                 await page.goto(
@@ -749,7 +750,7 @@ class BuzUserService:
                     org_config['storage_state_path']
                 )
 
-                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
                 # Navigate to customers and search
                 await nav.go_to_customers()
@@ -810,7 +811,7 @@ class BuzUserService:
                     org_config['storage_state_path']
                 )
 
-                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout)
+                nav = BuzNavigation(page, timeout=self.config.buz_navigation_timeout, debug=self.debug)
 
                 # Get user details which includes customer info
                 user_exists = await nav.go_to_user_edit(email)
