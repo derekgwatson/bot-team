@@ -258,7 +258,7 @@ class Database:
             cursor.execute('''
                 SELECT * FROM job_executions
                 WHERE job_id = ?
-                ORDER BY executed_at DESC
+                ORDER BY COALESCE(started_at, executed_at) DESC
                 LIMIT ?
             ''', (job_id, limit))
             return [dict(row) for row in cursor.fetchall()]
@@ -271,15 +271,15 @@ class Database:
                 SELECT e.*, j.name as job_name, j.target_bot, j.quiet
                 FROM job_executions e
                 JOIN jobs j ON e.job_id = j.job_id
-                ORDER BY e.executed_at DESC
+                ORDER BY COALESCE(e.started_at, e.executed_at) DESC
                 LIMIT ?
             ''', (limit,))
             return [dict(row) for row in cursor.fetchall()]
 
     def get_latest_per_job(self) -> List[Dict]:
-        """Get the latest success and latest failure for each job.
+        """Get the latest success, failure, and running execution for each job.
 
-        Returns at most 2 entries per job (most recent success + most recent failure),
+        Returns at most 3 entries per job (most recent success + most recent failure + running),
         providing a complete status overview without repetitive entries.
         """
         with self.get_connection() as conn:
@@ -298,8 +298,12 @@ class Database:
                     SELECT MAX(e2.id) FROM job_executions e2
                     WHERE e2.status = 'failed'
                     GROUP BY e2.job_id
+                    UNION
+                    -- Currently running jobs
+                    SELECT e2.id FROM job_executions e2
+                    WHERE e2.status = 'running'
                 )
-                ORDER BY e.executed_at DESC
+                ORDER BY COALESCE(e.started_at, e.executed_at) DESC
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
