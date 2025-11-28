@@ -232,7 +232,8 @@ class BuzNavigation:
 
         Returns:
             Dict with user details: first_name, last_name, email, phone, mobile,
-            group, customer_name, customer_pkid
+            group, customer_name, customer_pkid, sales_rep, installer,
+            available_sales_reps, available_installers
         """
         details = {}
 
@@ -265,8 +266,45 @@ class BuzNavigation:
         except Exception:
             details['customer_pkid'] = ''
 
+        # Sales Rep - get selected value and available options
+        details['sales_rep'] = await self._get_select_text('#sales-repr')
+        details['available_sales_reps'] = await self._get_select_options('#sales-repr')
+
+        # Installer - get selected value and available options
+        details['installer'] = await self._get_select_text('#installer')
+        details['available_installers'] = await self._get_select_options('#installer')
+
         logger.info(f"Extracted user details: {details['email']}, group={details['group']}")
         return details
+
+    async def _get_select_text(self, selector: str) -> str:
+        """Helper to get selected option text from a select element."""
+        try:
+            select = self.page.locator(selector)
+            if await select.count() > 0:
+                text = await select.evaluate(
+                    '(select) => select.options[select.selectedIndex]?.text?.trim() || ""'
+                )
+                return text
+        except Exception:
+            pass
+        return ''
+
+    async def _get_select_options(self, selector: str) -> List[Dict[str, str]]:
+        """Helper to get all options from a select element."""
+        try:
+            select = self.page.locator(selector)
+            if await select.count() > 0:
+                options = await select.evaluate('''(select) => {
+                    return Array.from(select.options).map(opt => ({
+                        value: opt.value,
+                        text: opt.text.trim()
+                    })).filter(opt => opt.text !== "");
+                }''')
+                return options
+        except Exception:
+            pass
+        return []
 
     async def _get_input_value(self, selector: str) -> str:
         """Helper to safely get input value."""
@@ -391,6 +429,68 @@ class BuzNavigation:
         if mobile is not None:
             await self.page.fill('input#text-mobile', mobile)
             logger.info(f"Updated mobile: {mobile}")
+
+    async def update_user_sales_rep(self, sales_rep_text: str) -> bool:
+        """
+        Update the user's sales rep selection.
+
+        Must be called after go_to_user_edit().
+
+        Args:
+            sales_rep_text: Display text of the sales rep to select
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Updating sales rep to: {sales_rep_text}")
+
+        select = self.page.locator('#sales-repr')
+        if await select.count() == 0:
+            logger.warning("Sales rep select not found")
+            return False
+
+        await select.select_option(label=sales_rep_text)
+        await self.page.wait_for_timeout(300)
+
+        # Verify selection
+        selected = await self._get_select_text('#sales-repr')
+        if selected == sales_rep_text:
+            logger.info(f"Sales rep updated to: {sales_rep_text}")
+            return True
+        else:
+            logger.warning(f"Sales rep selection mismatch: expected {sales_rep_text}, got {selected}")
+            return False
+
+    async def update_user_installer(self, installer_text: str) -> bool:
+        """
+        Update the user's installer selection.
+
+        Must be called after go_to_user_edit().
+
+        Args:
+            installer_text: Display text of the installer to select
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Updating installer to: {installer_text}")
+
+        select = self.page.locator('#installer')
+        if await select.count() == 0:
+            logger.warning("Installer select not found")
+            return False
+
+        await select.select_option(label=installer_text)
+        await self.page.wait_for_timeout(300)
+
+        # Verify selection
+        selected = await self._get_select_text('#installer')
+        if selected == installer_text:
+            logger.info(f"Installer updated to: {installer_text}")
+            return True
+        else:
+            logger.warning(f"Installer selection mismatch: expected {installer_text}, got {selected}")
+            return False
 
     async def save_user(self) -> bool:
         """

@@ -632,6 +632,16 @@ class BuzUserService:
                             f"customer -> {changes['customer_name']}"
                         )
 
+                # Update sales rep
+                if 'sales_rep' in changes:
+                    if await nav.update_user_sales_rep(changes['sales_rep']):
+                        result['changes_applied'].append(f"sales_rep -> {changes['sales_rep']}")
+
+                # Update installer
+                if 'installer' in changes:
+                    if await nav.update_user_installer(changes['installer']):
+                        result['changes_applied'].append(f"installer -> {changes['installer']}")
+
                 # Update basic fields
                 await nav.update_user_fields(
                     first_name=changes.get('first_name'),

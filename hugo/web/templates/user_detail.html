@@ -312,6 +312,22 @@
                 </select>
             </div>
 
+            <!-- Sales Rep and Installer (for customer users) -->
+            <div id="sales-installer-section" class="form-row" style="display: none;">
+                <div class="form-group">
+                    <label for="edit-sales-rep">Sales Representative</label>
+                    <select id="edit-sales-rep" name="sales_rep">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-installer">Installer</label>
+                    <select id="edit-installer" name="installer">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Customer Section (only for customer users) -->
             <div id="customer-section" class="customer-section" style="display: none;">
                 <h4>Customer Assignment</h4>
@@ -357,12 +373,15 @@
         document.getElementById('edit-user-type').value = userType;
         document.getElementById('edit-email-display').value = email;
 
-        // Show customer section for customer users
+        // Show customer-specific sections for customer users
         const customerSection = document.getElementById('customer-section');
+        const salesInstallerSection = document.getElementById('sales-installer-section');
         if (userType === 'customer') {
             customerSection.style.display = 'block';
+            salesInstallerSection.style.display = 'grid';
         } else {
             customerSection.style.display = 'none';
+            salesInstallerSection.style.display = 'none';
         }
 
         // Clear previous values
@@ -371,6 +390,8 @@
         document.getElementById('edit-phone').value = '';
         document.getElementById('edit-mobile').value = '';
         document.getElementById('edit-group').innerHTML = '<option value="">Loading...</option>';
+        document.getElementById('edit-sales-rep').innerHTML = '<option value="">Loading...</option>';
+        document.getElementById('edit-installer').innerHTML = '<option value="">Loading...</option>';
         clearCustomer();
 
         // Initialize originalDetails with the current group from DB cache
@@ -407,6 +428,24 @@
                 document.getElementById('edit-last-name').value = result.details.last_name || '';
                 document.getElementById('edit-phone').value = result.details.phone || '';
                 document.getElementById('edit-mobile').value = result.details.mobile || '';
+
+                // Populate sales rep dropdown (for customer users)
+                if (result.details.available_sales_reps && result.details.available_sales_reps.length > 0) {
+                    const salesRepSelect = document.getElementById('edit-sales-rep');
+                    salesRepSelect.innerHTML = '<option value=""></option>' +
+                        result.details.available_sales_reps.map(sr =>
+                            `<option value="${escapeHtml(sr.text)}" ${sr.text === result.details.sales_rep ? 'selected' : ''}>${escapeHtml(sr.text)}</option>`
+                        ).join('');
+                }
+
+                // Populate installer dropdown (for customer users)
+                if (result.details.available_installers && result.details.available_installers.length > 0) {
+                    const installerSelect = document.getElementById('edit-installer');
+                    installerSelect.innerHTML = '<option value=""></option>' +
+                        result.details.available_installers.map(inst =>
+                            `<option value="${escapeHtml(inst.text)}" ${inst.text === result.details.installer ? 'selected' : ''}>${escapeHtml(inst.text)}</option>`
+                        ).join('');
+                }
 
                 // Set customer if present
                 if (result.details.customer_name) {
@@ -460,6 +499,8 @@
         const phone = document.getElementById('edit-phone').value.trim();
         const mobile = document.getElementById('edit-mobile').value.trim();
         const group = document.getElementById('edit-group').value;
+        const salesRep = document.getElementById('edit-sales-rep').value;
+        const installer = document.getElementById('edit-installer').value;
         const customerName = document.getElementById('edit-customer-name').value;
         const customerPkid = document.getElementById('edit-customer-pkid').value;
 
@@ -468,6 +509,10 @@
         if (phone !== (originalDetails.phone || '')) changes.phone = phone;
         if (mobile !== (originalDetails.mobile || '')) changes.mobile = mobile;
         if (group !== (originalDetails.group || '')) changes.group = group;
+
+        // Sales rep and installer changes (for customer users)
+        if (salesRep && salesRep !== (originalDetails.sales_rep || '')) changes.sales_rep = salesRep;
+        if (installer && installer !== (originalDetails.installer || '')) changes.installer = installer;
 
         // Customer changes
         if (customerName !== (originalDetails.customer_name || '') ||
