@@ -356,4 +356,44 @@ fi
 echo ""
 header "Deployment Complete"
 success "Latest Claude changes deployed and bots updated"
+
+# Step 3: Optionally delete the merged branch
+if [[ "${SKIP_MERGE:-0}" == "0" ]] && [[ -n "${LOCAL_BRANCH:-}" ]]; then
+    echo ""
+    header "Step 3: Branch Cleanup"
+    info "The branch '${WHITE}$LOCAL_BRANCH${NC}' was merged into $MAIN_BRANCH."
+    echo ""
+    info "You can now test the deployment. When ready, choose whether to delete the branch."
+    echo ""
+
+    if [ -t 0 ]; then
+        read -r -p "Delete branch '$LOCAL_BRANCH' (local and remote)? [y/N]: " DELETE_REPLY
+        case "$DELETE_REPLY" in
+            y|Y|yes|YES)
+                info "Deleting remote branch..."
+                if sudo -u www-data git -C "$REPO_PATH" push "$REMOTE" --delete "$LOCAL_BRANCH" 2>/dev/null; then
+                    success "Remote branch '$LOCAL_BRANCH' deleted."
+                else
+                    warning "Could not delete remote branch (may already be deleted)."
+                fi
+
+                info "Deleting local branch..."
+                if sudo -u www-data git -C "$REPO_PATH" branch -d "$LOCAL_BRANCH" 2>/dev/null; then
+                    success "Local branch '$LOCAL_BRANCH' deleted."
+                else
+                    warning "Could not delete local branch (may not exist locally)."
+                fi
+                ;;
+            *)
+                info "Branch '$LOCAL_BRANCH' kept. You can delete it later with:"
+                echo "    git push $REMOTE --delete $LOCAL_BRANCH"
+                echo "    git branch -d $LOCAL_BRANCH"
+                ;;
+        esac
+    else
+        info "Non-interactive shell; skipping branch deletion prompt."
+        info "To delete later: git push $REMOTE --delete $LOCAL_BRANCH"
+    fi
+fi
+
 echo ""
