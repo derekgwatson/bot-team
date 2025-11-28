@@ -101,7 +101,7 @@ Contact Information:
 System Access Being Removed:
 - Google Workspace: {'Yes' if request_data.get('had_google_access') else 'No'}
 - Zendesk: {'Yes' if request_data.get('had_zendesk_access') else 'No'}
-- Wiki: {'Yes' if request_data.get('had_wiki_access') else 'No'}
+- Wiki: Yes (automatic removal via Paige sync)
 - Buz: {'Yes' if request_data.get('had_buz_access') else 'No'}
 
 Notes: {request_data.get('notes', 'None')}
@@ -135,7 +135,7 @@ http://localhost:8012
         <h3 style="margin-top: 0;">System Access Being Removed</h3>
         <p><strong>Google Workspace:</strong> {'✓ Yes' if request_data.get('had_google_access') else '✗ No'}</p>
         <p><strong>Zendesk:</strong> {'✓ Yes' if request_data.get('had_zendesk_access') else '✗ No'}</p>
-        <p><strong>Wiki:</strong> {'✓ Yes' if request_data.get('had_wiki_access') else '✗ No'}</p>
+        <p><strong>Wiki:</strong> ✓ Yes (automatic removal via Paige sync)</p>
         <p><strong>Buz:</strong> {'✓ Yes' if request_data.get('had_buz_access') else '✗ No'}</p>
     </div>
 

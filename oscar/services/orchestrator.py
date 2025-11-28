@@ -359,17 +359,10 @@ class OnboardingOrchestrator:
             })
             order += 1
 
-        # Step 5: Create Wiki user (if required)
-        if request.get('wiki_access'):
-            steps.append({
-                'name': 'create_wiki_user',
-                'order': order,
-                'description': 'Create DokuWiki user account',
-                'critical': False
-            })
-            order += 1
+        # Note: Wiki access is now handled automatically by the Paige sync job
+        # All active staff get wiki access via the daily sync
 
-        # Step 6: Notify HR (always last, run separately after all other steps succeed)
+        # Step 5: Notify HR (always last, run separately after all other steps succeed)
         hr_name = db.get_setting('hr_notification_name', 'HR')
         steps.append({
             'name': 'notify_hr',
@@ -416,8 +409,6 @@ class OnboardingOrchestrator:
                 result = self._register_peter(request_data)
             elif step_name == 'voip_ticket':
                 result = self._create_voip_ticket(request_data)
-            elif step_name == 'create_wiki_user':
-                result = self._create_wiki_user(request_data)
             else:
                 result = {'success': False, 'error': f'Unknown step: {step_name}'}
 
@@ -495,7 +486,7 @@ System Access:
 - Google Workspace: {'Yes' if request_data.get('google_access') else 'No'}
 - Zendesk: {'Yes' if request_data.get('zendesk_access') else 'No'}
 - VOIP: {'Yes' if request_data.get('voip_access') else 'No'}
-- DokuWiki: {'Yes' if request_data.get('wiki_access') else 'No'}
+- DokuWiki: Yes (automatic for all active staff)
 
 Notes: {request_data.get('notes', 'None')}
 
@@ -644,7 +635,6 @@ This is an automated notification from Oscar (Staff Onboarding Bot)
                 'google_access': request_data.get('google_access', False),
                 'zendesk_access': request_data.get('zendesk_access', False),
                 'voip_access': request_data.get('voip_access', False),
-                'wiki_access': request_data.get('wiki_access', False),
                 'status': 'active',
                 'notes': request_data.get('notes', '')
             })
@@ -728,41 +718,6 @@ Automated request from Oscar (Staff Onboarding Bot)
 
         except Exception as e:
             return {'success': False, 'error': f'Failed to call Sadie: {str(e)}'}
-
-    def _create_wiki_user(self, request_data: Dict) -> Dict[str, Any]:
-        """Call Paige to create a DokuWiki user"""
-        try:
-            # Use work email if Google access, otherwise use personal email
-            email = request_data.get('work_email') or request_data.get('google_user_email') or request_data['personal_email']
-
-            # Wiki username is the local part of the email (firstname.lastname)
-            wiki_username = email.split('@')[0].lower()
-
-            # Call Paige's API to create wiki user
-            paige = self._get_bot_client('paige')
-            response = paige.post('/api/users', json={
-                'login': wiki_username,
-                'name': request_data['full_name'],
-                'email': email
-            })
-
-            if response.status_code in [200, 201]:
-                result = response.json()
-                return {
-                    'success': True,
-                    'data': {
-                        'wiki_username': wiki_username,
-                        'paige_response': result
-                    }
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': f"Paige API error: {response.status_code} - {response.text}"
-                }
-
-        except Exception as e:
-            return {'success': False, 'error': f'Failed to call Paige: {str(e)}'}
 
 
 # Global orchestrator instance (normal mode)
