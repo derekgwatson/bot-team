@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request
 from shared.auth.bot_api import api_key_required, api_or_session_auth
 from services.dokuwiki_service import DokuWikiService
+from services.sync_service import SyncService
 from config import config
 import logging
 
@@ -14,6 +15,9 @@ wiki_service = DokuWikiService(
     dokuwiki_path=config.dokuwiki_path,
     default_groups=config.default_groups
 )
+
+# Initialize the sync service
+sync_service = SyncService(wiki_service)
 
 
 @api_bp.route('/users', methods=['GET'])
@@ -146,3 +150,37 @@ def get_status():
     """
     health = wiki_service.get_health_status()
     return jsonify(health)
+
+
+@api_bp.route('/sync', methods=['POST'])
+@api_key_required
+def sync_users():
+    """
+    Sync wiki users with Peter staff directory.
+
+    Peter is authoritative - users are added/removed based on Peter's data.
+    Admin users in the wiki are never removed (safety measure).
+
+    Returns:
+        JSON with sync results (added, removed, errors)
+    """
+    logger.info("Starting wiki user sync with Peter")
+    result = sync_service.sync()
+
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify(result), 500
+
+
+@api_bp.route('/sync/preview', methods=['GET'])
+@api_or_session_auth
+def preview_sync():
+    """
+    Preview what a sync would do without making changes.
+
+    Returns:
+        JSON showing what would be added/removed
+    """
+    result = sync_service.preview()
+    return jsonify(result)

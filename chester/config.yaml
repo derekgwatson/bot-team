@@ -501,11 +501,13 @@ bot_team:
       - Add users during staff onboarding
       - Remove users during staff offboarding
       - List and search wiki users
+      - Sync users with Peter staff directory
       - Integration with Oscar and Olive for lifecycle management
     api_endpoints:
       info: /info
       health: /health
       users: /api/users
+      sync: /api/sync
     personality: Organized and helpful, keeps the wiki team membership tidy and up-to-date
 
 

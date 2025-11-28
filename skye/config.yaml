@@ -138,6 +138,20 @@ job_templates:
       hour: "5"
       minute: "0"
 
+  paige_sync:
+    name: "Paige Wiki User Sync"
+    description: "Sync DokuWiki users with Peter staff directory"
+    target_bot: "paige"
+    endpoint: "/api/sync"
+    method: "POST"
+    # Daily at 6:30am (after Hugo user sync at 6am)
+    # Syncs wiki users with Peter's staff directory
+    # Adds users with wiki_access, removes departed staff (but never admins)
+    schedule:
+      type: "cron"
+      hour: "6"
+      minute: "30"
+
 # Admin access configuration
 admin:
   emails:
