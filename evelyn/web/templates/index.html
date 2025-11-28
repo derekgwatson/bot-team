@@ -190,6 +190,82 @@
 .select-actions button:hover {
     color: #764ba2;
 }
+
+.profile-section {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 100%);
+    border-radius: 12px;
+    border: 1px solid #e0e6ff;
+}
+
+.profile-section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #1e3c72;
+    margin-bottom: 15px;
+}
+
+.profile-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-profile {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    color: #667eea;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-profile:hover:not(:disabled) {
+    background: #667eea;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-profile:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-profile .profile-icon {
+    font-size: 1.2em;
+}
+
+.profile-description {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 8px;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: #999;
+    font-size: 0.9em;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #ddd;
+}
+
+.divider span {
+    padding: 0 15px;
+}
 {% endblock %}
 
 {% block content %}
@@ -213,8 +289,26 @@
 <div id="step2" class="step hidden">
     <div class="step-title">
         <span class="step-number">2</span>
-        Select Sheets to Keep
+        Process Sheets
     </div>
+
+    {% if config.sheet_profiles %}
+    <div class="profile-section">
+        <div class="profile-section-title">Quick Profiles</div>
+        <div class="profile-buttons">
+            {% for name, profile in config.sheet_profiles.items() %}
+            <button type="button" class="btn-profile" data-profile="{{ name }}" title="{{ profile.sheets | join(', ') }}">
+                <span class="profile-icon">📋</span>
+                {{ profile.description | default(name) }}
+            </button>
+            {% endfor %}
+        </div>
+        <div class="profile-description">
+            Click a profile to instantly process with predefined sheets
+        </div>
+    </div>
+    <div class="divider"><span>or select sheets manually</span></div>
+    {% endif %}
 
     <div class="select-actions">
         <button type="button" id="selectAll">Select All</button>
@@ -455,6 +549,78 @@ document.addEventListener('DOMContentLoaded', function() {
         step2.classList.add('hidden');
         sheetList.innerHTML = '';
         errorMessage.classList.add('hidden');
+        enableProfileButtons();
+    });
+
+    // Profile buttons
+    function enableProfileButtons() {
+        document.querySelectorAll('.btn-profile').forEach(btn => {
+            btn.disabled = false;
+        });
+    }
+
+    function disableProfileButtons() {
+        document.querySelectorAll('.btn-profile').forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+
+    document.querySelectorAll('.btn-profile').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!currentFile || btn.disabled) return;
+
+            const profileName = btn.dataset.profile;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> Processing...';
+            disableProfileButtons();
+            processBtn.disabled = true;
+            errorMessage.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('profile', profileName);
+
+            fetch('/api/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Processing failed');
+                    });
+                }
+                return response.blob().then(blob => {
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'processed.xlsx';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                        if (match) filename = match[1];
+                    }
+                    return { blob, filename };
+                });
+            })
+            .then(({ blob, filename }) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                btn.innerHTML = originalHtml;
+                enableProfileButtons();
+                updateProcessButton();
+            })
+            .catch(err => {
+                showError(err.message);
+                btn.innerHTML = originalHtml;
+                enableProfileButtons();
+                updateProcessButton();
+            });
+        });
     });
 });
 </script>
