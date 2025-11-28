@@ -33,36 +33,29 @@ class SyncService:
         self.config = config
         self.db = inventory_db
 
-    def sync_inventory(
+    def _do_inventory_sync(
         self,
         org_key: str,
+        sync_id: int,
         include_inactive: bool = True,
         performed_by: str = 'system'
     ) -> Dict[str, Any]:
         """
-        Sync inventory items from Buz for an organization.
+        Perform the actual inventory sync work.
+
+        Called by background thread with an existing sync_id.
 
         Args:
             org_key: Organization key to sync
+            sync_id: Existing sync log ID
             include_inactive: Include inactive items
             performed_by: Who initiated the sync
 
         Returns:
             Dict with sync results
         """
-        logger.info(f"Starting inventory sync for {org_key}")
+        logger.info(f"Performing inventory sync for {org_key} (sync_id={sync_id})")
         start_time = time.time()
-
-        # Check for running sync
-        running_syncs = self.db.get_running_syncs(org_key)
-        if any(s['sync_type'] == 'inventory' for s in running_syncs):
-            return {
-                'success': False,
-                'error': 'Inventory sync already in progress for this org'
-            }
-
-        # Start sync log
-        sync_id = self.db.start_sync(org_key, 'inventory')
 
         try:
             # Export from Buz
@@ -173,36 +166,60 @@ class SyncService:
                 'org_key': org_key
             }
 
-    def sync_pricing(
+    def sync_inventory(
         self,
         org_key: str,
         include_inactive: bool = True,
         performed_by: str = 'system'
     ) -> Dict[str, Any]:
         """
-        Sync pricing coefficients from Buz for an organization.
+        Sync inventory items from Buz for an organization (synchronous).
+
+        Note: For async operation, use the API endpoint which runs in background.
 
         Args:
             org_key: Organization key to sync
+            include_inactive: Include inactive items
+            performed_by: Who initiated the sync
+
+        Returns:
+            Dict with sync results
+        """
+        # Check for running sync
+        running_syncs = self.db.get_running_syncs(org_key)
+        if any(s['sync_type'] == 'inventory' for s in running_syncs):
+            return {
+                'success': False,
+                'error': 'Inventory sync already in progress for this org'
+            }
+
+        # Start sync log and perform sync
+        sync_id = self.db.start_sync(org_key, 'inventory')
+        return self._do_inventory_sync(org_key, sync_id, include_inactive, performed_by)
+
+    def _do_pricing_sync(
+        self,
+        org_key: str,
+        sync_id: int,
+        include_inactive: bool = True,
+        performed_by: str = 'system'
+    ) -> Dict[str, Any]:
+        """
+        Perform the actual pricing sync work.
+
+        Called by background thread with an existing sync_id.
+
+        Args:
+            org_key: Organization key to sync
+            sync_id: Existing sync log ID
             include_inactive: Include inactive pricing
             performed_by: Who initiated the sync
 
         Returns:
             Dict with sync results
         """
-        logger.info(f"Starting pricing sync for {org_key}")
+        logger.info(f"Performing pricing sync for {org_key} (sync_id={sync_id})")
         start_time = time.time()
-
-        # Check for running sync
-        running_syncs = self.db.get_running_syncs(org_key)
-        if any(s['sync_type'] == 'pricing' for s in running_syncs):
-            return {
-                'success': False,
-                'error': 'Pricing sync already in progress for this org'
-            }
-
-        # Start sync log
-        sync_id = self.db.start_sync(org_key, 'pricing')
 
         try:
             # Export from Buz
@@ -312,6 +329,37 @@ class SyncService:
                 'error': error_msg,
                 'org_key': org_key
             }
+
+    def sync_pricing(
+        self,
+        org_key: str,
+        include_inactive: bool = True,
+        performed_by: str = 'system'
+    ) -> Dict[str, Any]:
+        """
+        Sync pricing coefficients from Buz for an organization (synchronous).
+
+        Note: For async operation, use the API endpoint which runs in background.
+
+        Args:
+            org_key: Organization key to sync
+            include_inactive: Include inactive pricing
+            performed_by: Who initiated the sync
+
+        Returns:
+            Dict with sync results
+        """
+        # Check for running sync
+        running_syncs = self.db.get_running_syncs(org_key)
+        if any(s['sync_type'] == 'pricing' for s in running_syncs):
+            return {
+                'success': False,
+                'error': 'Pricing sync already in progress for this org'
+            }
+
+        # Start sync log and perform sync
+        sync_id = self.db.start_sync(org_key, 'pricing')
+        return self._do_pricing_sync(org_key, sync_id, include_inactive, performed_by)
 
     def sync_all(
         self,
