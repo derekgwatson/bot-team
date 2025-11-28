@@ -37,8 +37,9 @@ google-auth-oauthlib==1.2.0
 # ── Zendesk Integration (Zac, Sadie) ──────────────────
 zenpy==2.0.40
 
-# ── Browser Automation (Banji) ────────────────────────
+# ── Browser Automation (Banji, Hugo, Ivy) ────────────────────────
 playwright==1.40.0
+filelock==3.13.1  # Playwright concurrency lock for Buz access
 
 # ── Excel Processing (Evelyn) ────────────────────────
 openpyxl==3.1.2

@@ -64,9 +64,8 @@ class Config:
             # Debug mode forces headed browser
             self.browser_headless = False
 
-        # Load Buz organizations
-        secrets_dir = base_dir / ".secrets"
-        self.buz_orgs, self.buz_orgs_missing_auth = BuzOrgs.load_orgs(secrets_dir)
+        # Load Buz organizations from shared .secrets/buz/ directory
+        self.buz_orgs, self.buz_orgs_missing_auth = BuzOrgs.load_orgs()
 
         # Warn about missing auth but don't crash (allows bot to start for non-Buz routes)
         if self.buz_orgs_missing_auth:
