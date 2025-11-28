@@ -1,0 +1,1 @@
+"""Paige - DokuWiki User Manager."""

@@ -46,10 +46,10 @@ class Database:
             INSERT INTO onboarding_requests (
                 full_name, preferred_name, position, section, start_date,
                 personal_email, phone_mobile, phone_fixed,
-                google_access, zendesk_access, voip_access,
+                google_access, zendesk_access, voip_access, wiki_access,
                 work_email, zendesk_groups,
                 notes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('full_name'),
             data.get('preferred_name', ''),
@@ -62,6 +62,7 @@ class Database:
             data.get('google_access', True),
             data.get('zendesk_access', False),
             data.get('voip_access', False),
+            data.get('wiki_access', False),
             data.get('work_email'),
             zendesk_groups,
             data.get('notes', ''),

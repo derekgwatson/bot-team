@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ config.name }} - Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ users|length }}</div>
+        <div class="stat-label">Wiki Users</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {% if health.healthy %}text-success{% else %}text-danger{% endif %}">
+            {% if health.healthy %}Healthy{% else %}Unhealthy{% endif %}
+        </div>
+        <div class="stat-label">Service Status</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">
+            {% if health.users_file_writable %}
+                <span class="text-success">Yes</span>
+            {% else %}
+                <span class="text-danger">No</span>
+            {% endif %}
+        </div>
+        <div class="stat-label">Writable</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Add New User</h3>
+    <form method="POST" action="{{ url_for('web.add_user') }}">
+        <div class="form-inline">
+            <div class="form-group">
+                <label for="login">Username</label>
+                <input type="text" id="login" name="login" placeholder="firstname.lastname" required pattern="[a-zA-Z0-9._-]+">
+            </div>
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" placeholder="John Smith" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="john.smith@example.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add User</button>
+        </div>
+        <p class="text-muted" style="margin-top: 10px; font-size: 0.85em;">
+            New users are automatically assigned to groups: {{ config.default_groups|join(', ') }}
+        </p>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Wiki Users</h3>
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Groups</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><code>{{ user.login }}</code></td>
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    {% for group in user.groups %}
+                    <span class="badge badge-group">{{ group }}</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('web.delete_user', login=user.login) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete {{ user.login }}?');">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No users found in DokuWiki.</p>
+    {% endif %}
+</div>
+
+{% if not health.healthy %}
+<div class="card">
+    <h3>Service Health Details</h3>
+    <table>
+        <tr>
+            <td>DokuWiki Path</td>
+            <td><code>{{ health.dokuwiki_path }}</code></td>
+            <td>{% if health.path_exists %}<span class="text-success">Exists</span>{% else %}<span class="text-danger">Missing</span>{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Users File</td>
+            <td><code>{{ health.users_file }}</code></td>
+            <td>{% if health.users_file_exists %}<span class="text-success">Exists</span>{% else %}<span class="text-danger">Missing</span>{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Readable</td>
+            <td colspan="2">{% if health.users_file_readable %}<span class="text-success">Yes</span>{% else %}<span class="text-danger">No</span>{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Writable</td>
+            <td colspan="2">{% if health.users_file_writable %}<span class="text-success">Yes</span>{% else %}<span class="text-danger">No</span>{% endif %}</td>
+        </tr>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

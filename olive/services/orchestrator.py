@@ -127,11 +127,11 @@ class OffboardingOrchestrator:
         })
         order += 1
 
-        # Step 5: Remove Wiki access (stubbed for now)
+        # Step 5: Remove Wiki access via Paige
         steps.append({
             'name': 'remove_wiki_access',
             'order': order,
-            'description': 'Remove Wiki access',
+            'description': 'Remove Wiki access via Paige',
             'critical': False
         })
         order += 1
@@ -218,6 +218,8 @@ class OffboardingOrchestrator:
                     google_email=data.get('work_email'),
                     had_google_access=data.get('google_access', False),
                     had_zendesk_access=data.get('zendesk_access', False),
+                    had_wiki_access=data.get('wiki_access', False),
+                    wiki_username=data.get('wiki_username'),
                     zendesk_user_id=data.get('zendesk_user_id')
                 )
         else:
@@ -259,14 +261,19 @@ class OffboardingOrchestrator:
                 # Take the first match
                 staff = staff_list[0]
 
+                # Derive wiki username from work email (firstname.lastname)
+                work_email = staff.get('work_email', '')
+                wiki_username = work_email.split('@')[0] if work_email else None
+
                 return {
                     'success': True,
                     'data': {
                         'staff_id': staff.get('id'),
-                        'work_email': staff.get('work_email', ''),
+                        'work_email': work_email,
                         'google_access': staff.get('google_access', False),
                         'zendesk_access': staff.get('zendesk_access', False),
                         'wiki_access': staff.get('wiki_access', False),
+                        'wiki_username': wiki_username,
                         'zendesk_user_id': staff.get('zendesk_user_id', '')
                     }
                 }
@@ -344,17 +351,45 @@ class OffboardingOrchestrator:
             return {'success': False, 'error': f'Failed to call Zac: {str(e)}'}
 
     def _remove_wiki_access(self, request_data: Dict) -> Dict[str, Any]:
-        """Remove Wiki access - STUBBED for now"""
-        # TODO: Implement Wiki bot integration when available
-        logger.info("Wiki access removal - STUBBED (to be implemented)")
+        """Remove Wiki access via Paige"""
+        # Check if user had wiki access
+        if not request_data.get('had_wiki_access'):
+            return {'success': True, 'data': {'message': 'No wiki access to remove'}}
 
-        return {
-            'success': True,
-            'data': {
-                'message': 'Wiki access removal - STUBBED (to be implemented)',
-                'stubbed': True
-            }
-        }
+        try:
+            wiki_username = request_data.get('wiki_username')
+            if not wiki_username:
+                return {'success': False, 'error': 'No wiki username found for user'}
+
+            # Call Paige's API to delete the wiki user
+            paige = self._get_bot_client('paige')
+            response = paige.delete(f'/api/users/{wiki_username}')
+
+            if response.status_code in [200, 204]:
+                return {
+                    'success': True,
+                    'data': {
+                        'wiki_username': wiki_username,
+                        'removed': True
+                    }
+                }
+            elif response.status_code == 404:
+                # User not found in wiki - that's okay, maybe already removed
+                return {
+                    'success': True,
+                    'data': {
+                        'wiki_username': wiki_username,
+                        'message': 'User not found in wiki (may have been previously removed)'
+                    }
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f"Paige API error: {response.status_code} - {response.text}"
+                }
+
+        except Exception as e:
+            return {'success': False, 'error': f'Failed to call Paige: {str(e)}'}
 
     def _remove_buz_access(self, request_data: Dict) -> Dict[str, Any]:
         """Remove Buz access - STUBBED for now"""

@@ -120,6 +120,7 @@ def submit_onboard():
             'google_access': request.form.get('google_access') == 'on',
             'zendesk_access': request.form.get('zendesk_access') == 'on',
             'voip_access': request.form.get('voip_access') == 'on',
+            'wiki_access': request.form.get('wiki_access') == 'on',
             'notes': request.form.get('notes', '')
         }
 

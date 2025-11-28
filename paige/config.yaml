@@ -1,0 +1,28 @@
+name: Paige
+description: DokuWiki User Manager - manages wiki user accounts for staff onboarding and offboarding
+version: 1.0.0
+personality: Organized and helpful, keeps the wiki team membership tidy and up-to-date
+
+server:
+  host: 0.0.0.0
+  # port is read from chester/config.yaml via shared/config/ports.py
+
+# DokuWiki configuration
+dokuwiki:
+  # Path to DokuWiki installation
+  path: "/var/www/dokuwiki"
+  # Default groups for new users (Google auth users)
+  default_groups:
+    - user
+    - google
+
+# Admin access configuration
+admin:
+  emails:
+    # Add admin email addresses here, or set PAIGE_ADMIN_EMAILS env var
+    # - admin@watsonblinds.com.au
+
+# Authentication configuration
+# Uses Chester's auth gateway for Google OAuth
+auth:
+  mode: grant  # Use Grant for centralized authorization
