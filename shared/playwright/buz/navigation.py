@@ -175,17 +175,32 @@ class BuzNavigation:
             logger.info("Re-navigating to user edit after org selection...")
             await self.page.goto(edit_url, wait_until='networkidle', timeout=self.timeout)
 
-        # Check if user exists by checking if email field is populated
+        # Wait for Angular to populate the form - the email field gets filled if user exists
         email_input = self.page.locator('input#text-email')
         await email_input.wait_for(timeout=self.timeout)
+
+        # Poll for email field to be populated (Angular loads data async)
+        # Give it up to 10 seconds to populate
+        max_wait = 10000  # 10 seconds
+        poll_interval = 500  # check every 500ms
+        waited = 0
+
+        while waited < max_wait:
+            email_value = await email_input.input_value()
+            if email_value and email_value.strip():
+                logger.info(f"User edit page loaded for: {email} (waited {waited}ms)")
+                return True
+            await self.page.wait_for_timeout(poll_interval)
+            waited += poll_interval
+
+        # After waiting, check one more time
         email_value = await email_input.input_value()
+        if email_value and email_value.strip():
+            logger.info(f"User edit page loaded for: {email}")
+            return True
 
-        if not email_value or not email_value.strip():
-            logger.info(f"User not found: {email}")
-            return False
-
-        logger.info(f"User edit page loaded for: {email}")
-        return True
+        logger.info(f"User not found (email field empty after {max_wait}ms): {email}")
+        return False
 
     async def get_user_edit_details(self) -> Dict[str, Any]:
         """
