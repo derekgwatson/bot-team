@@ -11,6 +11,7 @@ This service:
 import json
 import logging
 import os
+import threading
 from datetime import datetime
 from typing import Dict, Optional
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -456,8 +457,7 @@ class SchedulerService:
     def run_job_now(self, job_id: str) -> Dict:
         """Manually trigger a job to run immediately (async).
 
-        The job runs in the background via APScheduler. Check job history
-        for the result.
+        The job runs in a background thread. Check job history for the result.
         """
         db = self._get_db()
         job_data = db.get_job(job_id)
@@ -465,29 +465,26 @@ class SchedulerService:
         if not job_data:
             return {'success': False, 'error': 'Job not found'}
 
-        if not self._running or not self._scheduler:
+        if not self._running:
             return {'success': False, 'error': 'Scheduler not running'}
 
         # Create execution record NOW so UI shows "running" immediately
         execution_id = db.start_execution(job_id)
 
-        # Add a one-time job that runs immediately in the background
-        # Use a unique ID so it doesn't conflict with the scheduled job
-        run_id = f"{job_id}_manual_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        self._scheduler.add_job(
-            func=self._execute_job_with_execution_id,
-            trigger='date',  # One-time execution
-            run_date=datetime.now(),  # Run immediately
-            id=run_id,
-            name=f"Manual: {job_data['name']}",
-            args=[job_id, execution_id],
-            misfire_grace_time=60
+        # Run in a background thread for immediate execution
+        # Using threading.Thread instead of APScheduler's date trigger
+        # to avoid timezone/timing issues with immediate execution
+        thread = threading.Thread(
+            target=self._execute_job_with_execution_id,
+            args=(job_id, execution_id),
+            name=f"manual_{job_id}_{execution_id}",
+            daemon=True
         )
+        thread.start()
 
-        logger.info(f"Queued manual execution of job {job_id} as {run_id} (execution_id={execution_id})")
+        logger.info(f"Started manual execution of job {job_id} in thread (execution_id={execution_id})")
 
-        return {'success': True, 'queued': True, 'message': 'Job queued for execution'}
+        return {'success': True, 'queued': True, 'message': 'Job started in background'}
 
     def get_scheduled_jobs(self) -> list:
         """Get list of jobs currently scheduled in APScheduler."""
