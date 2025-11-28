@@ -6,17 +6,29 @@
 <h2>Sync Management</h2>
 
 {% if sync_status.is_syncing %}
-<div class="card" style="background: #fff3cd; border: 1px solid #ffc107;">
+<div class="card" style="background: #fff3cd; border: 1px solid #ffc107;" id="sync-progress-card">
     <h3>Sync in Progress</h3>
     {% for sync in sync_status.running_syncs %}
-    <p>
-        {% if sync.status == 'waiting_for_lock' %}
-        <span class="badge badge-warning">Waiting for lock</span>
-        {% else %}
-        <span class="badge badge-running">{{ sync.sync_type }}</span>
-        {% endif %}
-        {{ BuzOrgs.get_display_name(sync.org_key) }} - Started {{ time_ago(sync.started_at) }}
-    </p>
+    <div class="sync-progress-item" data-sync-id="{{ sync.id }}">
+        <p style="margin-bottom: 5px;">
+            {% if sync.status == 'waiting_for_lock' %}
+            <span class="badge badge-warning">Waiting for lock</span>
+            {% else %}
+            <span class="badge badge-running">{{ sync.sync_type }}</span>
+            {% endif %}
+            <strong>{{ BuzOrgs.get_display_name(sync.org_key) }}</strong>
+            - <span class="duration-counter" data-started="{{ sync.started_at }}">--</span>
+        </p>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <div class="progress-bar-container" style="flex: 1; background: #e9ecef; border-radius: 4px; height: 20px; overflow: hidden;">
+                <div class="progress-bar" data-sync-id="{{ sync.id }}" style="width: {{ sync.progress or 0 }}%; height: 100%; background: #28a745; transition: width 0.3s ease;"></div>
+            </div>
+            <span class="progress-percent" data-sync-id="{{ sync.id }}" style="font-weight: bold; min-width: 45px;">{{ sync.progress or 0 }}%</span>
+        </div>
+        <p class="progress-message" data-sync-id="{{ sync.id }}" style="margin: 0; font-size: 0.9em; color: #666;">
+            {{ sync.progress_message or 'Starting...' }}
+        </p>
+    </div>
     {% endfor %}
 </div>
 {% endif %}
@@ -156,7 +168,7 @@ setInterval(updateDurationCounters, 1000);
 // Track if we had running syncs on page load
 var hadRunningSyncs = {{ 'true' if sync_status.is_syncing else 'false' }};
 
-// Poll for sync status changes (every 5 seconds when syncs are running)
+// Poll for sync status changes (every 2 seconds when syncs are running)
 function checkSyncStatus() {
     fetch('/api/sync/status', {
         credentials: 'same-origin'
@@ -164,6 +176,25 @@ function checkSyncStatus() {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         var isNowSyncing = data.is_syncing;
+
+        // Update progress bars for running syncs
+        if (data.running_syncs) {
+            data.running_syncs.forEach(function(sync) {
+                var progressBar = document.querySelector('.progress-bar[data-sync-id="' + sync.id + '"]');
+                var progressPercent = document.querySelector('.progress-percent[data-sync-id="' + sync.id + '"]');
+                var progressMessage = document.querySelector('.progress-message[data-sync-id="' + sync.id + '"]');
+
+                if (progressBar) {
+                    progressBar.style.width = (sync.progress || 0) + '%';
+                }
+                if (progressPercent) {
+                    progressPercent.textContent = (sync.progress || 0) + '%';
+                }
+                if (progressMessage) {
+                    progressMessage.textContent = sync.progress_message || 'Working...';
+                }
+            });
+        }
 
         // If status changed (was syncing, now not syncing), refresh to show results
         if (hadRunningSyncs && !isNowSyncing) {
@@ -173,9 +204,9 @@ function checkSyncStatus() {
         // Update tracking
         hadRunningSyncs = isNowSyncing;
 
-        // Continue polling if still syncing
+        // Continue polling if still syncing (faster polling for progress updates)
         if (isNowSyncing) {
-            setTimeout(checkSyncStatus, 5000);
+            setTimeout(checkSyncStatus, 2000);
         }
     })
     .catch(function(err) {
@@ -187,7 +218,7 @@ function checkSyncStatus() {
 
 // Start polling if syncs are running
 if (hadRunningSyncs) {
-    setTimeout(checkSyncStatus, 5000);
+    setTimeout(checkSyncStatus, 2000);
 }
 </script>
 {% endblock %}

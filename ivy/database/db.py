@@ -696,6 +696,32 @@ class InventoryDatabase:
         conn.close()
         return updated
 
+    def update_sync_progress(
+        self,
+        sync_id: int,
+        progress: int,
+        message: str = ''
+    ) -> bool:
+        """
+        Update sync progress percentage and message.
+
+        Args:
+            sync_id: Sync log ID
+            progress: Progress percentage (0-100)
+            message: Current stage message (e.g., "Parsing row 50 of 100")
+
+        Returns:
+            True if updated successfully
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            UPDATE sync_log SET progress = ?, progress_message = ? WHERE id = ?
+        ''', (progress, message, sync_id))
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
+
     def complete_sync(
         self,
         sync_id: int,
@@ -709,7 +735,8 @@ class InventoryDatabase:
         cursor = conn.execute('''
             UPDATE sync_log
             SET item_count = ?, status = ?, error_message = ?,
-                duration_seconds = ?, completed_at = CURRENT_TIMESTAMP
+                duration_seconds = ?, completed_at = CURRENT_TIMESTAMP,
+                progress = 100, progress_message = ''
             WHERE id = ?
         ''', (item_count, status, error_message, duration_seconds, sync_id))
         updated = cursor.rowcount > 0

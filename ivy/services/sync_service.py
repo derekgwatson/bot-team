@@ -58,11 +58,14 @@ class SyncService:
         start_time = time.time()
 
         try:
-            # Export from Buz
+            # Stage 1: Export from Buz (0-40%)
+            self.db.update_sync_progress(sync_id, 5, 'Connecting to Buz...')
             export_service = BuzExportService(
                 self.config,
                 headless=self.config.browser_headless
             )
+
+            self.db.update_sync_progress(sync_id, 10, 'Exporting inventory from Buz...')
             export_result = run_async(
                 export_service.export_inventory(org_key, include_inactive)
             )
@@ -79,8 +82,9 @@ class SyncService:
                 return export_result
 
             file_path = export_result['file_path']
+            self.db.update_sync_progress(sync_id, 40, 'Parsing Excel file...')
 
-            # Parse the exported file
+            # Stage 2: Parse the exported file (40-70%)
             parse_result = parser.parse_inventory_file(file_path)
 
             if not parse_result['success']:
@@ -96,8 +100,10 @@ class SyncService:
 
             items = parse_result['items']
             groups = parse_result['groups']
+            self.db.update_sync_progress(sync_id, 70, f'Parsed {len(items)} items from {len(groups)} groups')
 
-            # Update inventory groups in database
+            # Stage 3: Update inventory groups in database (70-80%)
+            self.db.update_sync_progress(sync_id, 75, f'Updating {len(groups)} groups...')
             for group in groups:
                 self.db.upsert_inventory_group(
                     org_key=org_key,
@@ -106,8 +112,10 @@ class SyncService:
                     item_count=group.get('item_count', 0)
                 )
 
-            # Bulk upsert items to database
+            # Stage 4: Bulk upsert items to database (80-100%)
+            self.db.update_sync_progress(sync_id, 80, f'Saving {len(items)} items to database...')
             db_result = self.db.bulk_upsert_inventory_items(org_key, items)
+            self.db.update_sync_progress(sync_id, 95, 'Finalizing...')
 
             duration = time.time() - start_time
 
@@ -222,11 +230,14 @@ class SyncService:
         start_time = time.time()
 
         try:
-            # Export from Buz
+            # Stage 1: Export from Buz (0-40%)
+            self.db.update_sync_progress(sync_id, 5, 'Connecting to Buz...')
             export_service = BuzExportService(
                 self.config,
                 headless=self.config.browser_headless
             )
+
+            self.db.update_sync_progress(sync_id, 10, 'Exporting pricing from Buz...')
             export_result = run_async(
                 export_service.export_pricing(org_key, include_inactive)
             )
@@ -243,8 +254,9 @@ class SyncService:
                 return export_result
 
             file_path = export_result['file_path']
+            self.db.update_sync_progress(sync_id, 40, 'Parsing Excel file...')
 
-            # Parse the exported file
+            # Stage 2: Parse the exported file (40-70%)
             parse_result = parser.parse_pricing_file(file_path)
 
             if not parse_result['success']:
@@ -260,8 +272,10 @@ class SyncService:
 
             coefficients = parse_result['coefficients']
             groups = parse_result['groups']
+            self.db.update_sync_progress(sync_id, 70, f'Parsed {len(coefficients)} coefficients from {len(groups)} groups')
 
-            # Update pricing groups in database
+            # Stage 3: Update pricing groups in database (70-80%)
+            self.db.update_sync_progress(sync_id, 75, f'Updating {len(groups)} groups...')
             for group in groups:
                 self.db.upsert_pricing_group(
                     org_key=org_key,
@@ -270,8 +284,10 @@ class SyncService:
                     coefficient_count=group.get('coefficient_count', 0)
                 )
 
-            # Bulk upsert coefficients to database
+            # Stage 4: Bulk upsert coefficients to database (80-100%)
+            self.db.update_sync_progress(sync_id, 80, f'Saving {len(coefficients)} coefficients to database...')
             db_result = self.db.bulk_upsert_pricing_coefficients(org_key, coefficients)
+            self.db.update_sync_progress(sync_id, 95, 'Finalizing...')
 
             duration = time.time() - start_time
 
