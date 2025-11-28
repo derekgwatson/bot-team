@@ -4,12 +4,56 @@ Hugo web routes.
 Provides web UI for Buz user management.
 """
 import logging
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from services.auth import login_required
 
 logger = logging.getLogger(__name__)
 
 web_bp = Blueprint('web', __name__, template_folder='templates')
+
+
+@web_bp.context_processor
+def utility_processor():
+    """Add utility functions to Jinja templates."""
+
+    def time_ago(dt_str):
+        """Get human-readable relative time string."""
+        if not dt_str:
+            return 'Never'
+        try:
+            # Handle various timestamp formats
+            if isinstance(dt_str, str):
+                # SQLite format: "2024-01-15 10:30:00"
+                if 'T' not in dt_str and ' ' in dt_str:
+                    dt = datetime.strptime(dt_str[:19], '%Y-%m-%d %H:%M:%S')
+                    dt = dt.replace(tzinfo=timezone.utc)
+                else:
+                    dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+            else:
+                dt = dt_str
+
+            delta = datetime.now(timezone.utc) - dt
+            seconds = delta.total_seconds()
+
+            if seconds < 60:
+                return 'Just now'
+            elif seconds < 3600:
+                minutes = int(seconds / 60)
+                return f'{minutes} min{"s" if minutes != 1 else ""} ago'
+            elif seconds < 86400:
+                hours = int(seconds / 3600)
+                return f'{hours} hour{"s" if hours != 1 else ""} ago'
+            elif seconds < 604800:  # 7 days
+                days = int(seconds / 86400)
+                return f'{days} day{"s" if days != 1 else ""} ago'
+            else:
+                # For older dates, show the date
+                return dt.strftime('%Y-%m-%d')
+        except (ValueError, AttributeError, TypeError):
+            return str(dt_str)[:16] if dt_str else 'Never'
+
+    return dict(time_ago=time_ago)
 
 
 def get_db():

@@ -71,7 +71,7 @@
                         <span class="badge badge-{% if last_sync.status == 'success' %}success{% else %}error{% endif %}">
                             {{ last_sync.status }}
                         </span>
-                        <span class="text-muted">{{ last_sync.synced_at[:16] }}</span>
+                        <span class="text-muted" title="{{ last_sync.synced_at }}">{{ time_ago(last_sync.synced_at) }}</span>
                     {% else %}
                         <span class="text-muted">Never synced</span>
                     {% endif %}
