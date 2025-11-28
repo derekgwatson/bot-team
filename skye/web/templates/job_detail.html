@@ -10,7 +10,9 @@
     <div style="display: flex; align-items: center; gap: 10px;">
         <span class="spinner" style="width: 20px; height: 20px; border: 3px solid #ffc107; border-top-color: #856404; border-radius: 50%; animation: spin 1s linear infinite;"></span>
         <strong style="color: #856404;">Job is running...</strong>
-        <span style="color: #856404; font-size: 13px;">(page will refresh automatically)</span>
+        <span style="color: #856404; font-size: 13px;">
+            (<span class="elapsed-time" data-started="{{ running[0].started_at }}">calculating...</span> - page will refresh automatically)
+        </span>
     </div>
 </div>
 <style>
@@ -173,7 +175,13 @@
                         -
                     {% endif %}
                 </td>
-                <td>{% if exec.status == 'running' %}<span class="text-muted">...</span>{% else %}{{ exec.duration_ms or '-' }}ms{% endif %}</td>
+                <td>
+                    {% if exec.status == 'running' %}
+                        <span class="elapsed-time" data-started="{{ exec.started_at }}">...</span>
+                    {% else %}
+                        {{ exec.duration_ms or '-' }}ms
+                    {% endif %}
+                </td>
                 <td>
                     {% if exec.error_message %}
                         <small class="text-danger">{{ exec.error_message[:100] }}</small>
@@ -212,6 +220,32 @@ document.addEventListener('click', function(e) {
         form.querySelector('.confirm-trigger').style.display = '';
     }
 });
+
+// Elapsed time for running jobs
+function formatElapsed(seconds) {
+    if (seconds < 60) return seconds + 's';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins < 60) return mins + 'm ' + secs + 's';
+    const hours = Math.floor(mins / 60);
+    const remainMins = mins % 60;
+    return hours + 'h ' + remainMins + 'm';
+}
+
+function updateElapsedTimes() {
+    document.querySelectorAll('.elapsed-time').forEach(function(el) {
+        const started = el.dataset.started;
+        if (!started) return;
+        // Parse SQLite timestamp (YYYY-MM-DD HH:MM:SS) as UTC
+        const startTime = new Date(started.replace(' ', 'T') + 'Z');
+        const now = new Date();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        el.textContent = formatElapsed(elapsed);
+    });
+}
+
+updateElapsedTimes();
+setInterval(updateElapsedTimes, 1000);
 
 // Auto-refresh while job is running
 {% if running %}
