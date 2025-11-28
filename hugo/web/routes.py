@@ -107,6 +107,13 @@ def users():
     db = get_db()
     users_list = db.get_users(org_key=org_key, is_active=is_active, user_type=user_type)
 
+    # Get all pending changes to check for pending status
+    pending_changes = db.get_pending_changes()
+    pending_by_user = {}
+    for change in pending_changes:
+        key = (change['email'], change['org_key'])
+        pending_by_user[key] = change['action']
+
     # Consolidate users by email - group multiple org entries together
     consolidated = {}
     for user in users_list:
@@ -118,15 +125,24 @@ def users():
                 'user_type': user['user_type'],
                 'orgs': [],
                 'last_session': user['last_session'] or '',
-                'is_active_anywhere': False
+                'is_active_anywhere': False,
+                'has_pending_changes': False
             }
+
+        # Check for pending change for this user/org
+        pending_action = pending_by_user.get((email, user['org_key']))
 
         # Track org membership with status
         consolidated[email]['orgs'].append({
             'org_key': user['org_key'],
             'is_active': user['is_active'],
-            'user_group': user['user_group']
+            'user_group': user['user_group'],
+            'pending_action': pending_action
         })
+
+        # Track if has any pending changes
+        if pending_action:
+            consolidated[email]['has_pending_changes'] = True
 
         # Track if active anywhere
         if user['is_active']:
@@ -172,6 +188,17 @@ def user_detail(email):
 
     if not user_records:
         return render_template('error.html', message=f'User {email} not found'), 404
+
+    # Get pending changes for this user
+    pending_changes = db.get_pending_changes()
+    pending_by_org = {}
+    for change in pending_changes:
+        if change['email'] == email:
+            pending_by_org[change['org_key']] = change
+
+    # Add pending change info to each user record
+    for record in user_records:
+        record['pending_change'] = pending_by_org.get(record['org_key'])
 
     # Get the display name (most common or first non-empty)
     full_name = next((u['full_name'] for u in user_records if u['full_name']), None)
@@ -231,6 +258,24 @@ def sync():
         history=history,
         by_org=by_org,
         running=running
+    )
+
+
+@web_bp.route('/queue')
+@login_required
+def queue():
+    """Queue view page - shows pending changes."""
+    from config import config
+
+    db = get_db()
+    pending_changes = db.get_pending_changes()
+    queue_stats = db.get_queue_stats()
+
+    return render_template(
+        'queue.html',
+        config=config,
+        pending_changes=pending_changes,
+        queue_stats=queue_stats
     )
 
 

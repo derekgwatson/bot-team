@@ -795,6 +795,77 @@ class UserDatabase:
         conn.close()
         return deleted
 
+    def get_pending_change_by_id(self, change_id: int) -> Optional[Dict[str, Any]]:
+        """Get a pending change by its ID."""
+        conn = self.get_connection()
+        cursor = conn.execute(
+            'SELECT * FROM pending_changes WHERE id = ?',
+            (change_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def cancel_pending_change(self, change_id: int) -> Dict[str, Any]:
+        """
+        Cancel a pending change by deleting it.
+
+        Args:
+            change_id: ID of the change to cancel
+
+        Returns:
+            Result dictionary with change details if found
+        """
+        conn = self.get_connection()
+
+        # Get the change first
+        cursor = conn.execute(
+            'SELECT * FROM pending_changes WHERE id = ? AND status = ?',
+            (change_id, 'pending')
+        )
+        change = cursor.fetchone()
+
+        if not change:
+            conn.close()
+            return {'success': False, 'error': 'Change not found or not pending'}
+
+        change_dict = dict(change)
+
+        # Delete the change
+        conn.execute('DELETE FROM pending_changes WHERE id = ?', (change_id,))
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'change': change_dict
+        }
+
+    def get_user_pending_change(
+        self,
+        email: str,
+        org_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get any pending change for a user in an org.
+
+        Args:
+            email: User's email
+            org_key: Organization key
+
+        Returns:
+            Pending change dict or None
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            '''SELECT * FROM pending_changes
+               WHERE email = ? AND org_key = ? AND status = 'pending' ''',
+            (email, org_key)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
     # Auth health operations
 
     def update_auth_health(

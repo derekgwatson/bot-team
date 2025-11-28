@@ -22,16 +22,16 @@
         <div class="stat-value">{{ config.available_orgs|length }}</div>
         <div class="stat-label">Organizations</div>
     </div>
-    <div class="stat-card" {% if queue_stats.pending > 0 %}style="background: #fff3cd;"{% endif %}>
+    <a href="{{ url_for('web.queue') }}" class="stat-card" style="text-decoration: none; color: inherit;{% if queue_stats.pending > 0 %} background: #fff3cd;{% endif %}">
         <div class="stat-value">{{ queue_stats.pending }}</div>
         <div class="stat-label">Queued Changes</div>
-    </div>
+    </a>
 </div>
 
 {% if queue_stats.pending > 0 %}
 <div class="card" style="background: #e8f4fd;">
     <h3>Pending Changes</h3>
-    <p>{{ queue_stats.pending }} change(s) queued for processing.</p>
+    <p>{{ queue_stats.pending }} change(s) queued for processing. <a href="{{ url_for('web.queue') }}">View details</a></p>
     {% if queue_stats.pending_by_org %}
     <ul style="margin: 10px 0;">
         {% for org, count in queue_stats.pending_by_org.items() %}

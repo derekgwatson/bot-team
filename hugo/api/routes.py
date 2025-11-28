@@ -295,6 +295,10 @@ def _queue_user_change(email: str, org_key: str, action: str):
     """
     Queue a user status change for batch processing.
 
+    Also updates the local user status immediately so the UI reflects
+    the pending state. If the change is cancelled (opposite action was
+    already pending), the status reverts back.
+
     Args:
         email: User's email
         org_key: Organization key
@@ -314,9 +318,12 @@ def _queue_user_change(email: str, org_key: str, action: str):
         current_is_active = bool(user['is_active'])
         user_type = user['user_type']
 
-        # Check if already in desired state
+        # Check if already in desired state (comparing local cache, not pending changes)
+        # We check for pending changes to allow re-toggling
+        pending = db.get_user_pending_change(email, org_key)
         desired_active = (action == 'activate')
-        if current_is_active == desired_active:
+
+        if not pending and current_is_active == desired_active:
             state = "active" if desired_active else "inactive"
             return jsonify({
                 'success': True,
@@ -335,14 +342,47 @@ def _queue_user_change(email: str, org_key: str, action: str):
         )
 
         if result.get('success'):
-            return jsonify({
-                'success': True,
-                'queued': result.get('queued', True),
-                'message': result.get('message', 'Change queued'),
-                'email': email,
-                'org': org_key,
-                'action': action
-            })
+            if result.get('queued'):
+                # Change was queued - update local status to reflect the pending state
+                new_status = (action == 'activate')
+                db.update_user_status(email, org_key, new_status)
+                return jsonify({
+                    'success': True,
+                    'queued': True,
+                    'message': 'Change queued',
+                    'email': email,
+                    'org': org_key,
+                    'action': action
+                })
+            else:
+                # Change was not queued - either duplicate or cancelled opposite
+                message = result.get('message', '')
+                if 'Cancelled' in message:
+                    # Opposite action was cancelled - revert local status
+                    # The status should go back to what it was before the opposite action
+                    # If we were going to activate (cancel a pending deactivate),
+                    # revert to active (since deactivate hadn't happened yet in Buz)
+                    revert_to_active = (action == 'activate')
+                    db.update_user_status(email, org_key, revert_to_active)
+                    return jsonify({
+                        'success': True,
+                        'queued': False,
+                        'cancelled': True,
+                        'message': 'Pending change cancelled',
+                        'email': email,
+                        'org': org_key,
+                        'action': action
+                    })
+                else:
+                    # Already queued - no action needed
+                    return jsonify({
+                        'success': True,
+                        'queued': False,
+                        'message': message,
+                        'email': email,
+                        'org': org_key,
+                        'action': action
+                    })
         else:
             return jsonify({
                 'success': False,
@@ -760,6 +800,38 @@ def clear_queue():
     return jsonify({
         'success': True,
         'deleted': deleted
+    })
+
+
+@api_bp.route('/queue/<int:change_id>/cancel', methods=['POST'])
+@api_or_session_auth
+def cancel_queue_item(change_id):
+    """
+    POST /api/queue/<change_id>/cancel
+
+    Cancel a pending change and revert the local user status.
+    """
+    db = get_db()
+
+    # Cancel the change (this also returns the change details)
+    result = db.cancel_pending_change(change_id)
+
+    if not result['success']:
+        return jsonify(result), 404
+
+    change = result['change']
+
+    # Revert the local status to the opposite of the queued action
+    # If we were going to deactivate, revert to active; if activate, revert to inactive
+    revert_to_active = (change['action'] == 'deactivate')
+    db.update_user_status(change['email'], change['org_key'], revert_to_active)
+
+    return jsonify({
+        'success': True,
+        'message': f"Cancelled {change['action']} for {change['email']}",
+        'email': change['email'],
+        'org': change['org_key'],
+        'action': change['action']
     })
 
 
