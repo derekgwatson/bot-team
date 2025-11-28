@@ -16,3 +16,13 @@ admin:
 # Allowed domains loaded from shared/config/organization.yaml
 auth:
   mode: domain  # Any user from allowed_domains can access
+
+# Sheet profiles - predefined sheet selections for common use cases
+# Each profile specifies which sheets to keep when processing a workbook
+sheet_profiles:
+  supplier_jobsheet:
+    description: "Supplier job sheet - keeps only job data tabs"
+    sheets:
+      - "Job Sheet"
+      - "Job Sheet PWD"
+    filename_suffix: "_jobs"  # Optional: custom suffix instead of _processed

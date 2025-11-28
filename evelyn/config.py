@@ -60,6 +60,31 @@ class Config:
         organization = shared_data.get("organization", {}) or {}
         self.allowed_domains = organization.get("domains", [])
 
+        # Sheet profiles for specialized processing
+        self.sheet_profiles = data.get("sheet_profiles", {}) or {}
+
+    def get_profile(self, profile_name: str) -> dict | None:
+        """
+        Get a sheet profile by name.
+
+        Args:
+            profile_name: Name of the profile (e.g., 'supplier_jobsheet')
+
+        Returns:
+            Profile dict with 'sheets', 'description', 'filename_suffix' keys,
+            or None if profile not found
+        """
+        return self.sheet_profiles.get(profile_name)
+
+    def list_profiles(self) -> dict:
+        """
+        List all available sheet profiles.
+
+        Returns:
+            Dict of profile_name -> profile_info
+        """
+        return self.sheet_profiles
+
 
 # Global config instance
 config = Config()
