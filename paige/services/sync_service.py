@@ -70,24 +70,21 @@ class SyncService:
 
     def _get_peter_staff(self) -> List[Dict]:
         """
-        Get active staff from Peter who should have wiki access.
+        Get all active staff from Peter.
+
+        All active staff should have wiki access.
 
         Returns:
-            List of staff dicts with wiki_access=1
+            List of active staff dicts
         """
         try:
             response = self.peter_client.get('/api/staff', params={'status': 'active'})
             response.raise_for_status()
             data = response.json()
 
-            # Filter to only staff with wiki_access
-            staff_with_wiki = [
-                s for s in data.get('staff', [])
-                if s.get('wiki_access') == 1
-            ]
-
-            logger.info(f"Found {len(staff_with_wiki)} active staff with wiki access in Peter")
-            return staff_with_wiki
+            staff = data.get('staff', [])
+            logger.info(f"Found {len(staff)} active staff in Peter")
+            return staff
 
         except Exception as e:
             logger.exception(f"Failed to get staff from Peter: {e}")
