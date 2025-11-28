@@ -112,9 +112,11 @@ class BuzPlaywrightLock:
         Raises:
             Timeout: If the lock cannot be acquired within the timeout period
         """
+        acquired = False
         try:
             logger.info(f"[{bot_name}] Acquiring Buz Playwright lock...")
             self._file_lock.acquire(timeout=self.timeout)
+            acquired = True
             self._holder = bot_name
             self._acquired_at = datetime.now(timezone.utc)
             self._write_holder_info(bot_name)
@@ -136,10 +138,13 @@ class BuzPlaywrightLock:
                 )
             raise
         finally:
-            if self._file_lock.is_locked:
-                self._file_lock.release()
-                self._clear_holder_info()
-                logger.info(f"[{bot_name}] Buz Playwright lock released")
+            if acquired:
+                try:
+                    self._file_lock.release()
+                    self._clear_holder_info()
+                    logger.info(f"[{bot_name}] Buz Playwright lock released")
+                except Exception as e:
+                    logger.warning(f"[{bot_name}] Error releasing lock: {e}")
                 self._holder = None
                 self._acquired_at = None
 
@@ -157,6 +162,7 @@ class BuzPlaywrightLock:
             Timeout: If the lock cannot be acquired within the timeout period
         """
         loop = asyncio.get_event_loop()
+        acquired = False
         try:
             logger.info(f"[{bot_name}] Acquiring Buz Playwright lock (async)...")
             # Run blocking lock acquisition in executor
@@ -164,6 +170,7 @@ class BuzPlaywrightLock:
                 None,
                 lambda: self._file_lock.acquire(timeout=self.timeout)
             )
+            acquired = True
             self._holder = bot_name
             self._acquired_at = datetime.now(timezone.utc)
             self._write_holder_info(bot_name)
@@ -185,10 +192,13 @@ class BuzPlaywrightLock:
                 )
             raise
         finally:
-            if self._file_lock.is_locked:
-                self._file_lock.release()
-                self._clear_holder_info()
-                logger.info(f"[{bot_name}] Buz Playwright lock released")
+            if acquired:
+                try:
+                    self._file_lock.release()
+                    self._clear_holder_info()
+                    logger.info(f"[{bot_name}] Buz Playwright lock released")
+                except Exception as e:
+                    logger.warning(f"[{bot_name}] Error releasing lock: {e}")
                 self._holder = None
                 self._acquired_at = None
 
