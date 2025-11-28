@@ -98,9 +98,11 @@
         <tbody>
             {% for entry in activity %}
             <tr>
-                <td class="text-muted">{{ entry.performed_at[:16] }}</td>
+                <td class="text-muted" title="{{ entry.performed_at }}" style="white-space: nowrap; cursor: help;">
+                    {{ time_ago(entry.performed_at) }}
+                </td>
                 <td><strong>{{ entry.action }}</strong></td>
-                <td>{{ entry.org_key }}</td>
+                <td>{{ config.buz_orgs[entry.org_key].display_name if config.buz_orgs[entry.org_key] else entry.org_key }}</td>
                 <td>{{ entry.old_value }} -> {{ entry.new_value }}</td>
                 <td>{{ entry.performed_by }}</td>
                 <td>

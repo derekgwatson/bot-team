@@ -2,6 +2,15 @@
 
 {% block title %}Sync History - {{ config.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .time-cell {
+        white-space: nowrap;
+        cursor: help;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <h2>Sync History</h2>
 
@@ -22,8 +31,10 @@
         <tbody>
             {% for entry in history %}
             <tr>
-                <td class="text-muted">{{ entry.synced_at[:16] }}</td>
-                <td><strong>{{ entry.org_key }}</strong></td>
+                <td class="time-cell text-muted" title="{{ entry.synced_at }}">
+                    {{ time_ago(entry.synced_at) }}
+                </td>
+                <td><strong>{{ config.buz_orgs[entry.org_key].display_name if config.buz_orgs[entry.org_key] else entry.org_key }}</strong></td>
                 <td>{{ entry.user_count }}</td>
                 <td>{{ "%.1f"|format(entry.duration_seconds) }}s</td>
                 <td>

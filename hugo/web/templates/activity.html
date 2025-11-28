@@ -2,6 +2,15 @@
 
 {% block title %}Activity Log - {{ config.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .time-cell {
+        white-space: nowrap;
+        cursor: help;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <h2>Activity Log</h2>
 
@@ -31,7 +40,9 @@
         <tbody>
             {% for entry in activity %}
             <tr>
-                <td class="text-muted">{{ entry.performed_at[:16] }}</td>
+                <td class="time-cell text-muted" title="{{ entry.performed_at }}">
+                    {{ time_ago(entry.performed_at) }}
+                </td>
                 <td><strong>{{ entry.action }}</strong></td>
                 <td><a href="{{ url_for('web.user_detail', email=entry.email) }}">{{ entry.email }}</a></td>
                 <td>{{ entry.org_key }}</td>
