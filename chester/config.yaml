@@ -492,6 +492,22 @@ bot_team:
       orgs: /api/orgs
     personality: Meticulous inventory keeper, knows every item and its price across all organizations
 
+  paige:
+    name: Paige
+    port: 8029
+    description: DokuWiki User Manager
+    capabilities:
+      - Manage DokuWiki user accounts
+      - Add users during staff onboarding
+      - Remove users during staff offboarding
+      - List and search wiki users
+      - Integration with Oscar and Olive for lifecycle management
+    api_endpoints:
+      info: /info
+      health: /health
+      users: /api/users
+    personality: Organized and helpful, keeps the wiki team membership tidy and up-to-date
+
 
 # Health check configuration
 # NOTE: Health checks always use production URLs (built from database domain field).
