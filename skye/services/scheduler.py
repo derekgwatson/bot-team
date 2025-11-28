@@ -276,6 +276,78 @@ class SchedulerService:
                 duration_ms=duration_ms
             )
 
+    def _execute_job_with_execution_id(self, job_id: str, execution_id: int):
+        """Execute a job with a pre-created execution record.
+
+        Used for manual "Run Now" where we create the execution record
+        upfront so the UI shows "running" immediately.
+        """
+        db = self._get_db()
+        job_data = db.get_job(job_id)
+
+        if not job_data:
+            logger.error(f"Job {job_id} not found in database")
+            db.complete_execution(execution_id, status='failed', error_message='Job not found')
+            return
+
+        start_time = datetime.now()
+        target_bot = job_data['target_bot']
+        endpoint = job_data['endpoint']
+        method = job_data['method'].upper()
+
+        # Build URL and client
+        base_url = self._get_bot_url(target_bot)
+        client = BotHttpClient(base_url, timeout=60)
+
+        logger.info(f"Executing job {job_id}: {method} {base_url}{endpoint}")
+
+        try:
+            # Make request
+            if method == 'GET':
+                response = client.get(endpoint)
+            elif method == 'POST':
+                response = client.post(endpoint, json={})
+            elif method == 'PUT':
+                response = client.put(endpoint, json={})
+            elif method == 'DELETE':
+                response = client.delete(endpoint)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+
+            # Calculate duration
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+            # Determine status
+            if response.ok:
+                status = 'success'
+                logger.info(f"Job {job_id} completed successfully ({response.status_code})")
+            else:
+                status = 'failed'
+                logger.warning(f"Job {job_id} failed with status {response.status_code}")
+
+            # Truncate response body if too long
+            response_body = response.text[:10000] if response.text else None
+
+            # Complete execution record
+            db.complete_execution(
+                execution_id=execution_id,
+                status=status,
+                response_code=response.status_code,
+                response_body=response_body,
+                duration_ms=duration_ms
+            )
+
+        except Exception as e:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            logger.error(f"Job {job_id} failed with exception: {e}")
+
+            db.complete_execution(
+                execution_id=execution_id,
+                status='failed',
+                error_message=str(e),
+                duration_ms=duration_ms
+            )
+
     # ─────────────────────────────────────────────────────────────────────────
     # Runtime Job Management
     # ─────────────────────────────────────────────────────────────────────────
@@ -396,21 +468,24 @@ class SchedulerService:
         if not self._running or not self._scheduler:
             return {'success': False, 'error': 'Scheduler not running'}
 
+        # Create execution record NOW so UI shows "running" immediately
+        execution_id = db.start_execution(job_id)
+
         # Add a one-time job that runs immediately in the background
         # Use a unique ID so it doesn't conflict with the scheduled job
         run_id = f"{job_id}_manual_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
         self._scheduler.add_job(
-            func=self._execute_job,
+            func=self._execute_job_with_execution_id,
             trigger='date',  # One-time execution
             run_date=datetime.now(),  # Run immediately
             id=run_id,
             name=f"Manual: {job_data['name']}",
-            args=[job_id],
+            args=[job_id, execution_id],
             misfire_grace_time=60
         )
 
-        logger.info(f"Queued manual execution of job {job_id} as {run_id}")
+        logger.info(f"Queued manual execution of job {job_id} as {run_id} (execution_id={execution_id})")
 
         return {'success': True, 'queued': True, 'message': 'Job queued for execution'}
 
