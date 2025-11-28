@@ -16,7 +16,7 @@ def intro():
         'description': "I keep track of all your staff - their contact details, what systems they can access, who should be on the phone list, and who's in the all-staff email group. Need to find someone's mobile? Want to know who has Zendesk access? Just ask me!",
         'capabilities': [
             'Keep track of all staff contact information',
-            'Track system access (Zendesk, Buz, Google, Wiki, VOIP)',
+            'Track system access (Zendesk, Buz, Google, VOIP)',
             'Manage who appears on the phone list',
             'Manage who\'s in the all-staff email group',
             'Search for staff by name, extension, or phone',
@@ -245,7 +245,6 @@ def create_staff():
             zendesk_access=data.get('zendesk_access', False),
             buz_access=data.get('buz_access', False),
             google_access=data.get('google_access', False),
-            wiki_access=data.get('wiki_access', False),
             voip_access=data.get('voip_access', False),
             show_on_phone_list=data.get('show_on_phone_list', True),
             include_in_allstaff=data.get('include_in_allstaff', True),
