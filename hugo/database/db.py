@@ -247,6 +247,74 @@ class UserDatabase:
             'new_status': is_active
         }
 
+    def update_user_fields(
+        self,
+        email: str,
+        org_key: str,
+        full_name: Optional[str] = None,
+        user_group: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Update specific user fields after an edit.
+
+        Only updates fields that are provided (not None).
+
+        Args:
+            email: User's email
+            org_key: Organization key
+            full_name: New full name (optional)
+            user_group: New group (optional)
+
+        Returns:
+            Result dictionary
+        """
+        conn = self.get_connection()
+
+        # Check user exists
+        cursor = conn.execute(
+            'SELECT id, full_name, user_group FROM users WHERE email = ? AND org_key = ?',
+            (email, org_key)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return {'success': False, 'error': f'User {email} not found in {org_key}'}
+
+        # Build update query dynamically
+        updates = []
+        params = []
+        changes = {}
+
+        if full_name is not None:
+            updates.append('full_name = ?')
+            params.append(full_name)
+            changes['full_name'] = {'old': row['full_name'], 'new': full_name}
+
+        if user_group is not None:
+            updates.append('user_group = ?')
+            params.append(user_group)
+            changes['user_group'] = {'old': row['user_group'], 'new': user_group}
+
+        if not updates:
+            conn.close()
+            return {'success': True, 'message': 'No fields to update', 'changes': {}}
+
+        updates.append('updated_at = CURRENT_TIMESTAMP')
+        params.extend([email, org_key])
+
+        query = f"UPDATE users SET {', '.join(updates)} WHERE email = ? AND org_key = ?"
+        conn.execute(query, params)
+        conn.commit()
+        conn.close()
+
+        return {
+            'success': True,
+            'email': email,
+            'org_key': org_key,
+            'changes': changes
+        }
+
     def bulk_upsert_users(self, users: List[Dict[str, Any]], org_key: str) -> Dict[str, Any]:
         """
         Bulk upsert users from a sync operation.

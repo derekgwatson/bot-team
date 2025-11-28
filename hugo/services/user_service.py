@@ -13,6 +13,7 @@ from playwright.async_api import Page
 
 from shared.playwright import AsyncBrowserManager
 from shared.playwright.buz import BuzOrgs, BuzNavigation
+from hugo.database.db import user_db
 
 logger = logging.getLogger(__name__)
 
@@ -648,6 +649,28 @@ class BuzUserService:
                     await nav.save_user()
                     result['success'] = True
                     result['message'] = f"Updated: {', '.join(result['changes_applied'])}"
+
+                    # Update local database cache immediately
+                    db_updates = {}
+                    if 'group' in changes:
+                        db_updates['user_group'] = changes['group']
+                    if 'first_name' in changes or 'last_name' in changes:
+                        # Reconstruct full name from changes
+                        first = changes.get('first_name', '')
+                        last = changes.get('last_name', '')
+                        if first or last:
+                            db_updates['full_name'] = f"{first} {last}".strip()
+
+                    if db_updates:
+                        db_result = user_db.update_user_fields(
+                            email=email,
+                            org_key=org_key,
+                            **db_updates
+                        )
+                        if db_result.get('success'):
+                            logger.info(f"Updated local cache for {email}: {db_updates}")
+                        else:
+                            logger.warning(f"Failed to update local cache: {db_result.get('error')}")
                 else:
                     result['message'] = "No changes to apply"
 
