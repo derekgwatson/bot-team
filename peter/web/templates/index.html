@@ -94,11 +94,15 @@
                         <a href="/edit/{{ staff.id }}" class="btn btn-small" style="background: #3498db; margin-right: 5px;">
                             Edit
                         </a>
-                        <form method="POST" action="/delete/{{ staff.id }}" style="display: inline;">
-                            <button type="submit" class="btn btn-danger btn-small"
-                                    onclick="return confirm('Deactivate {{ staff.name }}? This will set their status to inactive.')">
+                        <form method="POST" action="/delete/{{ staff.id }}" style="display: inline;" class="confirm-form">
+                            <button type="button" class="btn btn-danger btn-small confirm-trigger"
+                                    data-confirm-msg="Deactivate {{ staff.name }}?">
                                 Deactivate
                             </button>
+                            <span class="confirm-state" style="display: none;">
+                                <button type="submit" class="btn btn-danger btn-small">Yes</button>
+                                <button type="button" class="btn btn-small cancel-confirm" style="background: #95a5a6;">No</button>
+                            </span>
                         </form>
                     </td>
                 </tr>
@@ -197,5 +201,21 @@
 
     // Focus search input on page load
     searchInput.focus();
+
+    // Confirmation pattern for destructive actions
+    document.addEventListener('click', function(e) {
+        // Show confirm state
+        if (e.target.classList.contains('confirm-trigger')) {
+            const form = e.target.closest('.confirm-form');
+            e.target.style.display = 'none';
+            form.querySelector('.confirm-state').style.display = 'inline';
+        }
+        // Cancel confirm
+        if (e.target.classList.contains('cancel-confirm')) {
+            const form = e.target.closest('.confirm-form');
+            form.querySelector('.confirm-state').style.display = 'none';
+            form.querySelector('.confirm-trigger').style.display = '';
+        }
+    });
 </script>
 {% endblock %}

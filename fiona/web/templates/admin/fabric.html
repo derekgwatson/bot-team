@@ -43,6 +43,10 @@
         .mavis-info dd { display: inline; margin-left: 5px; margin-right: 20px; }
         .delete-form { display: inline; }
         .meta-info { font-size: 12px; color: #888; margin-top: 10px; }
+        .confirm-panel { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin-top: 15px; display: none; }
+        .confirm-panel.show { display: block; }
+        .confirm-panel p { margin: 0 0 10px 0; color: #856404; }
+        .confirm-buttons { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -82,11 +86,18 @@
             <div class="card-title">
                 <span>Fabric Description</span>
                 {% if fabric %}
-                <form class="delete-form" method="post" action="{{ url_for('web.delete_fabric', code=product_code) }}" onsubmit="return confirm('Delete this fabric description?');">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
+                <button type="button" class="btn btn-danger" id="showDeleteConfirm">Delete</button>
                 {% endif %}
             </div>
+            {% if fabric %}
+            <div class="confirm-panel" id="deleteConfirm">
+                <p><strong>Delete this fabric description?</strong></p>
+                <form method="post" action="{{ url_for('web.delete_fabric', code=product_code) }}" class="confirm-buttons">
+                    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                    <button type="button" class="btn btn-secondary" id="cancelDelete">Cancel</button>
+                </form>
+            </div>
+            {% endif %}
 
             <form method="post" action="{{ url_for('web.save_fabric', code=product_code) }}">
                 <div class="product-code-large">{{ product_code }}</div>
@@ -133,5 +144,21 @@
             </form>
         </div>
     </div>
+    <script>
+        const showBtn = document.getElementById('showDeleteConfirm');
+        const cancelBtn = document.getElementById('cancelDelete');
+        if (showBtn) {
+            showBtn.addEventListener('click', function() {
+                document.getElementById('deleteConfirm').classList.add('show');
+                this.style.display = 'none';
+            });
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                document.getElementById('deleteConfirm').classList.remove('show');
+                document.getElementById('showDeleteConfirm').style.display = '';
+            });
+        }
+    </script>
 </body>
 </html>

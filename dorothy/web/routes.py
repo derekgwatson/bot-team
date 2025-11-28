@@ -304,6 +304,7 @@ def index():
                 <span>🔧 Development Dependencies</span>
                 <span id="devWidgetToggle" style="cursor: pointer; font-size: 12px;">hide</span>
             </div>
+            <div id="devNotification" style="display: none; padding: 8px 12px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;"></div>
             <div id="devBotList">
                 <div style="text-align: center; padding: 10px; color: #666;">Loading...</div>
             </div>
@@ -1538,6 +1539,17 @@ def index():
                 });
             }
 
+            function showDevNotification(message, isError) {
+                const notif = document.getElementById('devNotification');
+                notif.textContent = message;
+                notif.style.display = 'block';
+                notif.style.background = isError ? '#f8d7da' : '#d4edda';
+                notif.style.color = isError ? '#721c24' : '#155724';
+                notif.style.border = isError ? '1px solid #f5c6cb' : '1px solid #c3e6cb';
+                // Auto-hide after 5 seconds
+                setTimeout(() => { notif.style.display = 'none'; }, 5000);
+            }
+
             async function switchBotMode(botName, mode) {
                 // Update server (Flask session)
                 const response = await fetch('/api/dev-config', {
@@ -1553,9 +1565,9 @@ def index():
                     renderBotList(depsData.dependencies, config);
 
                     // Show notification
-                    alert(`Switched ${botName} to ${mode} mode. Refresh the page to apply changes.`);
+                    showDevNotification(`Switched ${botName} to ${mode} mode. Refresh the page to apply changes.`, false);
                 } else {
-                    alert('Failed to update bot mode');
+                    showDevNotification('Failed to update bot mode', true);
                 }
             }
         </script>
