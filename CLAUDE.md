@@ -554,6 +554,81 @@ Key patterns:
 - Use `logger.warning()` for recoverable issues (connection failures)
 - Use `logger.exception()` for unexpected errors (includes traceback)
 
+## Timestamp Display Patterns
+
+**IMPORTANT**: Use relative times ("2 hours ago") for all timestamps in the UI unless there's a specific reason to show an absolute time.
+
+### Relative Times (Default)
+
+For activity logs, sync history, last updated times, etc., use the `time_ago()` context processor pattern:
+
+```python
+# In web/routes.py
+from datetime import datetime, timezone
+
+@web_bp.context_processor
+def utility_processor():
+    """Add utility functions to Jinja templates."""
+
+    def time_ago(dt_str):
+        """Get human-readable relative time string."""
+        if not dt_str:
+            return 'Never'
+        try:
+            if isinstance(dt_str, str):
+                # SQLite format: "2024-01-15 10:30:00"
+                if 'T' not in dt_str and ' ' in dt_str:
+                    dt = datetime.strptime(dt_str[:19], '%Y-%m-%d %H:%M:%S')
+                    dt = dt.replace(tzinfo=timezone.utc)
+                else:
+                    dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+            else:
+                dt = dt_str
+
+            delta = datetime.now(timezone.utc) - dt
+            seconds = delta.total_seconds()
+
+            if seconds < 60:
+                return 'Just now'
+            elif seconds < 3600:
+                minutes = int(seconds / 60)
+                return f'{minutes} min{"s" if minutes != 1 else ""} ago'
+            elif seconds < 86400:
+                hours = int(seconds / 3600)
+                return f'{hours} hour{"s" if hours != 1 else ""} ago'
+            elif seconds < 604800:  # 7 days
+                days = int(seconds / 86400)
+                return f'{days} day{"s" if days != 1 else ""} ago'
+            else:
+                return dt.strftime('%Y-%m-%d')
+        except (ValueError, AttributeError, TypeError):
+            return str(dt_str)[:16] if dt_str else 'Never'
+
+    return dict(time_ago=time_ago)
+```
+
+**Usage in templates:**
+
+```html
+<!-- Show relative time with full timestamp on hover -->
+<td class="text-muted" title="{{ entry.performed_at }}" style="white-space: nowrap; cursor: help;">
+    {{ time_ago(entry.performed_at) }}
+</td>
+```
+
+### When to Use Absolute Times
+
+Use absolute times only when:
+- Scheduling future events (job schedules, appointments)
+- Legal/audit requirements need exact timestamps
+- User explicitly requests "show full date"
+
+When showing absolute times, **always use local time** (convert from UTC on the client side if needed).
+
+### Reference Implementation
+
+See `hugo/web/routes.py` for the full `time_ago()` implementation and `hugo/web/templates/sync.html` for template usage.
+
 ## Bot-Specific Notes
 
 For the full list of bots and their ports, see `/chester/config.yaml`. Here are important notes for key bots:
