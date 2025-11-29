@@ -69,7 +69,7 @@ class Database:
 
     def add_bot(self, name: str, description: str, port: int, **kwargs) -> Optional[int]:
         """Add a new bot to the database."""
-        valid_fields = ['repo', 'path', 'service', 'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing']
+        valid_fields = ['repo', 'path', 'service', 'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing', 'timeout']
 
         # Get deployment defaults
         defaults = self.get_deployment_defaults()
@@ -147,7 +147,7 @@ class Database:
     def update_bot(self, name: str, **kwargs) -> bool:
         """Update a bot's configuration."""
         valid_fields = ['description', 'port', 'repo', 'path', 'service',
-                       'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing']
+                       'domain', 'nginx_config_name', 'workers', 'skip_nginx', 'public_facing', 'timeout']
 
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
@@ -192,7 +192,8 @@ class Database:
             'nginx_config_name': bot['nginx_config_name'],
             'workers': bot['workers'],
             'skip_nginx': bot['skip_nginx'],
-            'public_facing': bot['public_facing']
+            'public_facing': bot['public_facing'],
+            'timeout': bot.get('timeout', 120)  # Gunicorn worker timeout in seconds
         }
 
     def sync_bots_from_config(self, verbose: bool = True) -> Dict[str, List[str]]:
