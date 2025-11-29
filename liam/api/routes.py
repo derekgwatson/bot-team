@@ -1,5 +1,6 @@
 """API routes for Liam."""
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request
 
@@ -21,6 +22,9 @@ odata_factory = ODataClientFactory(config)
 leads_service = LeadsVerificationService(config, odata_factory, leads_db)
 analytics_service = AnalyticsService(config, leads_db)
 data_collection_service = DataCollectionService(config, odata_factory, leads_db)
+
+# Track running background jobs
+_running_backfill = {'thread': None, 'started_by': None, 'days': None}
 
 
 @api_bp.route('/leads/verify', methods=['POST'])
@@ -231,44 +235,112 @@ def collect_data():
         return jsonify({'error': str(e)}), 500
 
 
+def _run_backfill_background(days, skip_existing, started_by):
+    """Run backfill in background thread."""
+    global _running_backfill
+    try:
+        logger.info(f"Background backfill started by {started_by}: {days} days")
+        results = data_collection_service.backfill_all_orgs(
+            days=days,
+            skip_existing=skip_existing
+        )
+
+        # Log summary
+        total_collected = sum(
+            len(org.get('collected', []))
+            for org in results.get('orgs', {}).values()
+        )
+        total_errors = sum(
+            len(org.get('errors', []))
+            for org in results.get('orgs', {}).values()
+        )
+        logger.info(
+            f"Background backfill completed by {started_by}: "
+            f"{total_collected} days collected, {total_errors} errors"
+        )
+
+    except Exception as e:
+        logger.exception(f"Background backfill failed: {e}")
+    finally:
+        _running_backfill['thread'] = None
+        _running_backfill['started_by'] = None
+        _running_backfill['days'] = None
+
+
 @api_bp.route('/data/backfill', methods=['POST'])
 @api_or_session_auth
 def backfill_data():
     """
-    Backfill historical lead data.
+    Backfill historical lead data (non-blocking).
+
+    Returns 202 immediately and runs backfill in background.
 
     Request Body:
-        org: Organization key (optional, defaults to all)
         days: Number of days to backfill (default: 30)
         skip_existing: Skip dates with existing data (default: true)
 
     Returns:
-        JSON with backfill results
+        202 Accepted if started
+        409 Conflict if already running
     """
+    global _running_backfill
+
+    # Check if backfill is already running
+    if _running_backfill['thread'] is not None and _running_backfill['thread'].is_alive():
+        return jsonify({
+            'success': False,
+            'error': 'A backfill is already running',
+            'started_by': _running_backfill['started_by'],
+            'days': _running_backfill['days']
+        }), 409
+
     try:
         data = request.get_json() or {}
-
-        org_key = data.get('org')
         days = data.get('days', 30)
         skip_existing = data.get('skip_existing', True)
 
-        if org_key:
-            result = data_collection_service.backfill_historical_data(
-                org_key=org_key,
-                days=days,
-                skip_existing=skip_existing
-            )
-            return jsonify(result), 200
-        else:
-            results = data_collection_service.backfill_all_orgs(
-                days=days,
-                skip_existing=skip_existing
-            )
-            return jsonify(results), 200
+        # Get current user for logging
+        user = get_current_user()
+        started_by = user.email if user else 'api'
+
+        # Start background thread
+        thread = threading.Thread(
+            target=_run_backfill_background,
+            args=(days, skip_existing, started_by),
+            daemon=True
+        )
+        thread.start()
+
+        _running_backfill['thread'] = thread
+        _running_backfill['started_by'] = started_by
+        _running_backfill['days'] = days
+
+        logger.info(f"Started background backfill for {days} days by {started_by}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Backfill started for {days} days across {len(config.available_orgs)} orgs',
+            'days': days,
+            'orgs': list(config.available_orgs),
+            'note': 'Check Analytics page for results when complete'
+        }), 202
 
     except Exception as e:
-        logger.exception(f"Error in backfill_data: {e}")
+        logger.exception(f"Error starting backfill: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/data/backfill/status', methods=['GET'])
+@api_or_session_auth
+def backfill_status():
+    """Check if a backfill is currently running."""
+    is_running = _running_backfill['thread'] is not None and _running_backfill['thread'].is_alive()
+    return jsonify({
+        'success': True,
+        'running': is_running,
+        'started_by': _running_backfill['started_by'] if is_running else None,
+        'days': _running_backfill['days'] if is_running else None
+    })
 
 
 # === Analytics Endpoints ===
