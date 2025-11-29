@@ -384,7 +384,6 @@
             <ul>
                 <li><a href="{{ url_for('web.index') }}" {% if request.endpoint == 'web.index' %}class="active"{% endif %}>Dashboard</a></li>
                 <li><a href="{{ url_for('web.items') }}" {% if request.endpoint == 'web.items' %}class="active"{% endif %}>Items & Pricing</a></li>
-                <li><a href="{{ url_for('web.pricing') }}" {% if request.endpoint == 'web.pricing' %}class="active"{% endif %}>Pricing Details</a></li>
                 <li><a href="{{ url_for('web.sync_page') }}" {% if request.endpoint == 'web.sync_page' %}class="active"{% endif %}>Sync</a></li>
                 <li><a href="{{ url_for('web.activity') }}" {% if request.endpoint == 'web.activity' %}class="active"{% endif %}>Activity</a></li>
             </ul>

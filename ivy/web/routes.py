@@ -144,58 +144,6 @@ def items():
     )
 
 
-@web_bp.route('/pricing')
-@login_required
-def pricing():
-    """List pricing coefficients."""
-    org_key = request.args.get('org_key')
-    group_code = request.args.get('group_code')
-    is_active = request.args.get('is_active')
-    search = request.args.get('search', '')
-    page = request.args.get('page', 1, type=int)
-    per_page = 50
-
-    # Convert is_active
-    is_active_bool = None
-    if is_active == 'true':
-        is_active_bool = True
-    elif is_active == 'false':
-        is_active_bool = False
-
-    offset = (page - 1) * per_page
-
-    coefficients = inventory_db.get_pricing_coefficients(
-        org_key=org_key,
-        group_code=group_code,
-        is_active=is_active_bool,
-        search=search if search else None,
-        limit=per_page,
-        offset=offset
-    )
-
-    total = inventory_db.get_pricing_coefficient_count(org_key, is_active_bool)
-    total_pages = (total + per_page - 1) // per_page
-
-    # Get pricing groups for filter dropdown
-    groups = inventory_db.get_pricing_groups(org_key)
-
-    return render_template(
-        'pricing.html',
-        coefficients=coefficients,
-        groups=groups,
-        org_key=org_key,
-        group_code=group_code,
-        is_active=is_active,
-        search=search,
-        page=page,
-        per_page=per_page,
-        total=total,
-        total_pages=total_pages,
-        config=config,
-        BuzOrgs=BuzOrgs
-    )
-
-
 @web_bp.route('/sync')
 @login_required
 def sync_page():
