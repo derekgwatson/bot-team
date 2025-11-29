@@ -324,6 +324,35 @@ class LeadsDatabase:
         conn.close()
         return row['lead_count'] if row else None
 
+    def get_existing_dates_for_org(
+        self,
+        org_key: str,
+        start_date: str,
+        end_date: str
+    ) -> set:
+        """
+        Get set of dates that already have data for an org in a date range.
+
+        This is used by bulk backfill to know which dates to skip.
+
+        Args:
+            org_key: Organization key
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Set of date strings that have data
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            '''SELECT date FROM daily_lead_counts
+               WHERE org_key = ? AND date >= ? AND date <= ?''',
+            (org_key, start_date, end_date)
+        )
+        dates = {row['date'] for row in cursor.fetchall()}
+        conn.close()
+        return dates
+
     # Marketing events operations
 
     def create_marketing_event(

@@ -153,6 +153,71 @@ class ODataClient:
         leads = self.get_leads(date_taken, filters=None)
         return len(leads)
 
+    def get_leads_range(
+        self,
+        start_date: str,
+        end_date: str,
+        filters: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get leads for a date range (inclusive).
+
+        Args:
+            start_date: Start date in ISO format (YYYY-MM-DD)
+            end_date: End date in ISO format (YYYY-MM-DD)
+            filters: Additional filter conditions
+
+        Returns:
+            List of lead records
+        """
+        # OData date filter for range (end_date is inclusive, so we go to next day)
+        date_filter = f"DateTaken ge {start_date}T00:00:00Z and DateTaken lt {end_date}T23:59:59Z"
+
+        all_filters = [date_filter]
+        if filters:
+            all_filters.extend(filters)
+
+        return self.get("LeadsReport", filters=all_filters)
+
+    def get_leads_counts_by_date(
+        self,
+        start_date: str,
+        end_date: str
+    ) -> Dict[str, int]:
+        """
+        Get lead counts aggregated by date for a date range.
+
+        This is much more efficient than calling get_leads_count() for each day
+        individually - one API call instead of N calls.
+
+        Args:
+            start_date: Start date in ISO format (YYYY-MM-DD)
+            end_date: End date in ISO format (YYYY-MM-DD)
+
+        Returns:
+            Dict mapping date strings to lead counts
+        """
+        from collections import defaultdict
+
+        leads = self.get_leads_range(start_date, end_date)
+
+        # Aggregate by date
+        counts = defaultdict(int)
+        for lead in leads:
+            # DateTaken format from OData is typically ISO format
+            date_taken = lead.get('DateTaken', '')
+            if date_taken:
+                # Extract just the date part (YYYY-MM-DD)
+                date_str = date_taken[:10]
+                counts[date_str] += 1
+
+        logger.info(
+            f"OData bulk query for {self.org_code}: "
+            f"{len(leads)} leads across {len(counts)} days ({start_date} to {end_date})"
+        )
+
+        return dict(counts)
+
     def test_connection(self) -> Dict[str, Any]:
         """
         Test the OData connection by making a simple request.
