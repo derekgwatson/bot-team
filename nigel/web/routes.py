@@ -3,6 +3,7 @@ Web Routes for Nigel
 User interface for price monitoring
 """
 
+import threading
 import requests
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
@@ -13,6 +14,9 @@ from config import config
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Track running background jobs
+_running_checks = {}
 
 
 def get_banji_url():
@@ -411,16 +415,16 @@ def resolve_discrepancy(discrepancy_id: int):
     return redirect(url_for('web.discrepancies'))
 
 
-@web_bp.route('/check-all', methods=['POST'])
-@login_required
-def check_all():
-    """Check prices for all active quotes using batch endpoint"""
-    try:
-        quotes = db.get_all_quotes(active_only=True)
+def _run_price_check_background(quotes, user_email):
+    """
+    Run price check in background thread.
 
-        if not quotes:
-            flash('No active quotes to check', 'warning')
-            return redirect(url_for('web.index'))
+    This processes all quotes and logs results to the database.
+    Since it runs in a background thread, results are visible in the
+    Price Checks history page rather than via flash messages.
+    """
+    try:
+        logger.info(f"Background price check started by {user_email} for {len(quotes)} quotes")
 
         # Build a lookup map for quick access to quote data
         quotes_map = {q['quote_id']: q for q in quotes}
@@ -481,18 +485,46 @@ def check_all():
                 db.update_quote_checked(quote_id)
                 results['errors'] += 1
 
-        logger.info(f"Batch price check by {current_user.email}: {results}")
+        logger.info(f"Background price check completed by {user_email}: {results}")
 
-        if results['discrepancies'] > 0:
-            flash(f'Checked {results["checked"]} quotes. Found {results["discrepancies"]} discrepancies!', 'warning')
-        elif results['errors'] > 0:
-            flash(f'Checked {results["checked"]} quotes with {results["errors"]} errors', 'warning')
-        else:
-            flash(f'Checked {results["checked"]} quotes. No discrepancies found.', 'success')
+    except Exception as e:
+        logger.exception(f"Background price check failed: {e}")
+    finally:
+        # Remove from running checks
+        _running_checks.pop(user_email, None)
 
+
+@web_bp.route('/check-all', methods=['POST'])
+@login_required
+def check_all():
+    """Start background price check for all active quotes"""
+    user_email = current_user.email
+
+    # Check if a check is already running for this user
+    if user_email in _running_checks and _running_checks[user_email].is_alive():
+        flash('A price check is already running. Please wait for it to complete.', 'warning')
+        return redirect(url_for('web.index'))
+
+    try:
+        quotes = db.get_all_quotes(active_only=True)
+
+        if not quotes:
+            flash('No active quotes to check', 'warning')
+            return redirect(url_for('web.index'))
+
+        # Start background thread
+        thread = threading.Thread(
+            target=_run_price_check_background,
+            args=(quotes, user_email),
+            daemon=True
+        )
+        thread.start()
+        _running_checks[user_email] = thread
+
+        flash(f'Price check started for {len(quotes)} quotes. Check the Price Checks page for results.', 'info')
         return redirect(url_for('web.index'))
 
     except Exception as e:
-        logger.exception("Error checking all quotes")
+        logger.exception("Error starting price check")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('web.index'))
