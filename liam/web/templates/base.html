@@ -391,15 +391,20 @@
             try {
                 const result = await apiCall('/api/test-connections', 'POST', {});
                 const results = result.results || {};
-                const success = Object.values(results).filter(r => r.success).length;
-                const failed = Object.values(results).filter(r => !r.success).length;
+                const entries = Object.entries(results);
+                const success = entries.filter(([k, v]) => v.success);
+                const failed = entries.filter(([k, v]) => !v.success);
 
-                if (failed > 0) {
-                    showMessage(`Connection test: ${success} ok, ${failed} failed`, 'warning');
+                let message = '';
+                if (failed.length > 0) {
+                    const failedOrgs = failed.map(([k, v]) => `${v.org_code || k}: ${v.error}`).join('; ');
+                    message = `Connection test: ${success.length} ok, ${failed.length} failed. Failed: ${failedOrgs}`;
+                    showMessage(message, 'error');
                 } else {
-                    showMessage(`All ${success} connections successful`, 'success');
+                    message = `All ${success.length} connections successful`;
+                    showMessage(message, 'success');
                 }
-                setTimeout(() => location.reload(), 1500);
+                // No reload - just show the results
             } catch (e) {
                 showMessage('Test error: ' + e.message, 'error');
             }
