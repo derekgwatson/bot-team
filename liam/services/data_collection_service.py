@@ -149,8 +149,9 @@ class DataCollectionService:
         """
         Backfill historical data for an organization.
 
-        Useful for populating the database with past data when first
-        setting up analytics.
+        Uses bulk OData query to fetch all leads in the date range at once,
+        then aggregates by date. This is much faster than querying day-by-day
+        (1 API call instead of N calls).
 
         Args:
             org_key: Organization key
@@ -163,47 +164,71 @@ class DataCollectionService:
         end_date = datetime.now(timezone.utc).date()
         start_date = end_date - timedelta(days=days - 1)
 
-        logger.info(f"Starting backfill for {org_key}: {start_date} to {end_date}")
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+
+        logger.info(f"Starting bulk backfill for {org_key}: {start_str} to {end_str}")
 
         results = {
             'org_key': org_key,
-            'start_date': start_date.strftime('%Y-%m-%d'),
-            'end_date': end_date.strftime('%Y-%m-%d'),
+            'start_date': start_str,
+            'end_date': end_str,
             'collected': [],
             'skipped': [],
             'errors': []
         }
 
-        current = start_date
-        while current <= end_date:
-            date_str = current.strftime('%Y-%m-%d')
-
-            # Skip if data already exists
+        try:
+            # Get existing dates to skip (if skip_existing is True)
+            existing_dates = set()
             if skip_existing:
-                existing = self.db.get_lead_count_for_date(org_key, date_str)
-                if existing is not None:
+                existing_dates = self.db.get_existing_dates_for_org(org_key, start_str, end_str)
+
+            # Make ONE bulk API call to get all leads in range
+            client = self.odata_factory.get_client(org_key)
+            counts_by_date = client.get_leads_counts_by_date(start_str, end_str)
+
+            # Process each day in the range
+            current = start_date
+            while current <= end_date:
+                date_str = current.strftime('%Y-%m-%d')
+
+                # Skip if data already exists
+                if date_str in existing_dates:
                     results['skipped'].append(date_str)
                     current += timedelta(days=1)
                     continue
 
-            # Collect data
-            result = self.collect_daily_data(
-                org_key=org_key,
-                date=datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-            )
+                # Get count from bulk results (0 if date not in results)
+                lead_count = counts_by_date.get(date_str, 0)
 
-            if result['success']:
+                # Store in database
+                self.db.store_daily_lead_count(
+                    org_key=org_key,
+                    date=date_str,
+                    lead_count=lead_count
+                )
+
                 results['collected'].append({
                     'date': date_str,
-                    'lead_count': result['lead_count']
-                })
-            else:
-                results['errors'].append({
-                    'date': date_str,
-                    'error': result.get('error', 'Unknown error')
+                    'lead_count': lead_count
                 })
 
-            current += timedelta(days=1)
+                current += timedelta(days=1)
+
+        except ValueError as e:
+            logger.warning(f"Org {org_key} not configured: {e}")
+            results['errors'].append({
+                'date': 'all',
+                'error': str(e)
+            })
+
+        except Exception as e:
+            logger.error(f"Error in bulk backfill for {org_key}: {e}")
+            results['errors'].append({
+                'date': 'all',
+                'error': str(e)
+            })
 
         logger.info(
             f"Backfill complete for {org_key}: "
