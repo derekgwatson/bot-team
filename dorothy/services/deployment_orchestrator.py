@@ -614,7 +614,8 @@ class DeploymentOrchestrator:
                     description=description,
                     domain=domain,
                     bot_path=path,
-                    PORT=port
+                    PORT=port,
+                    timeout=timeout
                 )
 
                 plan['steps'].append({
@@ -912,7 +913,8 @@ class DeploymentOrchestrator:
                     description=description,
                     domain=domain,
                     bot_path=path,
-                    PORT=port
+                    PORT=port,
+                    timeout=timeout
                 )
 
                 # Escape quotes for shell

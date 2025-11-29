@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from shared.auth.bot_api import api_or_session_auth
 from services.browser import BrowserManager
 from services.quotes import LoginPage, QuotePage
+from database import db as job_db
 from config import config
 import logging
 
@@ -256,6 +257,165 @@ def batch_refresh_pricing():
             'org': org,
             'error': f'Internal error: {str(e)}'
         }), 500
+
+
+@quotes_bp.route('/batch-refresh-pricing-async', methods=['POST'])
+@api_or_session_auth
+def batch_refresh_pricing_async():
+    """
+    Queue a batch pricing refresh job for async processing.
+
+    Unlike the sync endpoint, this returns immediately with a job ID.
+    The job runs in the background and can take as long as needed.
+    Poll /jobs/{job_id} to check status and get results.
+
+    Request body:
+        {
+            "quote_ids": ["12345", "12346", "12347"],
+            "org": "canberra"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "job_id": "abc123-...",
+            "message": "Job queued for 3 quotes"
+        }
+    """
+    data = request.get_json()
+
+    # Validate required fields
+    if not data:
+        return jsonify({
+            'success': False,
+            'error': 'Request body is required'
+        }), 400
+
+    if 'quote_ids' not in data:
+        return jsonify({
+            'success': False,
+            'error': 'Missing required field: quote_ids (array of quote IDs)'
+        }), 400
+
+    if not isinstance(data['quote_ids'], list):
+        return jsonify({
+            'success': False,
+            'error': 'quote_ids must be an array'
+        }), 400
+
+    if len(data['quote_ids']) == 0:
+        return jsonify({
+            'success': False,
+            'error': 'quote_ids array cannot be empty'
+        }), 400
+
+    if 'org' not in data:
+        available_orgs = ', '.join(config.buz_orgs.keys())
+        return jsonify({
+            'success': False,
+            'error': f'Missing required field: org. Available orgs: {available_orgs}'
+        }), 400
+
+    quote_ids = data['quote_ids']
+    org = data['org']
+    headless = get_headless_mode(data)
+
+    # Validate org exists
+    try:
+        config.get_org_config(org)
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+    # Create job
+    job_id = job_db.create_job(
+        job_type='batch_refresh_pricing',
+        org=org,
+        payload={
+            'quote_ids': quote_ids,
+            'headless': headless
+        }
+    )
+
+    logger.info(f"Created async job {job_id} for batch refresh of {len(quote_ids)} quotes (org: {org})")
+
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'message': f'Job queued for {len(quote_ids)} quotes',
+        'status_url': f'/api/quotes/jobs/{job_id}'
+    }), 202  # 202 Accepted
+
+
+@quotes_bp.route('/jobs/<job_id>', methods=['GET'])
+@api_or_session_auth
+def get_job_status(job_id):
+    """
+    Get status and results for a job.
+
+    Returns:
+        {
+            "success": true,
+            "job": {
+                "id": "abc123-...",
+                "job_type": "batch_refresh_pricing",
+                "org": "canberra",
+                "status": "processing",  // pending, processing, completed, failed
+                "progress_current": 5,
+                "progress_total": 32,
+                "progress_message": "Processing quote 5/32: 12345",
+                "created_at": "2025-01-15 10:30:00",
+                "started_at": "2025-01-15 10:30:02",
+                "completed_at": null,
+                "result": null,  // populated when completed
+                "error": null    // populated when failed
+            }
+        }
+    """
+    job = job_db.get_job(job_id)
+
+    if not job:
+        return jsonify({
+            'success': False,
+            'error': f'Job {job_id} not found'
+        }), 404
+
+    return jsonify({
+        'success': True,
+        'job': job
+    })
+
+
+@quotes_bp.route('/jobs', methods=['GET'])
+@api_or_session_auth
+def list_jobs():
+    """
+    List recent jobs with optional filters.
+
+    Query params:
+        status: Filter by status (pending, processing, completed, failed)
+        org: Filter by organization
+        limit: Max results (default 50)
+
+    Returns:
+        {
+            "success": true,
+            "jobs": [...]
+        }
+    """
+    status = request.args.get('status')
+    org = request.args.get('org')
+    limit = request.args.get('limit', 50, type=int)
+
+    jobs = job_db.get_jobs(status=status, org=org, limit=limit)
+
+    return jsonify({
+        'success': True,
+        'count': len(jobs),
+        'jobs': jobs
+    })
 
 
 @quotes_bp.route('/health', methods=['GET'])

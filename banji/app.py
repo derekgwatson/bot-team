@@ -15,6 +15,8 @@ from config import config
 from shared.auth import GatewayAuth
 from shared.error_handlers import register_error_handlers
 from services.session_manager import init_session_manager, get_session_manager
+from services.job_processor import processor as job_processor
+from database import db as job_db
 import logging
 
 # Configure logging
@@ -56,10 +58,18 @@ from web.routes import web_bp
 # Initialize session manager
 session_manager = init_session_manager(config, session_timeout_minutes=30)
 
+# Start the background job processor
+job_processor.start()
+logger.info("Background job processor started")
+
 # Register cleanup on shutdown
 @atexit.register
 def cleanup():
-    """Cleanup sessions on shutdown."""
+    """Cleanup sessions and job processor on shutdown."""
+    try:
+        job_processor.stop()
+    except:
+        pass
     try:
         get_session_manager().shutdown()
     except:
@@ -87,11 +97,17 @@ def list_orgs():
 @app.route('/health')
 def health():
     """Health check endpoint."""
+    job_stats = job_db.get_stats()
     return jsonify({
         'status': 'healthy',
         'bot': config.name,
         'version': config.version,
-        'browser_mode': 'headless' if config.browser_headless else 'headed'
+        'browser_mode': 'headless' if config.browser_headless else 'headed',
+        'job_processor': 'running' if job_processor.is_running() else 'stopped',
+        'jobs': {
+            'pending': job_stats['pending'],
+            'processing': job_stats['processing']
+        }
     })
 
 
@@ -99,6 +115,7 @@ def health():
 def info():
     """Bot information endpoint."""
     active_sessions = session_manager.get_session_count()
+    job_stats = job_db.get_stats()
 
     return jsonify({
         'name': config.name,
@@ -121,8 +138,11 @@ def info():
                 'POST /api/sessions/{session_id}/bulk-edit/save': 'Save bulk edit (triggers price recalc)',
                 'GET /api/sessions/active': 'List all active sessions',
                 'GET /api/sessions/health': 'Session endpoint health check',
-                'POST /api/quotes/refresh-pricing': 'Refresh pricing for a single quote',
-                'POST /api/quotes/batch-refresh-pricing': 'Refresh pricing for multiple quotes in one session',
+                'POST /api/quotes/refresh-pricing': 'Refresh pricing for a single quote (sync)',
+                'POST /api/quotes/batch-refresh-pricing': 'Refresh pricing for multiple quotes (sync, legacy)',
+                'POST /api/quotes/batch-refresh-pricing-async': 'Queue batch refresh job (returns job_id)',
+                'GET /api/quotes/jobs/{job_id}': 'Get job status and results',
+                'GET /api/quotes/jobs': 'List recent jobs',
                 'GET /api/quotes/health': 'Quotes endpoint health check'
             },
             'system': {
@@ -137,12 +157,18 @@ def info():
             'Open and save bulk edit (trigger price recalc)',
             'Maintain browser state across multiple API calls',
             'Multi-organization support',
-            'Screenshot capture on failures'
+            'Screenshot capture on failures',
+            'Async job queue for long-running batch operations'
         ],
         'session_info': {
             'active_sessions': active_sessions,
             'timeout_minutes': session_manager.session_timeout_minutes,
             'browser_mode': 'headless' if config.browser_headless else 'headed'
+        },
+        'job_queue': {
+            'processor_running': job_processor.is_running(),
+            'pending_jobs': job_stats['pending'],
+            'processing_jobs': job_stats['processing']
         }
     })
 
