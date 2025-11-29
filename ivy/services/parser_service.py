@@ -557,6 +557,10 @@ class BuzExcelParser:
         if not pricing['item_code']:
             return None
 
+        # Skip entries with a price_group_code (e.g. zips have these, we ignore them)
+        if pricing.get('price_group_code'):
+            return None
+
         return pricing
 
     # Fields that should be treated as numeric (floats)
