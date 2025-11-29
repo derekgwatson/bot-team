@@ -161,8 +161,10 @@ class ODataClient:
             Dict with success status and any error message
         """
         try:
-            # Try to get just 1 record to verify connection
-            self.get("LeadsReport", top=1)
+            # Query today's leads - Buz doesn't like $top without a date filter
+            from datetime import datetime, timezone
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            self.get_leads(today)
             return {"success": True, "org_code": self.org_code}
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
