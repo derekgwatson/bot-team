@@ -1,6 +1,7 @@
 """Price checking service - calls Banji to check quote prices."""
 
 import logging
+import time
 from typing import Dict, List, Optional, Tuple
 from decimal import Decimal, InvalidOperation
 from collections import defaultdict
@@ -9,14 +10,21 @@ from config import config
 
 logger = logging.getLogger(__name__)
 
+# Default polling configuration
+DEFAULT_POLL_INTERVAL = 5  # seconds between status checks
+DEFAULT_MAX_WAIT_TIME = 3600  # 1 hour max wait time
+
 
 class PriceChecker:
     """Service for checking quote prices via Banji."""
 
     def __init__(self, banji_url: str = None):
         self.banji_url = banji_url or config.banji_url
-        # Batch operations can take a long time with many quotes
-        self.banji = BotHttpClient(self.banji_url, timeout=600)
+        # Short timeout for quick operations and polling
+        self.banji = BotHttpClient(self.banji_url, timeout=30)
+        # Polling configuration
+        self.poll_interval = DEFAULT_POLL_INTERVAL
+        self.max_wait_time = DEFAULT_MAX_WAIT_TIME
 
     def check_price(self, quote_id: str, org: str) -> Dict:
         """
@@ -91,10 +99,11 @@ class PriceChecker:
 
     def check_prices_batch(self, quote_ids: List[str], org: str) -> List[Dict]:
         """
-        Check prices for multiple quotes in a single browser session.
+        Check prices for multiple quotes using Banji's async job queue.
 
-        This is much more efficient than calling check_price() multiple times
-        because Banji keeps the browser open between quotes.
+        This submits a job to Banji and polls for completion. The job runs
+        in Banji's background worker and can take as long as needed without
+        HTTP timeout issues.
 
         Args:
             quote_ids: List of quote IDs to check
@@ -106,73 +115,139 @@ class PriceChecker:
         if not quote_ids:
             return []
 
-        logger.info(f"Batch checking {len(quote_ids)} quotes for org {org}")
+        logger.info(f"Batch checking {len(quote_ids)} quotes for org {org} (async)")
 
         try:
-            response = self.banji.post('/api/quotes/batch-refresh-pricing', json={
+            # Step 1: Submit job to Banji
+            response = self.banji.post('/api/quotes/batch-refresh-pricing-async', json={
                 'quote_ids': quote_ids,
                 'org': org
             })
 
-            data = response.json()
-
-            if response.status_code == 200 and data.get('success'):
-                # Convert Banji's batch results to our standard format
-                results = []
-                for item in data.get('results', []):
-                    if item.get('success'):
-                        results.append({
-                            'success': True,
-                            'quote_id': item['quote_id'],
-                            'org': org,
-                            'price_before': str(item.get('price_before')) if item.get('price_before') is not None else None,
-                            'price_after': str(item.get('price_after')) if item.get('price_after') is not None else None,
-                            'price_changed': item.get('price_changed', False),
-                            'error': None,
-                            'raw_response': item
-                        })
-                    else:
-                        results.append({
-                            'success': False,
-                            'quote_id': item['quote_id'],
-                            'org': org,
-                            'price_before': None,
-                            'price_after': None,
-                            'price_changed': False,
-                            'error': item.get('error', 'Unknown error'),
-                            'raw_response': item
-                        })
-
-                logger.info(f"Batch check complete: {data.get('successful', 0)}/{data.get('total_quotes', 0)} successful")
-                return results
-            else:
-                # Entire batch failed
+            if response.status_code != 202:
+                data = response.json()
                 error_msg = data.get('error', f'HTTP {response.status_code}')
-                logger.error(f"Batch check failed for org {org}: {error_msg}")
-                return [{
-                    'success': False,
-                    'quote_id': qid,
-                    'org': org,
-                    'price_before': None,
-                    'price_after': None,
-                    'price_changed': False,
-                    'error': error_msg,
-                    'raw_response': data
-                } for qid in quote_ids]
+                logger.error(f"Failed to submit batch job for org {org}: {error_msg}")
+                return self._make_error_results(quote_ids, org, error_msg)
+
+            data = response.json()
+            job_id = data.get('job_id')
+            logger.info(f"Submitted job {job_id} for {len(quote_ids)} quotes (org: {org})")
+
+            # Step 2: Poll for completion
+            result = self._poll_job(job_id, quote_ids, org)
+            return result
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Batch check error for org {org}: {error_msg}")
-            return [{
-                'success': False,
-                'quote_id': qid,
-                'org': org,
-                'price_before': None,
-                'price_after': None,
-                'price_changed': False,
-                'error': error_msg,
-                'raw_response': None
-            } for qid in quote_ids]
+            return self._make_error_results(quote_ids, org, error_msg)
+
+    def _poll_job(self, job_id: str, quote_ids: List[str], org: str) -> List[Dict]:
+        """
+        Poll for job completion and return results.
+
+        Args:
+            job_id: The job ID to poll
+            quote_ids: Original quote IDs (for error results if needed)
+            org: Organization
+
+        Returns:
+            List of result dicts
+        """
+        start_time = time.time()
+        last_progress = None
+
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > self.max_wait_time:
+                logger.error(f"Job {job_id} timed out after {elapsed:.0f}s")
+                return self._make_error_results(
+                    quote_ids, org,
+                    f"Job timed out after {self.max_wait_time} seconds"
+                )
+
+            try:
+                response = self.banji.get(f'/api/quotes/jobs/{job_id}')
+                if response.status_code != 200:
+                    logger.error(f"Failed to get job status: HTTP {response.status_code}")
+                    time.sleep(self.poll_interval)
+                    continue
+
+                job = response.json().get('job', {})
+                status = job.get('status')
+                progress_msg = job.get('progress_message')
+
+                # Log progress updates (but not every poll)
+                if progress_msg and progress_msg != last_progress:
+                    logger.info(f"Job {job_id}: {progress_msg}")
+                    last_progress = progress_msg
+
+                if status == 'completed':
+                    result_data = job.get('result', {})
+                    logger.info(
+                        f"Job {job_id} completed: "
+                        f"{result_data.get('successful', 0)}/{result_data.get('total_quotes', 0)} successful"
+                    )
+                    return self._format_batch_results(result_data, org)
+
+                elif status == 'failed':
+                    error = job.get('error', 'Unknown error')
+                    logger.error(f"Job {job_id} failed: {error}")
+                    return self._make_error_results(quote_ids, org, error)
+
+                elif status in ('pending', 'processing'):
+                    # Still running, wait and poll again
+                    time.sleep(self.poll_interval)
+
+                else:
+                    logger.warning(f"Job {job_id} has unknown status: {status}")
+                    time.sleep(self.poll_interval)
+
+            except Exception as e:
+                logger.warning(f"Error polling job {job_id}: {e}")
+                time.sleep(self.poll_interval)
+
+    def _format_batch_results(self, result_data: Dict, org: str) -> List[Dict]:
+        """Format Banji's batch results to our standard format."""
+        results = []
+        for item in result_data.get('results', []):
+            if item.get('success'):
+                results.append({
+                    'success': True,
+                    'quote_id': item['quote_id'],
+                    'org': org,
+                    'price_before': str(item.get('price_before')) if item.get('price_before') is not None else None,
+                    'price_after': str(item.get('price_after')) if item.get('price_after') is not None else None,
+                    'price_changed': item.get('price_changed', False),
+                    'error': None,
+                    'raw_response': item
+                })
+            else:
+                results.append({
+                    'success': False,
+                    'quote_id': item['quote_id'],
+                    'org': org,
+                    'price_before': None,
+                    'price_after': None,
+                    'price_changed': False,
+                    'error': item.get('error', 'Unknown error'),
+                    'raw_response': item
+                })
+        return results
+
+    def _make_error_results(self, quote_ids: List[str], org: str, error_msg: str) -> List[Dict]:
+        """Create error results for all quotes."""
+        return [{
+            'success': False,
+            'quote_id': qid,
+            'org': org,
+            'price_before': None,
+            'price_after': None,
+            'price_changed': False,
+            'error': error_msg,
+            'raw_response': None
+        } for qid in quote_ids]
 
     def check_prices_multi_org(self, quotes: List[Dict]) -> List[Dict]:
         """

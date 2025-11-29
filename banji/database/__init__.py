@@ -1,0 +1,4 @@
+"""Banji database module."""
+from banji.database.db import Database, db
+
+__all__ = ['Database', 'db']
