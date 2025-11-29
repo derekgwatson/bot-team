@@ -3,7 +3,6 @@ Web Routes for Nigel
 User interface for price monitoring
 """
 
-import threading
 import requests
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import current_user
@@ -13,10 +12,11 @@ from services.price_checker import PriceChecker, compare_prices
 from config import config
 import logging
 
-logger = logging.getLogger(__name__)
+# Import API's background job state (single source of truth)
+from api.routes import _running_job, _run_check_all_background
+import threading
 
-# Track running background jobs
-_running_checks = {}
+logger = logging.getLogger(__name__)
 
 
 def get_banji_url():
@@ -415,93 +415,17 @@ def resolve_discrepancy(discrepancy_id: int):
     return redirect(url_for('web.discrepancies'))
 
 
-def _run_price_check_background(quotes, user_email):
-    """
-    Run price check in background thread.
-
-    This processes all quotes and logs results to the database.
-    Since it runs in a background thread, results are visible in the
-    Price Checks history page rather than via flash messages.
-    """
-    try:
-        logger.info(f"Background price check started by {user_email} for {len(quotes)} quotes")
-
-        # Build a lookup map for quick access to quote data
-        quotes_map = {q['quote_id']: q for q in quotes}
-
-        # Use batch checking - groups by org automatically for efficiency
-        checker = PriceChecker()
-        batch_results = checker.check_prices_multi_org([
-            {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
-        ])
-
-        results = {'checked': 0, 'discrepancies': 0, 'errors': 0}
-
-        for result in batch_results:
-            quote_id = result['quote_id']
-            org = result['org']
-            quote = quotes_map.get(quote_id)
-
-            if result['success']:
-                current_price = result['price_after']
-                has_discrepancy = False
-                discrepancy_amount = None
-
-                if quote and quote['last_known_price']:
-                    has_discrepancy, discrepancy_amount = compare_prices(
-                        quote['last_known_price'],
-                        current_price
-                    )
-
-                    if has_discrepancy:
-                        db.create_discrepancy(
-                            quote_id=quote_id,
-                            org=org,
-                            expected_price=quote['last_known_price'],
-                            actual_price=current_price,
-                            difference=discrepancy_amount
-                        )
-                        results['discrepancies'] += 1
-
-                db.update_quote_price(quote_id, current_price)
-                db.log_price_check(
-                    quote_id=quote_id,
-                    org=org,
-                    status='success',
-                    price_before=result['price_before'],
-                    price_after=result['price_after'],
-                    has_discrepancy=has_discrepancy,
-                    discrepancy_amount=discrepancy_amount,
-                    banji_response=result['raw_response']
-                )
-                results['checked'] += 1
-            else:
-                db.log_price_check(
-                    quote_id=quote_id,
-                    org=org,
-                    status='error',
-                    error_message=result['error']
-                )
-                db.update_quote_checked(quote_id)
-                results['errors'] += 1
-
-        logger.info(f"Background price check completed by {user_email}: {results}")
-
-    except Exception as e:
-        logger.exception(f"Background price check failed: {e}")
-    finally:
-        # Remove from running checks
-        _running_checks.pop(user_email, None)
-
-
 @web_bp.route('/check-all', methods=['POST'])
 @login_required
 def check_all():
-    """Start background price check for all active quotes"""
-    user_email = current_user.email
+    """
+    Start background price check for all active quotes.
 
-    # Check if a check is already running for this user
-    if user_email in _running_checks and _running_checks[user_email].is_alive():
+    Uses the same background job mechanism as the API endpoint,
+    ensuring only one check runs at a time across web UI and API.
+    """
+    # Check if a job is already running (shared state with API)
+    if _running_job['thread'] is not None and _running_job['thread'].is_alive():
         flash('A price check is already running. Please wait for it to complete.', 'warning')
         return redirect(url_for('web.index'))
 
@@ -512,15 +436,20 @@ def check_all():
             flash('No active quotes to check', 'warning')
             return redirect(url_for('web.index'))
 
-        # Start background thread
+        # Start background thread using shared API function
+        started_by = f'web:{current_user.email}'
         thread = threading.Thread(
-            target=_run_price_check_background,
-            args=(quotes, user_email),
+            target=_run_check_all_background,
+            args=(quotes, started_by),
             daemon=True
         )
         thread.start()
-        _running_checks[user_email] = thread
 
+        # Update shared state
+        _running_job['thread'] = thread
+        _running_job['started_by'] = started_by
+
+        logger.info(f"Web UI: Started background price check for {len(quotes)} quotes by {current_user.email}")
         flash(f'Price check started for {len(quotes)} quotes. Check the Price Checks page for results.', 'info')
         return redirect(url_for('web.index'))
 
