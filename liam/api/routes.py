@@ -24,7 +24,14 @@ analytics_service = AnalyticsService(config, leads_db)
 data_collection_service = DataCollectionService(config, odata_factory, leads_db)
 
 # Track running background jobs
-_running_backfill = {'thread': None, 'started_by': None, 'days': None}
+_running_backfill = {
+    'thread': None,
+    'started_by': None,
+    'days': None,
+    'current_org': None,
+    'completed_orgs': 0,
+    'total_orgs': 0
+}
 
 
 @api_bp.route('/leads/verify', methods=['POST'])
@@ -236,24 +243,32 @@ def collect_data():
 
 
 def _run_backfill_background(days, skip_existing, started_by):
-    """Run backfill in background thread."""
+    """Run backfill in background thread with progress tracking."""
     global _running_backfill
     try:
         logger.info(f"Background backfill started by {started_by}: {days} days")
-        results = data_collection_service.backfill_all_orgs(
-            days=days,
-            skip_existing=skip_existing
-        )
 
-        # Log summary
-        total_collected = sum(
-            len(org.get('collected', []))
-            for org in results.get('orgs', {}).values()
-        )
-        total_errors = sum(
-            len(org.get('errors', []))
-            for org in results.get('orgs', {}).values()
-        )
+        orgs = list(config.available_orgs)
+        _running_backfill['total_orgs'] = len(orgs)
+        _running_backfill['completed_orgs'] = 0
+
+        total_collected = 0
+        total_errors = 0
+
+        for org_key in orgs:
+            _running_backfill['current_org'] = org_key
+
+            result = data_collection_service.backfill_historical_data(
+                org_key=org_key,
+                days=days,
+                skip_existing=skip_existing
+            )
+
+            total_collected += len(result.get('collected', []))
+            total_errors += len(result.get('errors', []))
+
+            _running_backfill['completed_orgs'] += 1
+
         logger.info(
             f"Background backfill completed by {started_by}: "
             f"{total_collected} days collected, {total_errors} errors"
@@ -265,6 +280,9 @@ def _run_backfill_background(days, skip_existing, started_by):
         _running_backfill['thread'] = None
         _running_backfill['started_by'] = None
         _running_backfill['days'] = None
+        _running_backfill['current_org'] = None
+        _running_backfill['completed_orgs'] = 0
+        _running_backfill['total_orgs'] = 0
 
 
 @api_bp.route('/data/backfill', methods=['POST'])
@@ -339,7 +357,10 @@ def backfill_status():
         'success': True,
         'running': is_running,
         'started_by': _running_backfill['started_by'] if is_running else None,
-        'days': _running_backfill['days'] if is_running else None
+        'days': _running_backfill['days'] if is_running else None,
+        'current_org': _running_backfill['current_org'] if is_running else None,
+        'completed_orgs': _running_backfill['completed_orgs'] if is_running else None,
+        'total_orgs': _running_backfill['total_orgs'] if is_running else None
     })
 
 

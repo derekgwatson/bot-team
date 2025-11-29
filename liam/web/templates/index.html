@@ -167,7 +167,11 @@
 
             if (data.running) {
                 statusDiv.style.display = 'block';
-                infoSpan.textContent = `(${data.days} days, started by ${data.started_by})`;
+                let progressText = `${data.days} days`;
+                if (data.current_org && data.total_orgs > 0) {
+                    progressText += ` — Processing ${data.current_org} (${data.completed_orgs}/${data.total_orgs} orgs done)`;
+                }
+                infoSpan.textContent = progressText;
                 backfillBtn.disabled = true;
                 backfillBtn.textContent = 'Running...';
 
