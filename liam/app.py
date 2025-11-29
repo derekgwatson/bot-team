@@ -80,11 +80,23 @@ def info():
         'emoji': '\U0001F50E',  # magnifying glass tilted right
         'endpoints': {
             'web': {
-                '/': 'Dashboard with verification status',
-                '/history': 'Verification history'
+                '/': 'Marketing intelligence dashboard',
+                '/history': 'Verification history',
+                '/analytics': 'Trend charts and insights',
+                '/campaigns': 'Marketing events management'
             },
             'api': {
                 'POST /api/leads/verify': 'Run leads verification for all orgs',
+                'POST /api/data/collect': 'Collect daily lead counts for analytics',
+                'POST /api/data/backfill': 'Backfill historical lead data',
+                'GET /api/analytics/trends': 'Get lead count trends over time',
+                'GET /api/analytics/compare': 'Compare current vs previous period',
+                'GET /api/analytics/day-of-week': 'Analyze patterns by day of week',
+                'GET /api/analytics/rankings': 'Rank stores by performance',
+                'GET /api/analytics/campaign-impact/:id': 'Analyze campaign impact',
+                'GET /api/events': 'List marketing events',
+                'POST /api/events': 'Create marketing event',
+                'DELETE /api/events/:id': 'Delete marketing event',
                 'GET /api/leads/history': 'Get verification history',
                 'GET /api/leads/stats': 'Get verification statistics',
                 'GET /api/orgs': 'List configured organizations',
@@ -100,7 +112,12 @@ def info():
             'Daily verification that leads are being recorded',
             'Detect OData backup failures via zero-lead alerts',
             'Create Zendesk tickets for IT when issues detected',
-            'Dashboard showing verification history'
+            'Marketing intelligence dashboard with trend analysis',
+            'Lead volume tracking and historical data collection',
+            'Store-by-store performance comparisons',
+            'Day-of-week pattern analysis for campaign timing',
+            'Campaign impact measurement and ROI tracking',
+            'Marketing events/campaign calendar management'
         ],
         'configured_orgs': config.available_orgs
     })

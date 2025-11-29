@@ -236,6 +236,198 @@ class LeadsDatabase:
         conn.close()
         return count
 
+    # Daily lead counts operations
+
+    def store_daily_lead_count(self, org_key: str, date: str, lead_count: int) -> None:
+        """
+        Store daily lead count for an organization.
+
+        Uses INSERT OR REPLACE to update if record exists for this org/date.
+
+        Args:
+            org_key: Organization key
+            date: Date string (YYYY-MM-DD)
+            lead_count: Number of leads
+        """
+        conn = self.get_connection()
+        conn.execute('''
+            INSERT OR REPLACE INTO daily_lead_counts (org_key, date, lead_count, collected_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (org_key, date, lead_count))
+        conn.commit()
+        conn.close()
+
+    def get_daily_lead_counts(
+        self,
+        org_key: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get daily lead counts with optional filters.
+
+        Args:
+            org_key: Filter by organization (optional)
+            start_date: Start date (YYYY-MM-DD, inclusive, optional)
+            end_date: End date (YYYY-MM-DD, inclusive, optional)
+            limit: Maximum records to return (optional)
+
+        Returns:
+            List of daily lead count records
+        """
+        conn = self.get_connection()
+
+        query = 'SELECT * FROM daily_lead_counts WHERE 1=1'
+        params = []
+
+        if org_key:
+            query += ' AND org_key = ?'
+            params.append(org_key)
+
+        if start_date:
+            query += ' AND date >= ?'
+            params.append(start_date)
+
+        if end_date:
+            query += ' AND date <= ?'
+            params.append(end_date)
+
+        query += ' ORDER BY date DESC, org_key'
+
+        if limit:
+            query += ' LIMIT ?'
+            params.append(limit)
+
+        cursor = conn.execute(query, params)
+        records = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return records
+
+    def get_lead_count_for_date(self, org_key: str, date: str) -> Optional[int]:
+        """
+        Get lead count for a specific org and date.
+
+        Args:
+            org_key: Organization key
+            date: Date string (YYYY-MM-DD)
+
+        Returns:
+            Lead count or None if not found
+        """
+        conn = self.get_connection()
+        cursor = conn.execute(
+            'SELECT lead_count FROM daily_lead_counts WHERE org_key = ? AND date = ?',
+            (org_key, date)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return row['lead_count'] if row else None
+
+    # Marketing events operations
+
+    def create_marketing_event(
+        self,
+        name: str,
+        start_date: str,
+        event_type: str = 'campaign',
+        description: str = '',
+        end_date: Optional[str] = None,
+        target_orgs: Optional[List[str]] = None,
+        created_by: Optional[str] = None
+    ) -> int:
+        """
+        Create a marketing event/campaign.
+
+        Args:
+            name: Event name
+            start_date: Start date (YYYY-MM-DD)
+            event_type: Type of event (campaign, promotion, seasonal, etc.)
+            description: Optional description
+            end_date: Optional end date (YYYY-MM-DD)
+            target_orgs: Optional list of target org keys (stored as comma-separated)
+            created_by: Email of user who created it
+
+        Returns:
+            ID of created event
+        """
+        conn = self.get_connection()
+
+        # Convert list to comma-separated string
+        target_orgs_str = ','.join(target_orgs) if target_orgs else None
+
+        cursor = conn.execute('''
+            INSERT INTO marketing_events (name, description, event_type, start_date, end_date, target_orgs, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (name, description, event_type, start_date, end_date, target_orgs_str, created_by))
+        event_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return event_id
+
+    def get_marketing_events(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get marketing events within a date range.
+
+        Args:
+            start_date: Filter events that end on or after this date (optional)
+            end_date: Filter events that start on or before this date (optional)
+
+        Returns:
+            List of marketing event records
+        """
+        conn = self.get_connection()
+
+        query = 'SELECT * FROM marketing_events WHERE 1=1'
+        params = []
+
+        if start_date:
+            # Include events that end on or after start_date (or have no end date)
+            query += ' AND (end_date >= ? OR end_date IS NULL OR start_date >= ?)'
+            params.extend([start_date, start_date])
+
+        if end_date:
+            # Include events that start on or before end_date
+            query += ' AND start_date <= ?'
+            params.append(end_date)
+
+        query += ' ORDER BY start_date DESC'
+
+        cursor = conn.execute(query, params)
+        events = []
+        for row in cursor.fetchall():
+            event = dict(row)
+            # Convert comma-separated target_orgs back to list
+            if event['target_orgs']:
+                event['target_orgs'] = event['target_orgs'].split(',')
+            else:
+                event['target_orgs'] = None
+            events.append(event)
+
+        conn.close()
+        return events
+
+    def delete_marketing_event(self, event_id: int) -> bool:
+        """
+        Delete a marketing event.
+
+        Args:
+            event_id: ID of event to delete
+
+        Returns:
+            True if deleted, False if not found
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('DELETE FROM marketing_events WHERE id = ?', (event_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
 
 # Singleton instance
 leads_db = LeadsDatabase()

@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-content h3 {
+        margin-bottom: 20px;
+        color: #0f3443;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #0f3443;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        font-size: 0.9em;
+    }
+
+    .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 5px;
+        color: #6c757d;
+        font-size: 0.85em;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+    }
+
+    .campaign-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #0f3443;
+    }
+
+    .campaign-card.past {
+        opacity: 0.7;
+        border-left-color: #6c757d;
+    }
+
+    .campaign-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 10px;
+    }
+
+    .campaign-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #0f3443;
+    }
+
+    .campaign-dates {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+
+    .campaign-description {
+        margin: 10px 0;
+        color: #333;
+    }
+
+    .campaign-targets {
+        margin-top: 10px;
+    }
+
+    .campaign-actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .checkbox-group label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: normal;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Marketing Campaigns</h2>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>Campaigns & Events</h3>
+        <button class="btn btn-primary" onclick="showCreateModal()">Create New Campaign</button>
+    </div>
+
+    {% if events %}
+        {% for event in events %}
+        <div class="campaign-card {% if event.end_date and event.end_date < now %}past{% endif %}" id="event-{{ event.id }}">
+            <div class="campaign-header">
+                <div>
+                    <div class="campaign-title">{{ event.name }}</div>
+                    <div class="campaign-dates">
+                        {{ event.start_date }}
+                        {% if event.end_date %}
+                            → {{ event.end_date }}
+                        {% endif %}
+                    </div>
+                </div>
+                <span class="badge badge-primary">{{ event.event_type }}</span>
+            </div>
+
+            {% if event.description %}
+            <div class="campaign-description">{{ event.description }}</div>
+            {% endif %}
+
+            {% if event.target_orgs %}
+            <div class="campaign-targets">
+                <strong>Target stores:</strong>
+                {% for org_key in event.target_orgs %}
+                    <span class="badge badge-ok">{{ config.get_org_config(org_key).display_name }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="campaign-targets">
+                <span class="text-muted">All stores</span>
+            </div>
+            {% endif %}
+
+            <div class="campaign-actions">
+                <button class="btn btn-sm btn-primary" onclick="viewImpact({{ event.id }})">View Impact</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteEvent({{ event.id }})">Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">No campaigns created yet. Click "Create New Campaign" to add one.</p>
+    {% endif %}
+</div>
+
+<div id="impact-results" class="card" style="display: none;">
+    <h3>Campaign Impact Analysis</h3>
+    <div id="impact-content"></div>
+</div>
+
+<!-- Create Campaign Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <h3>Create Marketing Campaign</h3>
+        <form id="createForm">
+            <div class="form-group">
+                <label for="name">Campaign Name *</label>
+                <input type="text" id="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="event_type">Type</label>
+                <select id="event_type">
+                    <option value="campaign">Campaign</option>
+                    <option value="promotion">Promotion</option>
+                    <option value="seasonal">Seasonal</option>
+                    <option value="advertising">Advertising</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="start_date">Start Date *</label>
+                <input type="date" id="start_date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="end_date">End Date (optional)</label>
+                <input type="date" id="end_date">
+                <small>Leave blank for single-day events</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Target Stores (optional)</label>
+                <small>Leave unchecked to target all stores</small>
+                <div class="checkbox-group">
+                    {% for org_key in org_keys %}
+                    <label>
+                        <input type="checkbox" name="target_orgs" value="{{ org_key }}">
+                        {{ config.get_org_config(org_key).display_name }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="hideCreateModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Campaign</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showCreateModal() {
+    document.getElementById('createModal').classList.add('show');
+    document.getElementById('start_date').valueAsDate = new Date();
+}
+
+function hideCreateModal() {
+    document.getElementById('createModal').classList.remove('show');
+    document.getElementById('createForm').reset();
+}
+
+document.getElementById('createForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        name: document.getElementById('name').value,
+        event_type: document.getElementById('event_type').value,
+        start_date: document.getElementById('start_date').value,
+        end_date: document.getElementById('end_date').value || null,
+        description: document.getElementById('description').value
+    };
+
+    // Collect target orgs
+    const targetOrgs = [];
+    document.querySelectorAll('input[name="target_orgs"]:checked').forEach(cb => {
+        targetOrgs.push(cb.value);
+    });
+    if (targetOrgs.length > 0) {
+        formData.target_orgs = targetOrgs;
+    }
+
+    try {
+        hideMessage();
+        const result = await apiCall('/api/events', 'POST', formData);
+        showMessage('Campaign created successfully', 'success');
+        hideCreateModal();
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+        showMessage('Failed to create campaign: ' + e.message, 'error');
+    }
+});
+
+async function deleteEvent(eventId) {
+    if (!confirm('Delete this campaign? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        hideMessage();
+        await apiCall(`/api/events/${eventId}`, 'DELETE');
+        showMessage('Campaign deleted', 'success');
+        document.getElementById(`event-${eventId}`).remove();
+    } catch (e) {
+        showMessage('Failed to delete campaign: ' + e.message, 'error');
+    }
+}
+
+async function viewImpact(eventId) {
+    hideMessage();
+    const resultsDiv = document.getElementById('impact-results');
+    const contentDiv = document.getElementById('impact-content');
+
+    resultsDiv.style.display = 'block';
+    contentDiv.innerHTML = '<p class="text-muted">Loading campaign impact...</p>';
+    resultsDiv.scrollIntoView({behavior: 'smooth'});
+
+    try {
+        const data = await apiCall(`/api/analytics/campaign-impact/${eventId}?baseline_days=7`);
+
+        let html = '<div style="margin-bottom: 20px;">';
+        html += `<h4>${data.event.name}</h4>`;
+        html += `<p><strong>Campaign Period:</strong> ${data.event.start_date}`;
+        if (data.event.end_date) {
+            html += ` to ${data.event.end_date}`;
+        }
+        html += `</p>`;
+        html += `<p><strong>Baseline Period:</strong> ${data.baseline_period.start_date} to ${data.baseline_period.end_date}</p>`;
+        html += '</div>';
+
+        html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">';
+
+        for (const [orgKey, impact] of Object.entries(data.impact_by_org)) {
+            const direction = impact.lift_direction;
+            const pct = Math.abs(impact.lift_percentage);
+            const trendClass = direction === 'up' ? 'text-success' : direction === 'down' ? 'text-danger' : 'text-muted';
+            const arrow = direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
+
+            html += `
+                <div class="stat-card">
+                    <div class="stat-label">${orgKey}</div>
+                    <div class="stat-value">${impact.campaign_total}</div>
+                    <div class="text-muted">${impact.campaign_avg} per day</div>
+                    <div class="${trendClass}" style="font-weight: bold; margin-top: 10px;">
+                        ${arrow} ${pct}% vs baseline
+                    </div>
+                    <div class="text-muted" style="font-size: 0.85em;">
+                        (baseline: ${impact.baseline_avg}/day)
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        contentDiv.innerHTML = html;
+
+    } catch (e) {
+        contentDiv.innerHTML = `<p class="text-danger">Failed to load impact: ${e.message}</p>`;
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('createModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideCreateModal();
+    }
+});
+</script>
+{% endblock %}
