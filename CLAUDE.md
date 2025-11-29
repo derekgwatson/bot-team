@@ -844,3 +844,111 @@ Buz exports inventory and pricing data as Excel files with these quirks:
 **Status columns:**
 - Inventory uses `Active` (True = active)
 - Pricing uses `IsNotCurrent` (True = INactive) - note the inversion!
+
+## Background Jobs & Long-Running Operations
+
+Several bots need to handle operations that can take minutes or even hours (especially Playwright browser automation). Here's how we handle these:
+
+### Current Patterns
+
+| Pattern | Bot | Use Case | Key Files |
+|---------|-----|----------|-----------|
+| **Job Queue (DB + Thread)** | Banji | Batch quote pricing refresh | `banji/services/job_processor.py`, `banji/database/db.py` |
+| **APScheduler** | Skye | Scheduled periodic tasks | `skye/services/scheduler.py` |
+| **Async/Sync Hybrid** | Ivy | Multi-stage sync with progress | `ivy/services/sync_service.py` |
+| **Pure Async Batch** | Hugo | Batch user operations | `hugo/services/user_service.py` |
+| **Simple Sync** | Doc, others | Quick one-off operations | Called by Skye on schedule |
+
+### When to Use Which Pattern
+
+**Use Banji's Job Queue pattern when:**
+- Operations can take 10+ minutes (e.g., processing many quotes)
+- You need progress tracking visible to the caller
+- HTTP timeouts would otherwise kill the request
+- Playwright/browser operations that must be single-threaded
+
+**Use Skye scheduling when:**
+- Operations should run periodically (daily sync, hourly check)
+- The target bot handles the actual work via its API
+- You want centralized scheduling management
+
+**Use Ivy's async/sync hybrid when:**
+- Multi-stage operations with distinct phases
+- Need to bridge async Playwright with sync Flask
+- Progress tracking per stage (0-100% within each stage)
+
+**Use simple sync services when:**
+- Operations complete in under a minute
+- Called by Skye or other bots on a schedule
+- No need for progress tracking
+
+### Job Queue Pattern (Banji)
+
+For long-running operations that would timeout over HTTP:
+
+```python
+# 1. Caller submits job, gets ID immediately
+POST /api/quotes/batch-refresh-pricing-async
+  → {"job_id": "abc123", "status_url": "/api/quotes/jobs/abc123"}
+
+# 2. Background thread processes job
+JobProcessor polls DB for pending jobs
+  → Processes one at a time (Playwright limitation)
+  → Updates progress: db.update_job_progress(job_id, 5, 32, "Processing quote 5/32")
+
+# 3. Caller polls for status
+GET /api/quotes/jobs/abc123
+  → {"status": "processing", "progress_current": 5, "progress_total": 32}
+  → {"status": "completed", "result": {...}}
+```
+
+**Key components:**
+- `database/db.py` - Jobs table with status, progress, result fields
+- `services/job_processor.py` - Background thread polling for jobs
+- API endpoints for submit (`POST`) and status (`GET`)
+
+### Shared Playwright Lock
+
+When multiple bots might use Playwright simultaneously, use the shared lock:
+
+```python
+from shared.playwright.buz import get_buz_lock
+
+buz_lock = get_buz_lock()
+async with buz_lock.acquire_async('my_bot'):
+    # Only one bot can be here at a time
+    async with AsyncBrowserManager(...) as browser:
+        # Do Buz operations
+```
+
+### Configurable Timeouts
+
+For bots with long-running operations, Chester's deployment config supports per-bot timeouts:
+
+- **Gunicorn worker timeout**: Set via `timeout` field in Chester's bots table
+- **Nginx proxy timeout**: Uses same value for `proxy_read_timeout`
+- Default: 120 seconds
+- Playwright bots (banji, hugo, ivy): 600 seconds
+
+To update a bot's timeout:
+```sql
+UPDATE bots SET timeout = 600 WHERE name = 'banji';
+```
+Then redeploy via Dorothy to apply.
+
+### Future Consideration: Centralized Job Queue
+
+Currently each bot implements its own job queue. Common elements that could be centralized in `shared/job_queue/`:
+
+- **Job database schema** - jobs table with status, progress, result
+- **Base job processor** - polling loop, graceful shutdown
+- **Progress tracking** - 0-100% updates
+- **Job cleanup** - delete old completed/failed jobs
+
+**When to extract:** If a second bot needs the exact same pattern as Banji's job queue, consider extracting shared infrastructure. Until then, keep implementations bot-specific to avoid premature abstraction.
+
+**What stays bot-specific:**
+- Job type handlers (each bot has unique operations)
+- Payload and result formats
+- Threading vs async decisions (Playwright needs sync)
+
