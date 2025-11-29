@@ -394,6 +394,52 @@
             button.disabled = false;
             button.textContent = 'Sync Lead Data';
         }
+
+        async function backfillData(button) {
+            const daysSelect = document.getElementById('backfill-days');
+            const days = parseInt(daysSelect.value, 10);
+
+            hideMessage();
+            button.classList.add('loading');
+            button.disabled = true;
+            button.textContent = 'Backfilling...';
+
+            showMessage(`Backfilling ${days} days of data... This may take a while.`, 'info');
+
+            try {
+                const result = await apiCall('/api/data/backfill', 'POST', { days: days });
+
+                // Count results across all orgs
+                let totalCollected = 0;
+                let totalSkipped = 0;
+                let totalErrors = 0;
+
+                for (const [orgKey, orgResult] of Object.entries(result.orgs || {})) {
+                    totalCollected += (orgResult.collected || []).length;
+                    totalSkipped += (orgResult.skipped || []).length;
+                    totalErrors += (orgResult.errors || []).length;
+                }
+
+                if (totalErrors > 0) {
+                    showMessage(
+                        `Backfill complete: ${totalCollected} days collected, ${totalSkipped} skipped (already had data), ${totalErrors} errors`,
+                        'warning'
+                    );
+                } else {
+                    showMessage(
+                        `Backfill complete: ${totalCollected} days collected, ${totalSkipped} skipped (already had data)`,
+                        'success'
+                    );
+                }
+                setTimeout(() => location.reload(), 2000);
+            } catch (e) {
+                showMessage('Backfill error: ' + e.message, 'error');
+            }
+
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.textContent = 'Backfill Historical';
+        }
     </script>
 
     {% block extra_js %}{% endblock %}
