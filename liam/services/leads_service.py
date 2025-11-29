@@ -67,15 +67,17 @@ class LeadsVerificationService:
         self,
         org_name: str,
         date_str: str,
-        is_primary: bool
+        is_primary: bool,
+        error_message: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Create a Zendesk ticket for zero leads alert.
+        Create a Zendesk ticket for zero leads or OData error alert.
 
         Args:
             org_name: Display name of the organization
             date_str: Date string (YYYY-MM-DD)
             is_primary: Whether this is a primary store (more urgent)
+            error_message: Optional error message if this is an OData error
 
         Returns:
             Dict with ticket creation result
@@ -85,8 +87,22 @@ class LeadsVerificationService:
             date=date_str
         )
 
+        # Adjust subject if it's an error
+        if error_message:
+            subject = f"Buz OData Error: {org_name} - {date_str}"
+
         # More detailed description
-        if is_primary:
+        if error_message:
+            # OData error case
+            description = (
+                f"OData query failed for {org_name} on {date_str}.\n\n"
+                f"Error: {error_message}\n\n"
+                f"This likely indicates a problem with the Buz OData service or backup.\n\n"
+                f"Please contact the Buz vendor to check the OData service status.\n\n"
+                f"This ticket was automatically created by Liam (Buz Leads Monitor)."
+            )
+            priority = "high"  # Errors are always high priority
+        elif is_primary:
             description = (
                 f"Zero leads were recorded for {org_name} on {date_str}.\n\n"
                 f"This is a PRIMARY store where we expect leads every business day. "
@@ -255,15 +271,40 @@ class LeadsVerificationService:
             }
 
         except Exception as e:
-            # OData request failed
+            # OData request failed - treat like zero leads, create ticket
             logger.error(f"Error verifying {org_key}: {e}")
+
+            # Try to get org config for ticket creation
+            ticket_id = None
+            try:
+                org_config = self.config.get_org_config(org_key)
+                org_name = org_config["display_name"]
+                is_primary = org_config.get("is_primary", False)
+
+                if create_ticket:
+                    ticket_result = self._create_zendesk_ticket(
+                        org_name=org_name,
+                        date_str=date_str,
+                        is_primary=is_primary,
+                        error_message=str(e)
+                    )
+                    if ticket_result["success"]:
+                        ticket_id = ticket_result.get("ticket_id")
+            except ValueError:
+                org_name = org_key
+                is_primary = False
+
+            message = f"OData error: {e}"
+            if ticket_id:
+                message = f"OData error - ticket #{ticket_id} created"
 
             self.db.log_verification(
                 org_key=org_key,
                 date=date_str,
                 lead_count=0,
                 status="error",
-                message=str(e)
+                message=message,
+                ticket_id=ticket_id
             )
 
             return {
@@ -272,7 +313,8 @@ class LeadsVerificationService:
                 "skipped": False,
                 "lead_count": None,
                 "status": "error",
-                "message": str(e)
+                "message": message,
+                "ticket_id": ticket_id
             }
 
     def verify_all(

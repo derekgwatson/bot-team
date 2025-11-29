@@ -18,10 +18,7 @@ odata_orgs:
     code: WABAY
     display_name: Batemans Bay
     is_primary: false
-  dd:
-    code: DESDR
-    display_name: Designer Drapes
-    is_primary: false
+  # DD (Designer Drapes) excluded - they don't receive leads
   wagga:
     code: KRCUR
     display_name: Wagga Wagga
