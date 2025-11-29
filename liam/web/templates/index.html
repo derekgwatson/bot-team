@@ -24,6 +24,9 @@
 
 <div class="card">
     <h3>Actions</h3>
+    <div id="backfill-status" style="display: none; padding: 10px 15px; background: #cce5ff; border-radius: 6px; margin-bottom: 15px; color: #004085;">
+        <strong>⏳ Backfill running...</strong> <span id="backfill-info"></span>
+    </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
         <button class="btn btn-primary" onclick="syncLeadData(this)">Sync Lead Data</button>
         <span class="text-muted">|</span>
@@ -34,7 +37,7 @@
             <option value="180">6 months</option>
             <option value="365">1 year</option>
         </select>
-        <button class="btn btn-success" onclick="backfillData(this)">Backfill Historical</button>
+        <button id="backfill-btn" class="btn btn-success" onclick="backfillData(this)">Backfill Historical</button>
     </div>
     <p class="text-muted" style="margin-top: 10px; font-size: 0.9em;">
         <strong>Sync:</strong> Gets yesterday's lead counts. <strong>Backfill:</strong> Populates historical data for analytics (skips dates already synced).
@@ -146,4 +149,49 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Check backfill status on page load and poll while running
+    let backfillPollInterval = null;
+
+    async function checkBackfillStatus() {
+        try {
+            const response = await fetch('/api/data/backfill/status');
+            const data = await response.json();
+
+            const statusDiv = document.getElementById('backfill-status');
+            const infoSpan = document.getElementById('backfill-info');
+            const backfillBtn = document.getElementById('backfill-btn');
+
+            if (data.running) {
+                statusDiv.style.display = 'block';
+                infoSpan.textContent = `(${data.days} days, started by ${data.started_by})`;
+                backfillBtn.disabled = true;
+                backfillBtn.textContent = 'Running...';
+
+                // Start polling if not already
+                if (!backfillPollInterval) {
+                    backfillPollInterval = setInterval(checkBackfillStatus, 3000);
+                }
+            } else {
+                statusDiv.style.display = 'none';
+                backfillBtn.disabled = false;
+                backfillBtn.textContent = 'Backfill Historical';
+
+                // Stop polling
+                if (backfillPollInterval) {
+                    clearInterval(backfillPollInterval);
+                    backfillPollInterval = null;
+                }
+            }
+        } catch (e) {
+            console.error('Error checking backfill status:', e);
+        }
+    }
+
+    // Check on page load
+    checkBackfillStatus();
+</script>
 {% endblock %}
