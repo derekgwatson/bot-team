@@ -660,6 +660,12 @@ def process_queue():
         db = get_db()
         peter_sync = get_peter_sync()
 
+        # Clean up any stuck 'processing' changes from previous failed runs
+        # This prevents UNIQUE constraint violations on (email, org_key, status)
+        stuck_count = db.reset_stuck_processing(older_than_minutes=10)
+        if stuck_count > 0:
+            logger.warning(f"Reset {stuck_count} stuck processing changes")
+
         # Get pending changes grouped by org
         if org_filter:
             changes_by_org = {org_filter: db.get_pending_changes(org_filter)}
