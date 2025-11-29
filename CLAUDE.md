@@ -853,6 +853,7 @@ Several bots need to handle operations that can take minutes or even hours (espe
 
 | Pattern | Bot | Use Case | Key Files |
 |---------|-----|----------|-----------|
+| **Fire-and-Forget API** | Nigel | Check all prices (results to DB) | `nigel/api/routes.py` |
 | **Job Queue (DB + Thread)** | Banji | Batch quote pricing refresh | `banji/services/job_processor.py`, `banji/database/db.py` |
 | **APScheduler** | Skye | Scheduled periodic tasks | `skye/services/scheduler.py` |
 | **Async/Sync Hybrid** | Ivy | Multi-stage sync with progress | `ivy/services/sync_service.py` |
@@ -860,6 +861,13 @@ Several bots need to handle operations that can take minutes or even hours (espe
 | **Simple Sync** | Doc, others | Quick one-off operations | Called by Skye on schedule |
 
 ### When to Use Which Pattern
+
+**Use Fire-and-Forget API pattern when:**
+- Results are logged to existing DB tables (not returned to caller)
+- No progress tracking needed (caller checks results via history endpoints)
+- Web UI and API should share the same job state
+- Only one job needs to run at a time (simple dict tracking)
+- Example: Nigel's "check all prices" - results go to price_checks table
 
 **Use Banji's Job Queue pattern when:**
 - Operations can take 10+ minutes (e.g., processing many quotes)
@@ -882,9 +890,73 @@ Several bots need to handle operations that can take minutes or even hours (espe
 - Called by Skye or other bots on a schedule
 - No need for progress tracking
 
+### Fire-and-Forget API Pattern (Nigel)
+
+For long-running operations where results are logged to the database (not returned to caller):
+
+```python
+# api/routes.py
+_running_job = {'thread': None, 'started_by': None}
+
+def _run_check_all_background(quotes, started_by):
+    """Background worker - logs results to DB."""
+    try:
+        # Do the long-running work...
+        for quote in quotes:
+            result = check_price(quote)
+            db.log_result(result)  # Results go to DB, not returned
+    finally:
+        _running_job['thread'] = None
+        _running_job['started_by'] = None
+
+@api_bp.route('/quotes/check-all', methods=['POST'])
+@api_key_required
+def check_all_quotes():
+    """Non-blocking - returns 202 immediately."""
+    if _running_job['thread'] and _running_job['thread'].is_alive():
+        return jsonify({'error': 'Already running'}), 409
+
+    quotes = db.get_all_quotes(active_only=True)
+    thread = threading.Thread(target=_run_check_all_background, args=(quotes, 'api'))
+    thread.start()
+    _running_job['thread'] = thread
+    _running_job['started_by'] = 'api'
+
+    return jsonify({'message': f'Started for {len(quotes)} quotes'}), 202
+```
+
+**Web UI shares the same state:**
+```python
+# web/routes.py
+from api.routes import _running_job, _run_check_all_background
+
+@web_bp.route('/check-all', methods=['POST'])
+@login_required
+def check_all():
+    if _running_job['thread'] and _running_job['thread'].is_alive():
+        flash('Already running', 'warning')
+        return redirect(url_for('web.index'))
+
+    # Use same background function as API
+    thread = threading.Thread(target=_run_check_all_background, args=(quotes, f'web:{user}'))
+    thread.start()
+    _running_job['thread'] = thread
+```
+
+**Key characteristics:**
+- Returns 202 Accepted immediately
+- Only one job runs at a time (simple dict tracking, not DB)
+- Results logged to existing DB tables (price_checks, discrepancies)
+- No job ID or polling - check results via existing history endpoints
+- Web UI and API share state to prevent duplicate runs
+
+**When to use this vs Banji's Job Queue:**
+- **Fire-and-forget**: Results go to existing DB tables, no progress tracking needed
+- **Job Queue**: Need job IDs, progress updates, or results returned to specific caller
+
 ### Job Queue Pattern (Banji)
 
-For long-running operations that would timeout over HTTP:
+For long-running operations with progress tracking and job results:
 
 ```python
 # 1. Caller submits job, gets ID immediately
