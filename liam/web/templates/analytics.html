@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - {{ config.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 30px;
+    }
+
+    .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .controls select, .controls button {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+        background: white;
+        font-size: 0.9em;
+    }
+
+    .controls select {
+        min-width: 150px;
+    }
+
+    .insight-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .insight-box h4 {
+        margin-bottom: 10px;
+        font-size: 1.2em;
+    }
+
+    .insight-box p {
+        margin: 5px 0;
+        opacity: 0.95;
+    }
+
+    .rankings-list {
+        list-style: none;
+    }
+
+    .rankings-list li {
+        padding: 15px;
+        margin-bottom: 10px;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .rank-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #0f3443;
+        margin-right: 15px;
+    }
+
+    .rank-info {
+        flex: 1;
+    }
+
+    .rank-value {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #0f3443;
+    }
+
+    .trend-indicator {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+
+    .trend-up { color: #28a745; }
+    .trend-down { color: #dc3545; }
+    .trend-flat { color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Marketing Analytics</h2>
+
+<div class="card">
+    <h3>Lead Trends</h3>
+    <div class="controls">
+        <label>
+            Store:
+            <select id="trend-org">
+                <option value="">All Stores Combined</option>
+                {% for org_key in org_keys %}
+                <option value="{{ org_key }}">{{ config.get_org_config(org_key).display_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Period:
+            <select id="trend-days">
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+        </label>
+        <button class="btn btn-primary" onclick="loadTrends()">Update Chart</button>
+        <button class="btn btn-success" onclick="collectData(this)">Collect Today's Data</button>
+    </div>
+    <div class="chart-container">
+        <canvas id="trendsChart"></canvas>
+    </div>
+</div>
+
+<div id="insights-container"></div>
+
+<div class="card">
+    <h3>Store Rankings (Last 7 Days)</h3>
+    <div id="rankings-container">
+        <p class="text-muted">Loading rankings...</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Day of Week Analysis</h3>
+    <div class="controls">
+        <label>
+            Store:
+            <select id="dow-org">
+                <option value="">All Stores</option>
+                {% for org_key in org_keys %}
+                <option value="{{ org_key }}">{{ config.get_org_config(org_key).display_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn btn-primary" onclick="loadDayOfWeek()">Update Chart</button>
+    </div>
+    <div class="chart-container">
+        <canvas id="dowChart"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Period Comparison</h3>
+    <div class="controls">
+        <label>
+            Store:
+            <select id="compare-org">
+                {% for org_key in org_keys %}
+                <option value="{{ org_key }}">{{ config.get_org_config(org_key).display_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Period:
+            <select id="compare-period">
+                <option value="week" selected>This Week vs Last Week</option>
+                <option value="month">This Month vs Last Month</option>
+            </select>
+        </label>
+        <button class="btn btn-primary" onclick="loadComparison()">Compare</button>
+    </div>
+    <div id="comparison-results"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let trendsChart = null;
+let dowChart = null;
+
+// Load trends chart on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadTrends();
+    loadRankings();
+    loadDayOfWeek();
+});
+
+async function collectData(button) {
+    button.disabled = true;
+    button.textContent = 'Collecting...';
+    hideMessage();
+
+    try {
+        const result = await apiCall('/api/data/collect', 'POST', {});
+        if (result.summary) {
+            showMessage(
+                `Data collected: ${result.summary.success} succeeded, ${result.summary.failed} failed`,
+                result.summary.failed > 0 ? 'warning' : 'success'
+            );
+            // Reload trends after collecting
+            setTimeout(() => loadTrends(), 1000);
+        }
+    } catch (e) {
+        showMessage('Collection error: ' + e.message, 'error');
+    }
+
+    button.disabled = false;
+    button.textContent = 'Collect Today\'s Data';
+}
+
+async function loadTrends() {
+    const org = document.getElementById('trend-org').value;
+    const days = document.getElementById('trend-days').value;
+
+    try {
+        const data = await apiCall(`/api/analytics/trends?org=${org}&days=${days}`);
+
+        if (org) {
+            // Single org - simple line chart
+            renderSingleOrgTrends(data);
+            loadInsights(org);
+        } else {
+            // All orgs - multi-line chart
+            renderMultiOrgTrends(data);
+        }
+    } catch (e) {
+        showMessage('Failed to load trends: ' + e.message, 'error');
+    }
+}
+
+function renderSingleOrgTrends(data) {
+    const ctx = document.getElementById('trendsChart').getContext('2d');
+
+    if (trendsChart) trendsChart.destroy();
+
+    trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: 'Leads',
+                data: data.counts,
+                borderColor: '#0f3443',
+                backgroundColor: 'rgba(15, 52, 67, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Total: ${data.total} | Average: ${data.average} per day | Max: ${data.max} | Min: ${data.min}`
+                },
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function renderMultiOrgTrends(data) {
+    const ctx = document.getElementById('trendsChart').getContext('2d');
+
+    if (trendsChart) trendsChart.destroy();
+
+    // Generate colors for each org
+    const colors = [
+        '#0f3443', '#38ef7d', '#667eea', '#764ba2',
+        '#f093fb', '#f5576c', '#fa709a', '#fee140'
+    ];
+
+    const datasets = Object.keys(data.orgs).map((orgKey, i) => {
+        const orgData = data.orgs[orgKey];
+        return {
+            label: orgKey,
+            data: orgData.counts,
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            tension: 0.4
+        };
+    });
+
+    trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Lead Trends by Store'
+                }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+async function loadInsights(orgKey) {
+    if (!orgKey) return;
+
+    try {
+        const comparison = await apiCall(`/api/analytics/compare?org=${orgKey}&period=week`);
+
+        const direction = comparison.change.direction;
+        const pct = Math.abs(comparison.change.percentage);
+        const emoji = direction === 'up' ? '📈' : direction === 'down' ? '📉' : '➡️';
+
+        const html = `
+            <div class="insight-box">
+                <h4>${emoji} This Week vs Last Week</h4>
+                <p>Current week (${comparison.current.start_date} to ${comparison.current.end_date}): <strong>${comparison.current.total} leads</strong></p>
+                <p>Previous week: ${comparison.previous.total} leads</p>
+                <p class="trend-indicator trend-${direction}">
+                    ${direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→'} ${pct}% ${direction === 'up' ? 'increase' : direction === 'down' ? 'decrease' : 'no change'}
+                </p>
+            </div>
+        `;
+
+        document.getElementById('insights-container').innerHTML = html;
+    } catch (e) {
+        console.error('Failed to load insights:', e);
+    }
+}
+
+async function loadRankings() {
+    try {
+        const data = await apiCall('/api/analytics/rankings?days=7');
+        const rankings = data.rankings;
+
+        let html = '<ul class="rankings-list">';
+        rankings.forEach(store => {
+            const medal = store.rank === 1 ? '🥇' : store.rank === 2 ? '🥈' : store.rank === 3 ? '🥉' : '';
+            html += `
+                <li>
+                    <span class="rank-number">${medal} #${store.rank}</span>
+                    <div class="rank-info">
+                        <div><strong>${store.display_name}</strong> ${store.is_primary ? '<span class="badge badge-primary">Primary</span>' : ''}</div>
+                        <div class="text-muted">${store.average_per_day} leads/day average</div>
+                    </div>
+                    <div class="rank-value">${store.total_leads}</div>
+                </li>
+            `;
+        });
+        html += '</ul>';
+
+        document.getElementById('rankings-container').innerHTML = html;
+    } catch (e) {
+        document.getElementById('rankings-container').innerHTML = '<p class="text-danger">Failed to load rankings</p>';
+    }
+}
+
+async function loadDayOfWeek() {
+    const org = document.getElementById('dow-org').value;
+
+    try {
+        const data = await apiCall(`/api/analytics/day-of-week?org=${org}&weeks=4`);
+
+        const ctx = document.getElementById('dowChart').getContext('2d');
+
+        if (dowChart) dowChart.destroy();
+
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const averages = days.map(day => data.by_day[day].average);
+
+        dowChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'Average Leads',
+                    data: averages,
+                    backgroundColor: '#0f3443'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Best day: ${data.best_day} | Worst day: ${data.worst_day}`
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    } catch (e) {
+        showMessage('Failed to load day-of-week data: ' + e.message, 'error');
+    }
+}
+
+async function loadComparison() {
+    const org = document.getElementById('compare-org').value;
+    const period = document.getElementById('compare-period').value;
+
+    try {
+        const data = await apiCall(`/api/analytics/compare?org=${org}&period=${period}`);
+
+        const direction = data.change.direction;
+        const pct = Math.abs(data.change.percentage);
+        const trendClass = `trend-${direction}`;
+
+        const html = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div class="stat-card">
+                    <div class="stat-label">Current ${period === 'week' ? 'Week' : 'Month'}</div>
+                    <div class="stat-value">${data.current.total}</div>
+                    <div class="text-muted">${data.current.average} per day</div>
+                    <div class="text-muted" style="font-size: 0.8em;">${data.current.start_date} to ${data.current.end_date}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Previous ${period === 'week' ? 'Week' : 'Month'}</div>
+                    <div class="stat-value">${data.previous.total}</div>
+                    <div class="text-muted">${data.previous.average} per day</div>
+                    <div class="text-muted" style="font-size: 0.8em;">${data.previous.start_date} to ${data.previous.end_date}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Change</div>
+                    <div class="stat-value ${trendClass}">
+                        ${direction === 'up' ? '+' : ''}${data.change.absolute}
+                    </div>
+                    <div class="${trendClass}">
+                        ${direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→'} ${pct}%
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('comparison-results').innerHTML = html;
+    } catch (e) {
+        showMessage('Failed to load comparison: ' + e.message, 'error');
+    }
+}
+</script>
+{% endblock %}

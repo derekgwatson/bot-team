@@ -295,6 +295,8 @@
         <nav>
             <ul>
                 <li><a href="{{ url_for('web.index') }}" class="{% if request.endpoint == 'web.index' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="{{ url_for('web.analytics') }}" class="{% if request.endpoint == 'web.analytics' %}active{% endif %}">Analytics</a></li>
+                <li><a href="{{ url_for('web.campaigns') }}" class="{% if request.endpoint == 'web.campaigns' %}active{% endif %}">Campaigns</a></li>
                 <li><a href="{{ url_for('web.history') }}" class="{% if request.endpoint == 'web.history' %}active{% endif %}">History</a></li>
             </ul>
         </nav>

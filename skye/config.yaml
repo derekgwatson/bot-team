@@ -168,6 +168,20 @@ job_templates:
       hour: "7"
       minute: "0"
 
+  liam_data_collect:
+    name: "Liam Lead Data Collection"
+    description: "Collect daily lead counts for marketing analytics"
+    target_bot: "liam"
+    endpoint: "/api/data/collect"
+    method: "POST"
+    # Daily at 7:05am (just after verification runs)
+    # Collects actual lead counts and stores them for trend analysis
+    # Used by marketing dashboard for insights and comparisons
+    schedule:
+      type: "cron"
+      hour: "7"
+      minute: "5"
+
 # Admin access configuration
 admin:
   emails:
