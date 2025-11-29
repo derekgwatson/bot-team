@@ -112,3 +112,29 @@ def history():
         org_keys=config.available_orgs,
         selected_org=selected_org
     )
+
+
+@web_bp.route('/analytics')
+@login_required
+def analytics():
+    """Analytics dashboard with trends and insights."""
+    return render_template(
+        'analytics.html',
+        config=config,
+        org_keys=config.available_orgs
+    )
+
+
+@web_bp.route('/campaigns')
+@login_required
+def campaigns():
+    """Marketing campaigns management page."""
+    # Get all marketing events
+    events = leads_db.get_marketing_events()
+
+    return render_template(
+        'campaigns.html',
+        config=config,
+        events=events,
+        org_keys=config.available_orgs
+    )
