@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ config.name }}{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #0f3443 0%, #34e89e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .user-info a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: #0f3443;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        nav a:hover, nav a.active {
+            background: #0f3443;
+            color: white;
+        }
+
+        main {
+            padding: 30px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #0f3443;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #0f3443;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #0f3443;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-ok, .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-alert, .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-skipped {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .badge-primary {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background: #0f3443;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #0f3443;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a4a5e;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.85em;
+        }
+
+        .flash {
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .flash-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .flash-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .flash-info {
+            background: #cce5ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+
+        .text-muted {
+            color: #6c757d;
+        }
+
+        .text-success {
+            color: #28a745;
+        }
+
+        .text-danger {
+            color: #dc3545;
+        }
+
+        .text-warning {
+            color: #856404;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #6c757d;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header style="position: relative;">
+            <h1>{{ config.name }}</h1>
+            <p>{{ config.description }}</p>
+            {% if current_user.is_authenticated %}
+            <div class="user-info">
+                {{ current_user.name }} | <a href="{{ url_for('gateway_auth.logout') }}">Logout</a>
+            </div>
+            {% endif %}
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('web.index') }}" class="{% if request.endpoint == 'web.index' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="{{ url_for('web.history') }}" class="{% if request.endpoint == 'web.history' %}active{% endif %}">History</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div id="js-message" class="flash" style="display: none;"></div>
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            <p>{{ config.name }} v{{ config.version }} | {{ config.personality }}</p>
+        </footer>
+    </div>
+
+    <script>
+        function showMessage(text, type = 'info') {
+            const msgDiv = document.getElementById('js-message');
+            if (msgDiv) {
+                msgDiv.className = 'flash flash-' + type;
+                msgDiv.textContent = text;
+                msgDiv.style.display = 'block';
+                msgDiv.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }
+        }
+
+        function hideMessage() {
+            const msgDiv = document.getElementById('js-message');
+            if (msgDiv) {
+                msgDiv.style.display = 'none';
+            }
+        }
+
+        async function apiCall(url, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {'Content-Type': 'application/json'}
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(url, options);
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`Server returned non-JSON response (${response.status})`);
+            }
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+            return data;
+        }
+
+        async function runVerification(button) {
+            hideMessage();
+            button.classList.add('loading');
+            button.disabled = true;
+            button.textContent = 'Verifying...';
+
+            try {
+                const result = await apiCall('/api/leads/verify', 'POST', {});
+                if (result.summary) {
+                    const s = result.summary;
+                    showMessage(
+                        `Verification complete: ${s.ok} ok, ${s.alert} alerts, ${s.error} errors, ${s.skipped} skipped`,
+                        s.alert > 0 || s.error > 0 ? 'warning' : 'success'
+                    );
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (e) {
+                showMessage('Verification error: ' + e.message, 'error');
+            }
+
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.textContent = 'Run Verification Now';
+        }
+
+        async function testConnections(button) {
+            hideMessage();
+            button.classList.add('loading');
+            button.disabled = true;
+            button.textContent = 'Testing...';
+
+            try {
+                const result = await apiCall('/api/test-connections', 'POST', {});
+                const results = result.results || {};
+                const entries = Object.entries(results);
+                const success = entries.filter(([k, v]) => v.success);
+                const failed = entries.filter(([k, v]) => !v.success);
+
+                let message = '';
+                if (failed.length > 0) {
+                    const failedOrgs = failed.map(([k, v]) => `${v.org_code || k}: ${v.error}`).join('; ');
+                    message = `Connection test: ${success.length} ok, ${failed.length} failed. Failed: ${failedOrgs}`;
+                    showMessage(message, 'error');
+                } else {
+                    message = `All ${success.length} connections successful`;
+                    showMessage(message, 'success');
+                }
+                // No reload - just show the results
+            } catch (e) {
+                showMessage('Test error: ' + e.message, 'error');
+            }
+
+            button.classList.remove('loading');
+            button.disabled = false;
+            button.textContent = 'Test Connections';
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -152,6 +152,22 @@ job_templates:
       hour: "6"
       minute: "30"
 
+  liam_leads_verify:
+    name: "Liam Leads Verification"
+    description: "Verify leads were recorded in Buz OData for all stores"
+    target_bot: "liam"
+    endpoint: "/api/leads/verify"
+    method: "POST"
+    body:
+      create_tickets: true  # Create Zendesk tickets for zero-lead alerts
+    # Daily at 7am (check yesterday's leads after stores have closed)
+    # Skips weekends automatically (configured in Liam)
+    # Creates IT tickets if zero leads detected on a weekday
+    schedule:
+      type: "cron"
+      hour: "7"
+      minute: "0"
+
 # Admin access configuration
 admin:
   emails:
