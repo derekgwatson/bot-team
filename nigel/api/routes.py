@@ -1,5 +1,6 @@
 """API routes for Nigel - Quote Price Monitor."""
 
+import threading
 from flask import Blueprint, request, jsonify
 from shared.auth.bot_api import api_key_required
 from database.db import db
@@ -10,6 +11,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 api_bp = Blueprint('api', __name__)
+
+# Track running background job (only one check-all at a time)
+_running_job = {'thread': None, 'started_by': None}
 
 
 @api_bp.route('/intro', methods=['GET'])
@@ -291,117 +295,165 @@ def check_quote_price():
         }), 500
 
 
+def _run_check_all_background(quotes, started_by):
+    """
+    Run price check in background thread.
+
+    This is the actual work - processes all quotes and logs results to the database.
+    Results are visible in the Price Checks history page.
+    """
+    global _running_job
+    try:
+        logger.info(f"Background price check started by {started_by} for {len(quotes)} quotes")
+
+        # Build a lookup map for quick access to quote data
+        quotes_map = {q['quote_id']: q for q in quotes}
+
+        # Use batch checking - groups by org automatically
+        checker = PriceChecker()
+        batch_results = checker.check_prices_multi_org([
+            {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
+        ])
+
+        results = {'checked': 0, 'discrepancies': 0, 'errors': 0}
+
+        # Process each result
+        for result in batch_results:
+            quote_id = result['quote_id']
+            org = result['org']
+            quote = quotes_map.get(quote_id)
+
+            if result['success']:
+                current_price = result['price_after']
+                has_discrepancy = False
+                discrepancy_amount = None
+
+                if quote and quote['last_known_price']:
+                    has_discrepancy, discrepancy_amount = compare_prices(
+                        quote['last_known_price'],
+                        current_price
+                    )
+
+                    if has_discrepancy:
+                        db.create_discrepancy(
+                            quote_id=quote_id,
+                            org=org,
+                            expected_price=quote['last_known_price'],
+                            actual_price=current_price,
+                            difference=discrepancy_amount
+                        )
+                        results['discrepancies'] += 1
+
+                db.update_quote_price(quote_id, current_price)
+                db.log_price_check(
+                    quote_id=quote_id,
+                    org=org,
+                    status='success',
+                    price_before=result['price_before'],
+                    price_after=result['price_after'],
+                    has_discrepancy=has_discrepancy,
+                    discrepancy_amount=discrepancy_amount,
+                    banji_response=result['raw_response']
+                )
+                results['checked'] += 1
+            else:
+                db.log_price_check(
+                    quote_id=quote_id,
+                    org=org,
+                    status='error',
+                    error_message=result['error']
+                )
+                db.update_quote_checked(quote_id)
+                results['errors'] += 1
+
+        logger.info(
+            f"Background price check completed by {started_by}: "
+            f"{results['checked']}/{len(quotes)} successful, "
+            f"{results['discrepancies']} discrepancies, {results['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.exception(f"Background price check failed: {e}")
+    finally:
+        # Clear running job state
+        _running_job['thread'] = None
+        _running_job['started_by'] = None
+
+
 @api_bp.route('/quotes/check-all', methods=['POST'])
 @api_key_required
 def check_all_quotes():
     """
-    Check prices for all active monitored quotes.
+    Start a background price check for all active monitored quotes.
 
-    Uses Banji's batch endpoint for efficiency - one browser session per org.
+    This is a non-blocking endpoint - it returns immediately after starting
+    the background job. The actual price checking runs asynchronously via
+    Banji's job queue, and results are logged to the database.
 
-    Returns summary of results.
+    Check the /history endpoint or Price Checks page for results.
+
+    Returns:
+        202 Accepted with message if job started
+        409 Conflict if a job is already running
     """
+    global _running_job
+
+    # Check if a job is already running
+    if _running_job['thread'] is not None and _running_job['thread'].is_alive():
+        return jsonify({
+            'success': False,
+            'error': 'A price check is already running',
+            'started_by': _running_job['started_by']
+        }), 409
+
     quotes = db.get_all_quotes(active_only=True)
 
     if not quotes:
         return jsonify({
             'success': True,
             'message': 'No active quotes to check',
-            'results': {
-                'total': 0,
-                'checked': 0,
-                'discrepancies': 0,
-                'errors': 0
-            }
+            'total': 0
         })
 
-    # Build a lookup map for quick access to quote data
-    quotes_map = {q['quote_id']: q for q in quotes}
-
-    # Use batch checking - groups by org automatically
-    checker = PriceChecker()
-    batch_results = checker.check_prices_multi_org([
-        {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
-    ])
-
-    results = {
-        'total': len(quotes),
-        'checked': 0,
-        'discrepancies': 0,
-        'errors': 0,
-        'details': []
-    }
-
-    # Process each result
-    for result in batch_results:
-        quote_id = result['quote_id']
-        org = result['org']
-        quote = quotes_map.get(quote_id)
-
-        if result['success']:
-            current_price = result['price_after']
-            has_discrepancy = False
-            discrepancy_amount = None
-
-            if quote and quote['last_known_price']:
-                has_discrepancy, discrepancy_amount = compare_prices(
-                    quote['last_known_price'],
-                    current_price
-                )
-
-                if has_discrepancy:
-                    db.create_discrepancy(
-                        quote_id=quote_id,
-                        org=org,
-                        expected_price=quote['last_known_price'],
-                        actual_price=current_price,
-                        difference=discrepancy_amount
-                    )
-                    results['discrepancies'] += 1
-
-            db.update_quote_price(quote_id, current_price)
-            db.log_price_check(
-                quote_id=quote_id,
-                org=org,
-                status='success',
-                price_before=result['price_before'],
-                price_after=result['price_after'],
-                has_discrepancy=has_discrepancy,
-                discrepancy_amount=discrepancy_amount,
-                banji_response=result['raw_response']
-            )
-
-            results['checked'] += 1
-            results['details'].append({
-                'quote_id': quote_id,
-                'success': True,
-                'price': current_price,
-                'has_discrepancy': has_discrepancy
-            })
-        else:
-            db.log_price_check(
-                quote_id=quote_id,
-                org=org,
-                status='error',
-                error_message=result['error']
-            )
-            db.update_quote_checked(quote_id)
-
-            results['errors'] += 1
-            results['details'].append({
-                'quote_id': quote_id,
-                'success': False,
-                'error': result['error']
-            })
-
-    logger.info(
-        f"Batch price check complete: {results['checked']}/{results['total']} successful, "
-        f"{results['discrepancies']} discrepancies, {results['errors']} errors"
+    # Start background thread
+    started_by = 'api'  # Could be enhanced to track caller
+    thread = threading.Thread(
+        target=_run_check_all_background,
+        args=(quotes, started_by),
+        daemon=True
     )
+    thread.start()
+
+    _running_job['thread'] = thread
+    _running_job['started_by'] = started_by
+
+    logger.info(f"Started background price check for {len(quotes)} quotes")
 
     return jsonify({
         'success': True,
-        'results': results
+        'message': f'Price check started for {len(quotes)} quotes',
+        'total': len(quotes),
+        'note': 'Check /api/history or Price Checks page for results'
+    }), 202  # 202 Accepted
+
+
+@api_bp.route('/quotes/check-all/status', methods=['GET'])
+@api_key_required
+def check_all_status():
+    """
+    Check if a price check job is currently running.
+
+    Returns:
+        {
+            "running": true/false,
+            "started_by": "api" or null
+        }
+    """
+    is_running = _running_job['thread'] is not None and _running_job['thread'].is_alive()
+    return jsonify({
+        'success': True,
+        'running': is_running,
+        'started_by': _running_job['started_by'] if is_running else None
     })
 
 

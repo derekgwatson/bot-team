@@ -12,6 +12,10 @@ from services.price_checker import PriceChecker, compare_prices
 from config import config
 import logging
 
+# Import API's background job state (single source of truth)
+from api.routes import _running_job, _run_check_all_background
+import threading
+
 logger = logging.getLogger(__name__)
 
 
@@ -414,7 +418,17 @@ def resolve_discrepancy(discrepancy_id: int):
 @web_bp.route('/check-all', methods=['POST'])
 @login_required
 def check_all():
-    """Check prices for all active quotes using batch endpoint"""
+    """
+    Start background price check for all active quotes.
+
+    Uses the same background job mechanism as the API endpoint,
+    ensuring only one check runs at a time across web UI and API.
+    """
+    # Check if a job is already running (shared state with API)
+    if _running_job['thread'] is not None and _running_job['thread'].is_alive():
+        flash('A price check is already running. Please wait for it to complete.', 'warning')
+        return redirect(url_for('web.index'))
+
     try:
         quotes = db.get_all_quotes(active_only=True)
 
@@ -422,77 +436,24 @@ def check_all():
             flash('No active quotes to check', 'warning')
             return redirect(url_for('web.index'))
 
-        # Build a lookup map for quick access to quote data
-        quotes_map = {q['quote_id']: q for q in quotes}
+        # Start background thread using shared API function
+        started_by = f'web:{current_user.email}'
+        thread = threading.Thread(
+            target=_run_check_all_background,
+            args=(quotes, started_by),
+            daemon=True
+        )
+        thread.start()
 
-        # Use batch checking - groups by org automatically for efficiency
-        checker = PriceChecker()
-        batch_results = checker.check_prices_multi_org([
-            {'quote_id': q['quote_id'], 'org': q['org']} for q in quotes
-        ])
+        # Update shared state
+        _running_job['thread'] = thread
+        _running_job['started_by'] = started_by
 
-        results = {'checked': 0, 'discrepancies': 0, 'errors': 0}
-
-        for result in batch_results:
-            quote_id = result['quote_id']
-            org = result['org']
-            quote = quotes_map.get(quote_id)
-
-            if result['success']:
-                current_price = result['price_after']
-                has_discrepancy = False
-                discrepancy_amount = None
-
-                if quote and quote['last_known_price']:
-                    has_discrepancy, discrepancy_amount = compare_prices(
-                        quote['last_known_price'],
-                        current_price
-                    )
-
-                    if has_discrepancy:
-                        db.create_discrepancy(
-                            quote_id=quote_id,
-                            org=org,
-                            expected_price=quote['last_known_price'],
-                            actual_price=current_price,
-                            difference=discrepancy_amount
-                        )
-                        results['discrepancies'] += 1
-
-                db.update_quote_price(quote_id, current_price)
-                db.log_price_check(
-                    quote_id=quote_id,
-                    org=org,
-                    status='success',
-                    price_before=result['price_before'],
-                    price_after=result['price_after'],
-                    has_discrepancy=has_discrepancy,
-                    discrepancy_amount=discrepancy_amount,
-                    banji_response=result['raw_response']
-                )
-                results['checked'] += 1
-            else:
-                db.log_price_check(
-                    quote_id=quote_id,
-                    org=org,
-                    status='error',
-                    error_message=result['error']
-                )
-                db.update_quote_checked(quote_id)
-                results['errors'] += 1
-
-        logger.info(f"Batch price check by {current_user.email}: {results}")
-
-        if results['discrepancies'] > 0:
-            flash(f'Checked {results["checked"]} quotes. Found {results["discrepancies"]} discrepancies!', 'warning')
-        elif results['errors'] > 0:
-            flash(f'Checked {results["checked"]} quotes with {results["errors"]} errors', 'warning')
-        else:
-            flash(f'Checked {results["checked"]} quotes. No discrepancies found.', 'success')
-
+        logger.info(f"Web UI: Started background price check for {len(quotes)} quotes by {current_user.email}")
+        flash(f'Price check started for {len(quotes)} quotes. Check the Price Checks page for results.', 'info')
         return redirect(url_for('web.index'))
 
     except Exception as e:
-        logger.exception("Error checking all quotes")
+        logger.exception("Error starting price check")
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('web.index'))
