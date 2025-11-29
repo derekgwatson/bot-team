@@ -795,6 +795,34 @@ class UserDatabase:
         conn.close()
         return deleted
 
+    def reset_stuck_processing(self, older_than_minutes: int = 10) -> int:
+        """
+        Reset 'processing' changes that are stuck (no update in X minutes).
+
+        This handles cases where a previous queue run crashed/failed mid-processing,
+        leaving changes in 'processing' status. These would cause UNIQUE constraint
+        violations when trying to process new pending changes for the same user/org.
+
+        Args:
+            older_than_minutes: How many minutes old before considering stuck
+
+        Returns:
+            Number of changes reset to 'pending'
+        """
+        conn = self.get_connection()
+        cursor = conn.execute('''
+            UPDATE pending_changes
+            SET status = 'failed',
+                processed_at = CURRENT_TIMESTAMP,
+                error_message = 'Reset: stuck in processing state'
+            WHERE status = 'processing'
+            AND requested_at < datetime('now', ? || ' minutes')
+        ''', (f'-{older_than_minutes}',))
+        reset_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return reset_count
+
     def get_pending_change_by_id(self, change_id: int) -> Optional[Dict[str, Any]]:
         """Get a pending change by its ID."""
         conn = self.get_connection()
