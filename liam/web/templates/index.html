@@ -25,9 +25,11 @@
 <div class="card">
     <h3>Actions</h3>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="btn btn-primary" onclick="runVerification(this)">Run Verification Now</button>
-        <button class="btn btn-success" onclick="testConnections(this)">Test Connections</button>
+        <button class="btn btn-primary" onclick="syncLeadData(this)">Sync Lead Data</button>
     </div>
+    <p class="text-muted" style="margin-top: 10px; font-size: 0.9em;">
+        Syncs yesterday's lead counts from all stores. Successfully syncing verifies the OData connection is working.
+    </p>
 </div>
 
 <div class="card">

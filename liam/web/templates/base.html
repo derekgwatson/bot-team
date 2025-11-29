@@ -359,61 +359,40 @@
             return data;
         }
 
-        async function runVerification(button) {
+        async function syncLeadData(button) {
             hideMessage();
             button.classList.add('loading');
             button.disabled = true;
-            button.textContent = 'Verifying...';
+            button.textContent = 'Syncing...';
 
             try {
-                const result = await apiCall('/api/leads/verify', 'POST', {});
+                const result = await apiCall('/api/data/collect', 'POST', {});
                 if (result.summary) {
                     const s = result.summary;
-                    showMessage(
-                        `Verification complete: ${s.ok} ok, ${s.alert} alerts, ${s.error} errors, ${s.skipped} skipped`,
-                        s.alert > 0 || s.error > 0 ? 'warning' : 'success'
-                    );
+                    const totalLeads = Object.values(result.orgs || {})
+                        .filter(o => o.success)
+                        .reduce((sum, o) => sum + (o.lead_count || 0), 0);
+
+                    if (s.failed > 0) {
+                        showMessage(
+                            `Sync complete: ${s.success} stores synced (${totalLeads} leads), ${s.failed} failed`,
+                            'warning'
+                        );
+                    } else {
+                        showMessage(
+                            `Sync complete: ${s.success} stores synced, ${totalLeads} leads collected`,
+                            'success'
+                        );
+                    }
                     setTimeout(() => location.reload(), 1500);
                 }
             } catch (e) {
-                showMessage('Verification error: ' + e.message, 'error');
+                showMessage('Sync error: ' + e.message, 'error');
             }
 
             button.classList.remove('loading');
             button.disabled = false;
-            button.textContent = 'Run Verification Now';
-        }
-
-        async function testConnections(button) {
-            hideMessage();
-            button.classList.add('loading');
-            button.disabled = true;
-            button.textContent = 'Testing...';
-
-            try {
-                const result = await apiCall('/api/test-connections', 'POST', {});
-                const results = result.results || {};
-                const entries = Object.entries(results);
-                const success = entries.filter(([k, v]) => v.success);
-                const failed = entries.filter(([k, v]) => !v.success);
-
-                let message = '';
-                if (failed.length > 0) {
-                    const failedOrgs = failed.map(([k, v]) => `${v.org_code || k}: ${v.error}`).join('; ');
-                    message = `Connection test: ${success.length} ok, ${failed.length} failed. Failed: ${failedOrgs}`;
-                    showMessage(message, 'error');
-                } else {
-                    message = `All ${success.length} connections successful`;
-                    showMessage(message, 'success');
-                }
-                // No reload - just show the results
-            } catch (e) {
-                showMessage('Test error: ' + e.message, 'error');
-            }
-
-            button.classList.remove('loading');
-            button.disabled = false;
-            button.textContent = 'Test Connections';
+            button.textContent = 'Sync Lead Data';
         }
     </script>
 
